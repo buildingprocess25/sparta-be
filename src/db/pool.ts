@@ -2,7 +2,10 @@ import { Pool, type PoolClient } from "pg";
 import { env } from "../config/env";
 
 export const pool = new Pool({
-    connectionString: env.DATABASE_URL
+    connectionString: env.DATABASE_URL,
+    ssl: {
+        rejectUnauthorized: false
+    }
 });
 
 export const withTransaction = async <T>(
