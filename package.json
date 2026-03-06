@@ -1,0 +1,30 @@
+{
+    "name": "sparta-api",
+    "version": "1.0.0",
+    "private": true,
+    "description": "Sparta API (Node.js + TypeScript) with PostgreSQL",
+    "main": "dist/index.js",
+    "scripts": {
+        "dev": "tsx watch src/index.ts",
+        "build": "tsc -p tsconfig.json",
+        "start": "node dist/index.js",
+        "typecheck": "tsc --noEmit -p tsconfig.json"
+    },
+    "dependencies": {
+        "cors": "^2.8.5",
+        "dotenv": "^16.4.5",
+        "express": "^4.21.2",
+        "pdfkit": "^0.17.2",
+        "pg": "^8.16.3",
+        "zod": "^3.24.1"
+    },
+    "devDependencies": {
+        "@types/cors": "^2.8.17",
+        "@types/express": "^4.17.21",
+        "@types/node": "^22.18.6",
+        "@types/pdfkit": "^0.17.2",
+        "@types/pg": "^8.11.10",
+        "tsx": "^4.20.5",
+        "typescript": "^5.9.2"
+    }
+}
