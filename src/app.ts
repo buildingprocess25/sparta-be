@@ -5,6 +5,7 @@ import { env } from "./config/env";
 import { AppError } from "./common/app-error";
 import { tokoRouter } from "./modules/toko/toko.routes";
 import { rabRouter } from "./modules/rab/rab.routes";
+import { spkRouter } from "./modules/spk/spk.routes";
 
 const app = express();
 
@@ -21,6 +22,7 @@ app.get("/health", (_req, res) => {
 
 app.use("/api/toko", tokoRouter);
 app.use("/api/rab", rabRouter);
+app.use("/api/spk", spkRouter);
 
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     if (error instanceof ZodError) {
