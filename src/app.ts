@@ -6,6 +6,8 @@ import { AppError } from "./common/app-error";
 import { tokoRouter } from "./modules/toko/toko.routes";
 import { rabRouter } from "./modules/rab/rab.routes";
 import { spkRouter } from "./modules/spk/spk.routes";
+import { documentRouter } from "./modules/document/document.routes";
+
 
 const app = express();
 
@@ -14,7 +16,7 @@ const corsOrigins = env.CORS_ORIGINS === "*"
     : env.CORS_ORIGINS.split(",").map((item) => item.trim());
 
 app.use(cors({ origin: corsOrigins }));
-app.use(express.json({ limit: "4mb" }));
+app.use(express.json({ limit: "50mb" }));
 
 app.get("/health", (_req, res) => {
     res.json({ ok: true, service: "sparta-api" });
@@ -23,6 +25,7 @@ app.get("/health", (_req, res) => {
 app.use("/api/toko", tokoRouter);
 app.use("/api/rab", rabRouter);
 app.use("/api/spk", spkRouter);
+app.use("/api/doc", documentRouter);
 
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     if (error instanceof ZodError) {
