@@ -8,6 +8,7 @@ import { rabRouter } from "./modules/rab/rab.routes";
 import { spkRouter } from "./modules/spk/spk.routes";
 import { documentRouter } from "./modules/document/document.routes";
 import { dokumentasiRouter } from "./modules/dokumentasi/dokumentasi.routes";
+import { loginUserCabang } from "./modules/toko/toko.controller";
 
 
 
@@ -25,6 +26,7 @@ app.get("/health", (_req, res) => {
 });
 
 app.use("/api/toko", tokoRouter);
+app.post("/api/auth/login", loginUserCabang);
 app.use("/api/rab", rabRouter);
 app.use("/api/spk", spkRouter);
 app.use("/api/doc", documentRouter);

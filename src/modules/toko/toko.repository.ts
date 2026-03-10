@@ -9,6 +9,14 @@ export type TokoRow = {
     alamat: string;
 };
 
+export type UserCabangRow = {
+    cabang: string;
+    nama_lengkap: string;
+    jabatan: string;
+    email_sat: string;
+    nama_pt: string;
+};
+
 export const tokoRepository = {
     async create(input: CreateTokoInput): Promise<TokoRow> {
         const result = await pool.query<TokoRow>(
@@ -57,5 +65,34 @@ export const tokoRepository = {
         );
 
         return result.rows;
+    },
+
+    async findUserCabangByEmailSat(emailSat: string): Promise<UserCabangRow | null> {
+        const result = await pool.query<UserCabangRow>(
+            `
+      SELECT cabang, nama_lengkap, jabatan, email_sat, nama_pt
+      FROM user_cabang
+      WHERE LOWER(email_sat) = LOWER($1)
+      LIMIT 1
+      `,
+            [emailSat]
+        );
+
+        return result.rows[0] ?? null;
+    },
+
+    async findUserCabangByEmailSatAndCabang(emailSat: string, cabang: string): Promise<UserCabangRow | null> {
+        const result = await pool.query<UserCabangRow>(
+            `
+      SELECT cabang, nama_lengkap, jabatan, email_sat, nama_pt
+      FROM user_cabang
+      WHERE LOWER(email_sat) = LOWER($1)
+        AND LOWER(cabang) = LOWER($2)
+      LIMIT 1
+      `,
+            [emailSat, cabang]
+        );
+
+        return result.rows[0] ?? null;
     }
 };

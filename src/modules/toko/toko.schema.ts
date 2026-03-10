@@ -9,3 +9,10 @@ export const createTokoSchema = z.object({
 });
 
 export type CreateTokoInput = z.infer<typeof createTokoSchema>;
+
+export const loginUserCabangSchema = z.object({
+    email_sat: z.string().trim().email(),
+    cabang: z.string().trim().min(1)
+});
+
+export type LoginUserCabangInput = z.infer<typeof loginUserCabangSchema>;

@@ -1,6 +1,6 @@
 import { AppError } from "../../common/app-error";
 import { tokoRepository } from "./toko.repository";
-import type { CreateTokoInput } from "./toko.schema";
+import type { CreateTokoInput, LoginUserCabangInput } from "./toko.schema";
 
 export const tokoService = {
     async create(input: CreateTokoInput) {
@@ -18,5 +18,22 @@ export const tokoService = {
 
     async list(search?: string) {
         return tokoRepository.findAll(search);
+    },
+
+    async loginUserCabang(input: LoginUserCabangInput) {
+        const emailSat = input.email_sat.trim();
+        const cabang = input.cabang.trim();
+
+        const registeredUser = await tokoRepository.findUserCabangByEmailSat(emailSat);
+        if (!registeredUser) {
+            throw new AppError("email belum terdaftar", 404);
+        }
+
+        const matchedUser = await tokoRepository.findUserCabangByEmailSatAndCabang(emailSat, cabang);
+        if (!matchedUser) {
+            throw new AppError("password salah", 401);
+        }
+
+        return matchedUser;
     }
 };
