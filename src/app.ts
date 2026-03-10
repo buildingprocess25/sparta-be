@@ -7,6 +7,8 @@ import { tokoRouter } from "./modules/toko/toko.routes";
 import { rabRouter } from "./modules/rab/rab.routes";
 import { spkRouter } from "./modules/spk/spk.routes";
 import { documentRouter } from "./modules/document/document.routes";
+import { dokumentasiRouter } from "./modules/dokumentasi/dokumentasi.routes";
+
 
 
 const app = express();
@@ -26,6 +28,7 @@ app.use("/api/toko", tokoRouter);
 app.use("/api/rab", rabRouter);
 app.use("/api/spk", spkRouter);
 app.use("/api/doc", documentRouter);
+app.use("/api/dok", dokumentasiRouter);
 
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     if (error instanceof ZodError) {

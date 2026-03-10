@@ -1,4 +1,4 @@
-import { google, type sheets_v4, type drive_v3 } from "googleapis";
+import { google, type sheets_v4, type drive_v3, type gmail_v1 } from "googleapis";
 import fs from "fs";
 import path from "path";
 import { Readable } from "stream";
@@ -101,6 +101,8 @@ export async function withGoogleRetry<T>(
 export class GoogleProvider {
     // Sparta (untuk login – baca sheet Cabang)
     spartaSheets: sheets_v4.Sheets | null = null;
+    spartaDrive: drive_v3.Drive | null = null;
+    spartaGmail: gmail_v1.Gmail | null = null;
     // Doc (untuk document CRUD – sheet + drive)
     docSheets: sheets_v4.Sheets | null = null;
     docDrive: drive_v3.Drive | null = null;
@@ -121,6 +123,8 @@ export class GoogleProvider {
             try {
                 const spartaAuth = loadOAuth2Client(spartaTokenPath);
                 this.spartaSheets = google.sheets({ version: "v4", auth: spartaAuth });
+                this.spartaDrive = google.drive({ version: "v3", auth: spartaAuth });
+                this.spartaGmail = google.gmail({ version: "v1", auth: spartaAuth });
                 console.log("✅ Service Sparta (Sheets) Berhasil.");
             } catch (e) {
                 console.error("⚠️ Warning: Token Sparta gagal dimuat:", e);
@@ -166,6 +170,17 @@ export class GoogleProvider {
             });
             return record;
         });
+    }
+
+    /** Ambil raw rows (termasuk header + data), berguna saat header duplikat */
+    async getAllValues(
+        sheets: sheets_v4.Sheets,
+        spreadsheetId: string,
+        sheetName: string,
+    ): Promise<string[][]> {
+        const res = await sheets.spreadsheets.values.get({ spreadsheetId, range: sheetName });
+        const rows = (res.data.values || []) as string[][];
+        return rows;
     }
 
     /** Sama dg gspread append_row() */
@@ -336,5 +351,27 @@ export class GoogleProvider {
         const query = `'${parentId}' in parents and trashed = false and mimeType = 'application/vnd.google-apps.folder'`;
         const res = await drive.files.list({ q: query, fields: "files(id, name)" });
         return (res.data.files || []).map((f: any) => ({ id: f.id!, name: f.name! }));
+    }
+
+    /** Cari file berdasarkan nama di folder tertentu */
+    async listFilesByNameInFolder(folderId: string, filename: string): Promise<{ id: string }[]> {
+        const drive = this.ensureDocDrive();
+        const safeName = filename.replace(/'/g, "\\'");
+        const query = `name='${safeName}' and '${folderId}' in parents and trashed=false`;
+        const res = await drive.files.list({ q: query, fields: "files(id)" });
+        return (res.data.files || []).map((f: any) => ({ id: f.id! }));
+    }
+
+    /** Stream file via Drive API; return null jika gagal */
+    async getFileBufferById(drive: drive_v3.Drive, fileId: string): Promise<Buffer | null> {
+        try {
+            const resp = await drive.files.get(
+                { fileId, alt: "media" },
+                { responseType: "arraybuffer" },
+            );
+            return Buffer.from(resp.data as ArrayBuffer);
+        } catch {
+            return null;
+        }
     }
 }

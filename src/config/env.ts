@@ -15,6 +15,16 @@ const envSchema = z.object({
     DOC_SPREADSHEET_ID: z.string().default("1bEslAY1gGm1QgYl_ZL88_rt5z-errU7HU3GkqbWcNOw"),
     DOC_DRIVE_ROOT_ID: z.string().default("14hjuP33ez1v1WDxkTi7A3k-XfKOZKVTc"),
     DOC_SHEET_NAME: z.string().default("penyimpanan_dokumen"),
+
+    // Google credentials / config - dokumentasi bangunan
+    DOC_BANGUNAN_SPREADSHEET_ID: z.string().default("1LA1TlhgltT2bqSN3H-LYasq9PtInVlqq98VPru8txoo"),
+    DOC_BANGUNAN_DRIVE_FOLDER_ID: z.string().default("1ZTHC7vvvKOIejATqAYeluxfVDaGax1cd"),
+    DOC_BANGUNAN_DEFAULT_PHOTO_ID: z.string().default("14x-tF0TDAZA9t4lbk6GrHXL8RccxxnjQ"),
+    DOC_BANGUNAN_SHEET_TEMP: z.string().default("dokumentasi_temp"),
+    DOC_BANGUNAN_SHEET_FINAL: z.string().default("dokumentasi_bangunan"),
+    CABANG_SHEET_NAME: z.string().default("Cabang"),
+    SPK_DATA_SHEET_NAME: z.string().default("SPK_Data"),
+
 });
 
 const parsed = envSchema.safeParse(process.env);
