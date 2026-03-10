@@ -28,10 +28,11 @@ export const viewPhoto = asyncHandler(async (req: Request, res: Response) => {
     const fileId = req.params.fileId;
     const result = await dokumentasiService.viewPhoto(fileId);
     if (!result) {
-        return res.status(404).send("Not Found");
+        res.status(404).send("Not Found");
+        return;
     }
     res.setHeader("Content-Type", "image/jpeg");
-    return res.send(result);
+    res.send(result);
 });
 
 export const saveTemp = asyncHandler(async (req: Request, res: Response) => {
