@@ -30,14 +30,22 @@ function resolveTokenPath(envPath: string | undefined, defaultFilename: string):
     return null;
 }
 
-function loadOAuth2Client(tokenPath: string) {
+async function loadOAuth2Client(tokenPath: string) {
     const raw = fs.readFileSync(tokenPath, "utf-8");
     const data: TokenFileData = JSON.parse(raw);
     const client = new google.auth.OAuth2(data.client_id, data.client_secret);
-    client.setCredentials({
-        refresh_token: data.refresh_token,
-        access_token: data.token,
-    });
+    // Hanya set refresh_token — jangan set access_token lama yang sudah expired.
+    // Library akan auto-refresh pakai refresh_token saat pertama kali request.
+    client.setCredentials({ refresh_token: data.refresh_token });
+    // Force refresh sekarang (sama seperti Python: creds.refresh(Request()))
+    try {
+        const { credentials } = await client.refreshAccessToken();
+        client.setCredentials(credentials);
+        console.log(`✅ Token refreshed dari ${path.basename(tokenPath)}`);
+    } catch (e) {
+        console.error(`⚠️ Gagal refresh token dari ${path.basename(tokenPath)}:`, e);
+        // tetap return client — mungkin masih bisa auto-refresh nanti
+    }
     return client;
 }
 
@@ -108,6 +116,7 @@ export class GoogleProvider {
     docDrive: drive_v3.Drive | null = null;
 
     private static _instance: GoogleProvider | null = null;
+    private static _initPromise: Promise<void> | null = null;
 
     static get instance(): GoogleProvider {
         if (!this._instance) {
@@ -116,12 +125,26 @@ export class GoogleProvider {
         return this._instance;
     }
 
+    /** Panggil sekali saat startup untuk refresh token. Idempotent. */
+    static async initialize(): Promise<GoogleProvider> {
+        const inst = this.instance;
+        if (!this._initPromise) {
+            this._initPromise = inst._loadAll();
+        }
+        await this._initPromise;
+        return inst;
+    }
+
     private constructor() {
+        // field sudah di-set null di atas, inisialisasi aslinya di _loadAll()
+    }
+
+    private async _loadAll() {
         // --- 1. Sparta credentials (token.json) ---
         const spartaTokenPath = resolveTokenPath(env.GOOGLE_TOKEN_PATH, "token.json");
         if (spartaTokenPath) {
             try {
-                const spartaAuth = loadOAuth2Client(spartaTokenPath);
+                const spartaAuth = await loadOAuth2Client(spartaTokenPath);
                 this.spartaSheets = google.sheets({ version: "v4", auth: spartaAuth });
                 this.spartaDrive = google.drive({ version: "v3", auth: spartaAuth });
                 this.spartaGmail = google.gmail({ version: "v1", auth: spartaAuth });
@@ -137,7 +160,7 @@ export class GoogleProvider {
         const docTokenPath = resolveTokenPath(env.GOOGLE_DOC_TOKEN_PATH, "token_doc.json");
         if (docTokenPath) {
             try {
-                const docAuth = loadOAuth2Client(docTokenPath);
+                const docAuth = await loadOAuth2Client(docTokenPath);
                 this.docSheets = google.sheets({ version: "v4", auth: docAuth });
                 this.docDrive = google.drive({ version: "v3", auth: docAuth });
                 console.log("✅ Service Dokumen (Sheets + Drive) Berhasil.");
