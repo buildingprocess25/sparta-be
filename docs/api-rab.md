@@ -22,12 +22,12 @@ Base URL: `/api/rab`
 
 Membuat pengajuan RAB baru. Sistem akan:
 
-- Validasi `nomor_ulok` ada di master toko
-- Cek duplikasi RAB aktif (ULOK + lingkup_pekerjaan yang sama)
+- Upsert toko berdasarkan `nomor_ulok` (buat baru atau update jika sudah ada)
+- Cek duplikasi RAB aktif untuk ULOK yang sama
 - Hitung grand total (Non-SBO, pembulatan ke 10.000, + PPN 11%)
 - Generate 3 file PDF (Non-SBO, Rekapitulasi, Gabungan)
-- Upload PDF ke Google Drive
-- Simpan data + link PDF ke database
+- Upload PDF ke Google Drive (pakai token Sparta)
+- Simpan data ke 3 tabel (toko + rab + rab_item) dalam 1 transaksi
 - Set status awal: `Menunggu Persetujuan Koordinator`
 
 ### Request Body
@@ -35,9 +35,15 @@ Membuat pengajuan RAB baru. Sistem akan:
 ```json
 {
   "nomor_ulok": "7AZ1-0001-0001",
+  "nama_toko": "Alfamart Jl Sudirman",
+  "kode_toko": "ALF001",
+  "proyek": "Renovasi",
+  "cabang": "JAKARTA",
+  "alamat": "Jl. Sudirman No 1",
+  "nama_kontraktor": "PT Kontraktor ABC",
+  "lingkup_pekerjaan": "SIPIL",
   "email_pembuat": "user@example.com",
   "nama_pt": "PT Contoh Kontraktor",
-  "lingkup_pekerjaan": "SIPIL",
   "durasi_pekerjaan": "30 Hari",
   "logo": "https://drive.google.com/...",
   "kategori_lokasi": "URBAN",
@@ -70,23 +76,34 @@ Membuat pengajuan RAB baru. Sistem akan:
 
 ### Validasi
 
-| Field                               | Aturan                           |
-| ----------------------------------- | -------------------------------- |
-| `nomor_ulok`                        | Wajib, string minimal 1 karakter |
-| `email_pembuat`                     | Wajib, format email valid        |
-| `nama_pt`                           | Wajib, string minimal 1 karakter |
-| `lingkup_pekerjaan`                 | Wajib, string minimal 1 karakter |
-| `durasi_pekerjaan`                  | Wajib, string minimal 1 karakter |
-| `logo`                              | Opsional, URL                    |
-| `kategori_lokasi`                   | Opsional                         |
-| `luas_*`                            | Opsional, string                 |
-| `detail_items`                      | Wajib, array minimal 1 item      |
-| `detail_items[].kategori_pekerjaan` | Wajib                            |
-| `detail_items[].jenis_pekerjaan`    | Wajib                            |
-| `detail_items[].satuan`             | Wajib                            |
-| `detail_items[].volume`             | Wajib, angka ≥ 0                 |
-| `detail_items[].harga_material`     | Wajib, angka ≥ 0                 |
-| `detail_items[].harga_upah`         | Wajib, angka ≥ 0                 |
+| Field                               | Tabel    | Aturan                               |
+| ----------------------------------- | -------- | ------------------------------------ |
+| `nomor_ulok`                        | toko     | **Wajib**, string minimal 1 karakter |
+| `nama_toko`                         | toko     | Opsional                             |
+| `kode_toko`                         | toko     | Opsional                             |
+| `proyek`                            | toko     | Opsional                             |
+| `cabang`                            | toko     | Opsional                             |
+| `alamat`                            | toko     | Opsional                             |
+| `nama_kontraktor`                   | toko     | Opsional                             |
+| `lingkup_pekerjaan`                 | toko     | Opsional                             |
+| `email_pembuat`                     | rab      | **Wajib**, format email valid        |
+| `nama_pt`                           | rab      | **Wajib**, string minimal 1 karakter |
+| `durasi_pekerjaan`                  | rab      | **Wajib**, string minimal 1 karakter |
+| `logo`                              | rab      | Opsional, URL                        |
+| `kategori_lokasi`                   | rab      | Opsional                             |
+| `luas_bangunan`                     | rab      | Opsional, string                     |
+| `luas_terbangun`                    | rab      | Opsional, string                     |
+| `luas_area_terbuka`                 | rab      | Opsional, string                     |
+| `luas_area_parkir`                  | rab      | Opsional, string                     |
+| `luas_area_sales`                   | rab      | Opsional, string                     |
+| `luas_gudang`                       | rab      | Opsional, string                     |
+| `detail_items`                      | rab_item | **Wajib**, array minimal 1 item      |
+| `detail_items[].kategori_pekerjaan` | rab_item | **Wajib**                            |
+| `detail_items[].jenis_pekerjaan`    | rab_item | **Wajib**                            |
+| `detail_items[].satuan`             | rab_item | **Wajib**                            |
+| `detail_items[].volume`             | rab_item | **Wajib**, angka ≥ 0                 |
+| `detail_items[].harga_material`     | rab_item | **Wajib**, angka ≥ 0                 |
+| `detail_items[].harga_upah`         | rab_item | **Wajib**, angka ≥ 0                 |
 
 ### Perhitungan Otomatis (per item)
 
@@ -134,12 +151,11 @@ grand_total_final   = pembulatan + ppn
 
 ### Error Responses
 
-| Code | Kondisi                                             |
-| ---- | --------------------------------------------------- |
-| 400  | JSON body tidak valid                               |
-| 404  | `nomor_ulok` tidak ditemukan di master toko         |
-| 409  | RAB aktif dengan ULOK + lingkup yang sama sudah ada |
-| 422  | Validasi Zod gagal (detail di `issues`)             |
+| Code | Kondisi                                  |
+| ---- | ---------------------------------------- |
+| 400  | JSON body tidak valid                    |
+| 409  | RAB aktif untuk ULOK yang sama sudah ada |
+| 422  | Validasi Zod gagal (detail di `issues`)  |
 
 ---
 
