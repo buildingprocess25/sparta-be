@@ -5,7 +5,28 @@ import { rabListQuerySchema, submitRabSchema } from "./rab.schema";
 import { rabService } from "./rab.service";
 
 export const submitRab = asyncHandler(async (req: Request, res: Response) => {
+    // Debug: log raw body toko fields yang diterima dari frontend
+    console.log("[RAB SUBMIT] raw body toko fields:", JSON.stringify({
+        nomor_ulok: req.body.nomor_ulok,
+        nama_toko: req.body.nama_toko,
+        kode_toko: req.body.kode_toko,
+        proyek: req.body.proyek,
+        cabang: req.body.cabang,
+        alamat: req.body.alamat,
+        nama_kontraktor: req.body.nama_kontraktor,
+        lingkup_pekerjaan: req.body.lingkup_pekerjaan,
+    }));
     const payload = submitRabSchema.parse(req.body);
+    console.log("[RAB SUBMIT] parsed toko fields:", JSON.stringify({
+        nomor_ulok: payload.nomor_ulok,
+        nama_toko: payload.nama_toko,
+        kode_toko: payload.kode_toko,
+        proyek: payload.proyek,
+        cabang: payload.cabang,
+        alamat: payload.alamat,
+        nama_kontraktor: payload.nama_kontraktor,
+        lingkup_pekerjaan: payload.lingkup_pekerjaan,
+    }));
     const data = await rabService.submit(payload);
 
     res.status(201).json({
