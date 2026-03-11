@@ -15,7 +15,14 @@ export const submitRabSchema = z.object({
     nama_pt: z.string().min(1),
     lingkup_pekerjaan: z.string().min(1),
     durasi_pekerjaan: z.string().min(1),
-    link_pdf_gabungan: z.string().url().optional(),
+    logo: z.string().optional(),
+    kategori_lokasi: z.string().optional(),
+    luas_bangunan: z.string().optional(),
+    luas_terbangun: z.string().optional(),
+    luas_area_terbuka: z.string().optional(),
+    luas_area_parkir: z.string().optional(),
+    luas_area_sales: z.string().optional(),
+    luas_gudang: z.string().optional(),
     detail_items: z.array(detailItemSchema).min(1)
 });
 

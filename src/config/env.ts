@@ -25,6 +25,8 @@ const envSchema = z.object({
     CABANG_SHEET_NAME: z.string().default("Cabang"),
     SPK_DATA_SHEET_NAME: z.string().default("SPK_Data"),
 
+    // PDF RAB storage – same as Python config.PDF_STORAGE_FOLDER_ID
+    PDF_STORAGE_FOLDER_ID: z.string().default("1lvPxOwNILXHmagVfPGkVlNEtfv3U4Emj"),
 });
 
 const parsed = envSchema.safeParse(process.env);

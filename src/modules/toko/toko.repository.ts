@@ -2,11 +2,15 @@ import { pool } from "../../db/pool";
 import type { CreateTokoInput } from "./toko.schema";
 
 export type TokoRow = {
+    id: number;
     nomor_ulok: string;
+    lingkup_pekerjaan: string | null;
     nama_toko: string;
     kode_toko: string;
+    proyek: string | null;
     cabang: string;
     alamat: string;
+    nama_kontraktor: string | null;
 };
 
 export type UserCabangRow = {
@@ -28,7 +32,7 @@ export const tokoRepository = {
             kode_toko = EXCLUDED.kode_toko,
             cabang = EXCLUDED.cabang,
             alamat = EXCLUDED.alamat
-      RETURNING nomor_ulok, nama_toko, kode_toko, cabang, alamat
+      RETURNING id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor
       `,
             [input.nomor_ulok, input.nama_toko, input.kode_toko, input.cabang, input.alamat]
         );
@@ -38,7 +42,7 @@ export const tokoRepository = {
 
     async findByNomorUlok(nomorUlok: string): Promise<TokoRow | null> {
         const result = await pool.query<TokoRow>(
-            `SELECT nomor_ulok, nama_toko, kode_toko, cabang, alamat FROM toko WHERE nomor_ulok = $1`,
+            `SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor FROM toko WHERE nomor_ulok = $1`,
             [nomorUlok]
         );
 
@@ -48,7 +52,7 @@ export const tokoRepository = {
     async findAll(search?: string): Promise<TokoRow[]> {
         if (!search) {
             const result = await pool.query<TokoRow>(
-                `SELECT nomor_ulok, nama_toko, kode_toko, cabang, alamat FROM toko ORDER BY nama_toko ASC`
+                `SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor FROM toko ORDER BY nama_toko ASC`
             );
             return result.rows;
         }
@@ -56,7 +60,7 @@ export const tokoRepository = {
         const keyword = `%${search}%`;
         const result = await pool.query<TokoRow>(
             `
-      SELECT nomor_ulok, nama_toko, kode_toko, cabang, alamat
+      SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor
       FROM toko
       WHERE nomor_ulok ILIKE $1 OR nama_toko ILIKE $1 OR kode_toko ILIKE $1 OR cabang ILIKE $1
       ORDER BY nama_toko ASC

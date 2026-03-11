@@ -4,243 +4,348 @@ import type { ApprovalActionInput } from "../approval/approval.schema";
 import { ACTIVE_RAB_STATUSES, type RabStatus } from "./rab.constants";
 import type { DetailItemInput } from "./rab.schema";
 
-export type PengajuanRabRow = {
-    id: string;
-    nomor_ulok: string;
-    email_pembuat: string;
-    nama_pt: string;
-    lingkup_pekerjaan: string;
-    durasi_pekerjaan: string;
+// ---------------------------------------------------------------------------
+// Row types – sesuai tabel rab, rab_item, toko
+// ---------------------------------------------------------------------------
+
+export type RabRow = {
+    id: number;
+    id_toko: number;
     status: RabStatus;
-    grand_total_nonsbo: number;
-    grand_total_final: number;
+    nama_pt: string | null;
+    email_pembuat: string | null;
+    logo: string | null;
     link_pdf_gabungan: string | null;
+    link_pdf_non_sbo: string | null;
+    link_pdf_rekapitulasi: string | null;
+    pemberi_persetujuan_koordinator: string | null;
+    waktu_persetujuan_koordinator: string | null;
+    pemberi_persetujuan_manager: string | null;
+    waktu_persetujuan_manager: string | null;
+    pemberi_persetujuan_direktur: string | null;
+    waktu_persetujuan_direktur: string | null;
+    alasan_penolakan: string | null;
+    durasi_pekerjaan: string | null;
+    kategori_lokasi: string | null;
+    luas_bangunan: string | null;
+    luas_terbangun: string | null;
+    luas_area_terbuka: string | null;
+    luas_area_parkir: string | null;
+    luas_area_sales: string | null;
+    luas_gudang: string | null;
+    grand_total: string | null;
+    grand_total_non_sbo: string | null;
+    grand_total_final: string | null;
     created_at: string;
 };
 
-export type DetailItemRow = {
-    id: string;
-    pengajuan_rab_id: string;
+export type RabItemRow = {
+    id: number;
+    id_rab: number;
     kategori_pekerjaan: string;
     jenis_pekerjaan: string;
     satuan: string;
     volume: number;
     harga_material: number;
     harga_upah: number;
+    total_material: number;
+    total_upah: number;
+    total_harga: number;
 };
 
-export type ApprovalLogRow = {
-    id: string;
-    pengajuan_rab_id: string;
-    approver_email: string;
-    jabatan: string;
-    tindakan: string;
-    alasan_penolakan: string | null;
-    waktu_tindakan: string;
+export type TokoJoinRow = {
+    id: number;
+    nomor_ulok: string;
+    lingkup_pekerjaan: string | null;
+    nama_toko: string | null;
+    kode_toko: string | null;
+    proyek: string | null;
+    cabang: string | null;
+    alamat: string | null;
+    nama_kontraktor: string | null;
 };
 
-const insertDetailItems = async (
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+const RAB_COLUMNS = `
+    r.id, r.id_toko, r.status, r.nama_pt, r.email_pembuat, r.logo,
+    r.link_pdf_gabungan, r.link_pdf_non_sbo, r.link_pdf_rekapitulasi,
+    r.pemberi_persetujuan_koordinator, r.waktu_persetujuan_koordinator,
+    r.pemberi_persetujuan_manager, r.waktu_persetujuan_manager,
+    r.pemberi_persetujuan_direktur, r.waktu_persetujuan_direktur,
+    r.alasan_penolakan, r.durasi_pekerjaan, r.kategori_lokasi,
+    r.luas_bangunan, r.luas_terbangun, r.luas_area_terbuka,
+    r.luas_area_parkir, r.luas_area_sales, r.luas_gudang,
+    r.grand_total, r.grand_total_non_sbo, r.grand_total_final, r.created_at
+`;
+
+const insertRabItems = async (
     client: PoolClient,
-    pengajuanRabId: string,
+    rabId: number,
     detailItems: DetailItemInput[]
 ): Promise<void> => {
     for (const item of detailItems) {
+        const totalMaterial = item.volume * item.harga_material;
+        const totalUpah = item.volume * item.harga_upah;
+        const totalHarga = totalMaterial + totalUpah;
+
         await client.query(
-            `
-      INSERT INTO detail_item_rab (
-        pengajuan_rab_id, kategori_pekerjaan, jenis_pekerjaan, satuan, volume, harga_material, harga_upah
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-      `,
+            `INSERT INTO rab_item (
+                id_rab, kategori_pekerjaan, jenis_pekerjaan, satuan,
+                volume, harga_material, harga_upah,
+                total_material, total_upah, total_harga
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
             [
-                pengajuanRabId,
+                rabId,
                 item.kategori_pekerjaan,
                 item.jenis_pekerjaan,
                 item.satuan,
                 item.volume,
                 item.harga_material,
-                item.harga_upah
+                item.harga_upah,
+                totalMaterial,
+                totalUpah,
+                totalHarga
             ]
         );
     }
 };
 
-export const rabRepository = {
-    async existsActiveByUlokAndLingkup(nomorUlok: string, lingkupPekerjaan: string): Promise<boolean> {
-        const result = await pool.query<{ exists: boolean }>(
-            `
-      SELECT EXISTS(
-        SELECT 1
-        FROM pengajuan_rab
-        WHERE nomor_ulok = $1
-          AND lingkup_pekerjaan = $2
-          AND status = ANY($3::text[])
-      )
-      `,
-            [nomorUlok, lingkupPekerjaan, ACTIVE_RAB_STATUSES]
-        );
+// ---------------------------------------------------------------------------
+// Repository
+// ---------------------------------------------------------------------------
 
+export const rabRepository = {
+    /** Cek RAB aktif berdasarkan nomor_ulok (lewat tabel toko) + lingkup */
+    async existsActiveByTokoId(tokoId: number): Promise<boolean> {
+        const result = await pool.query<{ exists: boolean }>(
+            `SELECT EXISTS(
+                SELECT 1 FROM rab
+                WHERE id_toko = $1
+                  AND status = ANY($2::text[])
+            )`,
+            [tokoId, ACTIVE_RAB_STATUSES]
+        );
         return result.rows[0]?.exists ?? false;
     },
 
+    /** Buat RAB header + items dalam satu transaksi */
     async createWithDetails(payload: {
-        nomor_ulok: string;
+        id_toko: number;
         email_pembuat: string;
         nama_pt: string;
-        lingkup_pekerjaan: string;
-        durasi_pekerjaan: string;
         status: RabStatus;
-        grand_total_nonsbo: number;
-        grand_total_final: number;
-        link_pdf_gabungan?: string;
+        logo?: string;
+        durasi_pekerjaan: string;
+        kategori_lokasi?: string;
+        luas_bangunan?: string;
+        luas_terbangun?: string;
+        luas_area_terbuka?: string;
+        luas_area_parkir?: string;
+        luas_area_sales?: string;
+        luas_gudang?: string;
+        grand_total: string;
+        grand_total_non_sbo: string;
+        grand_total_final: string;
         detail_items: DetailItemInput[];
-    }): Promise<PengajuanRabRow> {
+    }): Promise<RabRow> {
         return withTransaction(async (client) => {
-            const headerResult = await client.query<PengajuanRabRow>(
-                `
-        INSERT INTO pengajuan_rab (
-          nomor_ulok,
-          email_pembuat,
-          nama_pt,
-          lingkup_pekerjaan,
-          durasi_pekerjaan,
-          status,
-          grand_total_nonsbo,
-          grand_total_final,
-          link_pdf_gabungan,
-          created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
-        RETURNING id, nomor_ulok, email_pembuat, nama_pt, lingkup_pekerjaan, durasi_pekerjaan,
-          status, grand_total_nonsbo, grand_total_final, link_pdf_gabungan, created_at
-        `,
+            const res = await client.query<RabRow>(
+                `INSERT INTO rab (
+                    id_toko, status, nama_pt, email_pembuat, logo,
+                    durasi_pekerjaan, kategori_lokasi,
+                    luas_bangunan, luas_terbangun, luas_area_terbuka,
+                    luas_area_parkir, luas_area_sales, luas_gudang,
+                    grand_total, grand_total_non_sbo, grand_total_final,
+                    created_at
+                ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,CURRENT_DATE)
+                RETURNING *`,
                 [
-                    payload.nomor_ulok,
-                    payload.email_pembuat,
-                    payload.nama_pt,
-                    payload.lingkup_pekerjaan,
-                    payload.durasi_pekerjaan,
+                    payload.id_toko,
                     payload.status,
-                    payload.grand_total_nonsbo,
-                    payload.grand_total_final,
-                    payload.link_pdf_gabungan ?? null
+                    payload.nama_pt,
+                    payload.email_pembuat,
+                    payload.logo ?? null,
+                    payload.durasi_pekerjaan,
+                    payload.kategori_lokasi ?? null,
+                    payload.luas_bangunan ?? null,
+                    payload.luas_terbangun ?? null,
+                    payload.luas_area_terbuka ?? null,
+                    payload.luas_area_parkir ?? null,
+                    payload.luas_area_sales ?? null,
+                    payload.luas_gudang ?? null,
+                    payload.grand_total,
+                    payload.grand_total_non_sbo,
+                    payload.grand_total_final
                 ]
             );
 
-            const pengajuan = headerResult.rows[0];
-            await insertDetailItems(client, pengajuan.id, payload.detail_items);
-            return pengajuan;
+            const rab = res.rows[0];
+            await insertRabItems(client, rab.id, payload.detail_items);
+            return rab;
         });
     },
 
+    /** Ambil RAB lengkap: header + toko + items */
     async findById(id: string): Promise<{
-        pengajuan: PengajuanRabRow;
-        detailItems: DetailItemRow[];
-        approvalLogs: ApprovalLogRow[];
+        rab: RabRow;
+        toko: TokoJoinRow;
+        items: RabItemRow[];
     } | null> {
-        const header = await pool.query<PengajuanRabRow>(
-            `
-      SELECT id, nomor_ulok, email_pembuat, nama_pt, lingkup_pekerjaan, durasi_pekerjaan,
-        status, grand_total_nonsbo, grand_total_final, link_pdf_gabungan, created_at
-      FROM pengajuan_rab
-      WHERE id = $1
-      `,
+        const header = await pool.query<RabRow & TokoJoinRow>(
+            `SELECT ${RAB_COLUMNS},
+                t.id AS toko_id, t.nomor_ulok, t.lingkup_pekerjaan,
+                t.nama_toko, t.kode_toko, t.proyek, t.cabang, t.alamat, t.nama_kontraktor
+            FROM rab r
+            JOIN toko t ON t.id = r.id_toko
+            WHERE r.id = $1`,
             [id]
         );
 
-        if (header.rowCount === 0) {
-            return null;
-        }
+        if (header.rowCount === 0) return null;
 
-        const detail = await pool.query<DetailItemRow>(
-            `
-      SELECT id, pengajuan_rab_id, kategori_pekerjaan, jenis_pekerjaan, satuan, volume, harga_material, harga_upah
-      FROM detail_item_rab
-      WHERE pengajuan_rab_id = $1
-      ORDER BY id ASC
-      `,
+        const row = header.rows[0];
+
+        const items = await pool.query<RabItemRow>(
+            `SELECT id, id_rab, kategori_pekerjaan, jenis_pekerjaan, satuan,
+                volume, harga_material, harga_upah,
+                total_material, total_upah, total_harga
+            FROM rab_item
+            WHERE id_rab = $1
+            ORDER BY id ASC`,
             [id]
         );
 
-        const logs = await pool.query<ApprovalLogRow>(
-            `
-      SELECT id, pengajuan_rab_id, approver_email, jabatan, tindakan, alasan_penolakan, waktu_tindakan
-      FROM approval_log
-      WHERE pengajuan_rab_id = $1
-      ORDER BY waktu_tindakan ASC
-      `,
-            [id]
-        );
-
-        return {
-            pengajuan: header.rows[0],
-            detailItems: detail.rows,
-            approvalLogs: logs.rows
+        const rab: RabRow = {
+            id: row.id,
+            id_toko: row.id_toko,
+            status: row.status,
+            nama_pt: row.nama_pt,
+            email_pembuat: row.email_pembuat,
+            logo: row.logo,
+            link_pdf_gabungan: row.link_pdf_gabungan,
+            link_pdf_non_sbo: row.link_pdf_non_sbo,
+            link_pdf_rekapitulasi: row.link_pdf_rekapitulasi,
+            pemberi_persetujuan_koordinator: row.pemberi_persetujuan_koordinator,
+            waktu_persetujuan_koordinator: row.waktu_persetujuan_koordinator,
+            pemberi_persetujuan_manager: row.pemberi_persetujuan_manager,
+            waktu_persetujuan_manager: row.waktu_persetujuan_manager,
+            pemberi_persetujuan_direktur: row.pemberi_persetujuan_direktur,
+            waktu_persetujuan_direktur: row.waktu_persetujuan_direktur,
+            alasan_penolakan: row.alasan_penolakan,
+            durasi_pekerjaan: row.durasi_pekerjaan,
+            kategori_lokasi: row.kategori_lokasi,
+            luas_bangunan: row.luas_bangunan,
+            luas_terbangun: row.luas_terbangun,
+            luas_area_terbuka: row.luas_area_terbuka,
+            luas_area_parkir: row.luas_area_parkir,
+            luas_area_sales: row.luas_area_sales,
+            luas_gudang: row.luas_gudang,
+            grand_total: row.grand_total,
+            grand_total_non_sbo: row.grand_total_non_sbo,
+            grand_total_final: row.grand_total_final,
+            created_at: row.created_at
         };
+
+        const toko: TokoJoinRow = {
+            id: (row as any).toko_id,
+            nomor_ulok: row.nomor_ulok,
+            lingkup_pekerjaan: row.lingkup_pekerjaan,
+            nama_toko: row.nama_toko,
+            kode_toko: row.kode_toko,
+            proyek: row.proyek,
+            cabang: row.cabang,
+            alamat: row.alamat,
+            nama_kontraktor: row.nama_kontraktor
+        };
+
+        return { rab, toko, items: items.rows };
     },
 
-    async list(filter: { status?: string; nomor_ulok?: string }): Promise<PengajuanRabRow[]> {
+    /** List RAB dengan filter. Join toko untuk nomor_ulok filter. */
+    async list(filter: { status?: string; nomor_ulok?: string }): Promise<(RabRow & { nomor_ulok: string; nama_toko: string | null; cabang: string | null; proyek: string | null })[]> {
         const conditions: string[] = [];
-        const values: string[] = [];
+        const values: unknown[] = [];
 
         if (filter.status) {
             values.push(filter.status);
-            conditions.push(`status = $${values.length}`);
+            conditions.push(`r.status = $${values.length}`);
         }
 
         if (filter.nomor_ulok) {
             values.push(filter.nomor_ulok);
-            conditions.push(`nomor_ulok = $${values.length}`);
+            conditions.push(`t.nomor_ulok = $${values.length}`);
         }
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
-        const result = await pool.query<PengajuanRabRow>(
-            `
-      SELECT id, nomor_ulok, email_pembuat, nama_pt, lingkup_pekerjaan, durasi_pekerjaan,
-        status, grand_total_nonsbo, grand_total_final, link_pdf_gabungan, created_at
-      FROM pengajuan_rab
-      ${whereClause}
-      ORDER BY created_at DESC
-      `,
+        const result = await pool.query(
+            `SELECT ${RAB_COLUMNS},
+                t.nomor_ulok, t.nama_toko, t.cabang, t.proyek
+            FROM rab r
+            JOIN toko t ON t.id = r.id_toko
+            ${whereClause}
+            ORDER BY r.created_at DESC`,
             values
         );
 
         return result.rows;
     },
 
-    async updateStatusAndInsertLog(
-        pengajuanRabId: string,
+    /** Update status + kolom approval yang relevan di tabel rab */
+    async updateApproval(
+        rabId: string,
         newStatus: RabStatus,
         action: ApprovalActionInput
     ): Promise<void> {
-        await withTransaction(async (client) => {
-            await client.query(
-                `
-        UPDATE pengajuan_rab
-        SET status = $1
-        WHERE id = $2
-        `,
-                [newStatus, pengajuanRabId]
-            );
+        const now = new Date().toISOString();
+        const sets: string[] = ["status = $1"];
+        const values: unknown[] = [newStatus];
 
-            await client.query(
-                `
-        INSERT INTO approval_log (
-          pengajuan_rab_id,
-          approver_email,
-          jabatan,
-          tindakan,
-          alasan_penolakan,
-          waktu_tindakan
-        ) VALUES ($1, $2, $3, $4, $5, NOW())
-        `,
-                [
-                    pengajuanRabId,
-                    action.approver_email,
-                    action.jabatan,
-                    action.tindakan,
-                    action.alasan_penolakan ?? null
-                ]
-            );
-        });
+        if (action.tindakan === "APPROVE") {
+            if (action.jabatan === "KOORDINATOR") {
+                values.push(action.approver_email, now);
+                sets.push(`pemberi_persetujuan_koordinator = $${values.length - 1}`);
+                sets.push(`waktu_persetujuan_koordinator = $${values.length}`);
+            } else if (action.jabatan === "MANAGER") {
+                values.push(action.approver_email, now);
+                sets.push(`pemberi_persetujuan_manager = $${values.length - 1}`);
+                sets.push(`waktu_persetujuan_manager = $${values.length}`);
+            } else {
+                values.push(action.approver_email, now);
+                sets.push(`pemberi_persetujuan_direktur = $${values.length - 1}`);
+                sets.push(`waktu_persetujuan_direktur = $${values.length}`);
+            }
+        } else {
+            values.push(action.alasan_penolakan ?? null);
+            sets.push(`alasan_penolakan = $${values.length}`);
+        }
+
+        values.push(rabId);
+        await pool.query(
+            `UPDATE rab SET ${sets.join(", ")} WHERE id = $${values.length}`,
+            values
+        );
+    },
+
+    /** Simpan link PDF setelah upload ke Drive */
+    async updatePdfLinks(
+        rabId: string,
+        links: {
+            link_pdf_gabungan: string;
+            link_pdf_non_sbo: string;
+            link_pdf_rekapitulasi: string;
+        }
+    ): Promise<void> {
+        await pool.query(
+            `UPDATE rab
+             SET link_pdf_gabungan = $1,
+                 link_pdf_non_sbo = $2,
+                 link_pdf_rekapitulasi = $3
+             WHERE id = $4`,
+            [links.link_pdf_gabungan, links.link_pdf_non_sbo, links.link_pdf_rekapitulasi, rabId]
+        );
     }
 };
