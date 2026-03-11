@@ -10,10 +10,19 @@ export const detailItemSchema = z.object({
 });
 
 export const submitRabSchema = z.object({
+    // --- field toko (masuk ke tabel toko, semua nullable kecuali nomor_ulok) ---
     nomor_ulok: z.string().min(1),
+    lingkup_pekerjaan: z.string().optional(),
+    nama_toko: z.string().optional(),
+    kode_toko: z.string().optional(),
+    proyek: z.string().optional(),
+    cabang: z.string().optional(),
+    alamat: z.string().optional(),
+    nama_kontraktor: z.string().optional(),
+
+    // --- field rab ---
     email_pembuat: z.string().email(),
     nama_pt: z.string().min(1),
-    lingkup_pekerjaan: z.string().min(1),
     durasi_pekerjaan: z.string().min(1),
     logo: z.string().optional(),
     kategori_lokasi: z.string().optional(),
@@ -23,6 +32,8 @@ export const submitRabSchema = z.object({
     luas_area_parkir: z.string().optional(),
     luas_area_sales: z.string().optional(),
     luas_gudang: z.string().optional(),
+
+    // --- field rab_item ---
     detail_items: z.array(detailItemSchema).min(1)
 });
 

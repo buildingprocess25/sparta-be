@@ -103,27 +103,33 @@ async function uploadPdfToDrive(buffer: Buffer, filename: string): Promise<strin
 
 export const rabService = {
     async submit(payload: SubmitRabInput) {
-        // 1. Cari toko by nomor_ulok
-        const toko = await tokoRepository.findByNomorUlok(payload.nomor_ulok);
-        if (!toko) {
-            throw new AppError("Nomor ULOK tidak ditemukan di master toko", 404);
+        // 1. Cek duplikasi RAB aktif untuk nomor_ulok ini
+        const existingToko = await tokoRepository.findByNomorUlok(payload.nomor_ulok);
+        if (existingToko) {
+            const isDuplicate = await rabRepository.existsActiveByTokoId(existingToko.id);
+            if (isDuplicate) {
+                throw new AppError(
+                    `RAB aktif untuk ULOK ${payload.nomor_ulok} sudah ada`,
+                    409
+                );
+            }
         }
 
-        // 2. Cek duplikasi RAB aktif untuk toko ini
-        const isDuplicate = await rabRepository.existsActiveByTokoId(toko.id);
-        if (isDuplicate) {
-            throw new AppError(
-                `RAB aktif untuk ULOK ${payload.nomor_ulok} sudah ada`,
-                409
-            );
-        }
-
-        // 3. Hitung totals
+        // 2. Hitung totals
         const totals = computeTotals(payload.detail_items);
 
-        // 4. Simpan ke DB
+        // 3. Simpan ke DB (upsert toko + insert rab + insert rab_item dalam 1 transaksi)
         const rab = await rabRepository.createWithDetails({
-            id_toko: toko.id,
+            // toko fields
+            nomor_ulok: payload.nomor_ulok,
+            lingkup_pekerjaan: payload.lingkup_pekerjaan,
+            nama_toko: payload.nama_toko,
+            kode_toko: payload.kode_toko,
+            proyek: payload.proyek,
+            cabang: payload.cabang,
+            alamat: payload.alamat,
+            nama_kontraktor: payload.nama_kontraktor,
+            // rab fields
             email_pembuat: payload.email_pembuat,
             nama_pt: payload.nama_pt,
             status: RAB_STATUS.WAITING_FOR_COORDINATOR,
@@ -142,10 +148,10 @@ export const rabService = {
             detail_items: payload.detail_items
         });
 
-        // 5. Generate & upload 3 PDF ke Drive (sama seperti server Python)
+        // 4. Generate & upload 3 PDF ke Drive (sama seperti server Python)
         try {
-            const proyek = toko.proyek ?? "N/A";
-            const nomorUlok = toko.nomor_ulok;
+            const proyek = payload.proyek ?? "N/A";
+            const nomorUlok = payload.nomor_ulok;
 
             // Ambil items dari DB biar ada total_material, total_upah, total_harga
             const fullData = await rabRepository.findById(String(rab.id));

@@ -131,9 +131,18 @@ export const rabRepository = {
         return result.rows[0]?.exists ?? false;
     },
 
-    /** Buat RAB header + items dalam satu transaksi */
+    /** Upsert toko + buat RAB header + items dalam satu transaksi */
     async createWithDetails(payload: {
-        id_toko: number;
+        // toko fields
+        nomor_ulok: string;
+        lingkup_pekerjaan?: string;
+        nama_toko?: string;
+        kode_toko?: string;
+        proyek?: string;
+        cabang?: string;
+        alamat?: string;
+        nama_kontraktor?: string;
+        // rab fields
         email_pembuat: string;
         nama_pt: string;
         status: RabStatus;
@@ -150,8 +159,37 @@ export const rabRepository = {
         grand_total_non_sbo: string;
         grand_total_final: string;
         detail_items: DetailItemInput[];
-    }): Promise<RabRow> {
+    }): Promise<RabRow & { toko_id: number }> {
         return withTransaction(async (client) => {
+            // 1. Upsert toko – insert atau update jika nomor_ulok sudah ada
+            const tokoRes = await client.query<{ id: number }>(
+                `INSERT INTO toko (
+                    nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko,
+                    proyek, cabang, alamat, nama_kontraktor
+                ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+                ON CONFLICT (nomor_ulok) DO UPDATE SET
+                    lingkup_pekerjaan = COALESCE(EXCLUDED.lingkup_pekerjaan, toko.lingkup_pekerjaan),
+                    nama_toko = COALESCE(EXCLUDED.nama_toko, toko.nama_toko),
+                    kode_toko = COALESCE(EXCLUDED.kode_toko, toko.kode_toko),
+                    proyek = COALESCE(EXCLUDED.proyek, toko.proyek),
+                    cabang = COALESCE(EXCLUDED.cabang, toko.cabang),
+                    alamat = COALESCE(EXCLUDED.alamat, toko.alamat),
+                    nama_kontraktor = COALESCE(EXCLUDED.nama_kontraktor, toko.nama_kontraktor)
+                RETURNING id`,
+                [
+                    payload.nomor_ulok,
+                    payload.lingkup_pekerjaan ?? null,
+                    payload.nama_toko ?? null,
+                    payload.kode_toko ?? null,
+                    payload.proyek ?? null,
+                    payload.cabang ?? null,
+                    payload.alamat ?? null,
+                    payload.nama_kontraktor ?? null
+                ]
+            );
+            const tokoId = tokoRes.rows[0].id;
+
+            // 2. Insert RAB header
             const res = await client.query<RabRow>(
                 `INSERT INTO rab (
                     id_toko, status, nama_pt, email_pembuat, logo,
@@ -163,7 +201,7 @@ export const rabRepository = {
                 ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,CURRENT_DATE)
                 RETURNING *`,
                 [
-                    payload.id_toko,
+                    tokoId,
                     payload.status,
                     payload.nama_pt,
                     payload.email_pembuat,
@@ -183,8 +221,11 @@ export const rabRepository = {
             );
 
             const rab = res.rows[0];
+
+            // 3. Insert rab_item
             await insertRabItems(client, rab.id, payload.detail_items);
-            return rab;
+
+            return { ...rab, toko_id: tokoId };
         });
     },
 
