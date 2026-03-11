@@ -278,15 +278,16 @@ export class GoogleProvider {
         return folder.data.id!;
     }
 
-    /** Sama dg Python upload_file_simple() */
+    /** Sama dg Python upload_file_simple() – driveOverride opsional utk pakai drive lain (misal spartaDrive) */
     async uploadFile(
         folderId: string,
         filename: string,
         mimeType: string,
         buffer: Buffer,
         maxRetry = 2,
+        driveOverride?: drive_v3.Drive,
     ): Promise<{ id?: string; webViewLink?: string; thumbnailLink?: string; name?: string; mimeType?: string }> {
-        const drive = this.ensureDocDrive();
+        const drive = driveOverride ?? this.ensureDocDrive();
 
         for (let attempt = 0; attempt <= maxRetry; attempt++) {
             try {

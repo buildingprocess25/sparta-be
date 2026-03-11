@@ -84,14 +84,17 @@ const resolveStatusTransition = (
 /** Upload buffer ke Google Drive, return web view link */
 async function uploadPdfToDrive(buffer: Buffer, filename: string): Promise<string> {
     const gp = GoogleProvider.instance;
-    const drive = gp.spartaDrive ?? gp.docDrive;
-    if (!drive) throw new AppError("Google Drive belum terkonfigurasi", 500);
+    // Python server pakai drive_service (Sparta / token.json) utk upload RAB PDF
+    const drive = gp.spartaDrive;
+    if (!drive) throw new AppError("Google Drive (Sparta) belum terkonfigurasi", 500);
 
     const result = await gp.uploadFile(
         env.PDF_STORAGE_FOLDER_ID,
         filename,
         "application/pdf",
-        buffer
+        buffer,
+        2,
+        drive,
     );
 
     return result.webViewLink ?? `https://drive.google.com/file/d/${result.id}/view`;
