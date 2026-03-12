@@ -626,5 +626,136 @@ export const ganttRepository = {
             [ganttId, kategoriPekerjaan]
         );
         return (result.rowCount ?? 0) > 0;
+    },
+
+    /**
+     * Detail Gantt Chart berdasarkan id_toko.
+     * - Ambil RAB terbaru → rab_item → unique kategori_pekerjaan (filtered_categories)
+     * - Ambil gantt_chart terbaru + children (kategori, day, pengawasan, dependency)
+     */
+    async findDetailByTokoId(tokoId: number): Promise<{
+        toko: TokoJoinRow;
+        rab: { id: number; status: string | null } | null;
+        filtered_categories: string[];
+        gantt: GanttRow | null;
+        kategori_pekerjaan: KategoriPekerjaanGanttRow[];
+        day_items: (DayGanttRow & { kategori_pekerjaan: string })[];
+        pengawasan: PengawasanGanttRow[];
+        dependencies: (DependencyGanttRow & {
+            kategori_pekerjaan: string;
+            kategori_pekerjaan_terikat: string;
+        })[];
+    } | null> {
+        // 1. Cek toko exists
+        const tokoRes = await pool.query<TokoJoinRow>(
+            `SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko,
+                    proyek, cabang, alamat, nama_kontraktor
+             FROM toko WHERE id = $1`,
+            [tokoId]
+        );
+        if (tokoRes.rowCount === 0) return null;
+        const toko = tokoRes.rows[0];
+
+        // 2. Ambil RAB terbaru untuk toko ini
+        const rabRes = await pool.query<{ id: number; status: string | null }>(
+            `SELECT id, status FROM rab WHERE id_toko = $1 ORDER BY id DESC LIMIT 1`,
+            [tokoId]
+        );
+        const rab = rabRes.rows[0] ?? null;
+
+        // 3. Ambil unique kategori_pekerjaan dari rab_item (filtered)
+        let filteredCategories: string[] = [];
+        if (rab) {
+            const catRes = await pool.query<{ kategori_pekerjaan: string }>(
+                `SELECT DISTINCT kategori_pekerjaan
+                 FROM rab_item
+                 WHERE id_rab = $1
+                 ORDER BY kategori_pekerjaan ASC`,
+                [rab.id]
+            );
+            filteredCategories = catRes.rows.map((r) => r.kategori_pekerjaan);
+        }
+
+        // 4. Ambil gantt_chart terbaru untuk toko ini
+        const ganttRes = await pool.query<GanttRow>(
+            `SELECT id, id_toko, status, email_pembuat, timestamp
+             FROM gantt_chart
+             WHERE id_toko = $1
+             ORDER BY id DESC LIMIT 1`,
+            [tokoId]
+        );
+        const gantt = ganttRes.rows[0] ?? null;
+
+        if (!gantt) {
+            return {
+                toko,
+                rab,
+                filtered_categories: filteredCategories,
+                gantt: null,
+                kategori_pekerjaan: [],
+                day_items: [],
+                pengawasan: [],
+                dependencies: []
+            };
+        }
+
+        // 5. Kategori pekerjaan gantt
+        const kategoriRes = await pool.query<KategoriPekerjaanGanttRow>(
+            `SELECT id, id_gantt, kategori_pekerjaan
+             FROM kategori_pekerjaan_gantt
+             WHERE id_gantt = $1
+             ORDER BY id ASC`,
+            [gantt.id]
+        );
+
+        // 6. Day items
+        const dayRes = await pool.query<DayGanttRow & { kategori_pekerjaan: string }>(
+            `SELECT d.id, d.id_gantt, d.id_kategori_pekerjaan_gantt,
+                    d.h_awal, d.h_akhir, d.keterlambatan, d.kecepatan,
+                    k.kategori_pekerjaan
+             FROM day_gantt_chart d
+             JOIN kategori_pekerjaan_gantt k ON k.id = d.id_kategori_pekerjaan_gantt
+             WHERE d.id_gantt = $1
+             ORDER BY d.id ASC`,
+            [gantt.id]
+        );
+
+        // 7. Pengawasan
+        const pengawasanRes = await pool.query<PengawasanGanttRow>(
+            `SELECT id, id_gantt, kategori_pekerjaan
+             FROM pengawasan_gantt
+             WHERE id_gantt = $1
+             ORDER BY id ASC`,
+            [gantt.id]
+        );
+
+        // 8. Dependencies
+        const depRes = await pool.query<
+            DependencyGanttRow & {
+                kategori_pekerjaan: string;
+                kategori_pekerjaan_terikat: string;
+            }
+        >(
+            `SELECT dep.id, dep.id_gantt, dep.id_kategori, dep.id_kategori_terikat,
+                    k1.kategori_pekerjaan AS kategori_pekerjaan,
+                    k2.kategori_pekerjaan AS kategori_pekerjaan_terikat
+             FROM dependency_gantt dep
+             JOIN kategori_pekerjaan_gantt k1 ON k1.id = dep.id_kategori
+             JOIN kategori_pekerjaan_gantt k2 ON k2.id = dep.id_kategori_terikat
+             WHERE dep.id_gantt = $1
+             ORDER BY dep.id ASC`,
+            [gantt.id]
+        );
+
+        return {
+            toko,
+            rab,
+            filtered_categories: filteredCategories,
+            gantt,
+            kategori_pekerjaan: kategoriRes.rows,
+            day_items: dayRes.rows,
+            pengawasan: pengawasanRes.rows,
+            dependencies: depRes.rows
+        };
     }
 };

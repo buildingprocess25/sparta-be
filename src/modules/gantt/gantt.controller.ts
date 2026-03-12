@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { asyncHandler } from "../../common/async-handler";
 import {
     addDayItemsSchema,
+    ganttDetailByTokoSchema,
     ganttListQuerySchema,
     lockGanttSchema,
     managePengawasanSchema,
@@ -114,5 +115,22 @@ export const managePengawasan = asyncHandler(async (req: Request, res: Response)
         status: "success",
         message,
         data: result
+    });
+});
+
+export const getDetailByToko = asyncHandler(async (req: Request, res: Response) => {
+    const { id_toko } = ganttDetailByTokoSchema.parse(req.params);
+    const data = await ganttService.getDetailByTokoId(Number(id_toko));
+
+    res.json({
+        status: "success",
+        rab: data.rab,
+        filtered_categories: data.filtered_categories,
+        gantt_data: data.gantt,
+        day_gantt_data: data.day_items,
+        dependency_data: data.dependencies,
+        pengawasan_data: data.pengawasan,
+        kategori_pekerjaan: data.kategori_pekerjaan,
+        toko: data.toko
     });
 });

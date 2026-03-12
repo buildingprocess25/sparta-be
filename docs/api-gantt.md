@@ -1,7 +1,7 @@
 # Dokumentasi API Gantt Chart — sparta-api
 
 Base URL (Node.js): `/api/gantt`  
-Base URL (Python):  `/api/gantt-sql`
+Base URL (Python): `/api/gantt-sql`
 
 > **Catatan:** Modul ini menggunakan PostgreSQL sebagai penyimpanan data (sebelumnya Google Spreadsheet).  
 > Tabel yang digunakan: `gantt_chart`, `kategori_pekerjaan_gantt`, `day_gantt_chart`, `pengawasan_gantt`, `dependency_gantt`, `toko`.
@@ -10,18 +10,19 @@ Base URL (Python):  `/api/gantt-sql`
 
 ## Daftar Endpoint
 
-| # | Method | Path (Node.js) | Path (Python) | Deskripsi |
-|---|--------|-----------------|---------------|-----------|
-| 1 | `POST` | `/api/gantt/submit` | `/api/gantt-sql/submit` | Buat Gantt Chart baru |
-| 2 | `GET` | `/api/gantt` | `/api/gantt-sql` | List semua Gantt Chart (+ filter) |
-| 3 | `GET` | `/api/gantt/:id` | `/api/gantt-sql/:id` | Detail Gantt Chart lengkap |
-| 4 | `PUT` | `/api/gantt/:id` | `/api/gantt-sql/:id` | Update Gantt Chart |
-| 5 | `POST` | `/api/gantt/:id/lock` | `/api/gantt-sql/:id/lock` | Kunci Gantt Chart |
-| 6 | `DELETE` | `/api/gantt/:id` | `/api/gantt-sql/:id` | Hapus Gantt Chart |
-| 7 | `POST` | `/api/gantt/:id/day` | `/api/gantt-sql/:id/day` | Tambah day items |
-| 8 | `POST` | `/api/gantt/:id/day/keterlambatan` | `/api/gantt-sql/:id/day/keterlambatan` | Update keterlambatan |
-| 9 | `POST` | `/api/gantt/:id/day/kecepatan` | `/api/gantt-sql/:id/day/kecepatan` | Update kecepatan |
-| 10 | `POST` | `/api/gantt/:id/pengawasan` | `/api/gantt-sql/:id/pengawasan` | Manage pengawasan |
+| #   | Method   | Path (Node.js)                     | Path (Python)                          | Deskripsi                             |
+| --- | -------- | ---------------------------------- | -------------------------------------- | ------------------------------------- |
+| 1   | `POST`   | `/api/gantt/submit`                | `/api/gantt-sql/submit`                | Buat Gantt Chart baru                 |
+| 2   | `GET`    | `/api/gantt`                       | `/api/gantt-sql`                       | List semua Gantt Chart (+ filter)     |
+| 3   | `GET`    | `/api/gantt/:id`                   | `/api/gantt-sql/:id`                   | Detail Gantt Chart lengkap            |
+| 4   | `PUT`    | `/api/gantt/:id`                   | `/api/gantt-sql/:id`                   | Update Gantt Chart                    |
+| 5   | `POST`   | `/api/gantt/:id/lock`              | `/api/gantt-sql/:id/lock`              | Kunci Gantt Chart                     |
+| 6   | `DELETE` | `/api/gantt/:id`                   | `/api/gantt-sql/:id`                   | Hapus Gantt Chart                     |
+| 7   | `POST`   | `/api/gantt/:id/day`               | `/api/gantt-sql/:id/day`               | Tambah day items                      |
+| 8   | `POST`   | `/api/gantt/:id/day/keterlambatan` | `/api/gantt-sql/:id/day/keterlambatan` | Update keterlambatan                  |
+| 9   | `POST`   | `/api/gantt/:id/day/kecepatan`     | `/api/gantt-sql/:id/day/kecepatan`     | Update kecepatan                      |
+| 10  | `POST`   | `/api/gantt/:id/pengawasan`        | `/api/gantt-sql/:id/pengawasan`        | Manage pengawasan                     |
+| 11  | `GET`    | `/api/gantt/detail/:id_toko`       | —                                      | Detail Gantt + RAB categories by toko |
 
 ---
 
@@ -62,6 +63,7 @@ Base URL (Python):  `/api/gantt-sql`
 **`POST /api/gantt/submit`**
 
 Membuat Gantt Chart baru. Sistem akan:
+
 - Upsert toko berdasarkan `nomor_ulok`
 - Cek duplikasi Gantt Chart aktif untuk ULOK yang sama
 - Simpan data ke 5 tabel dalam 1 transaksi (`toko` + `gantt_chart` + `kategori_pekerjaan_gantt` + `day_gantt_chart` + opsional `pengawasan_gantt` & `dependency_gantt`)
@@ -133,29 +135,29 @@ Membuat Gantt Chart baru. Sistem akan:
 
 ### Validasi
 
-| Field | Tabel | Aturan |
-|-------|-------|--------|
-| `nomor_ulok` | toko | **Wajib**, string min 1 |
-| `nama_toko` | toko | Opsional |
-| `kode_toko` | toko | Opsional |
-| `proyek` | toko | Opsional |
-| `cabang` | toko | Opsional |
-| `alamat` | toko | Opsional |
-| `nama_kontraktor` | toko | Opsional |
-| `lingkup_pekerjaan` | toko | Opsional |
-| `email_pembuat` | gantt_chart | **Wajib**, format email |
-| `kategori_pekerjaan` | kategori_pekerjaan_gantt | **Wajib**, array string min 1 |
-| `day_items` | day_gantt_chart | **Wajib**, array min 1 |
-| `day_items[].kategori_pekerjaan` | day_gantt_chart | **Wajib**, harus ada di `kategori_pekerjaan` |
-| `day_items[].h_awal` | day_gantt_chart | **Wajib**, string  |
-| `day_items[].h_akhir` | day_gantt_chart | **Wajib**, string  |
-| `day_items[].keterlambatan` | day_gantt_chart | Opsional |
-| `day_items[].kecepatan` | day_gantt_chart | Opsional |
-| `pengawasan` | pengawasan_gantt | Opsional, array |
-| `pengawasan[].kategori_pekerjaan` | pengawasan_gantt | Wajib jika ada |
-| `dependencies` | dependency_gantt | Opsional, array |
-| `dependencies[].kategori_pekerjaan` | dependency_gantt | Wajib, harus ada di `kategori_pekerjaan` |
-| `dependencies[].kategori_pekerjaan_terikat` | dependency_gantt | Wajib, harus ada di `kategori_pekerjaan` |
+| Field                                       | Tabel                    | Aturan                                       |
+| ------------------------------------------- | ------------------------ | -------------------------------------------- |
+| `nomor_ulok`                                | toko                     | **Wajib**, string min 1                      |
+| `nama_toko`                                 | toko                     | Opsional                                     |
+| `kode_toko`                                 | toko                     | Opsional                                     |
+| `proyek`                                    | toko                     | Opsional                                     |
+| `cabang`                                    | toko                     | Opsional                                     |
+| `alamat`                                    | toko                     | Opsional                                     |
+| `nama_kontraktor`                           | toko                     | Opsional                                     |
+| `lingkup_pekerjaan`                         | toko                     | Opsional                                     |
+| `email_pembuat`                             | gantt_chart              | **Wajib**, format email                      |
+| `kategori_pekerjaan`                        | kategori_pekerjaan_gantt | **Wajib**, array string min 1                |
+| `day_items`                                 | day_gantt_chart          | **Wajib**, array min 1                       |
+| `day_items[].kategori_pekerjaan`            | day_gantt_chart          | **Wajib**, harus ada di `kategori_pekerjaan` |
+| `day_items[].h_awal`                        | day_gantt_chart          | **Wajib**, string                            |
+| `day_items[].h_akhir`                       | day_gantt_chart          | **Wajib**, string                            |
+| `day_items[].keterlambatan`                 | day_gantt_chart          | Opsional                                     |
+| `day_items[].kecepatan`                     | day_gantt_chart          | Opsional                                     |
+| `pengawasan`                                | pengawasan_gantt         | Opsional, array                              |
+| `pengawasan[].kategori_pekerjaan`           | pengawasan_gantt         | Wajib jika ada                               |
+| `dependencies`                              | dependency_gantt         | Opsional, array                              |
+| `dependencies[].kategori_pekerjaan`         | dependency_gantt         | Wajib, harus ada di `kategori_pekerjaan`     |
+| `dependencies[].kategori_pekerjaan_terikat` | dependency_gantt         | Wajib, harus ada di `kategori_pekerjaan`     |
 
 ### Response — 201 Created
 
@@ -176,11 +178,11 @@ Membuat Gantt Chart baru. Sistem akan:
 
 ### Error Responses
 
-| Code | Kondisi |
-|------|---------|
-| 400  | JSON body tidak valid / field wajib kosong |
+| Code | Kondisi                                          |
+| ---- | ------------------------------------------------ |
+| 400  | JSON body tidak valid / field wajib kosong       |
 | 409  | Gantt Chart aktif untuk ULOK yang sama sudah ada |
-| 422  | Validasi Zod gagal (Node.js) |
+| 422  | Validasi Zod gagal (Node.js)                     |
 
 ---
 
@@ -190,10 +192,10 @@ Membuat Gantt Chart baru. Sistem akan:
 
 ### Query Parameters
 
-| Parameter | Tipe | Deskripsi |
-|-----------|------|-----------|
-| `status` | string | Filter: `active` atau `terkunci` |
-| `nomor_ulok` | string | Filter berdasarkan nomor ULOK |
+| Parameter       | Tipe   | Deskripsi                        |
+| --------------- | ------ | -------------------------------- |
+| `status`        | string | Filter: `active` atau `terkunci` |
+| `nomor_ulok`    | string | Filter berdasarkan nomor ULOK    |
 | `email_pembuat` | string | Filter berdasarkan email pembuat |
 
 ### Contoh Request
@@ -234,9 +236,9 @@ GET /api/gantt
 
 ### Path Parameter
 
-| Parameter | Tipe | Deskripsi |
-|-----------|------|-----------|
-| `id` | number | ID Gantt Chart |
+| Parameter | Tipe   | Deskripsi      |
+| --------- | ------ | -------------- |
+| `id`      | number | ID Gantt Chart |
 
 ### Response — 200 OK
 
@@ -318,8 +320,8 @@ GET /api/gantt
 
 ### Error
 
-| Code | Kondisi |
-|------|---------|
+| Code | Kondisi                     |
+| ---- | --------------------------- |
 | 404  | Gantt Chart tidak ditemukan |
 
 ---
@@ -332,9 +334,9 @@ Update isi Gantt Chart. Jika `kategori_pekerjaan` dan `day_items` dikirim, semua
 
 ### Path Parameter
 
-| Parameter | Tipe | Deskripsi |
-|-----------|------|-----------|
-| `id` | number | ID Gantt Chart |
+| Parameter | Tipe   | Deskripsi      |
+| --------- | ------ | -------------- |
+| `id`      | number | ID Gantt Chart |
 
 ### Request Body
 
@@ -368,9 +370,7 @@ Update isi Gantt Chart. Jika `kategori_pekerjaan` dan `day_items` dikirim, semua
       "kategori_pekerjaan_terikat": "PEKERJAAN PERSIAPAN"
     }
   ],
-  "pengawasan": [
-    { "kategori_pekerjaan": "PEKERJAAN FINISHING" }
-  ]
+  "pengawasan": [{ "kategori_pekerjaan": "PEKERJAAN FINISHING" }]
 }
 ```
 
@@ -380,16 +380,18 @@ Update isi Gantt Chart. Jika `kategori_pekerjaan` dan `day_items` dikirim, semua
 {
   "status": "success",
   "message": "Gantt Chart berhasil diperbarui",
-  "data": { /* detail gantt chart lengkap (sama seperti endpoint 3) */ }
+  "data": {
+    /* detail gantt chart lengkap (sama seperti endpoint 3) */
+  }
 }
 ```
 
 ### Error
 
-| Code | Kondisi |
-|------|---------|
+| Code | Kondisi                     |
+| ---- | --------------------------- |
 | 404  | Gantt Chart tidak ditemukan |
-| 409  | Gantt Chart sudah terkunci |
+| 409  | Gantt Chart sudah terkunci  |
 
 ---
 
@@ -401,9 +403,9 @@ Mengubah status Gantt Chart menjadi `terkunci`. Gantt yang terkunci tidak bisa d
 
 ### Path Parameter
 
-| Parameter | Tipe | Deskripsi |
-|-----------|------|-----------|
-| `id` | number | ID Gantt Chart |
+| Parameter | Tipe   | Deskripsi      |
+| --------- | ------ | -------------- |
+| `id`      | number | ID Gantt Chart |
 
 ### Request Body
 
@@ -415,8 +417,8 @@ Mengubah status Gantt Chart menjadi `terkunci`. Gantt yang terkunci tidak bisa d
 
 ### Validasi
 
-| Field | Aturan |
-|-------|--------|
+| Field   | Aturan                        |
+| ------- | ----------------------------- |
 | `email` | **Wajib**, format email valid |
 
 ### Response — 200 OK
@@ -436,10 +438,10 @@ Mengubah status Gantt Chart menjadi `terkunci`. Gantt yang terkunci tidak bisa d
 
 ### Error
 
-| Code | Kondisi |
-|------|---------|
+| Code | Kondisi                     |
+| ---- | --------------------------- |
 | 404  | Gantt Chart tidak ditemukan |
-| 409  | Gantt Chart sudah terkunci |
+| 409  | Gantt Chart sudah terkunci  |
 
 ---
 
@@ -451,9 +453,9 @@ Menghapus Gantt Chart beserta semua children (kategori, day, pengawasan, depende
 
 ### Path Parameter
 
-| Parameter | Tipe | Deskripsi |
-|-----------|------|-----------|
-| `id` | number | ID Gantt Chart |
+| Parameter | Tipe   | Deskripsi      |
+| --------- | ------ | -------------- |
+| `id`      | number | ID Gantt Chart |
 
 ### Response — 200 OK
 
@@ -470,10 +472,10 @@ Menghapus Gantt Chart beserta semua children (kategori, day, pengawasan, depende
 
 ### Error
 
-| Code | Kondisi |
-|------|---------|
+| Code | Kondisi                     |
+| ---- | --------------------------- |
 | 404  | Gantt Chart tidak ditemukan |
-| 409  | Gantt Chart sudah terkunci |
+| 409  | Gantt Chart sudah terkunci  |
 
 ---
 
@@ -485,9 +487,9 @@ Menambah day items ke Gantt Chart yang sudah ada tanpa replace data lama.
 
 ### Path Parameter
 
-| Parameter | Tipe | Deskripsi |
-|-----------|------|----------|
-| `id` | number | ID Gantt Chart |
+| Parameter | Tipe   | Deskripsi      |
+| --------- | ------ | -------------- |
+| `id`      | number | ID Gantt Chart |
 
 ### Request Body
 
@@ -505,14 +507,14 @@ Menambah day items ke Gantt Chart yang sudah ada tanpa replace data lama.
 
 ### Validasi
 
-| Field | Aturan |
-|-------|--------|
-| `day_items` | **Wajib**, array min 1 |
+| Field                            | Aturan                                                    |
+| -------------------------------- | --------------------------------------------------------- |
+| `day_items`                      | **Wajib**, array min 1                                    |
 | `day_items[].kategori_pekerjaan` | **Wajib**, harus sesuai dengan kategori yang ada di gantt |
-| `day_items[].h_awal` | **Wajib**, string |
-| `day_items[].h_akhir` | **Wajib**, string |
-| `day_items[].keterlambatan` | Opsional |
-| `day_items[].kecepatan` | Opsional |
+| `day_items[].h_awal`             | **Wajib**, string                                         |
+| `day_items[].h_akhir`            | **Wajib**, string                                         |
+| `day_items[].keterlambatan`      | Opsional                                                  |
+| `day_items[].kecepatan`          | Opsional                                                  |
 
 ### Response — 201 Created
 
@@ -526,11 +528,11 @@ Menambah day items ke Gantt Chart yang sudah ada tanpa replace data lama.
 
 ### Error
 
-| Code | Kondisi |
-|------|--------|
+| Code | Kondisi                     |
+| ---- | --------------------------- |
 | 404  | Gantt Chart tidak ditemukan |
-| 409  | Gantt Chart sudah terkunci |
-| 422  | Validasi Zod gagal |
+| 409  | Gantt Chart sudah terkunci  |
+| 422  | Validasi Zod gagal          |
 
 ---
 
@@ -542,9 +544,9 @@ Update nilai keterlambatan pada day item tertentu. Day item diidentifikasi berda
 
 ### Path Parameter
 
-| Parameter | Tipe | Deskripsi |
-|-----------|------|----------|
-| `id` | number | ID Gantt Chart |
+| Parameter | Tipe   | Deskripsi      |
+| --------- | ------ | -------------- |
+| `id`      | number | ID Gantt Chart |
 
 ### Request Body
 
@@ -559,12 +561,12 @@ Update nilai keterlambatan pada day item tertentu. Day item diidentifikasi berda
 
 ### Validasi
 
-| Field | Aturan |
-|-------|--------|
+| Field                | Aturan                  |
+| -------------------- | ----------------------- |
 | `kategori_pekerjaan` | **Wajib**, string min 1 |
-| `h_awal` | **Wajib**, string min 1 |
-| `h_akhir` | **Wajib**, string min 1 |
-| `keterlambatan` | **Wajib**, string |
+| `h_awal`             | **Wajib**, string min 1 |
+| `h_akhir`            | **Wajib**, string min 1 |
+| `keterlambatan`      | **Wajib**, string       |
 
 ### Response — 200 OK
 
@@ -578,10 +580,10 @@ Update nilai keterlambatan pada day item tertentu. Day item diidentifikasi berda
 
 ### Error
 
-| Code | Kondisi |
-|------|--------|
+| Code | Kondisi                                   |
+| ---- | ----------------------------------------- |
 | 404  | Gantt Chart atau Day item tidak ditemukan |
-| 422  | Validasi Zod gagal |
+| 422  | Validasi Zod gagal                        |
 
 ---
 
@@ -593,9 +595,9 @@ Update nilai kecepatan pada day item tertentu. Day item diidentifikasi berdasark
 
 ### Path Parameter
 
-| Parameter | Tipe | Deskripsi |
-|-----------|------|----------|
-| `id` | number | ID Gantt Chart |
+| Parameter | Tipe   | Deskripsi      |
+| --------- | ------ | -------------- |
+| `id`      | number | ID Gantt Chart |
 
 ### Request Body
 
@@ -610,12 +612,12 @@ Update nilai kecepatan pada day item tertentu. Day item diidentifikasi berdasark
 
 ### Validasi
 
-| Field | Aturan |
-|-------|--------|
+| Field                | Aturan                  |
+| -------------------- | ----------------------- |
 | `kategori_pekerjaan` | **Wajib**, string min 1 |
-| `h_awal` | **Wajib**, string min 1 |
-| `h_akhir` | **Wajib**, string min 1 |
-| `kecepatan` | **Wajib**, string |
+| `h_awal`             | **Wajib**, string min 1 |
+| `h_akhir`            | **Wajib**, string min 1 |
+| `kecepatan`          | **Wajib**, string       |
 
 ### Response — 200 OK
 
@@ -629,10 +631,10 @@ Update nilai kecepatan pada day item tertentu. Day item diidentifikasi berdasark
 
 ### Error
 
-| Code | Kondisi |
-|------|--------|
+| Code | Kondisi                                   |
+| ---- | ----------------------------------------- |
 | 404  | Gantt Chart atau Day item tidak ditemukan |
-| 422  | Validasi Zod gagal |
+| 422  | Validasi Zod gagal                        |
 
 ---
 
@@ -644,9 +646,9 @@ Tambah atau hapus pengawasan pada Gantt Chart. Kirim `kategori_pekerjaan` untuk 
 
 ### Path Parameter
 
-| Parameter | Tipe | Deskripsi |
-|-----------|------|-----------|
-| `id` | number | ID Gantt Chart |
+| Parameter | Tipe   | Deskripsi      |
+| --------- | ------ | -------------- |
+| `id`      | number | ID Gantt Chart |
 
 ### Insert — Request Body
 
@@ -686,18 +688,174 @@ Tambah atau hapus pengawasan pada Gantt Chart. Kirim `kategori_pekerjaan` untuk 
 
 ### Validasi
 
-| Field | Aturan |
-|-------|--------|
-| `kategori_pekerjaan` | Opsional, string min 1 — untuk menambah |
-| `remove_kategori` | Opsional, string min 1 — untuk menghapus |
-| | Salah satu dari dua field di atas **wajib** diisi |
+| Field                | Aturan                                            |
+| -------------------- | ------------------------------------------------- |
+| `kategori_pekerjaan` | Opsional, string min 1 — untuk menambah           |
+| `remove_kategori`    | Opsional, string min 1 — untuk menghapus          |
+|                      | Salah satu dari dua field di atas **wajib** diisi |
 
 ### Error
 
-| Code | Kondisi |
-|------|---------|
-| 404  | Gantt Chart tidak ditemukan |
+| Code | Kondisi                                 |
+| ---- | --------------------------------------- |
+| 404  | Gantt Chart tidak ditemukan             |
 | 422  | Validasi Zod gagal (kedua field kosong) |
+
+---
+
+## 11. Detail Gantt Chart by Toko (+ RAB Categories)
+
+**`GET /api/gantt/detail/:id_toko`**
+
+Endpoint ini meniru perilaku `GET /api/get_gantt_data` pada Python server (yang sebelumnya berbasis Spreadsheet), namun menggunakan SQL.
+
+**Alur:**
+
+1. Cari **toko** berdasarkan `id_toko`
+2. Cari **RAB terbaru** pada tabel `rab` berdasarkan `id_toko`
+3. Ambil semua `rab_item` dari RAB tersebut → extract **unique** `kategori_pekerjaan` → `filtered_categories` (deduplicated)
+4. Cari **gantt_chart terbaru** untuk `id_toko`
+5. Ambil semua children gantt: `kategori_pekerjaan_gantt`, `day_gantt_chart`, `pengawasan_gantt`, `dependency_gantt`
+6. Return semua data dalam 1 response
+
+### Path Parameter
+
+| Parameter | Tipe   | Deskripsi               |
+| --------- | ------ | ----------------------- |
+| `id_toko` | number | ID toko di tabel `toko` |
+
+### Contoh Request
+
+```
+GET /api/gantt/detail/5
+```
+
+### Response — 200 OK
+
+```json
+{
+  "status": "success",
+  "rab": {
+    "id": 12,
+    "status": "approved"
+  },
+  "filtered_categories": [
+    "PEKERJAAN BOBOKAN",
+    "PEKERJAAN FINISHING",
+    "PEKERJAAN INSTALASI",
+    "PEKERJAAN PERSIAPAN"
+  ],
+  "gantt_data": {
+    "id": 3,
+    "id_toko": 5,
+    "status": "active",
+    "email_pembuat": "user@example.com",
+    "timestamp": "2026-03-12"
+  },
+  "day_gantt_data": [
+    {
+      "id": 1,
+      "id_gantt": 3,
+      "id_kategori_pekerjaan_gantt": 10,
+      "h_awal": "01/04/2026",
+      "h_akhir": "05/04/2026",
+      "keterlambatan": null,
+      "kecepatan": null,
+      "kategori_pekerjaan": "PEKERJAAN PERSIAPAN"
+    },
+    {
+      "id": 2,
+      "id_gantt": 3,
+      "id_kategori_pekerjaan_gantt": 11,
+      "h_awal": "06/04/2026",
+      "h_akhir": "12/04/2026",
+      "keterlambatan": null,
+      "kecepatan": null,
+      "kategori_pekerjaan": "PEKERJAAN BOBOKAN"
+    }
+  ],
+  "dependency_data": [
+    {
+      "id": 1,
+      "id_gantt": 3,
+      "id_kategori": 11,
+      "id_kategori_terikat": 10,
+      "kategori_pekerjaan": "PEKERJAAN BOBOKAN",
+      "kategori_pekerjaan_terikat": "PEKERJAAN PERSIAPAN"
+    }
+  ],
+  "pengawasan_data": [
+    { "id": 1, "id_gantt": 3, "kategori_pekerjaan": "PEKERJAAN PERSIAPAN" }
+  ],
+  "kategori_pekerjaan": [
+    { "id": 10, "id_gantt": 3, "kategori_pekerjaan": "PEKERJAAN PERSIAPAN" },
+    { "id": 11, "id_gantt": 3, "kategori_pekerjaan": "PEKERJAAN BOBOKAN" },
+    { "id": 12, "id_gantt": 3, "kategori_pekerjaan": "PEKERJAAN INSTALASI" },
+    { "id": 13, "id_gantt": 3, "kategori_pekerjaan": "PEKERJAAN FINISHING" }
+  ],
+  "toko": {
+    "id": 5,
+    "nomor_ulok": "7AZ1-0001-0001",
+    "lingkup_pekerjaan": "SIPIL",
+    "nama_toko": "ALFAMART CONTOH",
+    "kode_toko": "ALF001",
+    "proyek": "RENOVASI",
+    "cabang": "CIKOKOL",
+    "alamat": "Jl. Contoh No. 1",
+    "nama_kontraktor": "PT Kontraktor ABC"
+  }
+}
+```
+
+### Response — ketika toko ada tapi belum ada gantt/rab
+
+```json
+{
+  "status": "success",
+  "rab": null,
+  "filtered_categories": [],
+  "gantt_data": null,
+  "day_gantt_data": [],
+  "dependency_data": [],
+  "pengawasan_data": [],
+  "kategori_pekerjaan": [],
+  "toko": {
+    "id": 5,
+    "nomor_ulok": "7AZ1-0001-0001",
+    "lingkup_pekerjaan": "SIPIL",
+    "nama_toko": "ALFAMART CONTOH",
+    "kode_toko": "ALF001",
+    "proyek": "RENOVASI",
+    "cabang": "CIKOKOL",
+    "alamat": "Jl. Contoh No. 1",
+    "nama_kontraktor": "PT Kontraktor ABC"
+  }
+}
+```
+
+### Mapping ke Python Server
+
+| Python (Spreadsheet lama)                         | Node.js (SQL baru)                                                |
+| ------------------------------------------------- | ----------------------------------------------------------------- |
+| `GET /api/get_gantt_data?ulok=...&lingkup=...`    | `GET /api/gantt/detail/:id_toko`                                  |
+| `result['rab']` → data RAB dari sheet             | `rab` → dari tabel `rab`                                          |
+| `result['filtered_categories']` → unique kategori | `filtered_categories` → unique dari `rab_item.kategori_pekerjaan` |
+| `result['gantt']` → gantt chart data              | `gantt_data` → dari tabel `gantt_chart`                           |
+| `result['day_gantt']` → day entries               | `day_gantt_data` → dari tabel `day_gantt_chart`                   |
+| `result['dependency']` → dependency data          | `dependency_data` → dari tabel `dependency_gantt`                 |
+
+### Validasi
+
+| Field     | Aturan                                     |
+| --------- | ------------------------------------------ |
+| `id_toko` | **Wajib**, harus berupa angka (path param) |
+
+### Error
+
+| Code | Kondisi                     |
+| ---- | --------------------------- |
+| 404  | Toko tidak ditemukan        |
+| 422  | `id_toko` bukan angka valid |
 
 ---
 
@@ -724,17 +882,17 @@ Tambah atau hapus pengawasan pada Gantt Chart. Kirim `kategori_pekerjaan` untuk 
 
 ## Migrasi dari Spreadsheet ke SQL
 
-| Fitur Lama (Spreadsheet) | Fitur Baru (SQL) |
-|---------------------------|-------------------|
-| `GET /api/get_gantt_data` | `GET /api/gantt/:id` atau `GET /api/gantt-sql/:id` |
-| `POST /api/gantt/insert` | `POST /api/gantt/submit` atau `POST /api/gantt-sql/submit` |
-| `POST /api/gantt/day/insert` | Include dalam submit, atau `POST /api/gantt-sql/:id/day` |
-| `POST /api/gantt/dependency/insert` | Include dalam submit sebagai `dependencies` |
-| `POST /api/gantt/pengawasan/insert` | Include dalam submit sebagai `pengawasan`, atau `POST /api/gantt-sql/:id/pengawasan` |
-| `POST /api/gantt/day/keterlambatan` | `POST /api/gantt-sql/:id/day/keterlambatan` |
-| `POST /api/gantt/day/kecepatan` | `POST /api/gantt-sql/:id/day/kecepatan` |
-| Kolom Pengawasan_1..10 di Sheet | Tabel `pengawasan_gantt` (unlimited rows) |
-| Pencarian berdasarkan Ulok+Lingkup | Pencarian berdasarkan ID atau filter Ulok |
+| Fitur Lama (Spreadsheet)                 | Fitur Baru (SQL)                                                                     |
+| ---------------------------------------- | ------------------------------------------------------------------------------------ |
+| `GET /api/get_gantt_data?ulok=&lingkup=` | `GET /api/gantt/detail/:id_toko` (Node.js)                                           |
+| `POST /api/gantt/insert`                 | `POST /api/gantt/submit` atau `POST /api/gantt-sql/submit`                           |
+| `POST /api/gantt/day/insert`             | Include dalam submit, atau `POST /api/gantt-sql/:id/day`                             |
+| `POST /api/gantt/dependency/insert`      | Include dalam submit sebagai `dependencies`                                          |
+| `POST /api/gantt/pengawasan/insert`      | Include dalam submit sebagai `pengawasan`, atau `POST /api/gantt-sql/:id/pengawasan` |
+| `POST /api/gantt/day/keterlambatan`      | `POST /api/gantt-sql/:id/day/keterlambatan`                                          |
+| `POST /api/gantt/day/kecepatan`          | `POST /api/gantt-sql/:id/day/kecepatan`                                              |
+| Kolom Pengawasan_1..10 di Sheet          | Tabel `pengawasan_gantt` (unlimited rows)                                            |
+| Pencarian berdasarkan Ulok+Lingkup       | Pencarian berdasarkan ID atau filter Ulok                                            |
 
 > Endpoint lama di `app.py` (`/api/gantt/insert`, dll) masih tersedia untuk backward compatibility.
 > Endpoint baru di `gantt_api.py` (`/api/gantt-sql/...`) menggunakan SQL (Python).

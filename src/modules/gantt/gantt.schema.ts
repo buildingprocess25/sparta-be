@@ -104,8 +104,15 @@ export const managePengawasanSchema = z.object({
     { message: "Field 'kategori_pekerjaan' atau 'remove_kategori' wajib diisi" }
 );
 
+// --- Detail by Toko ---
+
+export const ganttDetailByTokoSchema = z.object({
+    id_toko: z.string().min(1).regex(/^\d+$/, "id_toko harus berupa angka")
+});
+
 // --- Types ---
 
+export type GanttDetailByTokoParams = z.infer<typeof ganttDetailByTokoSchema>;
 export type SubmitGanttInput = z.infer<typeof submitGanttSchema>;
 export type UpdateGanttInput = z.infer<typeof updateGanttSchema>;
 export type LockGanttInput = z.infer<typeof lockGanttSchema>;

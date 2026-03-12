@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
     addDayItems,
     deleteGantt,
+    getDetailByToko,
     getGanttById,
     listGantt,
     lockGantt,
@@ -16,6 +17,7 @@ const ganttRouter = Router();
 
 ganttRouter.post("/submit", submitGantt);
 ganttRouter.get("/", listGantt);
+ganttRouter.get("/detail/:id_toko", getDetailByToko);
 ganttRouter.get("/:id", getGanttById);
 ganttRouter.put("/:id", updateGantt);
 ganttRouter.post("/:id/lock", lockGantt);

@@ -192,5 +192,13 @@ export const ganttService = {
         }
 
         throw new AppError("Field 'kategori_pekerjaan' atau 'remove_kategori' wajib diisi", 400);
+    },
+
+    async getDetailByTokoId(idToko: number) {
+        const data = await ganttRepository.findDetailByTokoId(idToko);
+        if (!data) {
+            throw new AppError("Toko tidak ditemukan", 404);
+        }
+        return data;
     }
 };
