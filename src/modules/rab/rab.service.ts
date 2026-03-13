@@ -4,7 +4,7 @@ import { env } from "../../config/env";
 import { tokoRepository } from "../toko/toko.repository";
 import type { ApprovalActionInput } from "../approval/approval.schema";
 import { RAB_STATUS, type RabStatus } from "./rab.constants";
-import { buildRabPdfBuffer, buildRecapPdfBuffer } from "./rab.pdf";
+import { buildRabPdfBuffer, buildRecapPdfBuffer, mergePdfBuffers } from "./rab.pdf";
 import { rabRepository } from "./rab.repository";
 import type { DetailItemInput, RabListQuery, SubmitRabInput } from "./rab.schema";
 
@@ -173,8 +173,7 @@ export const rabService = {
                     toko: fullData.toko
                 });
 
-                // Merged = non-sbo + recap concatenated
-                const pdfMerged = Buffer.concat([pdfNonSbo, pdfRecap]);
+                const pdfMerged = await mergePdfBuffers([pdfNonSbo, pdfRecap]);
 
                 const linkNonSbo = await uploadPdfToDrive(
                     pdfNonSbo,
