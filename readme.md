@@ -68,12 +68,18 @@ npm run dev
 - `GET /api/rab/:id`
 - `GET /api/rab/:id/pdf`
 - `POST /api/rab/:id/approval`
+- `POST /api/spk/submit`
+- `GET /api/spk`
+- `GET /api/spk/:id`
+- `GET /api/spk/:id/pdf`
+- `POST /api/spk/:id/approval`
 
 ## Dokumentasi API
 
 - `docs/api-toko.md`
 - `docs/api-rab.md`
 - `docs/api-gantt.md`
+- `docs/api-spk.md`
 
 ## Contoh Submit RAB
 
