@@ -9,6 +9,7 @@ import { spkRouter } from "./modules/spk/spk.routes";
 import { documentRouter } from "./modules/document/document.routes";
 import { dokumentasiRouter } from "./modules/dokumentasi/dokumentasi.routes";
 import { ganttRouter } from "./modules/gantt/gantt.routes";
+import { priceRabRouter } from "./modules/price-rab/price-rab.routes";
 import { loginUserCabang } from "./modules/toko/toko.controller";
 
 
@@ -33,6 +34,7 @@ app.use("/api/spk", spkRouter);
 app.use("/api/doc", documentRouter);
 app.use("/api/dok", dokumentasiRouter);
 app.use("/api/gantt", ganttRouter);
+app.use("/", priceRabRouter);
 
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     if (error instanceof ZodError) {
