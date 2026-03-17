@@ -10,6 +10,13 @@ export const createTokoSchema = z.object({
 
 export type CreateTokoInput = z.infer<typeof createTokoSchema>;
 
+export const listTokoQuerySchema = z.object({
+    search: z.string().trim().min(1).optional(),
+    cabang: z.string().trim().min(1).optional()
+});
+
+export type ListTokoQueryInput = z.infer<typeof listTokoQuerySchema>;
+
 export const loginUserCabangSchema = z.object({
     email_sat: z.string().trim().email(),
     cabang: z.string().trim().min(1)

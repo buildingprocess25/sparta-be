@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { asyncHandler } from "../../common/async-handler";
-import { createTokoSchema, loginUserCabangSchema } from "./toko.schema";
+import { createTokoSchema, listTokoQuerySchema, loginUserCabangSchema } from "./toko.schema";
 import { tokoService } from "./toko.service";
 
 export const createToko = asyncHandler(async (req: Request, res: Response) => {
@@ -16,8 +16,8 @@ export const getTokoByNomorUlok = asyncHandler(async (req: Request, res: Respons
 });
 
 export const listToko = asyncHandler(async (req: Request, res: Response) => {
-    const search = typeof req.query.search === "string" ? req.query.search : undefined;
-    const data = await tokoService.list(search);
+    const query = listTokoQuerySchema.parse(req.query);
+    const data = await tokoService.list(query);
     res.json({ status: "success", data });
 });
 

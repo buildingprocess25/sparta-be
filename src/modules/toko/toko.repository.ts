@@ -1,5 +1,5 @@
 import { pool } from "../../db/pool";
-import type { CreateTokoInput } from "./toko.schema";
+import type { CreateTokoInput, ListTokoQueryInput } from "./toko.schema";
 
 export type TokoRow = {
     id: number;
@@ -49,23 +49,34 @@ export const tokoRepository = {
         return result.rows[0] ?? null;
     },
 
-    async findAll(search?: string): Promise<TokoRow[]> {
-        if (!search) {
-            const result = await pool.query<TokoRow>(
-                `SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor FROM toko ORDER BY nama_toko ASC`
+    async findAll(query: ListTokoQueryInput): Promise<TokoRow[]> {
+        const { search, cabang } = query;
+        const filters: string[] = [];
+        const values: string[] = [];
+
+        if (search) {
+            values.push(`%${search}%`);
+            const searchIndex = values.length;
+            filters.push(
+                `(nomor_ulok ILIKE $${searchIndex} OR nama_toko ILIKE $${searchIndex} OR kode_toko ILIKE $${searchIndex} OR cabang ILIKE $${searchIndex})`
             );
-            return result.rows;
         }
 
-        const keyword = `%${search}%`;
+        if (cabang) {
+            values.push(cabang);
+            const cabangIndex = values.length;
+            filters.push(`LOWER(cabang) = LOWER($${cabangIndex})`);
+        }
+
+        const whereClause = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
         const result = await pool.query<TokoRow>(
             `
       SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor
       FROM toko
-      WHERE nomor_ulok ILIKE $1 OR nama_toko ILIKE $1 OR kode_toko ILIKE $1 OR cabang ILIKE $1
+      ${whereClause}
       ORDER BY nama_toko ASC
       `,
-            [keyword]
+            values
         );
 
         return result.rows;

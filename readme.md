@@ -69,6 +69,12 @@ npm run dev
 - `GET /api/rab/:id/pdf`
 - `POST /api/rab/:id/approval`
 
+## Dokumentasi API
+
+- `docs/api-toko.md`
+- `docs/api-rab.md`
+- `docs/api-gantt.md`
+
 ## Contoh Submit RAB
 
 ```json

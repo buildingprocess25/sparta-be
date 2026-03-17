@@ -1,6 +1,6 @@
 import { AppError } from "../../common/app-error";
 import { tokoRepository } from "./toko.repository";
-import type { CreateTokoInput, LoginUserCabangInput } from "./toko.schema";
+import type { CreateTokoInput, ListTokoQueryInput, LoginUserCabangInput } from "./toko.schema";
 
 export const tokoService = {
     async create(input: CreateTokoInput) {
@@ -16,8 +16,8 @@ export const tokoService = {
         return toko;
     },
 
-    async list(search?: string) {
-        return tokoRepository.findAll(search);
+    async list(query: ListTokoQueryInput) {
+        return tokoRepository.findAll(query);
     },
 
     async loginUserCabang(input: LoginUserCabangInput) {
