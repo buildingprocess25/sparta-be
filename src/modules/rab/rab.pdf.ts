@@ -1,6 +1,6 @@
 import { PDFDocument as PdfLibDocument } from "pdf-lib";
 import path from "path";
-import { renderHtmlTemplate, renderPdfFromHtml } from "../../common/html-pdf";
+import { renderHtmlTemplate, renderPdfFromHtml, resolveTemplatePath } from "../../common/html-pdf";
 import type { RabRow, RabItemRow, TokoJoinRow } from "./rab.repository";
 
 type BuildRabPdfInput = {
@@ -121,7 +121,7 @@ const computeRecapTotals = (nonSboTotal: number, cabang?: string | null) => {
 export const buildRabPdfBuffer = async (input: BuildRabPdfInput): Promise<Buffer> => {
     const total = input.items.reduce((acc, item) => acc + Number(item.total_harga || 0), 0);
     const recap = computeRecapTotals(total, input.toko.cabang);
-    const templatePath = path.resolve(__dirname, "../../templates/rab_report.njk");
+    const templatePath = await resolveTemplatePath("rab_report.njk");
     const isBatam = isBatamBranch(input.toko.cabang);
 
     const html = await renderHtmlTemplate(templatePath, {
@@ -166,7 +166,7 @@ export const buildRabPdfBuffer = async (input: BuildRabPdfInput): Promise<Buffer
 
 /** PDF Rekapitulasi - ringkasan total per kategori pekerjaan. */
 export const buildRecapPdfBuffer = async (input: BuildRabPdfInput): Promise<Buffer> => {
-    const templatePath = path.resolve(__dirname, "../../templates/rab_recap_report.njk");
+    const templatePath = await resolveTemplatePath("rab_recap_report.njk");
     const grouped = new Map<string, { material: number; upah: number; total: number }>();
 
     for (const item of input.items) {

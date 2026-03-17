@@ -1,5 +1,5 @@
 import path from "path";
-import { renderHtmlTemplate, renderPdfFromHtml } from "../../common/html-pdf";
+import { renderHtmlTemplate, renderPdfFromHtml, resolveTemplatePath } from "../../common/html-pdf";
 import type { PengajuanSpkRow } from "./spk.repository";
 
 type BuildSpkPdfInput = {
@@ -55,7 +55,7 @@ export const buildSpkPdfBuffer = async (input: BuildSpkPdfInput): Promise<Buffer
     const logoPath = `file:///${path
         .resolve(__dirname, "../../../../server/static", "ALFALOGO.png")
         .replace(/\\/g, "/")}`;
-    const templatePath = path.resolve(__dirname, "../../templates/spk_report.njk");
+    const templatePath = await resolveTemplatePath("spk_report.njk");
 
     const html = await renderHtmlTemplate(templatePath, {
         logo_path: logoPath,

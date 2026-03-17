@@ -1,4 +1,5 @@
 import fs from "fs/promises";
+import path from "path";
 import nunjucks from "nunjucks";
 import puppeteer from "puppeteer";
 
@@ -15,6 +16,24 @@ export const renderHtmlTemplate = async (
 ): Promise<string> => {
     const template = await fs.readFile(templatePath, "utf-8");
     return env.renderString(template, context);
+};
+
+export const resolveTemplatePath = async (templateFilename: string): Promise<string> => {
+    const candidates = [
+        path.resolve(__dirname, "../templates", templateFilename),
+        path.resolve(__dirname, "../../src/templates", templateFilename),
+    ];
+
+    for (const candidate of candidates) {
+        try {
+            await fs.access(candidate);
+            return candidate;
+        } catch {
+            // Continue to next candidate path.
+        }
+    }
+
+    throw new Error(`Template not found: ${templateFilename}. Checked: ${candidates.join(", ")}`);
 };
 
 export const renderPdfFromHtml = async (html: string): Promise<Buffer> => {
