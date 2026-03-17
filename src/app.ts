@@ -35,6 +35,7 @@ app.use("/api/doc", documentRouter);
 app.use("/api/dok", dokumentasiRouter);
 app.use("/api/gantt", ganttRouter);
 app.use("/", priceRabRouter);
+app.use("/api", priceRabRouter);
 
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     if (error instanceof ZodError) {
