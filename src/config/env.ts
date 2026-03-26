@@ -31,6 +31,7 @@ const envSchema = z.object({
     // Puppeteer / Chrome runtime (useful on Render)
     PUPPETEER_EXECUTABLE_PATH: z.string().optional(),
     PUPPETEER_CACHE_DIR: z.string().optional(),
+    PUPPETEER_NAVIGATION_TIMEOUT_MS: z.coerce.number().int().positive().default(120000),
 });
 
 const parsed = envSchema.safeParse(process.env);

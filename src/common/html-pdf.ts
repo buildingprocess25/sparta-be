@@ -39,6 +39,7 @@ export const resolveTemplatePath = async (templateFilename: string): Promise<str
 
 export const renderPdfFromHtml = async (html: string): Promise<Buffer> => {
     const executablePath = env.PUPPETEER_EXECUTABLE_PATH?.trim() || undefined;
+    const navigationTimeoutMs = env.PUPPETEER_NAVIGATION_TIMEOUT_MS ?? 120000;
     const browser = await puppeteer.launch({
         headless: true,
         args: ["--no-sandbox", "--disable-setuid-sandbox"],
@@ -47,7 +48,15 @@ export const renderPdfFromHtml = async (html: string): Promise<Buffer> => {
 
     try {
         const page = await browser.newPage();
-        await page.setContent(html, { waitUntil: "networkidle0" });
+        page.setDefaultNavigationTimeout(navigationTimeoutMs);
+        page.setDefaultTimeout(navigationTimeoutMs);
+
+        // Avoid waiting for network-idle because remote/runtime assets can keep
+        // pending requests alive in cloud environments and trigger false timeouts.
+        await page.setContent(html, {
+            waitUntil: "domcontentloaded",
+            timeout: navigationTimeoutMs,
+        });
         const pdf = await page.pdf({
             format: "A4",
             printBackground: true,
