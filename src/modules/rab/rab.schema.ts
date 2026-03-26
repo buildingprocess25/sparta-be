@@ -39,7 +39,8 @@ export const submitRabSchema = z.object({
 
 export const rabListQuerySchema = z.object({
     status: z.string().optional(),
-    nomor_ulok: z.string().optional()
+    nomor_ulok: z.string().optional(),
+    cabang: z.string().optional()
 });
 
 export type SubmitRabInput = z.infer<typeof submitRabSchema>;

@@ -171,12 +171,15 @@ Mengambil daftar semua pengajuan RAB. Mendukung filter via query string.
 | ------------ | ------ | --------------------------------------- |
 | `status`     | string | Filter berdasarkan status (exact match) |
 | `nomor_ulok` | string | Filter berdasarkan nomor ULOK           |
+| `cabang`     | string | Filter berdasarkan cabang toko          |
 
 ### Contoh Request
 
 ```
 GET /api/rab?status=Menunggu Persetujuan Koordinator
 GET /api/rab?nomor_ulok=7AZ1-0001-0001
+GET /api/rab?cabang=CIKOKOL
+GET /api/rab?status=Menunggu Persetujuan Koordinator&cabang=CIKOKOL
 GET /api/rab
 ```
 
