@@ -6,6 +6,7 @@
     "main": "dist/index.js",
     "scripts": {
         "dev": "tsx watch src/index.ts",
+        "postinstall": "npx puppeteer browsers install chrome",
         "copy:templates": "node -e \"const fs=require('fs');fs.mkdirSync('dist/templates',{recursive:true});fs.cpSync('src/templates','dist/templates',{recursive:true});\"",
         "build": "tsc -p tsconfig.json && npm run copy:templates",
         "start": "node dist/index.js",

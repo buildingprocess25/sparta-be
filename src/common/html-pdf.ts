@@ -2,8 +2,9 @@ import fs from "fs/promises";
 import path from "path";
 import nunjucks from "nunjucks";
 import puppeteer from "puppeteer";
+import { env } from "../config/env";
 
-const env = new nunjucks.Environment(undefined, {
+const nunjucksEnv = new nunjucks.Environment(undefined, {
     autoescape: false,
     throwOnUndefined: false,
     trimBlocks: true,
@@ -15,7 +16,7 @@ export const renderHtmlTemplate = async (
     context: Record<string, unknown>
 ): Promise<string> => {
     const template = await fs.readFile(templatePath, "utf-8");
-    return env.renderString(template, context);
+    return nunjucksEnv.renderString(template, context);
 };
 
 export const resolveTemplatePath = async (templateFilename: string): Promise<string> => {
@@ -37,9 +38,11 @@ export const resolveTemplatePath = async (templateFilename: string): Promise<str
 };
 
 export const renderPdfFromHtml = async (html: string): Promise<Buffer> => {
+    const executablePath = env.PUPPETEER_EXECUTABLE_PATH?.trim() || undefined;
     const browser = await puppeteer.launch({
         headless: true,
         args: ["--no-sandbox", "--disable-setuid-sandbox"],
+        executablePath,
     });
 
     try {
