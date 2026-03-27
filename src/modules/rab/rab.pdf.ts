@@ -1,4 +1,5 @@
 import { PDFDocument as PdfLibDocument } from "pdf-lib";
+import fs from "fs";
 import path from "path";
 import { renderHtmlTemplate, renderPdfFromHtml, resolveTemplatePath } from "../../common/html-pdf";
 import type { RabRow, RabItemRow, TokoJoinRow } from "./rab.repository";
@@ -57,8 +58,24 @@ const formatNomorUlok = (raw?: string | null): string => {
 };
 
 const staticAssetPath = (filename: string): string => {
-    const fullPath = path.resolve(__dirname, "../../../../server/static", filename);
-    return `file:///${fullPath.replace(/\\/g, "/")}`;
+    const candidates = [
+        // Dev mode (tsx): src/modules/rab -> src/image
+        path.resolve(__dirname, "../../image", filename),
+        // Build mode (dist): dist/modules/rab -> src/image
+        path.resolve(__dirname, "../../../src/image", filename),
+        // Legacy fallback
+        path.resolve(__dirname, "../../../../server/static", filename),
+    ];
+
+    for (const assetPath of candidates) {
+        if (fs.existsSync(assetPath)) {
+            return `file:///${assetPath.replace(/\\/g, "/")}`;
+        }
+    }
+
+    // Keep previous behavior even if file is missing, to avoid throwing in PDF generation.
+    const fallback = candidates[0];
+    return `file:///${fallback.replace(/\\/g, "/")}`;
 };
 
 const buildGroupedItems = (items: RabItemRow[]) => {
