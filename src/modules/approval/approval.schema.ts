@@ -8,7 +8,8 @@ export const approvalActionSchema = z
         approver_email: z.string().email(),
         jabatan: jabatanSchema,
         tindakan: tindakanSchema,
-        alasan_penolakan: z.string().optional()
+        // Frontend/Postman kadang mengirim null saat approve.
+        alasan_penolakan: z.string().nullable().optional()
     })
     .superRefine((value, ctx) => {
         if (value.tindakan === "REJECT" && !value.alasan_penolakan?.trim()) {
