@@ -35,10 +35,6 @@ const computeTotals = (detailItems: DetailItemInput[]) => {
     };
 };
 
-const isSboCategory = (kategori?: string | null): boolean => {
-    return String(kategori ?? "").trim().toUpperCase() === "PEKERJAAN SBO";
-};
-
 const resolveStatusTransition = (
     currentStatus: RabStatus,
     action: ApprovalActionInput
@@ -120,7 +116,7 @@ async function regenerateRabPdfs(
 
     const pdfNonSbo = await buildRabPdfBuffer({
         rab: fullData.rab,
-        items: fullData.items.filter((i) => !isSboCategory(i.kategori_pekerjaan)),
+        items: fullData.items,
         toko: fullData.toko
     });
 
