@@ -59,7 +59,7 @@ const formatNomorUlok = (raw?: string | null): string => {
 
 const staticAssetPath = (filename: string): string => {
     const candidates = [
-        // Dev mode (tsx): src/modules/rab -> src/image
+        // Works for dev and build: src/modules/rab -> src/image, dist/modules/rab -> dist/image
         path.resolve(__dirname, "../../image", filename),
         // Build mode (dist): dist/modules/rab -> src/image
         path.resolve(__dirname, "../../../src/image", filename),
@@ -69,13 +69,18 @@ const staticAssetPath = (filename: string): string => {
 
     for (const assetPath of candidates) {
         if (fs.existsSync(assetPath)) {
-            return `file:///${assetPath.replace(/\\/g, "/")}`;
+            const ext = path.extname(assetPath).toLowerCase();
+            const mimeType = ext === ".png"
+                ? "image/png"
+                : ext === ".jpg" || ext === ".jpeg"
+                    ? "image/jpeg"
+                    : "application/octet-stream";
+            const base64 = fs.readFileSync(assetPath).toString("base64");
+            return `data:${mimeType};base64,${base64}`;
         }
     }
 
-    // Keep previous behavior even if file is missing, to avoid throwing in PDF generation.
-    const fallback = candidates[0];
-    return `file:///${fallback.replace(/\\/g, "/")}`;
+    return "";
 };
 
 const buildGroupedItems = (items: RabItemRow[]) => {
