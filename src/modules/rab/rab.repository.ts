@@ -198,7 +198,7 @@ export const rabRepository = {
                     luas_area_parkir, luas_area_sales, luas_gudang,
                     grand_total, grand_total_non_sbo, grand_total_final,
                     created_at
-                ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,CURRENT_DATE)
+                ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,timezone('Asia/Jakarta', now()))
                 RETURNING *`,
                 [
                     tokoId,
@@ -346,23 +346,22 @@ export const rabRepository = {
         newStatus: RabStatus,
         action: ApprovalActionInput
     ): Promise<void> {
-        const now = new Date().toISOString();
         const sets: string[] = ["status = $1"];
         const values: unknown[] = [newStatus];
 
         if (action.tindakan === "APPROVE") {
             if (action.jabatan === "KOORDINATOR") {
-                values.push(action.approver_email, now);
-                sets.push(`pemberi_persetujuan_koordinator = $${values.length - 1}`);
-                sets.push(`waktu_persetujuan_koordinator = $${values.length}`);
+                values.push(action.approver_email);
+                sets.push(`pemberi_persetujuan_koordinator = $${values.length}`);
+                sets.push(`waktu_persetujuan_koordinator = timezone('Asia/Jakarta', now())`);
             } else if (action.jabatan === "MANAGER") {
-                values.push(action.approver_email, now);
-                sets.push(`pemberi_persetujuan_manager = $${values.length - 1}`);
-                sets.push(`waktu_persetujuan_manager = $${values.length}`);
+                values.push(action.approver_email);
+                sets.push(`pemberi_persetujuan_manager = $${values.length}`);
+                sets.push(`waktu_persetujuan_manager = timezone('Asia/Jakarta', now())`);
             } else {
-                values.push(action.approver_email, now);
-                sets.push(`pemberi_persetujuan_direktur = $${values.length - 1}`);
-                sets.push(`waktu_persetujuan_direktur = $${values.length}`);
+                values.push(action.approver_email);
+                sets.push(`pemberi_persetujuan_direktur = $${values.length}`);
+                sets.push(`waktu_persetujuan_direktur = timezone('Asia/Jakarta', now())`);
             }
         } else {
             values.push(action.alasan_penolakan ?? null);
