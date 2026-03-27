@@ -71,10 +71,12 @@ const buildGroupedItems = (items: RabItemRow[]) => {
     }>();
 
     for (const item of items) {
-        const key = item.kategori_pekerjaan;
+        const safeCategory = String(item.kategori_pekerjaan ?? "").trim() || "LAIN-LAIN";
+        const safeJenisPekerjaan = String(item.jenis_pekerjaan ?? "").trim() || "-";
+        const key = safeCategory;
         if (!grouped.has(key)) {
             grouped.set(key, {
-                category: key,
+                category: safeCategory,
                 items: [],
                 subTotalMaterial: 0,
                 subTotalUpah: 0,
@@ -84,7 +86,7 @@ const buildGroupedItems = (items: RabItemRow[]) => {
 
         const group = grouped.get(key)!;
         group.items.push({
-            jenisPekerjaan: item.jenis_pekerjaan,
+            jenisPekerjaan: safeJenisPekerjaan,
             satuan: item.satuan,
             volume: item.volume,
             hargaMaterialFormatted: rupiah(item.harga_material),

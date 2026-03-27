@@ -35,6 +35,10 @@ const computeTotals = (detailItems: DetailItemInput[]) => {
     };
 };
 
+const isSboCategory = (kategori?: string | null): boolean => {
+    return String(kategori ?? "").trim().toUpperCase() === "PEKERJAAN SBO";
+};
+
 const resolveStatusTransition = (
     currentStatus: RabStatus,
     action: ApprovalActionInput
@@ -100,6 +104,54 @@ async function uploadPdfToDrive(buffer: Buffer, filename: string): Promise<strin
     return result.webViewLink ?? `https://drive.google.com/file/d/${result.id}/view`;
 }
 
+async function regenerateRabPdfs(
+    rabId: string,
+    filenameParts: { proyek?: string | null; nomorUlok?: string | null }
+): Promise<{
+    link_pdf_gabungan: string;
+    link_pdf_non_sbo: string;
+    link_pdf_rekapitulasi: string;
+} | null> {
+    const fullData = await rabRepository.findById(rabId);
+    if (!fullData) return null;
+
+    const proyek = filenameParts.proyek ?? fullData.toko.proyek ?? "N/A";
+    const nomorUlok = filenameParts.nomorUlok ?? fullData.toko.nomor_ulok ?? "UNKNOWN";
+
+    const pdfNonSbo = await buildRabPdfBuffer({
+        rab: fullData.rab,
+        items: fullData.items.filter((i) => !isSboCategory(i.kategori_pekerjaan)),
+        toko: fullData.toko
+    });
+
+    const pdfRecap = await buildRecapPdfBuffer({
+        rab: fullData.rab,
+        items: fullData.items,
+        toko: fullData.toko
+    });
+
+    const pdfMerged = await mergePdfBuffers([pdfNonSbo, pdfRecap]);
+
+    const linkNonSbo = await uploadPdfToDrive(
+        pdfNonSbo,
+        `RAB_NON-SBO_${proyek}_${nomorUlok}.pdf`
+    );
+    const linkRecap = await uploadPdfToDrive(
+        pdfRecap,
+        `REKAP_RAB_${proyek}_${nomorUlok}.pdf`
+    );
+    const linkMerged = await uploadPdfToDrive(
+        pdfMerged,
+        `RAB_GABUNGAN_${proyek}_${nomorUlok}.pdf`
+    );
+
+    return {
+        link_pdf_gabungan: linkMerged,
+        link_pdf_non_sbo: linkNonSbo,
+        link_pdf_rekapitulasi: linkRecap
+    };
+}
+
 // ---------------------------------------------------------------------------
 // Service
 // ---------------------------------------------------------------------------
@@ -153,50 +205,16 @@ export const rabService = {
 
         // 4. Generate & upload 3 PDF ke Drive (sama seperti server Python)
         try {
-            const proyek = payload.proyek ?? "N/A";
-            const nomorUlok = payload.nomor_ulok;
+            const links = await regenerateRabPdfs(String(rab.id), {
+                proyek: payload.proyek,
+                nomorUlok: payload.nomor_ulok
+            });
 
-            // Ambil items dari DB biar ada total_material, total_upah, total_harga
-            const fullData = await rabRepository.findById(String(rab.id));
-            if (fullData) {
-                const pdfNonSbo = await buildRabPdfBuffer({
-                    rab: fullData.rab,
-                    items: fullData.items.filter(
-                        (i) => i.kategori_pekerjaan.trim().toUpperCase() !== "PEKERJAAN SBO"
-                    ),
-                    toko: fullData.toko
-                });
-
-                const pdfRecap = await buildRecapPdfBuffer({
-                    rab: fullData.rab,
-                    items: fullData.items,
-                    toko: fullData.toko
-                });
-
-                const pdfMerged = await mergePdfBuffers([pdfNonSbo, pdfRecap]);
-
-                const linkNonSbo = await uploadPdfToDrive(
-                    pdfNonSbo,
-                    `RAB_NON-SBO_${proyek}_${nomorUlok}.pdf`
-                );
-                const linkRecap = await uploadPdfToDrive(
-                    pdfRecap,
-                    `REKAP_RAB_${proyek}_${nomorUlok}.pdf`
-                );
-                const linkMerged = await uploadPdfToDrive(
-                    pdfMerged,
-                    `RAB_GABUNGAN_${proyek}_${nomorUlok}.pdf`
-                );
-
-                await rabRepository.updatePdfLinks(String(rab.id), {
-                    link_pdf_gabungan: linkMerged,
-                    link_pdf_non_sbo: linkNonSbo,
-                    link_pdf_rekapitulasi: linkRecap
-                });
-
-                rab.link_pdf_gabungan = linkMerged;
-                rab.link_pdf_non_sbo = linkNonSbo;
-                rab.link_pdf_rekapitulasi = linkRecap;
+            if (links) {
+                await rabRepository.updatePdfLinks(String(rab.id), links);
+                rab.link_pdf_gabungan = links.link_pdf_gabungan;
+                rab.link_pdf_non_sbo = links.link_pdf_non_sbo;
+                rab.link_pdf_rekapitulasi = links.link_pdf_rekapitulasi;
             }
         } catch (err) {
             console.error("Warning: Gagal upload PDF ke Drive:", err);
@@ -226,6 +244,21 @@ export const rabService = {
         const newStatus = resolveStatusTransition(data.rab.status, action);
 
         await rabRepository.updateApproval(id, newStatus, action);
+
+        if (action.tindakan === "APPROVE") {
+            try {
+                const links = await regenerateRabPdfs(id, {
+                    proyek: data.toko.proyek,
+                    nomorUlok: data.toko.nomor_ulok
+                });
+
+                if (links) {
+                    await rabRepository.updatePdfLinks(id, links);
+                }
+            } catch (err) {
+                console.error("Warning: Gagal regenerate PDF RAB setelah approval:", err);
+            }
+        }
 
         return {
             id,
