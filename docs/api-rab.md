@@ -60,7 +60,8 @@ Membuat pengajuan RAB baru. Sistem akan:
       "satuan": "m2",
       "volume": 100,
       "harga_material": 50000,
-      "harga_upah": 30000
+      "harga_upah": 30000,
+      "catatan": "Akses area dibatasi jam operasional toko"
     },
     {
       "kategori_pekerjaan": "PEKERJAAN SBO",
@@ -68,7 +69,8 @@ Membuat pengajuan RAB baru. Sistem akan:
       "satuan": "unit",
       "volume": 10,
       "harga_material": 200000,
-      "harga_upah": 100000
+      "harga_upah": 100000,
+      "catatan": ""
     }
   ]
 }
@@ -104,6 +106,7 @@ Membuat pengajuan RAB baru. Sistem akan:
 | `detail_items[].volume`             | rab_item | **Wajib**, angka ≥ 0                 |
 | `detail_items[].harga_material`     | rab_item | **Wajib**, angka ≥ 0                 |
 | `detail_items[].harga_upah`         | rab_item | **Wajib**, angka ≥ 0                 |
+| `detail_items[].catatan`            | rab_item | Opsional, string                     |
 
 ### Perhitungan Otomatis (per item)
 
@@ -286,7 +289,8 @@ Mengambil detail lengkap satu pengajuan RAB beserta semua item pekerjaan.
         "harga_upah": 30000,
         "total_material": 5000000,
         "total_upah": 3000000,
-        "total_harga": 8000000
+        "total_harga": 8000000,
+        "catatan": "Akses area dibatasi jam operasional toko"
       },
       {
         "id": 2,
@@ -299,7 +303,8 @@ Mengambil detail lengkap satu pengajuan RAB beserta semua item pekerjaan.
         "harga_upah": 100000,
         "total_material": 2000000,
         "total_upah": 1000000,
-        "total_harga": 3000000
+        "total_harga": 3000000,
+        "catatan": null
       }
     ]
   }
@@ -337,6 +342,10 @@ Mengunduh file PDF RAB gabungan (Non-SBO + Rekapitulasi).
 Sama seperti server Python:
 
 1. Generate PDF Non-SBO (hanya item dengan `kategori_pekerjaan ≠ "PEKERJAAN SBO"`)
+
+- Jika `catatan` pada item terisi, catatan ditampilkan sebagai baris tambahan di bawah item tersebut.
+- Jika `catatan` kosong/null, PDF hanya menampilkan baris item utama.
+
 2. Generate PDF Rekapitulasi (ringkasan per kategori)
 3. Merge kedua PDF menjadi PDF Gabungan
 4. Upload ke Google Drive folder: `PDF_STORAGE_FOLDER_ID`
