@@ -26,6 +26,18 @@ export type PengajuanSpkRow = {
     created_at: string;
 };
 
+export type SpkTokoSummary = {
+    nomor_ulok: string;
+    kode_toko: string | null;
+    nama_toko: string | null;
+    cabang: string | null;
+    alamat: string | null;
+};
+
+export type SpkListRow = PengajuanSpkRow & {
+    toko: SpkTokoSummary;
+};
+
 export type SpkApprovalLogRow = {
     id: string;
     pengajuan_spk_id: string;
@@ -33,6 +45,14 @@ export type SpkApprovalLogRow = {
     tindakan: string;
     alasan_penolakan: string | null;
     waktu_tindakan: string;
+};
+
+type SpkListJoinRow = PengajuanSpkRow & {
+    toko_nomor_ulok: string;
+    toko_kode_toko: string | null;
+    toko_nama_toko: string | null;
+    toko_cabang: string | null;
+    toko_alamat: string | null;
 };
 
 const SPK_COLUMNS = `
@@ -153,33 +173,62 @@ export const spkRepository = {
         };
     },
 
-    async list(filter: { status?: string; nomor_ulok?: string }): Promise<PengajuanSpkRow[]> {
+    async list(filter: { status?: string; nomor_ulok?: string }): Promise<SpkListRow[]> {
         const conditions: string[] = [];
         const values: string[] = [];
 
         if (filter.status) {
             values.push(filter.status);
-            conditions.push(`status = $${values.length}`);
+            conditions.push(`p.status = $${values.length}`);
         }
 
         if (filter.nomor_ulok) {
             values.push(filter.nomor_ulok);
-            conditions.push(`nomor_ulok = $${values.length}`);
+            conditions.push(`p.nomor_ulok = $${values.length}`);
         }
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
-        const result = await pool.query<PengajuanSpkRow>(
+        const result = await pool.query<SpkListJoinRow>(
             `
-      SELECT ${SPK_COLUMNS}
-      FROM pengajuan_spk
+            SELECT p.id, p.nomor_ulok, p.email_pembuat, p.lingkup_pekerjaan, p.nama_kontraktor, p.proyek,
+                p.waktu_mulai, p.durasi, p.waktu_selesai, p.grand_total, p.terbilang, p.nomor_spk,
+                p.par, p.spk_manual_1, p.spk_manual_2, p.status, p.link_pdf, p.approver_email,
+                p.waktu_persetujuan, p.alasan_penolakan, p.created_at,
+        t.nomor_ulok AS toko_nomor_ulok,
+        t.kode_toko AS toko_kode_toko,
+        t.nama_toko AS toko_nama_toko,
+        t.cabang AS toko_cabang,
+        t.alamat AS toko_alamat
+      FROM pengajuan_spk p
+      LEFT JOIN toko t ON t.nomor_ulok = p.nomor_ulok
       ${whereClause}
-      ORDER BY created_at DESC
+      ORDER BY p.created_at DESC
       `,
             values
         );
 
-        return result.rows;
+        return result.rows.map((row: SpkListJoinRow): SpkListRow => {
+            const {
+                toko_nomor_ulok,
+                toko_kode_toko,
+                toko_nama_toko,
+                toko_cabang,
+                toko_alamat,
+                ...spk
+            } = row;
+
+            return {
+                ...spk,
+                toko: {
+                    nomor_ulok: toko_nomor_ulok ?? spk.nomor_ulok,
+                    kode_toko: toko_kode_toko,
+                    nama_toko: toko_nama_toko,
+                    cabang: toko_cabang,
+                    alamat: toko_alamat
+                }
+            };
+        });
     },
 
     async updateStatusAndInsertLog(

@@ -172,7 +172,14 @@ GET /api/spk?nomor_ulok=Z001-2512-TEST
       "approver_email": null,
       "waktu_persetujuan": null,
       "alasan_penolakan": null,
-      "created_at": "2026-03-17T10:25:10.123Z"
+      "created_at": "2026-03-17T10:25:10.123Z",
+      "toko": {
+        "nomor_ulok": "Z001-2512-TEST",
+        "kode_toko": "ALF001",
+        "nama_toko": "ALFAMART CONTOH",
+        "cabang": "Z001",
+        "alamat": "Jl. Contoh No. 1"
+      }
     }
   ]
 }
