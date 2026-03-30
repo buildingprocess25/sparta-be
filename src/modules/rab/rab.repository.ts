@@ -306,7 +306,13 @@ export const rabRepository = {
     },
 
     /** List RAB dengan filter. Join toko untuk nomor_ulok filter. */
-    async list(filter: { status?: string; nomor_ulok?: string; cabang?: string }): Promise<(RabRow & { nomor_ulok: string; nama_toko: string | null; cabang: string | null; proyek: string | null })[]> {
+    async list(filter: { status?: string; nomor_ulok?: string; cabang?: string }): Promise<(RabRow & {
+        nomor_ulok: string;
+        lingkup_pekerjaan: string | null;
+        nama_toko: string | null;
+        cabang: string | null;
+        proyek: string | null;
+    })[]> {
         const conditions: string[] = [];
         const values: unknown[] = [];
 
@@ -329,7 +335,7 @@ export const rabRepository = {
 
         const result = await pool.query(
             `SELECT ${RAB_COLUMNS},
-                t.nomor_ulok, t.nama_toko, t.cabang, t.proyek
+                t.nomor_ulok, t.lingkup_pekerjaan, t.nama_toko, t.cabang, t.proyek
             FROM rab r
             JOIN toko t ON t.id = r.id_toko
             ${whereClause}
