@@ -398,4 +398,47 @@ export class GoogleProvider {
             return null;
         }
     }
+
+    /** Sama persis dg Python get_kontraktor_by_cabang(). */
+    async getKontraktorByCabang(userWilayah: string): Promise<string[]> {
+        if (!this.spartaSheets) {
+            throw new Error("Service Sparta belum siap");
+        }
+
+        const allValues = await this.getAllValues(
+            this.spartaSheets,
+            env.KONTRAKTOR_SHEET_ID,
+            env.KONTRAKTOR_SHEET_NAME,
+        );
+
+        if (allValues.length < 2) {
+            return [];
+        }
+
+        const headers = allValues[1] ?? [];
+        const records = allValues.slice(2).map((row) => {
+            const record: Record<string, string> = {};
+            headers.forEach((header, index) => {
+                record[String(header ?? "")] = String(row[index] ?? "");
+            });
+            return record;
+        });
+
+        const allowedBranchesLower = userWilayah.trim().toLowerCase();
+        const kontraktorList: string[] = [];
+
+        for (const record of records) {
+            const wilayah = String(record["WILAYAH"] ?? "").trim().toLowerCase();
+            const statusKontraktor = String(record["STATUS KONTRAKTOR"] ?? "").trim().toUpperCase();
+
+            if (wilayah === allowedBranchesLower && statusKontraktor === "AKTIF") {
+                const namaKontraktor = String(record["NAMA KONTRAKTOR"] ?? "").trim();
+                if (namaKontraktor && !kontraktorList.includes(namaKontraktor)) {
+                    kontraktorList.push(namaKontraktor);
+                }
+            }
+        }
+
+        return kontraktorList.sort();
+    }
 }

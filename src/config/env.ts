@@ -24,6 +24,8 @@ const envSchema = z.object({
     DOC_BANGUNAN_SHEET_FINAL: z.string().default("dokumentasi_bangunan"),
     CABANG_SHEET_NAME: z.string().default("Cabang"),
     SPK_DATA_SHEET_NAME: z.string().default("SPK_Data"),
+    KONTRAKTOR_SHEET_ID: z.string().default("1s95mAc0yXEyDwUDyyOzsDdIqIPEETZkA62_jQQBWXyw"),
+    KONTRAKTOR_SHEET_NAME: z.string().default("Monitoring Kontraktor"),
 
     // PDF RAB storage – same as Python config.PDF_STORAGE_FOLDER_ID
     PDF_STORAGE_FOLDER_ID: z.string().default("1lvPxOwNILXHmagVfPGkVlNEtfv3U4Emj"),

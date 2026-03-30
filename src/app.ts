@@ -10,7 +10,7 @@ import { documentRouter } from "./modules/document/document.routes";
 import { dokumentasiRouter } from "./modules/dokumentasi/dokumentasi.routes";
 import { ganttRouter } from "./modules/gantt/gantt.routes";
 import { priceRabRouter } from "./modules/price-rab/price-rab.routes";
-import { loginUserCabang } from "./modules/toko/toko.controller";
+import { getKontraktor, loginUserCabang } from "./modules/toko/toko.controller";
 
 
 
@@ -29,6 +29,7 @@ app.get("/health", (_req, res) => {
 
 app.use("/api/toko", tokoRouter);
 app.post("/api/auth/login", loginUserCabang);
+app.get("/api/get_kontraktor", getKontraktor);
 app.use("/api/rab", rabRouter);
 app.use("/api/spk", spkRouter);
 app.use("/api/doc", documentRouter);

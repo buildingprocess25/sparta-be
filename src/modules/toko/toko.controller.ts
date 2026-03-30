@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { asyncHandler } from "../../common/async-handler";
+import { GoogleProvider } from "../../common/google";
 import { createTokoSchema, listTokoQuerySchema, loginUserCabangSchema } from "./toko.schema";
 import { tokoService } from "./toko.service";
 
@@ -26,3 +27,20 @@ export const loginUserCabang = asyncHandler(async (req: Request, res: Response) 
     const data = await tokoService.loginUserCabang(payload);
     res.json({ status: "success", data });
 });
+
+export const getKontraktor = async (req: Request, res: Response) => {
+    const userCabang = String(req.query.cabang ?? "").trim();
+
+    if (!userCabang) {
+        return res.status(400).json({ error: "Cabang parameter is missing" });
+    }
+
+    try {
+        const kontraktorList = await GoogleProvider.instance.getKontraktorByCabang(userCabang);
+        return res.status(200).json(kontraktorList);
+    } catch (error: unknown) {
+        console.error(error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        return res.status(500).json({ error: errorMessage });
+    }
+};
