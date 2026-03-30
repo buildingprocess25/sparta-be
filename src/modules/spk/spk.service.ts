@@ -1,4 +1,6 @@
 import { AppError } from "../../common/app-error";
+import { GoogleProvider } from "../../common/google";
+import { env } from "../../config/env";
 import { tokoRepository } from "../toko/toko.repository";
 import { SPK_STATUS, getCabangCode } from "./spk.constants";
 import { buildSpkPdfBuffer } from "./spk.pdf";
@@ -20,6 +22,48 @@ const terbilang = (angka: number): string => {
     if (angka < 1_000_000_000_000) return terbilang(Math.floor(angka / 1_000_000_000)) + " Miliar" + (angka % 1_000_000_000 ? " " + terbilang(angka % 1_000_000_000) : "");
     return terbilang(Math.floor(angka / 1_000_000_000_000)) + " Triliun" + (angka % 1_000_000_000_000 ? " " + terbilang(angka % 1_000_000_000_000) : "");
 };
+
+async function uploadPdfToDrive(buffer: Buffer, filename: string): Promise<string> {
+    const gp = GoogleProvider.instance;
+    const drive = gp.spartaDrive;
+    if (!drive) throw new AppError("Google Drive (Sparta) belum terkonfigurasi", 500);
+
+    const result = await gp.uploadFile(
+        env.PDF_STORAGE_FOLDER_ID,
+        filename,
+        "application/pdf",
+        buffer,
+        2,
+        drive,
+    );
+
+    return result.webViewLink ?? `https://drive.google.com/file/d/${result.id}/view`;
+}
+
+async function regenerateSpkPdfAndUpload(
+    pengajuanSpkId: string,
+    filenameParts?: { proyek?: string | null; nomorUlok?: string | null }
+): Promise<string | null> {
+    const data = await spkRepository.findById(pengajuanSpkId);
+    if (!data) return null;
+
+    const toko = await tokoRepository.findByNomorUlok(data.pengajuan.nomor_ulok);
+    if (!toko) return null;
+
+    const pdfBuffer = await buildSpkPdfBuffer({
+        pengajuan: data.pengajuan,
+        tokoNama: toko.nama_toko,
+        tokoKode: toko.kode_toko,
+        tokoAlamat: toko.alamat,
+        tokoCabang: toko.cabang
+    });
+
+    const proyek = filenameParts?.proyek ?? data.pengajuan.proyek ?? "N/A";
+    const nomorUlok = filenameParts?.nomorUlok ?? data.pengajuan.nomor_ulok ?? "UNKNOWN";
+    const filename = `SPK_${proyek}_${nomorUlok}.pdf`;
+
+    return uploadPdfToDrive(pdfBuffer, filename);
+}
 
 export const spkService = {
     async submit(payload: SubmitSpkInput) {
@@ -56,7 +100,7 @@ export const spkService = {
         const sequence = await spkRepository.getNextSequence(toko.cabang, now.getFullYear(), now.getMonth() + 1);
         const nomorSpk = `${String(sequence).padStart(3, "0")}/PROPNDEV-${cabangCode}/${payload.spk_manual_1}/${payload.spk_manual_2}`;
 
-        return spkRepository.create({
+        const created = await spkRepository.create({
             nomor_ulok: payload.nomor_ulok,
             email_pembuat: payload.email_pembuat,
             lingkup_pekerjaan: payload.lingkup_pekerjaan,
@@ -73,6 +117,22 @@ export const spkService = {
             spk_manual_2: payload.spk_manual_2,
             status: SPK_STATUS.WAITING_FOR_BM_APPROVAL
         });
+
+        try {
+            const linkPdf = await regenerateSpkPdfAndUpload(String(created.id), {
+                proyek: payload.proyek,
+                nomorUlok: payload.nomor_ulok
+            });
+
+            if (linkPdf) {
+                await spkRepository.updatePdfLink(String(created.id), linkPdf);
+                created.link_pdf = linkPdf;
+            }
+        } catch (err) {
+            console.error("Warning: Gagal upload PDF SPK ke Drive:", err);
+        }
+
+        return created;
     },
 
     async list(query: SpkListQuery) {
@@ -107,6 +167,21 @@ export const spkService = {
             : SPK_STATUS.SPK_REJECTED;
 
         await spkRepository.updateStatusAndInsertLog(id, newStatus, action);
+
+        if (action.tindakan === "APPROVE") {
+            try {
+                const linkPdf = await regenerateSpkPdfAndUpload(id, {
+                    proyek: data.pengajuan.proyek,
+                    nomorUlok: data.pengajuan.nomor_ulok
+                });
+
+                if (linkPdf) {
+                    await spkRepository.updatePdfLink(id, linkPdf);
+                }
+            } catch (err) {
+                console.error("Warning: Gagal regenerate PDF SPK setelah approval:", err);
+            }
+        }
 
         return {
             id,

@@ -276,6 +276,20 @@ export const spkRepository = {
         });
     },
 
+    async updatePdfLink(
+        pengajuanSpkId: string,
+        linkPdf: string
+    ): Promise<void> {
+        await pool.query(
+            `
+      UPDATE pengajuan_spk
+      SET link_pdf = $1
+      WHERE id = $2
+      `,
+            [linkPdf, pengajuanSpkId]
+        );
+    },
+
     async deleteById(id: string): Promise<void> {
         await pool.query(`DELETE FROM pengajuan_spk WHERE id = $1`, [id]);
     }
