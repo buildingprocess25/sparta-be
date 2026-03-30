@@ -6,7 +6,8 @@ export const detailItemSchema = z.object({
     satuan: z.string().min(1),
     volume: z.coerce.number().nonnegative(),
     harga_material: z.coerce.number().nonnegative(),
-    harga_upah: z.coerce.number().nonnegative()
+    harga_upah: z.coerce.number().nonnegative(),
+    catatan: z.string().optional()
 });
 
 export const submitRabSchema = z.object({

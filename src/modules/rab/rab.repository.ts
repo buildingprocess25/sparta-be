@@ -51,6 +51,7 @@ export type RabItemRow = {
     total_material: number;
     total_upah: number;
     total_harga: number;
+    catatan: string | null;
 };
 
 export type TokoJoinRow = {
@@ -90,13 +91,14 @@ const insertRabItems = async (
         const totalMaterial = item.volume * item.harga_material;
         const totalUpah = item.volume * item.harga_upah;
         const totalHarga = totalMaterial + totalUpah;
+        const catatan = item.catatan?.trim() || null;
 
         await client.query(
             `INSERT INTO rab_item (
                 id_rab, kategori_pekerjaan, jenis_pekerjaan, satuan,
                 volume, harga_material, harga_upah,
-                total_material, total_upah, total_harga
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                total_material, total_upah, total_harga, catatan
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
             [
                 rabId,
                 item.kategori_pekerjaan,
@@ -107,7 +109,8 @@ const insertRabItems = async (
                 item.harga_upah,
                 totalMaterial,
                 totalUpah,
-                totalHarga
+                totalHarga,
+                catatan
             ]
         );
     }
@@ -252,7 +255,7 @@ export const rabRepository = {
         const items = await pool.query<RabItemRow>(
             `SELECT id, id_rab, kategori_pekerjaan, jenis_pekerjaan, satuan,
                 volume, harga_material, harga_upah,
-                total_material, total_upah, total_harga
+                total_material, total_upah, total_harga, catatan
             FROM rab_item
             WHERE id_rab = $1
             ORDER BY id ASC`,

@@ -116,6 +116,7 @@ const buildGroupedItems = (items: RabItemRow[]) => {
             totalMaterialFormatted: rupiah(item.total_material),
             totalUpahFormatted: rupiah(item.total_upah),
             totalHargaFormatted: rupiah(item.total_harga),
+            catatan: String(item.catatan ?? "").trim(),
         });
         group.subTotalMaterial += item.total_material;
         group.subTotalUpah += item.total_upah;

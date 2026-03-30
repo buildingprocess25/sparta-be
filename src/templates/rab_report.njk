@@ -87,6 +87,17 @@
             background-color: #f2f2f2;
         }
 
+        .catatan-row td {
+            border-top: none;
+        }
+
+        .catatan-cell {
+            text-align: left;
+            font-style: italic;
+            color: #444;
+            padding: 3px 6px;
+        }
+
         .grand-total-table {
             margin-top: 20px;
             width: 50%;
@@ -217,6 +228,12 @@
                     <td class="text-right">{{ item.totalUpahFormatted }}</td>
                     <td class="text-right"><strong>{{ item.totalHargaFormatted }}</strong></td>
                 </tr>
+                {% if item.catatan %}
+                <tr class="catatan-row">
+                    <td></td>
+                    <td colspan="8" class="catatan-cell">Catatan: {{ item.catatan }}</td>
+                </tr>
+                {% endif %}
                 {% endfor %}
                 <tr class="sub-total-row">
                     <td colspan="6" class="text-right"><strong>SUB TOTAL</strong></td>
