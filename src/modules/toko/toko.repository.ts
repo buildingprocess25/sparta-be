@@ -96,6 +96,20 @@ export const tokoRepository = {
         return result.rows[0] ?? null;
     },
 
+    async findUserCabangByEmailSatAll(emailSat: string): Promise<UserCabangRow[]> {
+        const result = await pool.query<UserCabangRow>(
+            `
+      SELECT cabang, nama_lengkap, jabatan, email_sat, nama_pt
+      FROM user_cabang
+      WHERE LOWER(email_sat) = LOWER($1)
+      ORDER BY jabatan ASC
+      `,
+            [emailSat]
+        );
+
+        return result.rows;
+    },
+
     async findUserCabangByEmailSatAndCabang(emailSat: string, cabang: string): Promise<UserCabangRow | null> {
         const result = await pool.query<UserCabangRow>(
             `

@@ -24,14 +24,21 @@ export const tokoService = {
         const emailSat = input.email_sat.trim();
         const cabang = input.cabang.trim();
 
-        const registeredUser = await tokoRepository.findUserCabangByEmailSat(emailSat);
-        if (!registeredUser) {
+        const registeredUsers = await tokoRepository.findUserCabangByEmailSatAll(emailSat);
+        if (registeredUsers.length === 0) {
             throw new AppError("email belum terdaftar", 404);
         }
 
-        const matchedUser = await tokoRepository.findUserCabangByEmailSatAndCabang(emailSat, cabang);
+        const matchedUser = registeredUsers.find(
+            (user) => user.cabang.toLowerCase() === cabang.toLowerCase()
+        );
         if (!matchedUser) {
             throw new AppError("password salah", 401);
+        }
+
+        const jabatanList = Array.from(new Set(registeredUsers.map((user) => user.jabatan)));
+        if (jabatanList.length > 1) {
+            return { ...matchedUser, jabatan: jabatanList };
         }
 
         return matchedUser;
