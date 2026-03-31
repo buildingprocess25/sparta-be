@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Surat Penawaran Harga</title>
+<style>
+    @page {
+        size: A4;
+        margin: 20mm 20mm;
+    }
+    body {
+        font-family: Arial, sans-serif;
+        font-size: 11pt;
+        line-height: 1.5;
+        color: #000;
+        margin: 0;
+        padding: 0;
+    }
+    .header {
+        width: 100%;
+        margin-bottom: 20px;
+    }
+    .header td {
+        vertical-align: top;
+    }
+    .logo-container {
+        width: 120px;
+        text-align: left;
+    }
+    .logo-container img {
+        max-width: 100px;
+        max-height: 100px;
+        object-fit: contain;
+    }
+    .company-details {
+        text-align: left;
+        padding-left: 20px;
+    }
+    .company-name {
+        font-size: 16pt;
+        font-weight: bold;
+        margin: 0 0 5px 0;
+        text-transform: uppercase;
+    }
+    .contact-info {
+        font-size: 9pt;
+        line-height: 1.3;
+    }
+    .contact-info table {
+        border-collapse: collapse;
+    }
+    .contact-info td {
+        padding: 2px 5px;
+        vertical-align: middle;
+    }
+    .contact-info img {
+        width: 12px;
+        height: 12px;
+    }
+    .doc-meta {
+        margin-top: 30px;
+    }
+    .doc-meta table {
+        border: none;
+    }
+    .doc-meta td {
+        padding: 2px 5px;
+        vertical-align: top;
+    }
+    .recipient {
+        margin-top: 20px;
+    }
+    .content {
+        margin-top: 20px;
+        text-align: justify;
+    }
+    .content p {
+        margin: 5px 0;
+    }
+    .list-numbered {
+        margin-left: 0;
+        padding-left: 20px;
+    }
+    .list-numbered li {
+        margin-bottom: 5px;
+    }
+    .table-details {
+        margin-top: 5px;
+        margin-bottom: 10px;
+    }
+    .table-details td {
+        padding: 2px 5px;
+        vertical-align: top;
+    }
+    .signature-section {
+        margin-top: 40px;
+        width: 100%;
+    }
+    .signature-section table {
+        width: 100%;
+        border: none;
+    }
+    .signature-section td {
+        width: 50%;
+        vertical-align: top;
+        text-align: left;
+    }
+    .date-text {
+        margin-bottom: 60px;
+    }
+    .sign-name {
+        font-weight: bold;
+        text-decoration: underline;
+    }
+    .sign-title {
+        margin-top: 5px;
+    }
+    .footer {
+        position: fixed;
+        bottom: 0;
+        width: 100%;
+        text-align: center;
+        font-size: 10pt;
+        color: #888;
+        font-weight: bold;
+        letter-spacing: 2px;
+    }
+</style>
+</head>
+<body>
+
+<table class="header">
+    <tr>
+        <td class="logo-container">
+            {% if fallback_logo %}
+                <img src="{{ fallback_logo }}" alt="Logo" />
+            {% endif %}
+        </td>
+        <td class="company-details">
+            <h1 class="company-name">{{ nama_pt }}</h1>
+            <!-- Dummy contact info to mimic the user's example if needed, but only if they want it. -->
+            <!-- According to user prompt: put the logo on the top left. -->
+        </td>
+    </tr>
+</table>
+<hr style="border: 1px solid #000;">
+
+<div class="doc-meta">
+    <table>
+        <tr>
+            <td width="80">Nomor</td>
+            <td width="10">:</td>
+            <td><strong>{{ nomor_ulok }}</strong></td>
+        </tr>
+        <tr>
+            <td>Lampiran</td>
+            <td>:</td>
+            <td>1 ( satu ) berkas</td>
+        </tr>
+        <tr>
+            <td>Perihal</td>
+            <td>:</td>
+            <td><strong><i>Penawaran harga pekerjaan</i></strong></td>
+        </tr>
+    </table>
+</div>
+
+<div class="recipient">
+    <p>Kepada Yth,<br>
+    PT. Sumber Alfaria Trijaya<br>
+    <!-- We can use toko.alamat or a standard one, but in user's image it's: Kampung Seglok Desa Pasir Bolang Kec. Tiga Raksa -->
+    Kampung Seglok Desa Pasir Bolang Kec. Tiga Raksa</p>
+
+    <p>Tangerang<br>
+    Up. Branch Building Development Manager</p>
+</div>
+
+<div class="content">
+    <p>Dengan hormat,</p>
+    <p>Setelah membaca dan mempelajari dengan seksama seluruh isi dokumen tender, aanwijzing di kantor dan lapangan dengan ini menyatakan :</p>
+    
+    <ol class="list-numbered">
+        <li>Akan memenuhi ketentuan dalam rencana kerja dan syarat, termasuk risalah aanwijzing.</li>
+        <li>Sanggup menyediakan bahan-bahan, peralatan dan tenaga kerja yang diperlukan untuk melaksanakan :
+            <table class="table-details">
+                <tr>
+                    <td width="100">Proyek</td>
+                    <td width="10">:</td>
+                    <td>{{ proyek }}</td>
+                </tr>
+                <tr>
+                    <td>Pekerjaan</td>
+                    <td>:</td>
+                    <td>{{ lingkup_pekerjaan }}</td>
+                </tr>
+                <tr>
+                    <td>Lokasi</td>
+                    <td>:</td>
+                    <td>{{ nama_toko }}</td>
+                </tr>
+                <tr>
+                    <td>Dan ditenderkan pada hari</td>
+                    <td>:</td>
+                    <td><!-- Placeholder, bisa dikosongkan atau pake tanggal draf --> __________, bertempat di Kampung Seglok<br>Desa Pasir Bolang Kec. Tiga Raksa - Tangerang</td>
+                </tr>
+            </table>
+        </li>
+        <li>Memahami serta telah memperhitungkan secara seksama kewajiban kami secara teknis dan financial seperti termaksud dalam RKS dan risalah aanwijzing pada hari Senin 06/05/2025 bertempat seperti tersebut diatas.<br>
+        Dengan ini kami mengajukan penawaran senilai : <strong>Rp. {{ grand_total }}</strong>,- (Terbilang : <strong>{{ grand_total_terbilang }}</strong>), termasuk overhead, overload daya listrik, Jasa Konstruksi, PPh sesuai dengan perincian harga penawaran tercantum dalam Bill of Quantities.
+        </li>
+        <li>Harga penawaran tersebut adalah fixed (tetap) dengan jangka waktu pelaksanaan Hari kalender sejak Surat Perintah Kerja dikeluarkan.</li>
+        <!-- Can be customized. -->
+        <li>Pembayaran ditujukan ke Rekening atas nama <strong>{{ nama_pt }}</strong>.</li>
+        <li>Kami bersedia menambahkan tenaga kerja lembur proyek dan atau penambahan peralatan, bahan dan tenaga kerja atas biaya sendiri, apabila dalam masa pelaksanaan terjadi keterlambatan, yang ditandai dengan prestasi fisik dibawah target prestasi yang ditetapkan dan disetujui pemberi tugas atau wakilnya.</li>
+        <li>Harga penawaran ini berlaku 15 hari dari tanggal penawaran.</li>
+    </ol>
+</div>
+
+<div class="signature-section">
+    <table>
+        <tr>
+            <td>
+                <!-- Tembusan -->
+                <p style="margin-top: 100px; text-decoration: underline;">Tembusan :</p>
+                <p>Intern /arsip</p>
+            </td>
+            <td>
+                <div class="date-text">Tangerang, {{ tanggal_persetujuan }}<br><strong>{{ nama_pt }}</strong></div>
+                <!-- Menampilkan signature dari Direktur atau identitas pembuat RAB -->
+                <br><br><br>
+                <div class="sign-name">( {{ nama_direktur | default("__________________") }} )</div>
+                <div class="sign-title">Direktur</div>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<div class="footer">
+    BUILD RIGHT, SOLID AS CONCRETE
+</div>
+
+</body>
+</html>

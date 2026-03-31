@@ -4,7 +4,7 @@ import { env } from "../../config/env";
 import { tokoRepository } from "../toko/toko.repository";
 import type { ApprovalActionInput } from "../approval/approval.schema";
 import { RAB_STATUS, type RabStatus } from "./rab.constants";
-import { buildRabPdfBuffer, buildRecapPdfBuffer, mergePdfBuffers } from "./rab.pdf";
+import { buildRabPdfBuffer, buildRecapPdfBuffer, mergePdfBuffers, generateSphPdf } from "./rab.pdf";
 import { rabRepository } from "./rab.repository";
 import type { DetailItemInput, RabListQuery, SubmitRabInput } from "./rab.schema";
 
@@ -40,6 +40,13 @@ const resolveStatusTransition = (
     action: ApprovalActionInput
 ): RabStatus => {
     if (action.tindakan === "APPROVE") {
+        if (action.jabatan === "DIREKTUR") {
+            if (currentStatus !== RAB_STATUS.WAITING_FOR_DIREKTUR) {
+                throw new AppError(`Status saat ini "${currentStatus}" tidak valid untuk approval direktur`, 409);
+            }
+            return RAB_STATUS.WAITING_FOR_COORDINATOR;
+        }
+
         if (action.jabatan === "KOORDINATOR") {
             if (currentStatus !== RAB_STATUS.WAITING_FOR_COORDINATOR) {
                 throw new AppError(`Status saat ini "${currentStatus}" tidak valid untuk approval koordinator`, 409);
@@ -54,13 +61,17 @@ const resolveStatusTransition = (
             return RAB_STATUS.APPROVED;
         }
 
-        if (currentStatus !== RAB_STATUS.APPROVED) {
-            throw new AppError(`Status saat ini "${currentStatus}" tidak valid untuk approval direktur`, 409);
-        }
-        return RAB_STATUS.APPROVED;
+        throw new AppError(`Jabatan "${action.jabatan}" tidak dikenali`, 400);
     }
 
     // REJECT
+    if (action.jabatan === "DIREKTUR") {
+        if (currentStatus !== RAB_STATUS.WAITING_FOR_DIREKTUR) {
+            throw new AppError(`Status saat ini "${currentStatus}" tidak valid untuk reject direktur`, 409);
+        }
+        return RAB_STATUS.REJECTED_BY_DIREKTUR;
+    }
+
     if (action.jabatan === "KOORDINATOR") {
         if (currentStatus !== RAB_STATUS.WAITING_FOR_COORDINATOR) {
             throw new AppError(`Status saat ini "${currentStatus}" tidak valid untuk reject koordinator`, 409);
@@ -75,10 +86,7 @@ const resolveStatusTransition = (
         return RAB_STATUS.REJECTED_BY_MANAGER;
     }
 
-    if (currentStatus !== RAB_STATUS.APPROVED) {
-        throw new AppError(`Status saat ini "${currentStatus}" tidak valid untuk reject direktur`, 409);
-    }
-    return RAB_STATUS.REJECTED_BY_DIREKTUR;
+    throw new AppError(`Status saat ini "${currentStatus}" tidak valid untuk reject direktur`, 409);
 };
 
 /** Upload buffer ke Google Drive, return web view link */
@@ -183,7 +191,7 @@ export const rabService = {
             // rab fields
             email_pembuat: payload.email_pembuat,
             nama_pt: payload.nama_pt,
-            status: RAB_STATUS.WAITING_FOR_COORDINATOR,
+            status: RAB_STATUS.WAITING_FOR_DIREKTUR,
             logo: payload.logo,
             durasi_pekerjaan: payload.durasi_pekerjaan,
             kategori_lokasi: payload.kategori_lokasi,
@@ -243,6 +251,29 @@ export const rabService = {
 
         if (action.tindakan === "APPROVE") {
             try {
+                // Also get the potentially updated full payload for PDF rendering if needed
+                const updatedData = await rabRepository.findById(id);
+                if (!updatedData) {
+                    throw new AppError("RAB tidak ditemukan setelah update", 404);
+                }
+
+                if (action.jabatan === "DIREKTUR") {
+                    try {
+                        const pdfSph = await generateSphPdf({
+                            rab: updatedData.rab,
+                            items: updatedData.items,
+                            toko: updatedData.toko
+                        });
+                        const linkSph = await uploadPdfToDrive(
+                            pdfSph,
+                            `SPH_${data.toko.proyek}_${data.toko.nomor_ulok}.pdf`
+                        );
+                        await rabRepository.updateSphPdfLink(id, linkSph);
+                    } catch (err) {
+                        console.error("Warning: Gagal generate & upload SPH PDF:", err);
+                    }
+                }
+
                 const links = await regenerateRabPdfs(id, {
                     proyek: data.toko.proyek,
                     nomorUlok: data.toko.nomor_ulok

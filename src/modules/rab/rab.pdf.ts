@@ -57,6 +57,31 @@ const formatNomorUlok = (raw?: string | null): string => {
     return value;
 };
 
+const terbilang = (angka: number): string => {
+    const huruf = ["", "Satu", "Dua", "Tiga", "Empat", "Lima", "Enam", "Tujuh", "Delapan", "Sembilan", "Sepuluh", "Sebelas"];
+    let hasil = "";
+    if (angka < 12) {
+        hasil = huruf[angka];
+    } else if (angka < 20) {
+        hasil = terbilang(angka - 10) + " Belas";
+    } else if (angka < 100) {
+        hasil = terbilang(Math.floor(angka / 10)) + " Puluh " + terbilang(angka % 10);
+    } else if (angka < 200) {
+        hasil = "Seratus " + terbilang(angka - 100);
+    } else if (angka < 1000) {
+        hasil = terbilang(Math.floor(angka / 100)) + " Ratus " + terbilang(angka % 100);
+    } else if (angka < 2000) {
+        hasil = "Seribu " + terbilang(angka - 1000);
+    } else if (angka < 1000000) {
+        hasil = terbilang(Math.floor(angka / 1000)) + " Ribu " + terbilang(angka % 1000);
+    } else if (angka < 1000000000) {
+        hasil = terbilang(Math.floor(angka / 1000000)) + " Juta " + terbilang(angka % 1000000);
+    } else if (angka < 1000000000000) {
+        hasil = terbilang(Math.floor(angka / 1000000000)) + " Milyar " + terbilang(angka % 1000000000);
+    }
+    return hasil.trim() + " Rupiah";
+};
+
 const staticAssetPath = (filename: string): string => {
     const candidates = [
         // Works for dev and build: src/modules/rab -> src/image, dist/modules/rab -> dist/image
@@ -235,6 +260,32 @@ export const buildRecapPdfBuffer = async (input: BuildRabPdfInput): Promise<Buff
         watermark_logo_path: staticAssetPath("Building-Logo.png"),
         tanggal_pengajuan: formatDateIndonesia(input.rab.created_at),
         nama_pt: input.rab.nama_pt || "NAMA PT. KONTRAKTOR TIDAK ADA",
+    });
+
+    return renderPdfFromHtml(html);
+};
+
+export const generateSphPdf = async (input: BuildRabPdfInput): Promise<Buffer> => {
+    const templatePath = await resolveTemplatePath("rab_sph_report.njk");
+
+    const total = input.items.reduce((acc, item) => acc + Number(item.total_harga || 0), 0);
+    const recap = computeRecapTotals(total, input.toko.cabang);
+    const finalTotal = recap.finalTotal;
+
+    const html = await renderHtmlTemplate(templatePath, {
+        nomor_ulok: formatNomorUlok(input.toko.nomor_ulok),
+        langsung: true,
+        proyek: input.toko.proyek || "Alfamart",
+        lingkup_pekerjaan: input.toko.lingkup_pekerjaan || "Sipil",
+        nama_toko: input.toko.nama_toko || "", 
+        grand_total: rupiah(finalTotal),
+        grand_total_terbilang: terbilang(finalTotal),
+        tanggal_persetujuan: input.rab.waktu_persetujuan_direktur 
+            ? formatDateIndonesia(input.rab.waktu_persetujuan_direktur)
+            : formatDateIndonesia(input.rab.created_at),
+        nama_pt: input.rab.nama_pt || "PT. ONTOSENO BAYUAJI",
+        nama_direktur: input.rab.pemberi_persetujuan_direktur || "__________________",
+        fallback_logo: input.rab.logo || staticAssetPath("Building-Logo.png")
     });
 
     return renderPdfFromHtml(html);

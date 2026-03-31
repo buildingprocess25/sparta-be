@@ -384,6 +384,14 @@ export const rabRepository = {
         );
     },
 
+    /** Simpan link PDF SPH setelah upload ke Drive */
+    async updateSphPdfLink(rabId: string, linkPdfSph: string): Promise<void> {
+        await pool.query(
+            `UPDATE rab SET link_pdf_sph = $1 WHERE id = $2`,
+            [linkPdfSph, rabId]
+        );
+    },
+
     /** Simpan link PDF setelah upload ke Drive */
     async updatePdfLinks(
         rabId: string,

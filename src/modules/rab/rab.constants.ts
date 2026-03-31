@@ -1,4 +1,5 @@
 export const RAB_STATUS = {
+    WAITING_FOR_DIREKTUR: "Menunggu Persetujuan Direktur",
     WAITING_FOR_COORDINATOR: "Menunggu Persetujuan Koordinator",
     WAITING_FOR_MANAGER: "Menunggu Persetujuan Manajer",
     APPROVED: "Disetujui",
@@ -10,6 +11,7 @@ export const RAB_STATUS = {
 export type RabStatus = (typeof RAB_STATUS)[keyof typeof RAB_STATUS];
 
 export const ACTIVE_RAB_STATUSES: RabStatus[] = [
+    RAB_STATUS.WAITING_FOR_DIREKTUR,
     RAB_STATUS.WAITING_FOR_COORDINATOR,
     RAB_STATUS.WAITING_FOR_MANAGER,
     RAB_STATUS.APPROVED
