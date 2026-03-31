@@ -8,13 +8,13 @@ Base URL: `/api/spk`
 
 ## Daftar Endpoint
 
-| #   | Method | Path                    | Deskripsi                              |
-| --- | ------ | ----------------------- | -------------------------------------- |
-| 1   | `POST` | `/api/spk/submit`       | Submit pengajuan SPK baru              |
-| 2   | `GET`  | `/api/spk`              | List pengajuan SPK (+ filter)          |
-| 3   | `GET`  | `/api/spk/:id`          | Detail pengajuan SPK + approval log    |
-| 4   | `GET`  | `/api/spk/:id/pdf`      | Download PDF SPK                       |
-| 5   | `POST` | `/api/spk/:id/approval` | Approve/Reject pengajuan SPK (1 level) |
+| #   | Method | Path                    | Deskripsi                                     |
+| --- | ------ | ----------------------- | --------------------------------------------- |
+| 1   | `POST` | `/api/spk/submit`       | Submit pengajuan SPK baru / resubmit rejected |
+| 2   | `GET`  | `/api/spk`              | List pengajuan SPK (+ filter)                 |
+| 3   | `GET`  | `/api/spk/:id`          | Detail pengajuan SPK + approval log           |
+| 4   | `GET`  | `/api/spk/:id/pdf`      | Download PDF SPK                              |
+| 5   | `POST` | `/api/spk/:id/approval` | Approve/Reject pengajuan SPK (1 level)        |
 
 ---
 
@@ -41,6 +41,7 @@ Membuat pengajuan SPK baru. Sistem akan:
 
 - Validasi `nomor_ulok` wajib sudah ada di master tabel `toko`
 - Cek duplikasi SPK aktif berdasarkan kombinasi `nomor_ulok + lingkup_pekerjaan`
+- Jika ditemukan data existing dengan kombinasi yang sama namun status `SPK_REJECTED`, sistem tidak membuat baris baru. Sistem akan meng-update baris rejected tersebut (status kembali ke `WAITING_FOR_BM_APPROVAL`) dan memperbarui field pengajuan dengan payload terbaru
 - Hitung `waktu_selesai` dari `waktu_mulai + durasi - 1`
 - Hitung `terbilang` dari `grand_total`
 - Generate `nomor_spk` dengan format:
@@ -116,11 +117,11 @@ Membuat pengajuan SPK baru. Sistem akan:
 
 ### Error Responses
 
-| Code | Kondisi                                                     |
-| ---- | ----------------------------------------------------------- |
-| 404  | `nomor_ulok` tidak ditemukan di master `toko`               |
-| 409  | SPK aktif dengan `nomor_ulok + lingkup_pekerjaan` sudah ada |
-| 422  | Validasi Zod gagal                                          |
+| Code | Kondisi                                                                                                |
+| ---- | ------------------------------------------------------------------------------------------------------ |
+| 404  | `nomor_ulok` tidak ditemukan di master `toko`                                                          |
+| 409  | SPK aktif (`WAITING_FOR_BM_APPROVAL`/`SPK_APPROVED`) dengan `nomor_ulok + lingkup_pekerjaan` sudah ada |
+| 422  | Validasi Zod gagal                                                                                     |
 
 ---
 

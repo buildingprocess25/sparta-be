@@ -100,7 +100,7 @@ export const spkService = {
         const sequence = await spkRepository.getNextSequence(toko.cabang, now.getFullYear(), now.getMonth() + 1);
         const nomorSpk = `${String(sequence).padStart(3, "0")}/PROPNDEV-${cabangCode}/${payload.spk_manual_1}/${payload.spk_manual_2}`;
 
-        const created = await spkRepository.create({
+        const submitPayload = {
             nomor_ulok: payload.nomor_ulok,
             email_pembuat: payload.email_pembuat,
             lingkup_pekerjaan: payload.lingkup_pekerjaan,
@@ -116,7 +116,16 @@ export const spkService = {
             spk_manual_1: payload.spk_manual_1,
             spk_manual_2: payload.spk_manual_2,
             status: SPK_STATUS.WAITING_FOR_BM_APPROVAL
-        });
+        };
+
+        const rejectedData = await spkRepository.findLatestRejectedByUlokAndLingkup(
+            payload.nomor_ulok,
+            payload.lingkup_pekerjaan
+        );
+
+        const created = rejectedData
+            ? await spkRepository.resubmitRejected(String(rejectedData.id), submitPayload)
+            : await spkRepository.create(submitPayload);
 
         try {
             const linkPdf = await regenerateSpkPdfAndUpload(String(created.id), {

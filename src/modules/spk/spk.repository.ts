@@ -144,6 +144,95 @@ export const spkRepository = {
         return result.rows[0];
     },
 
+    async findLatestRejectedByUlokAndLingkup(
+        nomorUlok: string,
+        lingkupPekerjaan: string
+    ): Promise<PengajuanSpkRow | null> {
+        const result = await pool.query<PengajuanSpkRow>(
+            `
+      SELECT ${SPK_COLUMNS}
+      FROM pengajuan_spk
+      WHERE nomor_ulok = $1
+        AND lingkup_pekerjaan = $2
+        AND status = 'SPK_REJECTED'
+      ORDER BY created_at DESC, id DESC
+      LIMIT 1
+      `,
+            [nomorUlok, lingkupPekerjaan]
+        );
+
+        return result.rows[0] ?? null;
+    },
+
+    async resubmitRejected(
+        id: string,
+        payload: {
+            nomor_ulok: string;
+            email_pembuat: string;
+            lingkup_pekerjaan: string;
+            nama_kontraktor: string;
+            proyek: string;
+            waktu_mulai: string;
+            durasi: number;
+            waktu_selesai: string;
+            grand_total: number;
+            terbilang: string;
+            nomor_spk: string;
+            par: string;
+            spk_manual_1: string;
+            spk_manual_2: string;
+            status: SpkStatus;
+        }
+    ): Promise<PengajuanSpkRow> {
+        const result = await pool.query<PengajuanSpkRow>(
+            `
+      UPDATE pengajuan_spk
+      SET nomor_ulok = $1,
+          email_pembuat = $2,
+          lingkup_pekerjaan = $3,
+          nama_kontraktor = $4,
+          proyek = $5,
+          waktu_mulai = $6,
+          durasi = $7,
+          waktu_selesai = $8,
+          grand_total = $9,
+          terbilang = $10,
+          nomor_spk = $11,
+          par = $12,
+          spk_manual_1 = $13,
+          spk_manual_2 = $14,
+          status = $15,
+          link_pdf = NULL,
+          approver_email = NULL,
+          waktu_persetujuan = NULL,
+          alasan_penolakan = NULL,
+          created_at = NOW()
+      WHERE id = $16
+      RETURNING ${SPK_COLUMNS}
+      `,
+            [
+                payload.nomor_ulok,
+                payload.email_pembuat,
+                payload.lingkup_pekerjaan,
+                payload.nama_kontraktor,
+                payload.proyek,
+                payload.waktu_mulai,
+                payload.durasi,
+                payload.waktu_selesai,
+                payload.grand_total,
+                payload.terbilang,
+                payload.nomor_spk,
+                payload.par,
+                payload.spk_manual_1,
+                payload.spk_manual_2,
+                payload.status,
+                id
+            ]
+        );
+
+        return result.rows[0];
+    },
+
     async findById(id: string): Promise<{
         pengajuan: PengajuanSpkRow;
         approvalLogs: SpkApprovalLogRow[];
