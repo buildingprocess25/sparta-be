@@ -115,6 +115,7 @@ async function regenerateRabPdfs(
     link_pdf_gabungan: string;
     link_pdf_non_sbo: string;
     link_pdf_rekapitulasi: string;
+    link_pdf_sph?: string;
 } | null> {
     const fullData = await rabRepository.findById(rabId);
     if (!fullData) return null;
@@ -134,7 +135,27 @@ async function regenerateRabPdfs(
         toko: fullData.toko
     });
 
-    const pdfMerged = await mergePdfBuffers([pdfNonSbo, pdfRecap]);
+    const pdfBuffersToMerge: Buffer[] = [];
+    let linkSph: string | undefined;
+
+    // Jika sudah di-acc Direktur, maka SPH sudah bisa di-generate & dilampirkan
+    if (fullData.rab.waktu_persetujuan_direktur) {
+        const pdfSph = await generateSphPdf({
+            rab: fullData.rab,
+            items: fullData.items,
+            toko: fullData.toko
+        });
+        pdfBuffersToMerge.push(pdfSph);
+        
+        linkSph = await uploadPdfToDrive(
+            pdfSph,
+            `SPH_${proyek}_${nomorUlok}.pdf`
+        );
+    }
+
+    pdfBuffersToMerge.push(pdfNonSbo, pdfRecap);
+
+    const pdfMerged = await mergePdfBuffers(pdfBuffersToMerge);
 
     const linkNonSbo = await uploadPdfToDrive(
         pdfNonSbo,
@@ -152,7 +173,8 @@ async function regenerateRabPdfs(
     return {
         link_pdf_gabungan: linkMerged,
         link_pdf_non_sbo: linkNonSbo,
-        link_pdf_rekapitulasi: linkRecap
+        link_pdf_rekapitulasi: linkRecap,
+        link_pdf_sph: linkSph
     };
 }
 
@@ -251,36 +273,22 @@ export const rabService = {
 
         if (action.tindakan === "APPROVE") {
             try {
-                // Also get the potentially updated full payload for PDF rendering if needed
-                const updatedData = await rabRepository.findById(id);
-                if (!updatedData) {
-                    throw new AppError("RAB tidak ditemukan setelah update", 404);
-                }
-
-                if (action.jabatan === "DIREKTUR") {
-                    try {
-                        const pdfSph = await generateSphPdf({
-                            rab: updatedData.rab,
-                            items: updatedData.items,
-                            toko: updatedData.toko
-                        });
-                        const linkSph = await uploadPdfToDrive(
-                            pdfSph,
-                            `SPH_${data.toko.proyek}_${data.toko.nomor_ulok}.pdf`
-                        );
-                        await rabRepository.updateSphPdfLink(id, linkSph);
-                    } catch (err) {
-                        console.error("Warning: Gagal generate & upload SPH PDF:", err);
-                    }
-                }
-
+                // Generate all PDFs together. If Direktur has approved, it will automatically include SPH.
                 const links = await regenerateRabPdfs(id, {
                     proyek: data.toko.proyek,
                     nomorUlok: data.toko.nomor_ulok
                 });
 
                 if (links) {
-                    await rabRepository.updatePdfLinks(id, links);
+                    await rabRepository.updatePdfLinks(id, {
+                        link_pdf_gabungan: links.link_pdf_gabungan,
+                        link_pdf_non_sbo: links.link_pdf_non_sbo,
+                        link_pdf_rekapitulasi: links.link_pdf_rekapitulasi
+                    });
+                    
+                    if (links.link_pdf_sph) {
+                        await rabRepository.updateSphPdfLink(id, links.link_pdf_sph);
+                    }
                 }
             } catch (err) {
                 console.error("Warning: Gagal regenerate PDF RAB setelah approval:", err);
