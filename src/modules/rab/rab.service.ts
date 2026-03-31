@@ -89,6 +89,91 @@ const resolveStatusTransition = (
     throw new AppError(`Status saat ini "${currentStatus}" tidak valid untuk reject direktur`, 409);
 };
 
+const extractDriveFileId = (value: string): string | null => {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    const byIdParam = /[?&]id=([^&]+)/.exec(trimmed);
+    if (byIdParam?.[1]) return byIdParam[1];
+
+    const byPath = /\/d\/([^/]+)/.exec(trimmed);
+    if (byPath?.[1]) return byPath[1];
+
+    return null;
+};
+
+const normalizeBase64Image = (value: string): { mimeType: string; buffer: Buffer } | null => {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    const dataUriMatch = /^data:([\w/+.-]+);base64,(.+)$/i.exec(trimmed);
+    if (dataUriMatch) {
+        const [, mimeType, base64Data] = dataUriMatch;
+        return { mimeType, buffer: Buffer.from(base64Data, "base64") };
+    }
+
+    const looksLikeBase64 = /^[A-Za-z0-9+/=\s]+$/.test(trimmed) && trimmed.length > 100;
+    if (!looksLikeBase64) return null;
+
+    return { mimeType: "image/png", buffer: Buffer.from(trimmed, "base64") };
+};
+
+const driveDirectLink = (fileId: string): string => {
+    return `https://drive.google.com/uc?export=view&id=${fileId}`;
+};
+
+const uploadLogoToDrive = async (logoValue: string, filename: string): Promise<string | null> => {
+    const normalized = normalizeBase64Image(logoValue);
+    if (!normalized) return null;
+
+    const gp = GoogleProvider.instance;
+    const drive = gp.spartaDrive;
+    if (!drive) throw new AppError("Google Drive (Sparta) belum terkonfigurasi", 500);
+
+    const result = await gp.uploadFile(
+        env.PDF_STORAGE_FOLDER_ID,
+        filename,
+        normalized.mimeType,
+        normalized.buffer,
+        2,
+        drive,
+    );
+
+    if (!result.id) return result.webViewLink ?? null;
+    return driveDirectLink(result.id);
+};
+
+const resolveLogoForPdf = async (logoValue?: string | null): Promise<string | undefined> => {
+    const trimmed = (logoValue ?? "").trim();
+    if (!trimmed) return undefined;
+
+    if (trimmed.startsWith("data:")) {
+        return trimmed;
+    }
+
+    const fileId = extractDriveFileId(trimmed);
+    if (!fileId) return trimmed;
+
+    const gp = GoogleProvider.instance;
+    const drive = gp.spartaDrive;
+    if (!drive) return trimmed;
+
+    const buffer = await gp.getFileBufferById(drive, fileId);
+    if (!buffer) return trimmed;
+
+    let mimeType = "image/png";
+    try {
+        const meta = await drive.files.get({ fileId, fields: "mimeType" });
+        if (meta.data.mimeType) {
+            mimeType = meta.data.mimeType;
+        }
+    } catch {
+        // Best-effort: fallback to PNG when metadata fetch fails.
+    }
+
+    return `data:${mimeType};base64,${buffer.toString("base64")}`;
+};
+
 /** Upload buffer ke Google Drive, return web view link */
 async function uploadPdfToDrive(buffer: Buffer, filename: string): Promise<string> {
     const gp = GoogleProvider.instance;
@@ -137,13 +222,15 @@ async function regenerateRabPdfs(
 
     const pdfBuffersToMerge: Buffer[] = [];
     let linkSph: string | undefined;
+    const logoDataUri = await resolveLogoForPdf(fullData.rab.logo);
 
     // Jika sudah di-acc Direktur, maka SPH sudah bisa di-generate & dilampirkan
     if (fullData.rab.waktu_persetujuan_direktur) {
         const pdfSph = await generateSphPdf({
             rab: fullData.rab,
             items: fullData.items,
-            toko: fullData.toko
+            toko: fullData.toko,
+            logoOverride: logoDataUri
         });
         pdfBuffersToMerge.push(pdfSph);
         
@@ -200,6 +287,19 @@ export const rabService = {
         const totals = computeTotals(payload.detail_items);
 
         // 3. Simpan ke DB (upsert toko + insert rab + insert rab_item dalam 1 transaksi)
+        let logoLink = payload.logo;
+        if (payload.logo) {
+            try {
+                const filename = `RAB_LOGO_${payload.proyek ?? "PROYEK"}_${payload.nomor_ulok}.png`;
+                const uploadedLink = await uploadLogoToDrive(payload.logo, filename);
+                if (uploadedLink) {
+                    logoLink = uploadedLink;
+                }
+            } catch (err) {
+                console.error("Warning: Gagal upload logo RAB ke Drive:", err);
+            }
+        }
+
         const rab = await rabRepository.createWithDetails({
             // toko fields
             nomor_ulok: payload.nomor_ulok,
@@ -214,7 +314,7 @@ export const rabService = {
             email_pembuat: payload.email_pembuat,
             nama_pt: payload.nama_pt,
             status: RAB_STATUS.WAITING_FOR_DIREKTUR,
-            logo: payload.logo,
+            logo: logoLink,
             durasi_pekerjaan: payload.durasi_pekerjaan,
             kategori_lokasi: payload.kategori_lokasi,
             luas_bangunan: payload.luas_bangunan,

@@ -265,7 +265,9 @@ export const buildRecapPdfBuffer = async (input: BuildRabPdfInput): Promise<Buff
     return renderPdfFromHtml(html);
 };
 
-export const generateSphPdf = async (input: BuildRabPdfInput): Promise<Buffer> => {
+export const generateSphPdf = async (
+    input: BuildRabPdfInput & { logoOverride?: string | null }
+): Promise<Buffer> => {
     const templatePath = await resolveTemplatePath("rab_sph_report.njk");
 
     const total = input.items.reduce((acc, item) => acc + Number(item.total_harga || 0), 0);
@@ -285,7 +287,7 @@ export const generateSphPdf = async (input: BuildRabPdfInput): Promise<Buffer> =
             : formatDateIndonesia(input.rab.created_at),
         nama_pt: input.rab.nama_pt || "PT. ONTOSENO BAYUAJI",
         nama_direktur: input.rab.pemberi_persetujuan_direktur || "__________________",
-        fallback_logo: input.rab.logo || staticAssetPath("Building-Logo.png")
+        fallback_logo: input.logoOverride || input.rab.logo || staticAssetPath("Building-Logo.png")
     });
 
     return renderPdfFromHtml(html);
