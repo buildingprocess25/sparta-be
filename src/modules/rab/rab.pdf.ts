@@ -19,6 +19,10 @@ const monthNames = [
     "Juli", "Agustus", "September", "Oktober", "November", "Desember",
 ];
 
+const dayNames = [
+    "Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu",
+];
+
 const monthToRoman = (month: number): string => {
     const romans = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
     return romans[month - 1] ?? "I";
@@ -43,6 +47,13 @@ const formatDateIndonesia = (value?: string | null): string => {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return String(value);
     return `${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+};
+
+const formatDayDateIndonesia = (value?: string | null): string => {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return `${dayNames[date.getDay()]}, ${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
 };
 
 const formatDateTimeIndonesia = (value?: string | null): string => {
@@ -294,6 +305,7 @@ export const generateSphPdf = async (
     const finalTotal = recap.finalTotal;
 
     const referenceDate = input.rab.waktu_persetujuan_direktur || input.rab.created_at;
+    const tanggalSurat = formatDateIndonesia(referenceDate);
 
     const html = await renderHtmlTemplate(templatePath, {
         nomor_sph: buildSphDocumentNumber(input.rab.no_sph, input.toko.kode_toko, referenceDate),
@@ -301,8 +313,11 @@ export const generateSphPdf = async (
         proyek: input.toko.proyek || "Alfamart",
         lingkup_pekerjaan: input.toko.lingkup_pekerjaan || "Sipil",
         nama_toko: input.toko.nama_toko || "", 
+        alamat_toko: input.toko.alamat || "",
         grand_total: rupiah(finalTotal),
         grand_total_terbilang: terbilang(finalTotal),
+        tanggal_surat: tanggalSurat,
+        hari_tanggal_surat: formatDayDateIndonesia(referenceDate),
         tanggal_persetujuan: input.rab.waktu_persetujuan_direktur 
             ? formatDateIndonesia(input.rab.waktu_persetujuan_direktur)
             : formatDateIndonesia(input.rab.created_at),
