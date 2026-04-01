@@ -1,7 +1,7 @@
 import type { PoolClient } from "pg";
 import { pool, withTransaction } from "../../db/pool";
 import type { ApprovalActionInput } from "../approval/approval.schema";
-import { ACTIVE_RAB_STATUSES, type RabStatus } from "./rab.constants";
+import { ACTIVE_RAB_STATUSES, REJECTED_RAB_STATUSES, type RabStatus } from "./rab.constants";
 import type { DetailItemInput } from "./rab.schema";
 
 // ---------------------------------------------------------------------------
@@ -123,6 +123,19 @@ const insertRabItems = async (
 // ---------------------------------------------------------------------------
 
 export const rabRepository = {
+    async findLatestByTokoId(tokoId: number): Promise<RabRow | null> {
+        const result = await pool.query<RabRow>(
+            `SELECT ${RAB_COLUMNS}
+             FROM rab r
+             WHERE r.id_toko = $1
+             ORDER BY r.created_at DESC, r.id DESC
+             LIMIT 1`,
+            [tokoId]
+        );
+
+        return result.rows[0] ?? null;
+    },
+
     /** Cek RAB aktif berdasarkan nomor_ulok (lewat tabel toko) + lingkup */
     async existsActiveByTokoId(tokoId: number): Promise<boolean> {
         const result = await pool.query<{ exists: boolean }>(
@@ -134,6 +147,129 @@ export const rabRepository = {
             [tokoId, ACTIVE_RAB_STATUSES]
         );
         return result.rows[0]?.exists ?? false;
+    },
+
+    async replaceRejectedWithDetails(
+        rabId: number,
+        payload: {
+            // toko fields
+            nomor_ulok: string;
+            lingkup_pekerjaan?: string;
+            nama_toko?: string;
+            kode_toko?: string;
+            proyek?: string;
+            cabang?: string;
+            alamat?: string;
+            nama_kontraktor?: string;
+            // rab fields
+            email_pembuat: string;
+            nama_pt: string;
+            status: RabStatus;
+            logo?: string;
+            durasi_pekerjaan: string;
+            kategori_lokasi?: string;
+            luas_bangunan?: string;
+            luas_terbangun?: string;
+            luas_area_terbuka?: string;
+            luas_area_parkir?: string;
+            luas_area_sales?: string;
+            luas_gudang?: string;
+            grand_total: string;
+            grand_total_non_sbo: string;
+            grand_total_final: string;
+            detail_items: DetailItemInput[];
+        }
+    ): Promise<RabRow> {
+        return withTransaction(async (client) => {
+            const currentRes = await client.query<RabRow>(
+                `SELECT * FROM rab WHERE id = $1 FOR UPDATE`,
+                [rabId]
+            );
+
+            if ((currentRes.rowCount ?? 0) === 0) {
+                throw new Error(`RAB dengan id ${rabId} tidak ditemukan`);
+            }
+
+            const currentRab = currentRes.rows[0];
+            if (!REJECTED_RAB_STATUSES.includes(currentRab.status)) {
+                throw new Error(`RAB dengan id ${rabId} tidak dalam status reject`);
+            }
+
+            await client.query(
+                `UPDATE toko
+                 SET lingkup_pekerjaan = COALESCE($1, lingkup_pekerjaan),
+                     nama_toko = COALESCE($2, nama_toko),
+                     kode_toko = COALESCE($3, kode_toko),
+                     proyek = COALESCE($4, proyek),
+                     cabang = COALESCE($5, cabang),
+                     alamat = COALESCE($6, alamat),
+                     nama_kontraktor = COALESCE($7, nama_kontraktor)
+                 WHERE id = $8`,
+                [
+                    payload.lingkup_pekerjaan ?? null,
+                    payload.nama_toko ?? null,
+                    payload.kode_toko ?? null,
+                    payload.proyek ?? null,
+                    payload.cabang ?? null,
+                    payload.alamat ?? null,
+                    payload.nama_kontraktor ?? null,
+                    currentRab.id_toko
+                ]
+            );
+
+            const updatedRabRes = await client.query<RabRow>(
+                `UPDATE rab
+                 SET status = $1,
+                     nama_pt = $2,
+                     email_pembuat = $3,
+                     logo = $4,
+                     durasi_pekerjaan = $5,
+                     kategori_lokasi = $6,
+                     luas_bangunan = $7,
+                     luas_terbangun = $8,
+                     luas_area_terbuka = $9,
+                     luas_area_parkir = $10,
+                     luas_area_sales = $11,
+                     luas_gudang = $12,
+                     grand_total = $13,
+                     grand_total_non_sbo = $14,
+                     grand_total_final = $15,
+                     alasan_penolakan = NULL,
+                     waktu_penolakan = NULL,
+                     pemberi_persetujuan_direktur = NULL,
+                     waktu_persetujuan_direktur = NULL,
+                     pemberi_persetujuan_koordinator = NULL,
+                     waktu_persetujuan_koordinator = NULL,
+                     pemberi_persetujuan_manager = NULL,
+                     waktu_persetujuan_manager = NULL,
+                     created_at = timezone('Asia/Jakarta', now())
+                 WHERE id = $16
+                 RETURNING *`,
+                [
+                    payload.status,
+                    payload.nama_pt,
+                    payload.email_pembuat,
+                    payload.logo ?? null,
+                    payload.durasi_pekerjaan,
+                    payload.kategori_lokasi ?? null,
+                    payload.luas_bangunan ?? null,
+                    payload.luas_terbangun ?? null,
+                    payload.luas_area_terbuka ?? null,
+                    payload.luas_area_parkir ?? null,
+                    payload.luas_area_sales ?? null,
+                    payload.luas_gudang ?? null,
+                    payload.grand_total,
+                    payload.grand_total_non_sbo,
+                    payload.grand_total_final,
+                    rabId
+                ]
+            );
+
+            await client.query(`DELETE FROM rab_item WHERE id_rab = $1`, [rabId]);
+            await insertRabItems(client, rabId, payload.detail_items);
+
+            return updatedRabRes.rows[0];
+        });
     },
 
     /** Upsert toko + buat RAB header + items dalam satu transaksi */

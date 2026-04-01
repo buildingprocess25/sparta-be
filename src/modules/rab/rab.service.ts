@@ -3,7 +3,7 @@ import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
 import { tokoRepository } from "../toko/toko.repository";
 import type { ApprovalActionInput } from "../approval/approval.schema";
-import { RAB_STATUS, type RabStatus } from "./rab.constants";
+import { RAB_STATUS, REJECTED_RAB_STATUSES, type RabStatus } from "./rab.constants";
 import { buildRabPdfBuffer, buildRecapPdfBuffer, mergePdfBuffers, generateSphPdf } from "./rab.pdf";
 import { rabRepository } from "./rab.repository";
 import type { DetailItemInput, RabListQuery, SubmitRabInput } from "./rab.schema";
@@ -272,13 +272,33 @@ async function regenerateRabPdfs(
 
 export const rabService = {
     async submit(payload: SubmitRabInput) {
-        // 1. Cek duplikasi RAB aktif untuk nomor_ulok ini
+        // 1. Cek apakah ini submit baru atau resubmit dari data yang ditolak
+        let rejectedRabToReplaceId: number | null = null;
         const existingToko = await tokoRepository.findByNomorUlok(payload.nomor_ulok);
         if (existingToko) {
-            const isDuplicate = await rabRepository.existsActiveByTokoId(existingToko.id);
-            if (isDuplicate) {
+            const latestRab = await rabRepository.findLatestByTokoId(existingToko.id);
+
+            if (latestRab && REJECTED_RAB_STATUSES.includes(latestRab.status)) {
+                rejectedRabToReplaceId = latestRab.id;
+            } else {
+                const isDuplicate = await rabRepository.existsActiveByTokoId(existingToko.id);
+                if (isDuplicate) {
+                    throw new AppError(
+                        `RAB aktif untuk ULOK ${payload.nomor_ulok} sudah ada`,
+                        409
+                    );
+                }
+            }
+        }
+
+        // Validasi lingkup saat resubmit agar tidak salah menimpa data ULOK yang berbeda scope pekerjaan.
+        if (existingToko && rejectedRabToReplaceId !== null) {
+            const currentLingkup = (existingToko.lingkup_pekerjaan ?? "").trim().toLowerCase();
+            const incomingLingkup = (payload.lingkup_pekerjaan ?? "").trim().toLowerCase();
+
+            if (currentLingkup && incomingLingkup && currentLingkup !== incomingLingkup) {
                 throw new AppError(
-                    `RAB aktif untuk ULOK ${payload.nomor_ulok} sudah ada`,
+                    `Lingkup pekerjaan untuk ULOK ${payload.nomor_ulok} tidak sesuai dengan data reject sebelumnya`,
                     409
                 );
             }
@@ -301,7 +321,7 @@ export const rabService = {
             }
         }
 
-        const rab = await rabRepository.createWithDetails({
+        const submitPayload = {
             // toko fields
             nomor_ulok: payload.nomor_ulok,
             lingkup_pekerjaan: payload.lingkup_pekerjaan,
@@ -328,7 +348,11 @@ export const rabService = {
             grand_total_non_sbo: String(totals.totalNonSbo),
             grand_total_final: String(totals.finalGrandTotal),
             detail_items: payload.detail_items
-        });
+        };
+
+        const rab = rejectedRabToReplaceId !== null
+            ? await rabRepository.replaceRejectedWithDetails(rejectedRabToReplaceId, submitPayload)
+            : await rabRepository.createWithDetails(submitPayload);
 
         // 4. Generate & upload 3 PDF ke Drive (sama seperti server Python)
         try {
