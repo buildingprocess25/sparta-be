@@ -412,7 +412,7 @@ export const rabRepository = {
                 [rabId]
             );
 
-            if (currentRes.rowCount === 0) {
+            if ((currentRes.rowCount ?? 0) === 0) {
                 throw new Error(`RAB dengan id ${rabId} tidak ditemukan`);
             }
 
@@ -430,7 +430,7 @@ export const rabRepository = {
             );
 
             let nextNoSph = 1;
-            if (lastNumberRes.rowCount > 0) {
+            if ((lastNumberRes.rowCount ?? 0) > 0) {
                 const lastNo = lastNumberRes.rows[0].no_sph;
                 const sameMonthRes = await client.query<{ same_month: boolean }>(
                     `SELECT DATE_TRUNC('month', $1::timestamp) = DATE_TRUNC('month', timezone('Asia/Jakarta', now())) AS same_month`,
