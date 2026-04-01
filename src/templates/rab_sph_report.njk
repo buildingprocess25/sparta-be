@@ -6,19 +6,19 @@
 <style>
     @page {
         size: A4;
-        margin: 20mm 20mm;
+        margin: 14mm 14mm;
     }
     body {
         font-family: Arial, sans-serif;
-        font-size: 11pt;
-        line-height: 1.35;
+        font-size: 9.5pt;
+        line-height: 1.25;
         color: #000;
         margin: 0;
         padding: 0;
     }
     .header {
         width: 100%;
-        margin-bottom: 20px;
+        margin-bottom: 12px;
     }
     .header td {
         vertical-align: top;
@@ -37,13 +37,13 @@
         padding-left: 12px;
     }
     .company-name {
-        font-size: 16pt;
+        font-size: 13pt;
         font-weight: bold;
-        margin: 0 0 5px 0;
+        margin: 0 0 3px 0;
         text-transform: uppercase;
     }
     .company-address {
-        font-size: 9pt;
+        font-size: 8pt;
         margin: 0;
     }
     .address-icon {
@@ -69,7 +69,7 @@
         height: 12px;
     }
     .doc-meta {
-        margin-top: 22px;
+        margin-top: 12px;
         margin-left: 0;
     }
     .doc-meta table {
@@ -81,10 +81,10 @@
         vertical-align: top;
     }
     .recipient {
-        margin-top: 18px;
+        margin-top: 12px;
     }
     .content {
-        margin-top: 14px;
+        margin-top: 10px;
         text-align: justify;
     }
     .content p {
@@ -98,8 +98,8 @@
         margin-bottom: 4px;
     }
     .table-details {
-        margin-top: 4px;
-        margin-bottom: 8px;
+        margin-top: 2px;
+        margin-bottom: 4px;
     }
     .table-details td {
         padding: 1px 4px;
@@ -109,7 +109,7 @@
         white-space: nowrap;
     }
     .signature-section {
-        margin-top: 40px;
+        margin-top: 16px;
         width: 100%;
     }
     .signature-section table {
@@ -125,7 +125,7 @@
         text-align: center;
     }
     .date-text {
-        margin-bottom: 60px;
+        margin-bottom: 30px;
     }
     .sign-name {
         font-weight: bold;
@@ -234,13 +234,12 @@
         <tr>
             <td>
                 <!-- Tembusan -->
-                <p style="margin-top: 100px; text-decoration: underline;">Tembusan :</p>
+                <p style="margin-top: 55px; text-decoration: underline;">Tembusan :</p>
                 <p>Intern /arsip</p>
             </td>
             <td class="signature-right">
                 <div class="date-text">Tangerang, {{ tanggal_persetujuan }}<br><strong>{{ nama_pt }}</strong></div>
                 <!-- Menampilkan signature dari Direktur atau identitas pembuat RAB -->
-                <br><br><br>
                 <div class="sign-name">( {{ nama_direktur | default("__________________") }} )</div>
                 <div class="sign-title">Direktur</div>
             </td>
