@@ -11,6 +11,7 @@ import type { DetailItemInput } from "./rab.schema";
 export type RabRow = {
     id: number;
     id_toko: number;
+    no_sph: number | null;
     status: RabStatus;
     nama_pt: string | null;
     email_pembuat: string | null;
@@ -72,7 +73,7 @@ export type TokoJoinRow = {
 // ---------------------------------------------------------------------------
 
 const RAB_COLUMNS = `
-    r.id, r.id_toko, r.status, r.nama_pt, r.email_pembuat, r.logo,
+    r.id, r.id_toko, r.no_sph, r.status, r.nama_pt, r.email_pembuat, r.logo,
     r.link_pdf_gabungan, r.link_pdf_non_sbo, r.link_pdf_rekapitulasi,
     r.pemberi_persetujuan_koordinator, r.waktu_persetujuan_koordinator,
     r.pemberi_persetujuan_manager, r.waktu_persetujuan_manager,
@@ -266,6 +267,7 @@ export const rabRepository = {
         const rab: RabRow = {
             id: row.id,
             id_toko: row.id_toko,
+            no_sph: row.no_sph,
             status: row.status,
             nama_pt: row.nama_pt,
             email_pembuat: row.email_pembuat,
@@ -393,6 +395,63 @@ export const rabRepository = {
             `UPDATE rab SET link_pdf_sph = $1 WHERE id = $2`,
             [linkPdfSph, rabId]
         );
+    },
+
+    /**
+     * Ambil / assign no_sph dengan aturan:
+     * - jika rab sudah punya no_sph, pakai itu
+     * - jika belum, ambil no_sph terakhir (hanya yang terisi)
+     * - reset ke 1 bila bulan terakhir berbeda dengan bulan sekarang (Asia/Jakarta)
+     */
+    async ensureSphNumber(rabId: string): Promise<number> {
+        return withTransaction(async (client) => {
+            await client.query(`SELECT pg_advisory_xact_lock(hashtext('rab_no_sph_sequence'))`);
+
+            const currentRes = await client.query<{ no_sph: number | null }>(
+                `SELECT no_sph FROM rab WHERE id = $1 FOR UPDATE`,
+                [rabId]
+            );
+
+            if (currentRes.rowCount === 0) {
+                throw new Error(`RAB dengan id ${rabId} tidak ditemukan`);
+            }
+
+            const currentNoSph = currentRes.rows[0].no_sph;
+            if (currentNoSph !== null) {
+                return currentNoSph;
+            }
+
+            const lastNumberRes = await client.query<{ no_sph: number; created_at: string }>(
+                `SELECT no_sph, created_at
+                 FROM rab
+                 WHERE no_sph IS NOT NULL
+                 ORDER BY created_at DESC, id DESC
+                 LIMIT 1`
+            );
+
+            let nextNoSph = 1;
+            if (lastNumberRes.rowCount > 0) {
+                const lastNo = lastNumberRes.rows[0].no_sph;
+                const sameMonthRes = await client.query<{ same_month: boolean }>(
+                    `SELECT DATE_TRUNC('month', $1::timestamp) = DATE_TRUNC('month', timezone('Asia/Jakarta', now())) AS same_month`,
+                    [lastNumberRes.rows[0].created_at]
+                );
+
+                if (sameMonthRes.rows[0]?.same_month) {
+                    nextNoSph = lastNo + 1;
+                }
+            }
+
+            const updatedRes = await client.query<{ no_sph: number }>(
+                `UPDATE rab
+                 SET no_sph = $1
+                 WHERE id = $2
+                 RETURNING no_sph`,
+                [nextNoSph, rabId]
+            );
+
+            return updatedRes.rows[0].no_sph;
+        });
     },
 
     /** Simpan link PDF setelah upload ke Drive */

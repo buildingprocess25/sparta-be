@@ -202,8 +202,12 @@ async function regenerateRabPdfs(
     link_pdf_rekapitulasi: string;
     link_pdf_sph?: string;
 } | null> {
+    // Pastikan nomor SPH tersedia sejak awal submit dan tetap konsisten untuk regenerate berikutnya.
+    const noSph = await rabRepository.ensureSphNumber(rabId);
+
     const fullData = await rabRepository.findById(rabId);
     if (!fullData) return null;
+    fullData.rab.no_sph = noSph;
 
     const proyek = filenameParts.proyek ?? fullData.toko.proyek ?? "N/A";
     const nomorUlok = filenameParts.nomorUlok ?? fullData.toko.nomor_ulok ?? "UNKNOWN";
@@ -224,21 +228,18 @@ async function regenerateRabPdfs(
     let linkSph: string | undefined;
     const logoDataUri = await resolveLogoForPdf(fullData.rab.logo);
 
-    // Jika sudah di-acc Direktur, maka SPH sudah bisa di-generate & dilampirkan
-    if (fullData.rab.waktu_persetujuan_direktur) {
-        const pdfSph = await generateSphPdf({
-            rab: fullData.rab,
-            items: fullData.items,
-            toko: fullData.toko,
-            logoOverride: logoDataUri
-        });
-        pdfBuffersToMerge.push(pdfSph);
-        
-        linkSph = await uploadPdfToDrive(
-            pdfSph,
-            `SPH_${proyek}_${nomorUlok}.pdf`
-        );
-    }
+    const pdfSph = await generateSphPdf({
+        rab: fullData.rab,
+        items: fullData.items,
+        toko: fullData.toko,
+        logoOverride: logoDataUri
+    });
+    pdfBuffersToMerge.push(pdfSph);
+
+    linkSph = await uploadPdfToDrive(
+        pdfSph,
+        `SPH_${proyek}_${nomorUlok}.pdf`
+    );
 
     pdfBuffersToMerge.push(pdfNonSbo, pdfRecap);
 

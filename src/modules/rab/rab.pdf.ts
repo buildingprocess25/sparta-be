@@ -19,6 +19,25 @@ const monthNames = [
     "Juli", "Agustus", "September", "Oktober", "November", "Desember",
 ];
 
+const monthToRoman = (month: number): string => {
+    const romans = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
+    return romans[month - 1] ?? "I";
+};
+
+const buildSphDocumentNumber = (
+    noSph: number | null | undefined,
+    kodeToko: string | null | undefined,
+    dateValue?: string | null
+): string => {
+    const numberPart = Math.max(Number(noSph ?? 0), 1);
+    const kodeTokoPart = String(kodeToko ?? "-").trim() || "-";
+    const baseDate = dateValue ? new Date(dateValue) : new Date();
+    const safeDate = Number.isNaN(baseDate.getTime()) ? new Date() : baseDate;
+    const monthRoman = monthToRoman(safeDate.getMonth() + 1);
+    const year = safeDate.getFullYear();
+    return `${numberPart}/${kodeTokoPart}/SPH/${monthRoman}/${year}`;
+};
+
 const formatDateIndonesia = (value?: string | null): string => {
     if (!value) return "";
     const date = new Date(value);
@@ -274,8 +293,10 @@ export const generateSphPdf = async (
     const recap = computeRecapTotals(total, input.toko.cabang);
     const finalTotal = recap.finalTotal;
 
+    const referenceDate = input.rab.waktu_persetujuan_direktur || input.rab.created_at;
+
     const html = await renderHtmlTemplate(templatePath, {
-        nomor_ulok: formatNomorUlok(input.toko.nomor_ulok),
+        nomor_sph: buildSphDocumentNumber(input.rab.no_sph, input.toko.kode_toko, referenceDate),
         langsung: true,
         proyek: input.toko.proyek || "Alfamart",
         lingkup_pekerjaan: input.toko.lingkup_pekerjaan || "Sipil",
