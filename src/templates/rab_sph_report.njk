@@ -11,7 +11,7 @@
     body {
         font-family: Arial, sans-serif;
         font-size: 11pt;
-        line-height: 1.5;
+        line-height: 1.35;
         color: #000;
         margin: 0;
         padding: 0;
@@ -46,6 +46,13 @@
         font-size: 9pt;
         margin: 0;
     }
+    .address-icon {
+        display: inline-block;
+        margin-right: 4px;
+        font-size: 10pt;
+        line-height: 1;
+        vertical-align: middle;
+    }
     .contact-info {
         font-size: 9pt;
         line-height: 1.3;
@@ -74,29 +81,32 @@
         vertical-align: top;
     }
     .recipient {
-        margin-top: 20px;
+        margin-top: 18px;
     }
     .content {
-        margin-top: 20px;
+        margin-top: 14px;
         text-align: justify;
     }
     .content p {
-        margin: 5px 0;
+        margin: 3px 0;
     }
     .list-numbered {
         margin-left: 0;
-        padding-left: 20px;
+        padding-left: 16px;
     }
     .list-numbered li {
-        margin-bottom: 5px;
+        margin-bottom: 4px;
     }
     .table-details {
-        margin-top: 5px;
-        margin-bottom: 10px;
+        margin-top: 4px;
+        margin-bottom: 8px;
     }
     .table-details td {
-        padding: 2px 5px;
+        padding: 1px 4px;
         vertical-align: top;
+    }
+    .table-details .label {
+        white-space: nowrap;
     }
     .signature-section {
         margin-top: 40px;
@@ -111,15 +121,24 @@
         vertical-align: top;
         text-align: left;
     }
+    .signature-section td.signature-right {
+        text-align: center;
+    }
     .date-text {
         margin-bottom: 60px;
     }
     .sign-name {
         font-weight: bold;
-        text-decoration: underline;
+        display: inline-block;
+        min-width: 220px;
+        border-bottom: 1px solid #000;
+        text-align: center;
+        padding-bottom: 2px;
+        text-decoration: none;
     }
     .sign-title {
-        margin-top: 5px;
+        margin-top: 6px;
+        text-align: center;
     }
 </style>
 </head>
@@ -134,7 +153,7 @@
         </td>
         <td class="company-details">
             <h1 class="company-name">{{ nama_pt }}</h1>
-            <p class="company-address">{{ alamat_toko }}</p>
+            <p class="company-address"><span class="address-icon">📍</span>{{ alamat_toko }}</p>
         </td>
     </tr>
 </table>
@@ -163,8 +182,7 @@
 <div class="recipient">
     <p>Kepada Yth,<br>
     PT. Sumber Alfaria Trijaya<br>
-    <!-- We can use toko.alamat or a standard one, but in user's image it's: Kampung Seglok Desa Pasir Bolang Kec. Tiga Raksa -->
-    Kampung Seglok Desa Pasir Bolang Kec. Tiga Raksa</p>
+    Alfa Tower, 19th Floor, Jalan Jalur Sutera Barat Kav. 9, Alam Sutera, Kota Tangerang, Banten 15143</p>
 
     <p>Tangerang<br>
     Up. Branch Building Development Manager</p>
@@ -179,24 +197,24 @@
         <li>Sanggup menyediakan bahan-bahan, peralatan dan tenaga kerja yang diperlukan untuk melaksanakan :
             <table class="table-details">
                 <tr>
-                    <td width="100">Proyek</td>
+                    <td class="label" width="150">Proyek</td>
                     <td width="10">:</td>
                     <td>{{ proyek }}</td>
                 </tr>
                 <tr>
-                    <td>Pekerjaan</td>
+                    <td class="label">Pekerjaan</td>
                     <td>:</td>
                     <td>{{ lingkup_pekerjaan }}</td>
                 </tr>
                 <tr>
-                    <td>Lokasi</td>
+                    <td class="label">Lokasi</td>
                     <td>:</td>
-                    <td>{{ nama_toko }}</td>
+                    <td>{{ alamat_toko }}</td>
                 </tr>
                 <tr>
-                    <td>Dan ditenderkan pada hari</td>
+                    <td class="label">Dan ditenderkan pada hari</td>
                     <td>:</td>
-                    <td>{{ tanggal_surat }}</td>
+                    <td>{{ tanggal_surat }}, bertempat di Alfa Tower, 19th Floor, Jalan Jalur Sutera Barat Kav. 9, Alam Sutera, Kota Tangerang, Banten 15143.</td>
                 </tr>
             </table>
         </li>
@@ -219,7 +237,7 @@
                 <p style="margin-top: 100px; text-decoration: underline;">Tembusan :</p>
                 <p>Intern /arsip</p>
             </td>
-            <td>
+            <td class="signature-right">
                 <div class="date-text">Tangerang, {{ tanggal_persetujuan }}<br><strong>{{ nama_pt }}</strong></div>
                 <!-- Menampilkan signature dari Direktur atau identitas pembuat RAB -->
                 <br><br><br>

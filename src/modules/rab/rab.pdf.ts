@@ -30,16 +30,14 @@ const monthToRoman = (month: number): string => {
 
 const buildSphDocumentNumber = (
     noSph: number | null | undefined,
-    kodeToko: string | null | undefined,
     dateValue?: string | null
 ): string => {
-    const numberPart = Math.max(Number(noSph ?? 0), 1);
-    const kodeTokoPart = String(kodeToko ?? "-").trim() || "-";
+    const numberPart = String(Math.max(Number(noSph ?? 0), 1)).padStart(2, "0");
     const baseDate = dateValue ? new Date(dateValue) : new Date();
     const safeDate = Number.isNaN(baseDate.getTime()) ? new Date() : baseDate;
     const monthRoman = monthToRoman(safeDate.getMonth() + 1);
     const year = safeDate.getFullYear();
-    return `${numberPart}/${kodeTokoPart}/SPH/${monthRoman}/${year}`;
+    return `${numberPart}/SPH/${monthRoman}/${year}`;
 };
 
 const formatDateIndonesia = (value?: string | null): string => {
@@ -308,7 +306,7 @@ export const generateSphPdf = async (
     const tanggalSurat = formatDateIndonesia(referenceDate);
 
     const html = await renderHtmlTemplate(templatePath, {
-        nomor_sph: buildSphDocumentNumber(input.rab.no_sph, input.toko.kode_toko, referenceDate),
+        nomor_sph: buildSphDocumentNumber(input.rab.no_sph, referenceDate),
         langsung: true,
         proyek: input.toko.proyek || "Alfamart",
         lingkup_pekerjaan: input.toko.lingkup_pekerjaan || "Sipil",
