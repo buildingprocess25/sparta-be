@@ -369,8 +369,11 @@ export const rabService = {
         }
 
         const newStatus = resolveStatusTransition(data.rab.status, action);
-
-        await rabRepository.updateApproval(id, newStatus, action);
+        if (action.tindakan === "REJECT") {
+            await rabRepository.rejectRab(id, newStatus, action.alasan_penolakan ?? "");
+        } else {
+            await rabRepository.updateApproval(id, newStatus, action);
+        }
 
         if (action.tindakan === "APPROVE") {
             try {

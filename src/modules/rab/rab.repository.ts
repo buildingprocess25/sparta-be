@@ -353,39 +353,52 @@ export const rabRepository = {
         return result.rows;
     },
 
-    /** Update status + kolom approval yang relevan di tabel rab */
+    /** Update status + kolom approval saat tindakan APPROVE di tabel rab */
     async updateApproval(
         rabId: string,
         newStatus: RabStatus,
         action: ApprovalActionInput
     ): Promise<void> {
+        if (action.tindakan !== "APPROVE") {
+            throw new Error("updateApproval hanya untuk tindakan APPROVE");
+        }
+
         const sets: string[] = ["status = $1"];
         const values: unknown[] = [newStatus];
 
-        if (action.tindakan === "APPROVE") {
-            if (action.jabatan === "KOORDINATOR") {
-                values.push(action.approver_email);
-                sets.push(`pemberi_persetujuan_koordinator = $${values.length}`);
-                sets.push(`waktu_persetujuan_koordinator = timezone('Asia/Jakarta', now())`);
-            } else if (action.jabatan === "MANAGER") {
-                values.push(action.approver_email);
-                sets.push(`pemberi_persetujuan_manager = $${values.length}`);
-                sets.push(`waktu_persetujuan_manager = timezone('Asia/Jakarta', now())`);
-            } else {
-                values.push(action.approver_email);
-                sets.push(`pemberi_persetujuan_direktur = $${values.length}`);
-                sets.push(`waktu_persetujuan_direktur = timezone('Asia/Jakarta', now())`);
-            }
+        if (action.jabatan === "KOORDINATOR") {
+            values.push(action.approver_email);
+            sets.push(`pemberi_persetujuan_koordinator = $${values.length}`);
+            sets.push(`waktu_persetujuan_koordinator = timezone('Asia/Jakarta', now())`);
+        } else if (action.jabatan === "MANAGER") {
+            values.push(action.approver_email);
+            sets.push(`pemberi_persetujuan_manager = $${values.length}`);
+            sets.push(`waktu_persetujuan_manager = timezone('Asia/Jakarta', now())`);
         } else {
-            values.push(action.alasan_penolakan ?? null);
-            sets.push(`alasan_penolakan = $${values.length}`);
-            sets.push(`waktu_penolakan = timezone('Asia/Jakarta', now())`);
+            values.push(action.approver_email);
+            sets.push(`pemberi_persetujuan_direktur = $${values.length}`);
+            sets.push(`waktu_persetujuan_direktur = timezone('Asia/Jakarta', now())`);
         }
 
         values.push(rabId);
         await pool.query(
             `UPDATE rab SET ${sets.join(", ")} WHERE id = $${values.length}`,
             values
+        );
+    },
+
+    /**
+     * Saat REJECT, hanya update kolom penolakan di tabel rab.
+     * Tidak menyentuh kolom tabel lain.
+     */
+    async rejectRab(rabId: string, newStatus: RabStatus, alasanPenolakan: string): Promise<void> {
+        await pool.query(
+            `UPDATE rab
+             SET status = $1,
+                 alasan_penolakan = $2,
+                 waktu_penolakan = timezone('Asia/Jakarta', now())
+             WHERE id = $3`,
+            [newStatus, alasanPenolakan, rabId]
         );
     },
 
