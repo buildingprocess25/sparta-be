@@ -430,19 +430,17 @@ export const rabService = {
         };
     },
 
-    async generatePdf(id: string) {
+    async getPdfDownloadLink(id: string) {
         const data = await rabRepository.findById(id);
         if (!data) {
             throw new AppError("Pengajuan RAB tidak ditemukan", 404);
         }
 
-        const pdfBuffer = await buildRabPdfBuffer({
-            rab: data.rab,
-            items: data.items,
-            toko: data.toko
-        });
+        const downloadUrl = data.rab.link_pdf_gabungan?.trim();
+        if (!downloadUrl) {
+            throw new AppError("Link PDF gabungan belum tersedia", 404);
+        }
 
-        const filename = `RAB_${data.toko.nomor_ulok}_${data.rab.id}.pdf`;
-        return { filename, pdfBuffer };
+        return { downloadUrl };
     }
 };

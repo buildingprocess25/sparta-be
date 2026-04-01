@@ -323,7 +323,7 @@ Mengambil detail lengkap satu pengajuan RAB beserta semua item pekerjaan.
 
 **`GET /api/rab/:id/pdf`**
 
-Mengunduh file PDF RAB gabungan (Non-SBO + Rekapitulasi).
+Mengarah ke link PDF RAB gabungan (`link_pdf_gabungan`) berdasarkan ID pengajuan RAB.
 
 ### Path Parameter
 
@@ -331,25 +331,11 @@ Mengunduh file PDF RAB gabungan (Non-SBO + Rekapitulasi).
 | --------- | ------ | ---------------- |
 | `id`      | number | ID pengajuan RAB |
 
-### Response — 200 OK
+### Response — 302 Found
 
-- **Content-Type**: `application/pdf`
-- **Content-Disposition**: `attachment; filename="RAB_RENOVASI_7AZ1-0001-0001_1.pdf"`
-- **Body**: Binary PDF data
+- **Location**: nilai dari `link_pdf_gabungan` pada data RAB sesuai `id`
 
-### Proses Generate PDF
-
-Sama seperti server Python:
-
-1. Generate PDF Non-SBO (hanya item dengan `kategori_pekerjaan ≠ "PEKERJAAN SBO"`)
-
-- Jika `catatan` pada item terisi, catatan ditampilkan sebagai baris tambahan di bawah item tersebut.
-- Jika `catatan` kosong/null, PDF hanya menampilkan baris item utama.
-
-2. Generate PDF Rekapitulasi (ringkasan per kategori)
-3. Merge kedua PDF menjadi PDF Gabungan
-4. Upload ke Google Drive folder: `PDF_STORAGE_FOLDER_ID`
-5. Simpan link ke kolom `link_pdf_gabungan`, `link_pdf_non_sbo`, `link_pdf_rekapitulasi` di tabel `rab`
+Endpoint ini tidak melakukan generate ulang PDF. Endpoint hanya mengambil data RAB berdasarkan `id` lalu redirect ke URL yang tersimpan di kolom `link_pdf_gabungan`.
 
 ### Penamaan File (mengikuti server)
 
@@ -364,6 +350,7 @@ RAB_GABUNGAN_{proyek}_{nomor_ulok}.pdf
 | Code | Kondisi                            |
 | ---- | ---------------------------------- |
 | 404  | RAB atau data toko tidak ditemukan |
+| 404  | Link PDF gabungan belum tersedia   |
 
 ---
 

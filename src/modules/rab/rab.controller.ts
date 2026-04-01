@@ -50,11 +50,8 @@ export const getRabById = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const downloadRabPdf = asyncHandler(async (req: Request, res: Response) => {
-    const result = await rabService.generatePdf(req.params.id);
-
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);
-    res.send(result.pdfBuffer);
+    const result = await rabService.getPdfDownloadLink(req.params.id);
+    res.redirect(result.downloadUrl);
 });
 
 export const handleRabApproval = asyncHandler(async (req: Request, res: Response) => {
