@@ -25,6 +25,7 @@ export type RabRow = {
     pemberi_persetujuan_direktur: string | null;
     waktu_persetujuan_direktur: string | null;
     alasan_penolakan: string | null;
+    waktu_penolakan: string | null;
     durasi_pekerjaan: string | null;
     kategori_lokasi: string | null;
     luas_bangunan: string | null;
@@ -76,7 +77,7 @@ const RAB_COLUMNS = `
     r.pemberi_persetujuan_koordinator, r.waktu_persetujuan_koordinator,
     r.pemberi_persetujuan_manager, r.waktu_persetujuan_manager,
     r.pemberi_persetujuan_direktur, r.waktu_persetujuan_direktur,
-    r.alasan_penolakan, r.durasi_pekerjaan, r.kategori_lokasi,
+    r.alasan_penolakan, r.waktu_penolakan, r.durasi_pekerjaan, r.kategori_lokasi,
     r.luas_bangunan, r.luas_terbangun, r.luas_area_terbuka,
     r.luas_area_parkir, r.luas_area_sales, r.luas_gudang,
     r.grand_total, r.grand_total_non_sbo, r.grand_total_final, r.created_at
@@ -279,6 +280,7 @@ export const rabRepository = {
             pemberi_persetujuan_direktur: row.pemberi_persetujuan_direktur,
             waktu_persetujuan_direktur: row.waktu_persetujuan_direktur,
             alasan_penolakan: row.alasan_penolakan,
+            waktu_penolakan: row.waktu_penolakan,
             durasi_pekerjaan: row.durasi_pekerjaan,
             kategori_lokasi: row.kategori_lokasi,
             luas_bangunan: row.luas_bangunan,
@@ -375,6 +377,7 @@ export const rabRepository = {
         } else {
             values.push(action.alasan_penolakan ?? null);
             sets.push(`alasan_penolakan = $${values.length}`);
+            sets.push(`waktu_penolakan = timezone('Asia/Jakarta', now())`);
         }
 
         values.push(rabId);
