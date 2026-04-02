@@ -194,7 +194,8 @@ const buildGroupedItems = (items: RabItemRow[]) => {
 };
 
 const isBatamBranch = (cabang?: string | null): boolean => {
-    return String(cabang ?? "").trim().toUpperCase() === "BATAM";
+    const normalizedCabang = String(cabang ?? "").trim().toUpperCase();
+    return normalizedCabang === "BATAM" || normalizedCabang === "BINTAN";
 };
 
 const computeRecapTotals = (nonSboTotal: number, cabang?: string | null) => {
