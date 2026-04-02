@@ -86,7 +86,7 @@ export const buildSpkPdfBuffer = async (input: BuildSpkPdfInput): Promise<Buffer
     `;
     };
 
-    const logoPath = staticAssetPath("ALFALOGO.png");
+    const logoPath = staticAssetPath("Alfamart-Emblem.png");
     const templatePath = await resolveTemplatePath("spk_report.njk");
 
     const html = await renderHtmlTemplate(templatePath, {
