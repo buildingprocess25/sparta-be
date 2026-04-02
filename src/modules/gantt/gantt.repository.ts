@@ -417,6 +417,24 @@ export const ganttRepository = {
         );
     },
 
+    /** Aktifkan gantt chart terbaru berdasarkan toko */
+    async activateLatestByTokoId(tokoId: number): Promise<boolean> {
+        const result = await pool.query(
+            `UPDATE gantt_chart
+             SET status = 'active'
+             WHERE id = (
+                SELECT id
+                FROM gantt_chart
+                WHERE id_toko = $1
+                ORDER BY id DESC
+                LIMIT 1
+             )`,
+            [tokoId]
+        );
+
+        return (result.rowCount ?? 0) > 0;
+    },
+
     /** Update gantt chart (replace children data) */
     async updateWithDetails(
         ganttId: string,
