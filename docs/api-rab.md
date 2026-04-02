@@ -323,7 +323,7 @@ Mengambil detail lengkap satu pengajuan RAB beserta semua item pekerjaan.
 
 **`GET /api/rab/:id/pdf`**
 
-Mengarah ke link PDF RAB gabungan (`link_pdf_gabungan`) berdasarkan ID pengajuan RAB.
+Mengunduh file PDF RAB gabungan berdasarkan ID pengajuan RAB, dengan sumber file dari `link_pdf_gabungan`.
 
 ### Path Parameter
 
@@ -331,11 +331,13 @@ Mengarah ke link PDF RAB gabungan (`link_pdf_gabungan`) berdasarkan ID pengajuan
 | --------- | ------ | ---------------- |
 | `id`      | number | ID pengajuan RAB |
 
-### Response — 302 Found
+### Response — 200 OK
 
-- **Location**: nilai dari `link_pdf_gabungan` pada data RAB sesuai `id`
+- **Content-Type**: `application/pdf`
+- **Content-Disposition**: `attachment; filename="RAB_GABUNGAN_<nomor_ulok>_<id>.pdf"`
+- **Body**: Binary PDF data
 
-Endpoint ini tidak melakukan generate ulang PDF. Endpoint hanya mengambil data RAB berdasarkan `id` lalu redirect ke URL yang tersimpan di kolom `link_pdf_gabungan`.
+Endpoint ini tidak melakukan generate ulang PDF. Endpoint mengambil data RAB berdasarkan `id`, menargetkan URL yang tersimpan di kolom `link_pdf_gabungan`, lalu mengirim file sebagai attachment agar langsung terunduh ke device.
 
 ### Penamaan File (mengikuti server)
 
@@ -351,6 +353,7 @@ RAB_GABUNGAN_{proyek}_{nomor_ulok}.pdf
 | ---- | ---------------------------------- |
 | 404  | RAB atau data toko tidak ditemukan |
 | 404  | Link PDF gabungan belum tersedia   |
+| 502  | Gagal mengambil file PDF gabungan  |
 
 ---
 

@@ -430,17 +430,43 @@ export const rabService = {
         };
     },
 
-    async getPdfDownloadLink(id: string) {
+    async getPdfDownloadPayload(id: string) {
         const data = await rabRepository.findById(id);
         if (!data) {
             throw new AppError("Pengajuan RAB tidak ditemukan", 404);
         }
 
-        const downloadUrl = data.rab.link_pdf_gabungan?.trim();
-        if (!downloadUrl) {
+        const rawLink = data.rab.link_pdf_gabungan?.trim();
+        if (!rawLink) {
             throw new AppError("Link PDF gabungan belum tersedia", 404);
         }
 
-        return { downloadUrl };
+        const filename = `RAB_GABUNGAN_${data.toko.nomor_ulok}_${data.rab.id}.pdf`;
+
+        const fileId = extractDriveFileId(rawLink);
+        const gp = GoogleProvider.instance;
+
+        if (fileId && gp.spartaDrive) {
+            const pdfBuffer = await gp.getFileBufferById(gp.spartaDrive, fileId);
+            if (pdfBuffer) {
+                return { filename, pdfBuffer };
+            }
+        }
+
+        const downloadUrl = fileId
+            ? `https://drive.google.com/uc?export=download&id=${fileId}`
+            : rawLink;
+
+        const response = await fetch(downloadUrl);
+        if (!response.ok) {
+            throw new AppError("Gagal mengambil file PDF gabungan", 502);
+        }
+
+        const pdfBuffer = Buffer.from(await response.arrayBuffer());
+        if (!pdfBuffer.length) {
+            throw new AppError("File PDF gabungan kosong", 502);
+        }
+
+        return { filename, pdfBuffer };
     }
 };
