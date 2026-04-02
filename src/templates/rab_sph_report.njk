@@ -47,11 +47,27 @@
         margin: 0;
     }
     .address-icon {
-        display: inline-block;
+        display: inline-flex;
         margin-right: 4px;
-        font-size: 10pt;
+        width: 10px;
+        height: 12px;
         line-height: 1;
         vertical-align: middle;
+        color: #000;
+    }
+    .address-icon svg {
+        width: 10px;
+        height: 12px;
+        display: block;
+    }
+    .watermark {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        width: 220px;
+        transform: translate(-50%, -50%);
+        opacity: 0.08;
+        z-index: -1;
     }
     .contact-info {
         font-size: 9pt;
@@ -140,9 +156,19 @@
         margin-top: 6px;
         text-align: center;
     }
+    .sign-approved-at {
+        margin-top: 6px;
+        text-align: center;
+        font-size: 8pt;
+        color: #444;
+    }
 </style>
 </head>
 <body>
+
+{% if watermark_logo_path %}
+<img src="{{ watermark_logo_path }}" class="watermark" alt="watermark" />
+{% endif %}
 
 <table class="header">
     <tr>
@@ -153,7 +179,7 @@
         </td>
         <td class="company-details">
             <h1 class="company-name">{{ nama_pt }}</h1>
-            <p class="company-address"><span class="address-icon">📍</span>{{ alamat_toko }}</p>
+            <p class="company-address"><span class="address-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z"/></svg></span>{{ alamat_toko }}</p>
         </td>
     </tr>
 </table>
@@ -207,6 +233,11 @@
                     <td>{{ lingkup_pekerjaan }}</td>
                 </tr>
                 <tr>
+                    <td class="label">Cabang</td>
+                    <td>:</td>
+                    <td>{{ cabang }}</td>
+                </tr>
+                <tr>
                     <td class="label">Lokasi</td>
                     <td>:</td>
                     <td>{{ alamat_toko }}</td>
@@ -232,15 +263,12 @@
 <div class="signature-section">
     <table>
         <tr>
-            <td>
-                <!-- Tembusan -->
-                <p style="margin-top: 55px; text-decoration: underline;">Tembusan :</p>
-                <p>Intern /arsip</p>
-            </td>
+            <td></td>
             <td class="signature-right">
                 <div class="date-text">Tangerang, {{ tanggal_persetujuan }}<br><strong>{{ nama_pt }}</strong></div>
                 <!-- Menampilkan signature dari Direktur atau identitas pembuat RAB -->
                 <div class="sign-name">( {{ nama_direktur | default("__________________") }} )</div>
+                <div class="sign-approved-at">Disetujui pada: {{ direktur_approval_time }}</div>
                 <div class="sign-title">Direktur</div>
             </td>
         </tr>
