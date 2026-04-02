@@ -1,7 +1,6 @@
 import { AppError } from "../../common/app-error";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
-import { ganttRepository } from "../gantt/gantt.repository";
 import { tokoRepository } from "../toko/toko.repository";
 import type { ApprovalActionInput } from "../approval/approval.schema";
 import { RAB_STATUS, REJECTED_RAB_STATUSES, type RabStatus } from "./rab.constants";
@@ -395,8 +394,11 @@ export const rabService = {
 
         const newStatus = resolveStatusTransition(data.rab.status, action);
         if (action.tindakan === "REJECT") {
-            await rabRepository.rejectRab(id, newStatus, action.alasan_penolakan ?? "");
-            await ganttRepository.activateLatestByTokoId(data.toko.id);
+            await rabRepository.rejectRabAndActivateLatestGantt(
+                id,
+                newStatus,
+                action.alasan_penolakan ?? ""
+            );
         } else {
             await rabRepository.updateApproval(id, newStatus, action);
         }

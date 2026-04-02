@@ -538,6 +538,50 @@ export const rabRepository = {
         );
     },
 
+    /**
+     * Saat REJECT:
+     * - Update kolom penolakan di tabel rab
+     * - Aktifkan gantt_chart terbaru berdasarkan id_toko milik rab tersebut
+     *
+     * Tidak menyentuh tabel toko.
+     */
+    async rejectRabAndActivateLatestGantt(
+        rabId: string,
+        newStatus: RabStatus,
+        alasanPenolakan: string
+    ): Promise<void> {
+        await withTransaction(async (client) => {
+            const rabRes = await client.query<{ id_toko: number }>(
+                `UPDATE rab
+                 SET status = $1,
+                     alasan_penolakan = $2,
+                     waktu_penolakan = timezone('Asia/Jakarta', now())
+                 WHERE id = $3
+                 RETURNING id_toko`,
+                [newStatus, alasanPenolakan, rabId]
+            );
+
+            if ((rabRes.rowCount ?? 0) === 0) {
+                throw new Error(`RAB dengan id ${rabId} tidak ditemukan`);
+            }
+
+            const tokoId = rabRes.rows[0].id_toko;
+
+            await client.query(
+                `UPDATE gantt_chart
+                 SET status = 'active'
+                 WHERE id = (
+                    SELECT id
+                    FROM gantt_chart
+                    WHERE id_toko = $1
+                    ORDER BY id DESC
+                    LIMIT 1
+                 )`,
+                [tokoId]
+            );
+        });
+    },
+
     /** Simpan link PDF SPH setelah upload ke Drive */
     async updateSphPdfLink(rabId: string, linkPdfSph: string): Promise<void> {
         await pool.query(
