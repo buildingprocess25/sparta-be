@@ -29,6 +29,9 @@ export type RabRow = {
     waktu_penolakan: string | null;
     durasi_pekerjaan: string | null;
     kategori_lokasi: string | null;
+    no_polis: string | null;
+    berlaku_polis: string | null;
+    file_asuransi: string | null;
     luas_bangunan: string | null;
     luas_terbangun: string | null;
     luas_area_terbuka: string | null;
@@ -79,6 +82,7 @@ const RAB_COLUMNS = `
     r.pemberi_persetujuan_manager, r.waktu_persetujuan_manager,
     r.pemberi_persetujuan_direktur, r.waktu_persetujuan_direktur,
     r.alasan_penolakan, r.waktu_penolakan, r.durasi_pekerjaan, r.kategori_lokasi,
+    r.no_polis, r.berlaku_polis, r.file_asuransi,
     r.luas_bangunan, r.luas_terbangun, r.luas_area_terbuka,
     r.luas_area_parkir, r.luas_area_sales, r.luas_gudang,
     r.grand_total, r.grand_total_non_sbo, r.grand_total_final, r.created_at
@@ -168,6 +172,9 @@ export const rabRepository = {
             logo?: string;
             durasi_pekerjaan: string;
             kategori_lokasi?: string;
+            no_polis?: string;
+            berlaku_polis?: string;
+            file_asuransi?: string;
             luas_bangunan?: string;
             luas_terbangun?: string;
             luas_area_terbuka?: string;
@@ -225,15 +232,18 @@ export const rabRepository = {
                      logo = $4,
                      durasi_pekerjaan = $5,
                      kategori_lokasi = $6,
-                     luas_bangunan = $7,
-                     luas_terbangun = $8,
-                     luas_area_terbuka = $9,
-                     luas_area_parkir = $10,
-                     luas_area_sales = $11,
-                     luas_gudang = $12,
-                     grand_total = $13,
-                     grand_total_non_sbo = $14,
-                     grand_total_final = $15,
+                     no_polis = $7,
+                     berlaku_polis = $8,
+                     file_asuransi = $9,
+                     luas_bangunan = $10,
+                     luas_terbangun = $11,
+                     luas_area_terbuka = $12,
+                     luas_area_parkir = $13,
+                     luas_area_sales = $14,
+                     luas_gudang = $15,
+                     grand_total = $16,
+                     grand_total_non_sbo = $17,
+                     grand_total_final = $18,
                      alasan_penolakan = NULL,
                      waktu_penolakan = NULL,
                      pemberi_persetujuan_direktur = NULL,
@@ -243,7 +253,7 @@ export const rabRepository = {
                      pemberi_persetujuan_manager = NULL,
                      waktu_persetujuan_manager = NULL,
                      created_at = timezone('Asia/Jakarta', now())
-                 WHERE id = $16
+                 WHERE id = $19
                  RETURNING *`,
                 [
                     payload.status,
@@ -252,6 +262,9 @@ export const rabRepository = {
                     payload.logo ?? null,
                     payload.durasi_pekerjaan,
                     payload.kategori_lokasi ?? null,
+                    payload.no_polis ?? null,
+                    payload.berlaku_polis ?? null,
+                    payload.file_asuransi ?? null,
                     payload.luas_bangunan ?? null,
                     payload.luas_terbangun ?? null,
                     payload.luas_area_terbuka ?? null,
@@ -290,6 +303,9 @@ export const rabRepository = {
         logo?: string;
         durasi_pekerjaan: string;
         kategori_lokasi?: string;
+        no_polis?: string;
+        berlaku_polis?: string;
+        file_asuransi?: string;
         luas_bangunan?: string;
         luas_terbangun?: string;
         luas_area_terbuka?: string;
@@ -335,11 +351,12 @@ export const rabRepository = {
                 `INSERT INTO rab (
                     id_toko, status, nama_pt, email_pembuat, logo,
                     durasi_pekerjaan, kategori_lokasi,
+                    no_polis, berlaku_polis, file_asuransi,
                     luas_bangunan, luas_terbangun, luas_area_terbuka,
                     luas_area_parkir, luas_area_sales, luas_gudang,
                     grand_total, grand_total_non_sbo, grand_total_final,
                     created_at
-                ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,timezone('Asia/Jakarta', now()))
+                ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,timezone('Asia/Jakarta', now()))
                 RETURNING *`,
                 [
                     tokoId,
@@ -349,6 +366,9 @@ export const rabRepository = {
                     payload.logo ?? null,
                     payload.durasi_pekerjaan,
                     payload.kategori_lokasi ?? null,
+                    payload.no_polis ?? null,
+                    payload.berlaku_polis ?? null,
+                    payload.file_asuransi ?? null,
                     payload.luas_bangunan ?? null,
                     payload.luas_terbangun ?? null,
                     payload.luas_area_terbuka ?? null,
@@ -421,6 +441,9 @@ export const rabRepository = {
             waktu_penolakan: row.waktu_penolakan,
             durasi_pekerjaan: row.durasi_pekerjaan,
             kategori_lokasi: row.kategori_lokasi,
+            no_polis: row.no_polis,
+            berlaku_polis: row.berlaku_polis,
+            file_asuransi: row.file_asuransi,
             luas_bangunan: row.luas_bangunan,
             luas_terbangun: row.luas_terbangun,
             luas_area_terbuka: row.luas_area_terbuka,

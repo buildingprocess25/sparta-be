@@ -47,6 +47,9 @@ Membuat pengajuan RAB baru. Sistem akan:
   "durasi_pekerjaan": "30 Hari",
   "logo": "https://drive.google.com/...",
   "kategori_lokasi": "URBAN",
+  "no_polis": "POL-12345",
+  "berlaku_polis": "2026-12-31",
+  "file_asuransi": "https://drive.google.com/file/d/insurance-file/view",
   "luas_bangunan": "200",
   "luas_terbangun": "180",
   "luas_area_terbuka": "20",
@@ -93,6 +96,9 @@ Membuat pengajuan RAB baru. Sistem akan:
 | `durasi_pekerjaan`                  | rab      | **Wajib**, string minimal 1 karakter |
 | `logo`                              | rab      | Opsional, URL                        |
 | `kategori_lokasi`                   | rab      | Opsional                             |
+| `no_polis`                          | rab      | Opsional, string                     |
+| `berlaku_polis`                     | rab      | Opsional, string                     |
+| `file_asuransi`                     | rab      | Opsional, string (URL/path file)     |
 | `luas_bangunan`                     | rab      | Opsional, string                     |
 | `luas_terbangun`                    | rab      | Opsional, string                     |
 | `luas_area_terbuka`                 | rab      | Opsional, string                     |
@@ -255,6 +261,9 @@ Mengambil detail lengkap satu pengajuan RAB beserta semua item pekerjaan.
       "alasan_penolakan": null,
       "durasi_pekerjaan": "30 Hari",
       "kategori_lokasi": "URBAN",
+      "no_polis": "POL-12345",
+      "berlaku_polis": "2026-12-31",
+      "file_asuransi": "https://drive.google.com/file/d/insurance-file/view",
       "luas_bangunan": "200",
       "luas_terbangun": "180",
       "luas_area_terbuka": "20",
