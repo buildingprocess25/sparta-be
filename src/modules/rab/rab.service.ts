@@ -124,8 +124,28 @@ const normalizeBase64Image = (value: string): { mimeType: string; buffer: Buffer
     return { mimeType: "image/png", buffer: Buffer.from(trimmed, "base64") };
 };
 
-const driveDirectLink = (fileId: string): string => {
-    return `https://drive.google.com/uc?export=view&id=${fileId}`;
+const driveDownloadLink = (fileId: string): string => {
+    return `https://drive.google.com/uc?export=download&id=${fileId}`;
+};
+
+const normalizeDriveDownloadLink = (value?: string | null): string | undefined => {
+    const trimmed = (value ?? "").trim();
+    if (!trimmed) return undefined;
+
+    const fileId = extractDriveFileId(trimmed);
+    if (!fileId) return trimmed;
+
+    return driveDownloadLink(fileId);
+};
+
+const normalizeRabFileLinks = <T extends { logo: string | null; file_asuransi: string | null }>(
+    rab: T,
+): T => {
+    return {
+        ...rab,
+        logo: normalizeDriveDownloadLink(rab.logo) ?? null,
+        file_asuransi: normalizeDriveDownloadLink(rab.file_asuransi) ?? null,
+    };
 };
 
 const uploadLogoToDrive = async (logoValue: string, filename: string): Promise<string | null> => {
@@ -145,8 +165,8 @@ const uploadLogoToDrive = async (logoValue: string, filename: string): Promise<s
         drive,
     );
 
-    if (!result.id) return result.webViewLink ?? null;
-    return driveDirectLink(result.id);
+    if (!result.id) return normalizeDriveDownloadLink(result.webViewLink) ?? null;
+    return driveDownloadLink(result.id);
 };
 
 const sanitizeFilenamePart = (value: string | undefined, fallback: string): string => {
@@ -195,11 +215,11 @@ const uploadInsuranceFileToDrive = async (
     );
 
     if (!result.id) {
-        if (result.webViewLink) return result.webViewLink;
+        if (result.webViewLink) return normalizeDriveDownloadLink(result.webViewLink) ?? result.webViewLink;
         throw new AppError("Upload file asuransi ke Google Drive gagal", 500);
     }
 
-    return driveDirectLink(result.id);
+    return driveDownloadLink(result.id);
 };
 
 const resolveLogoForPdf = async (logoValue?: string | null): Promise<string | undefined> => {
@@ -367,7 +387,7 @@ export const rabService = {
         const totals = computeTotals(payload.detail_items);
 
         // 3. Simpan ke DB (upsert toko + insert rab + insert rab_item dalam 1 transaksi)
-        let logoLink = payload.logo;
+        let logoLink = normalizeDriveDownloadLink(payload.logo);
         if (payload.logo) {
             try {
                 const filename = `RAB_LOGO_${payload.proyek ?? "PROYEK"}_${payload.nomor_ulok}.png`;
@@ -380,7 +400,7 @@ export const rabService = {
             }
         }
 
-        let insuranceLink = payload.file_asuransi;
+        let insuranceLink = normalizeDriveDownloadLink(payload.file_asuransi);
         if (insuranceFile) {
             insuranceLink = await uploadInsuranceFileToDrive(
                 insuranceFile,
@@ -442,11 +462,12 @@ export const rabService = {
             console.error("Warning: Gagal upload PDF ke Drive:", err);
         }
 
-        return rab;
+        return normalizeRabFileLinks(rab);
     },
 
     async list(query: RabListQuery) {
-        return rabRepository.list(query);
+        const rows = await rabRepository.list(query);
+        return rows.map((row) => normalizeRabFileLinks(row));
     },
 
     async getById(id: string) {
@@ -454,7 +475,10 @@ export const rabService = {
         if (!data) {
             throw new AppError("Pengajuan RAB tidak ditemukan", 404);
         }
-        return data;
+        return {
+            ...data,
+            rab: normalizeRabFileLinks(data.rab),
+        };
     },
 
     async handleApproval(id: string, action: ApprovalActionInput) {
