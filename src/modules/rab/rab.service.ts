@@ -138,14 +138,40 @@ const normalizeDriveDownloadLink = (value?: string | null): string | undefined =
     return driveDownloadLink(fileId);
 };
 
-const normalizeRabFileLinks = <T extends { logo: string | null; file_asuransi: string | null }>(
+const buildRabAssetDownloadPath = (
+    rabId: number | string,
+    assetField: "logo" | "file_asuransi",
+    rawLink?: string | null,
+): string | null => {
+    const trimmed = (rawLink ?? "").trim();
+    if (!trimmed) return null;
+
+    if (assetField === "logo") {
+        return `/api/rab/${rabId}/logo`;
+    }
+
+    return `/api/rab/${rabId}/file-asuransi`;
+};
+
+const normalizeRabFileLinks = <T extends { id: number | string; logo: string | null; file_asuransi: string | null }>(
     rab: T,
 ): T => {
     return {
         ...rab,
-        logo: normalizeDriveDownloadLink(rab.logo) ?? null,
-        file_asuransi: normalizeDriveDownloadLink(rab.file_asuransi) ?? null,
+        logo: buildRabAssetDownloadPath(rab.id, "logo", rab.logo),
+        file_asuransi: buildRabAssetDownloadPath(rab.id, "file_asuransi", rab.file_asuransi),
     };
+};
+
+const inferFileExtension = (mimeType?: string | null): string => {
+    const value = (mimeType ?? "").toLowerCase();
+    if (value === "application/pdf") return ".pdf";
+    if (value === "image/png") return ".png";
+    if (value === "image/jpeg") return ".jpg";
+    if (value === "image/webp") return ".webp";
+    if (value === "image/svg+xml") return ".svg";
+    if (value === "application/zip") return ".zip";
+    return "";
 };
 
 const uploadLogoToDrive = async (logoValue: string, filename: string): Promise<string | null> => {
@@ -567,5 +593,61 @@ export const rabService = {
         }
 
         return { filename, pdfBuffer };
+    },
+
+    async getAssetDownloadPayload(id: string, assetField: "logo" | "file_asuransi") {
+        const data = await rabRepository.findById(id);
+        if (!data) {
+            throw new AppError("Pengajuan RAB tidak ditemukan", 404);
+        }
+
+        const rawLink = (assetField === "logo" ? data.rab.logo : data.rab.file_asuransi)?.trim();
+        if (!rawLink) {
+            const label = assetField === "logo" ? "Logo" : "File asuransi";
+            throw new AppError(`${label} tidak tersedia`, 404);
+        }
+
+        const fileId = extractDriveFileId(rawLink);
+        const gp = GoogleProvider.instance;
+
+        let fileBuffer: Buffer | null = null;
+        let contentType: string | null = null;
+        let filename: string | null = null;
+
+        if (fileId && gp.spartaDrive) {
+            fileBuffer = await gp.getFileBufferById(gp.spartaDrive, fileId);
+
+            try {
+                const meta = await gp.spartaDrive.files.get({ fileId, fields: "name,mimeType" });
+                filename = meta.data.name ?? null;
+                contentType = meta.data.mimeType ?? null;
+            } catch {
+                // best effort metadata only
+            }
+        }
+
+        if (!fileBuffer) {
+            const fallbackUrl = normalizeDriveDownloadLink(rawLink) ?? rawLink;
+            const response = await fetch(fallbackUrl);
+            if (!response.ok) {
+                throw new AppError("Gagal mengambil file dari Google Drive", 502);
+            }
+            fileBuffer = Buffer.from(await response.arrayBuffer());
+            contentType = response.headers.get("content-type") || contentType;
+        }
+
+        if (!fileBuffer.length) {
+            throw new AppError("File kosong", 502);
+        }
+
+        const defaultPrefix = assetField === "logo" ? "RAB_LOGO" : "RAB_ASURANSI";
+        const ext = inferFileExtension(contentType);
+        const resolvedFilename = filename || `${defaultPrefix}_${data.toko.nomor_ulok}_${data.rab.id}${ext}`;
+
+        return {
+            filename: resolvedFilename,
+            contentType: contentType || "application/octet-stream",
+            fileBuffer,
+        };
     }
 };

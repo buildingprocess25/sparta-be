@@ -81,6 +81,22 @@ export const downloadRabPdf = asyncHandler(async (req: Request, res: Response) =
     res.send(result.pdfBuffer);
 });
 
+export const downloadRabLogo = asyncHandler(async (req: Request, res: Response) => {
+    const result = await rabService.getAssetDownloadPayload(req.params.id, "logo");
+
+    res.setHeader("Content-Type", result.contentType);
+    res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);
+    res.send(result.fileBuffer);
+});
+
+export const downloadRabInsuranceFile = asyncHandler(async (req: Request, res: Response) => {
+    const result = await rabService.getAssetDownloadPayload(req.params.id, "file_asuransi");
+
+    res.setHeader("Content-Type", result.contentType);
+    res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);
+    res.send(result.fileBuffer);
+});
+
 export const handleRabApproval = asyncHandler(async (req: Request, res: Response) => {
     const action = approvalActionSchema.parse(req.body);
     const result = await rabService.handleApproval(req.params.id, action);
