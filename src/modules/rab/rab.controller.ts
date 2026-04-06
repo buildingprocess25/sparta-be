@@ -1,22 +1,46 @@
 import type { Request, Response } from "express";
+import { AppError } from "../../common/app-error";
 import { asyncHandler } from "../../common/async-handler";
 import { approvalActionSchema } from "../approval/approval.schema";
 import { rabListQuerySchema, submitRabSchema } from "./rab.schema";
 import { rabService } from "./rab.service";
 
 export const submitRab = asyncHandler(async (req: Request, res: Response) => {
+    let detailItems = req.body.detail_items;
+    if (typeof detailItems === "string") {
+        try {
+            detailItems = JSON.parse(detailItems);
+        } catch {
+            throw new AppError("Format detail_items tidak valid. Untuk multipart/form-data kirim detail_items sebagai JSON string.", 400);
+        }
+    }
+
+    const payloadCandidate = {
+        ...req.body,
+        detail_items: detailItems,
+        file_asuransi: typeof req.body.file_asuransi === "string" ? req.body.file_asuransi : undefined
+    };
+
     // Debug: log raw body toko fields yang diterima dari frontend
     console.log("[RAB SUBMIT] raw body toko fields:", JSON.stringify({
-        nomor_ulok: req.body.nomor_ulok,
-        nama_toko: req.body.nama_toko,
-        kode_toko: req.body.kode_toko,
-        proyek: req.body.proyek,
-        cabang: req.body.cabang,
-        alamat: req.body.alamat,
-        nama_kontraktor: req.body.nama_kontraktor,
-        lingkup_pekerjaan: req.body.lingkup_pekerjaan,
+        nomor_ulok: payloadCandidate.nomor_ulok,
+        nama_toko: payloadCandidate.nama_toko,
+        kode_toko: payloadCandidate.kode_toko,
+        proyek: payloadCandidate.proyek,
+        cabang: payloadCandidate.cabang,
+        alamat: payloadCandidate.alamat,
+        nama_kontraktor: payloadCandidate.nama_kontraktor,
+        lingkup_pekerjaan: payloadCandidate.lingkup_pekerjaan,
     }));
-    const payload = submitRabSchema.parse(req.body);
+    const payload = submitRabSchema.parse(payloadCandidate);
+    const uploadedInsuranceFile = req.file
+        ? {
+            originalname: req.file.originalname,
+            mimetype: req.file.mimetype,
+            buffer: req.file.buffer
+        }
+        : undefined;
+
     console.log("[RAB SUBMIT] parsed toko fields:", JSON.stringify({
         nomor_ulok: payload.nomor_ulok,
         nama_toko: payload.nama_toko,
@@ -27,7 +51,7 @@ export const submitRab = asyncHandler(async (req: Request, res: Response) => {
         nama_kontraktor: payload.nama_kontraktor,
         lingkup_pekerjaan: payload.lingkup_pekerjaan,
     }));
-    const data = await rabService.submit(payload);
+    const data = await rabService.submit(payload, uploadedInsuranceFile);
 
     res.status(201).json({
         status: "success",

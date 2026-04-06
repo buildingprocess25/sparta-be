@@ -32,6 +32,11 @@ Membuat pengajuan RAB baru. Sistem akan:
 
 ### Request Body
 
+`POST /api/rab/submit` sekarang mendukung 2 mode:
+
+- `application/json`: `file_asuransi` dikirim sebagai string URL/path (backward compatible)
+- `multipart/form-data`: `file_asuransi` dikirim sebagai file, backend upload ke Google Drive dan menyimpan link hasil upload
+
 ```json
 {
   "nomor_ulok": "7AZ1-0001-0001",
@@ -79,40 +84,71 @@ Membuat pengajuan RAB baru. Sistem akan:
 }
 ```
 
+### Contoh Multipart (upload file_asuransi)
+
+Gunakan `multipart/form-data` dengan field berikut:
+
+- Semua field teks sama seperti JSON request
+- `detail_items` dikirim sebagai JSON string
+- `file_asuransi` dikirim sebagai file (pdf/jpg/png/dll)
+
+Contoh `curl`:
+
+```bash
+curl -X POST http://localhost:3000/api/rab/submit \
+  -H "Content-Type: multipart/form-data" \
+  -F "nomor_ulok=7AZ1-0001-0001" \
+  -F "nama_toko=Alfamart Jl Sudirman" \
+  -F "kode_toko=ALF001" \
+  -F "proyek=Renovasi" \
+  -F "cabang=JAKARTA" \
+  -F "alamat=Jl. Sudirman No 1" \
+  -F "nama_kontraktor=PT Kontraktor ABC" \
+  -F "lingkup_pekerjaan=SIPIL" \
+  -F "email_pembuat=user@example.com" \
+  -F "nama_pt=PT Contoh Kontraktor" \
+  -F "durasi_pekerjaan=30 Hari" \
+  -F "kategori_lokasi=URBAN" \
+  -F "no_polis=POL-12345" \
+  -F "berlaku_polis=2026-12-31" \
+  -F "detail_items=[{\"kategori_pekerjaan\":\"PEKERJAAN PERSIAPAN\",\"jenis_pekerjaan\":\"Pembersihan Lokasi\",\"satuan\":\"m2\",\"volume\":100,\"harga_material\":50000,\"harga_upah\":30000}]" \
+  -F "file_asuransi=@./asuransi.pdf"
+```
+
 ### Validasi
 
-| Field                               | Tabel    | Aturan                               |
-| ----------------------------------- | -------- | ------------------------------------ |
-| `nomor_ulok`                        | toko     | **Wajib**, string minimal 1 karakter |
-| `nama_toko`                         | toko     | Opsional                             |
-| `kode_toko`                         | toko     | Opsional                             |
-| `proyek`                            | toko     | Opsional                             |
-| `cabang`                            | toko     | Opsional                             |
-| `alamat`                            | toko     | Opsional                             |
-| `nama_kontraktor`                   | toko     | Opsional                             |
-| `lingkup_pekerjaan`                 | toko     | Opsional                             |
-| `email_pembuat`                     | rab      | **Wajib**, format email valid        |
-| `nama_pt`                           | rab      | **Wajib**, string minimal 1 karakter |
-| `durasi_pekerjaan`                  | rab      | **Wajib**, string minimal 1 karakter |
-| `logo`                              | rab      | Opsional, URL                        |
-| `kategori_lokasi`                   | rab      | Opsional                             |
-| `no_polis`                          | rab      | Opsional, string                     |
-| `berlaku_polis`                     | rab      | Opsional, string                     |
-| `file_asuransi`                     | rab      | Opsional, string (URL/path file)     |
-| `luas_bangunan`                     | rab      | Opsional, string                     |
-| `luas_terbangun`                    | rab      | Opsional, string                     |
-| `luas_area_terbuka`                 | rab      | Opsional, string                     |
-| `luas_area_parkir`                  | rab      | Opsional, string                     |
-| `luas_area_sales`                   | rab      | Opsional, string                     |
-| `luas_gudang`                       | rab      | Opsional, string                     |
-| `detail_items`                      | rab_item | **Wajib**, array minimal 1 item      |
-| `detail_items[].kategori_pekerjaan` | rab_item | **Wajib**                            |
-| `detail_items[].jenis_pekerjaan`    | rab_item | **Wajib**                            |
-| `detail_items[].satuan`             | rab_item | **Wajib**                            |
-| `detail_items[].volume`             | rab_item | **Wajib**, angka ≥ 0                 |
-| `detail_items[].harga_material`     | rab_item | **Wajib**, angka ≥ 0                 |
-| `detail_items[].harga_upah`         | rab_item | **Wajib**, angka ≥ 0                 |
-| `detail_items[].catatan`            | rab_item | Opsional, string                     |
+| Field                               | Tabel    | Aturan                                        |
+| ----------------------------------- | -------- | --------------------------------------------- |
+| `nomor_ulok`                        | toko     | **Wajib**, string minimal 1 karakter          |
+| `nama_toko`                         | toko     | Opsional                                      |
+| `kode_toko`                         | toko     | Opsional                                      |
+| `proyek`                            | toko     | Opsional                                      |
+| `cabang`                            | toko     | Opsional                                      |
+| `alamat`                            | toko     | Opsional                                      |
+| `nama_kontraktor`                   | toko     | Opsional                                      |
+| `lingkup_pekerjaan`                 | toko     | Opsional                                      |
+| `email_pembuat`                     | rab      | **Wajib**, format email valid                 |
+| `nama_pt`                           | rab      | **Wajib**, string minimal 1 karakter          |
+| `durasi_pekerjaan`                  | rab      | **Wajib**, string minimal 1 karakter          |
+| `logo`                              | rab      | Opsional, URL                                 |
+| `kategori_lokasi`                   | rab      | Opsional                                      |
+| `no_polis`                          | rab      | Opsional, string                              |
+| `berlaku_polis`                     | rab      | Opsional, string                              |
+| `file_asuransi`                     | rab      | Opsional, string URL/path atau file multipart |
+| `luas_bangunan`                     | rab      | Opsional, string                              |
+| `luas_terbangun`                    | rab      | Opsional, string                              |
+| `luas_area_terbuka`                 | rab      | Opsional, string                              |
+| `luas_area_parkir`                  | rab      | Opsional, string                              |
+| `luas_area_sales`                   | rab      | Opsional, string                              |
+| `luas_gudang`                       | rab      | Opsional, string                              |
+| `detail_items`                      | rab_item | **Wajib**, array minimal 1 item               |
+| `detail_items[].kategori_pekerjaan` | rab_item | **Wajib**                                     |
+| `detail_items[].jenis_pekerjaan`    | rab_item | **Wajib**                                     |
+| `detail_items[].satuan`             | rab_item | **Wajib**                                     |
+| `detail_items[].volume`             | rab_item | **Wajib**, angka ≥ 0                          |
+| `detail_items[].harga_material`     | rab_item | **Wajib**, angka ≥ 0                          |
+| `detail_items[].harga_upah`         | rab_item | **Wajib**, angka ≥ 0                          |
+| `detail_items[].catatan`            | rab_item | Opsional, string                              |
 
 ### Perhitungan Otomatis (per item)
 

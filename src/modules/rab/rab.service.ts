@@ -8,6 +8,12 @@ import { buildRabPdfBuffer, buildRecapPdfBuffer, mergePdfBuffers, generateSphPdf
 import { rabRepository } from "./rab.repository";
 import type { DetailItemInput, RabListQuery, SubmitRabInput } from "./rab.schema";
 
+interface UploadedInsuranceFile {
+    originalname: string;
+    mimetype: string;
+    buffer: Buffer;
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -143,6 +149,59 @@ const uploadLogoToDrive = async (logoValue: string, filename: string): Promise<s
     return driveDirectLink(result.id);
 };
 
+const sanitizeFilenamePart = (value: string | undefined, fallback: string): string => {
+    const normalized = (value ?? "").trim().replace(/[^a-zA-Z0-9_-]+/g, "_");
+    return normalized || fallback;
+};
+
+const resolveFileExtension = (file: UploadedInsuranceFile): string => {
+    const fromName = (() => {
+        const rawName = file.originalname ?? "";
+        const lastDot = rawName.lastIndexOf(".");
+        if (lastDot <= 0 || lastDot === rawName.length - 1) return "";
+        return rawName.slice(lastDot).toLowerCase();
+    })();
+    if (/^\.[a-z0-9]{1,10}$/.test(fromName)) {
+        return fromName;
+    }
+
+    if (file.mimetype === "application/pdf") return ".pdf";
+    if (file.mimetype === "image/jpeg") return ".jpg";
+    if (file.mimetype === "image/png") return ".png";
+    return ".bin";
+};
+
+const uploadInsuranceFileToDrive = async (
+    file: UploadedInsuranceFile,
+    nomorUlok: string,
+    proyek?: string,
+): Promise<string> => {
+    const gp = GoogleProvider.instance;
+    const drive = gp.spartaDrive;
+    if (!drive) throw new AppError("Google Drive (Sparta) belum terkonfigurasi", 500);
+
+    const safeProyek = sanitizeFilenamePart(proyek, "PROYEK");
+    const safeUlok = sanitizeFilenamePart(nomorUlok, "ULOK");
+    const ext = resolveFileExtension(file);
+    const filename = `RAB_ASURANSI_${safeProyek}_${safeUlok}_${Date.now()}${ext}`;
+
+    const result = await gp.uploadFile(
+        env.PDF_STORAGE_FOLDER_ID,
+        filename,
+        file.mimetype || "application/octet-stream",
+        file.buffer,
+        2,
+        drive,
+    );
+
+    if (!result.id) {
+        if (result.webViewLink) return result.webViewLink;
+        throw new AppError("Upload file asuransi ke Google Drive gagal", 500);
+    }
+
+    return driveDirectLink(result.id);
+};
+
 const resolveLogoForPdf = async (logoValue?: string | null): Promise<string | undefined> => {
     const trimmed = (logoValue ?? "").trim();
     if (!trimmed) return undefined;
@@ -271,7 +330,7 @@ async function regenerateRabPdfs(
 // ---------------------------------------------------------------------------
 
 export const rabService = {
-    async submit(payload: SubmitRabInput) {
+    async submit(payload: SubmitRabInput, insuranceFile?: UploadedInsuranceFile) {
         // 1. Cek apakah ini submit baru atau resubmit dari data yang ditolak
         let rejectedRabToReplaceId: number | null = null;
         const existingToko = await tokoRepository.findByNomorUlok(payload.nomor_ulok);
@@ -321,6 +380,15 @@ export const rabService = {
             }
         }
 
+        let insuranceLink = payload.file_asuransi;
+        if (insuranceFile) {
+            insuranceLink = await uploadInsuranceFileToDrive(
+                insuranceFile,
+                payload.nomor_ulok,
+                payload.proyek
+            );
+        }
+
         const submitPayload = {
             // toko fields
             nomor_ulok: payload.nomor_ulok,
@@ -340,7 +408,7 @@ export const rabService = {
             kategori_lokasi: payload.kategori_lokasi,
             no_polis: payload.no_polis,
             berlaku_polis: payload.berlaku_polis,
-            file_asuransi: payload.file_asuransi,
+            file_asuransi: insuranceLink,
             luas_bangunan: payload.luas_bangunan,
             luas_terbangun: payload.luas_terbangun,
             luas_area_terbuka: payload.luas_area_terbuka,
