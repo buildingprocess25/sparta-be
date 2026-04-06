@@ -6,13 +6,15 @@ Base URL: `/api/rab`
 
 ## Daftar Endpoint
 
-| #   | Method | Path                    | Deskripsi                 |
-| --- | ------ | ----------------------- | ------------------------- |
-| 1   | `POST` | `/api/rab/submit`       | Submit pengajuan RAB baru |
-| 2   | `GET`  | `/api/rab`              | List semua RAB (+ filter) |
-| 3   | `GET`  | `/api/rab/:id`          | Detail RAB berdasarkan ID |
-| 4   | `GET`  | `/api/rab/:id/pdf`      | Download PDF RAB          |
-| 5   | `POST` | `/api/rab/:id/approval` | Approve / Reject RAB      |
+| #   | Method | Path                         | Deskripsi                  |
+| --- | ------ | ---------------------------- | -------------------------- |
+| 1   | `POST` | `/api/rab/submit`            | Submit pengajuan RAB baru  |
+| 2   | `GET`  | `/api/rab`                   | List semua RAB (+ filter)  |
+| 3   | `GET`  | `/api/rab/:id`               | Detail RAB berdasarkan ID  |
+| 4   | `GET`  | `/api/rab/:id/pdf`           | Download PDF RAB           |
+| 5   | `GET`  | `/api/rab/:id/logo`          | Download file logo RAB     |
+| 6   | `GET`  | `/api/rab/:id/file-asuransi` | Download file asuransi RAB |
+| 7   | `POST` | `/api/rab/:id/approval`      | Approve / Reject RAB       |
 
 ---
 
@@ -284,7 +286,7 @@ Mengambil detail lengkap satu pengajuan RAB beserta semua item pekerjaan.
       "status": "Menunggu Persetujuan Koordinator",
       "nama_pt": "PT Contoh Kontraktor",
       "email_pembuat": "user@example.com",
-      "logo": "https://drive.google.com/...",
+      "logo": "/api/rab/1/logo",
       "link_pdf_gabungan": "https://drive.google.com/file/d/xxx/view",
       "link_pdf_non_sbo": "https://drive.google.com/file/d/yyy/view",
       "link_pdf_rekapitulasi": "https://drive.google.com/file/d/zzz/view",
@@ -299,7 +301,7 @@ Mengambil detail lengkap satu pengajuan RAB beserta semua item pekerjaan.
       "kategori_lokasi": "URBAN",
       "no_polis": "POL-12345",
       "berlaku_polis": "2026-12-31",
-      "file_asuransi": "https://drive.google.com/file/d/insurance-file/view",
+      "file_asuransi": "/api/rab/1/file-asuransi",
       "luas_bangunan": "200",
       "luas_terbangun": "180",
       "luas_area_terbuka": "20",
@@ -402,7 +404,67 @@ RAB_GABUNGAN_{proyek}_{nomor_ulok}.pdf
 
 ---
 
-## 5. Approval / Reject RAB
+## 5. Download Logo RAB
+
+**`GET /api/rab/:id/logo`**
+
+Mengunduh file logo yang terhubung ke pengajuan RAB.
+
+Endpoint ini ditujukan agar FE tidak perlu akses langsung ke Google Drive. Backend akan mengambil file dari Drive menggunakan kredensial server lalu mengirimkan file ke client sebagai attachment.
+
+### Path Parameter
+
+| Parameter | Tipe   | Deskripsi        |
+| --------- | ------ | ---------------- |
+| `id`      | number | ID pengajuan RAB |
+
+### Response — 200 OK
+
+- **Content-Type**: mengikuti mime type file (contoh `image/png`, `image/jpeg`)
+- **Content-Disposition**: `attachment; filename="<nama-file>"`
+- **Body**: Binary file data
+
+### Error
+
+| Code | Kondisi                         |
+| ---- | ------------------------------- |
+| 404  | RAB tidak ditemukan             |
+| 404  | Logo tidak tersedia             |
+| 502  | Gagal mengambil file dari Drive |
+
+---
+
+## 6. Download File Asuransi RAB
+
+**`GET /api/rab/:id/file-asuransi`**
+
+Mengunduh file asuransi yang terhubung ke pengajuan RAB.
+
+Endpoint ini juga melewati backend agar link tetap bisa dipakai walau file Google Drive bersifat private untuk akun tertentu.
+
+### Path Parameter
+
+| Parameter | Tipe   | Deskripsi        |
+| --------- | ------ | ---------------- |
+| `id`      | number | ID pengajuan RAB |
+
+### Response — 200 OK
+
+- **Content-Type**: mengikuti mime type file (contoh `application/pdf`, `image/png`)
+- **Content-Disposition**: `attachment; filename="<nama-file>"`
+- **Body**: Binary file data
+
+### Error
+
+| Code | Kondisi                         |
+| ---- | ------------------------------- |
+| 404  | RAB tidak ditemukan             |
+| 404  | File asuransi tidak tersedia    |
+| 502  | Gagal mengambil file dari Drive |
+
+---
+
+## 7. Approval / Reject RAB
 
 **`POST /api/rab/:id/approval`**
 
