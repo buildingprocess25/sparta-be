@@ -10,6 +10,7 @@ import { documentRouter } from "./modules/document/document.routes";
 import { dokumentasiRouter } from "./modules/dokumentasi/dokumentasi.routes";
 import { ganttRouter } from "./modules/gantt/gantt.routes";
 import { priceRabRouter } from "./modules/price-rab/price-rab.routes";
+import { pertambahanSpkRouter } from "./modules/pertambahan-spk/pertambahan-spk.routes";
 import { getKontraktor, loginUserCabang } from "./modules/toko/toko.controller";
 
 
@@ -35,6 +36,7 @@ app.use("/api/spk", spkRouter);
 app.use("/api/doc", documentRouter);
 app.use("/api/dok", dokumentasiRouter);
 app.use("/api/gantt", ganttRouter);
+app.use("/api/pertambahan-spk", pertambahanSpkRouter);
 app.use("/", priceRabRouter);
 app.use("/api", priceRabRouter);
 

@@ -1,49 +1,33 @@
-# Sparta V2 (Node.js + TypeScript)
+# Sparta API (Node.js + TypeScript)
 
-Service ini khusus untuk alur **SPARTA V2**, dengan PostgreSQL sebagai sumber data.
+Service ini khusus untuk alur **RAB utama** (bukan RAB kedua), dengan PostgreSQL sebagai sumber data.
 
 ## Fitur
 
-- Manajemen data toko (master data)
-- Pengajuan RAB dengan approval workflow
-- Pengajuan SPK dengan approval workflow
-- Endpoint untuk generate PDF RAB dan SPK
-- Filter dan pagination untuk list RAB dan SPK
-- Validasi input yang ketat menggunakan Zod
-- Struktur kode modular dan terorganisir
-- Logging dan error handling yang baik
-- Dokumentasi API yang jelas
-- Contoh request/response untuk setiap endpoint
-- Unit test untuk fungsi-fungsi utama (opsional)
-- Middleware untuk autentikasi dan otorisasi (opsional)
-- CORS dan rate limiting (opsional)
+- Master data toko (`toko`)
+- Submit pengajuan RAB (`pengajuan_rab`) + detail item (`detail_item_rab`)
+- Hitung total mengikuti flow backend lama:
+  - `grand_total_nonsbo`: total item selain kategori `PEKERJAAN SBO`
+  - `grand_total_final`: pembulatan bawah ke kelipatan 10.000 lalu + 11%
+- Approval berjenjang (`approval_log`):
+  - Koordinator -> Manager -> Approved
+  - Reject per level dengan alasan penolakan
+- Generate PDF RAB dari data pengajuan (`/api/rab/:id/pdf`)
 
 ## Struktur Folder
 
 ```text
-src/
-├── index.ts
-├── app.ts
-├── config/
-├── database.ts
-├── modules/
-│   ├── toko/
-│   │   ├── toko.controller.ts
-│   │   ├── toko.service.ts
-│   │   ├── toko.schema.ts
-│   │   └── toko.routes.ts
-│   ├── rab/
-│   │   ├── rab.controller.ts
-│   │   ├── rab.service.ts
-│   │   ├── rab.schema.ts
-│   │   └── rab.routes.ts
-│   └── spk/
-│       ├── spk.controller.ts
-│       ├── spk.service.ts
-│       ├── spk.schema.ts
-│       └── spk.routes.ts
-├── utils/
-└── templates/
+sparta-api/
+  sql/
+    001_create_rab_tables.sql
+  src/
+    common/
+    config/
+    db/
+    modules/
+      approval/
+      rab/
+      toko/
 ```
 
 ## Setup
@@ -89,6 +73,12 @@ npm run dev
 - `GET /api/spk/:id`
 - `GET /api/spk/:id/pdf`
 - `POST /api/spk/:id/approval`
+- `POST /api/pertambahan-spk`
+- `GET /api/pertambahan-spk`
+- `GET /api/pertambahan-spk/:id`
+- `PUT /api/pertambahan-spk/:id`
+- `POST /api/pertambahan-spk/:id/approval`
+- `DELETE /api/pertambahan-spk/:id`
 
 ## Dokumentasi API
 
@@ -96,5 +86,48 @@ npm run dev
 - `docs/api-rab.md`
 - `docs/api-gantt.md`
 - `docs/api-spk.md`
+- `docs/api-pertambahan-spk.md`
 
-Dibuat pada 2026-03-02
+## Contoh Submit RAB
+
+```json
+{
+  "nomor_ulok": "Z001-2512-TEST",
+  "email_pembuat": "kontraktor@example.com",
+  "nama_pt": "PT Contoh",
+  "lingkup_pekerjaan": "SIPIL",
+  "durasi_pekerjaan": "45 Hari",
+  "link_pdf_gabungan": "https://drive.google.com/file/d/xxx/view",
+  "detail_items": [
+    {
+      "kategori_pekerjaan": "PEKERJAAN PERSIAPAN",
+      "jenis_pekerjaan": "Pembersihan area",
+      "satuan": "LS",
+      "volume": 1,
+      "harga_material": 500000,
+      "harga_upah": 250000
+    }
+  ]
+}
+```
+
+## Contoh Approval
+
+```json
+{
+  "approver_email": "koordinator@contoh.com",
+  "jabatan": "KOORDINATOR",
+  "tindakan": "APPROVE"
+}
+```
+
+Untuk reject:
+
+```json
+{
+  "approver_email": "manager@contoh.com",
+  "jabatan": "MANAGER",
+  "tindakan": "REJECT",
+  "alasan_penolakan": "Volume tidak sesuai survey lapangan"
+}
+```
