@@ -166,7 +166,22 @@ export const spkService = {
         if (!data) {
             throw new AppError("Pengajuan SPK tidak ditemukan", 404);
         }
-        return data;
+
+        const toko = await tokoRepository.findByNomorUlok(data.pengajuan.nomor_ulok);
+
+        return {
+            ...data,
+            pengajuan: {
+                ...data.pengajuan,
+                toko: {
+                    nomor_ulok: toko?.nomor_ulok ?? data.pengajuan.nomor_ulok,
+                    kode_toko: toko?.kode_toko ?? null,
+                    nama_toko: toko?.nama_toko ?? null,
+                    cabang: toko?.cabang ?? null,
+                    alamat: toko?.alamat ?? null
+                }
+            }
+        };
     },
 
     async handleApproval(id: string, action: SpkApprovalInput) {

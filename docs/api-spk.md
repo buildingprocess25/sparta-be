@@ -195,7 +195,7 @@ GET /api/spk?nomor_ulok=Z001-2512-TEST
 
 **`GET /api/spk/:id`**
 
-Mengambil detail 1 pengajuan SPK beserta histori approval.
+Mengambil detail 1 pengajuan SPK beserta data toko (berdasarkan `nomor_ulok`) dan histori approval.
 
 ### Path Parameter
 
@@ -213,7 +213,14 @@ Mengambil detail 1 pengajuan SPK beserta histori approval.
       "id": 12,
       "nomor_ulok": "Z001-2512-TEST",
       "status": "WAITING_FOR_BM_APPROVAL",
-      "nomor_spk": "001/PROPNDEV-Z001/III/2026"
+      "nomor_spk": "001/PROPNDEV-Z001/III/2026",
+      "toko": {
+        "nomor_ulok": "Z001-2512-TEST",
+        "kode_toko": "ALF001",
+        "nama_toko": "ALFAMART CONTOH",
+        "cabang": "Z001",
+        "alamat": "Jl. Contoh No. 1"
+      }
     },
     "approvalLogs": [
       {
