@@ -15,7 +15,6 @@ export const submitRabSchema = z.object({
     nomor_ulok: z.string().min(1),
     lingkup_pekerjaan: z.string().optional(),
     nama_toko: z.string().optional(),
-    kode_toko: z.string().optional(),
     proyek: z.string().optional(),
     cabang: z.string().optional(),
     alamat: z.string().optional(),

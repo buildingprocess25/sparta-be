@@ -25,7 +25,6 @@ export const submitRab = asyncHandler(async (req: Request, res: Response) => {
     console.log("[RAB SUBMIT] raw body toko fields:", JSON.stringify({
         nomor_ulok: payloadCandidate.nomor_ulok,
         nama_toko: payloadCandidate.nama_toko,
-        kode_toko: payloadCandidate.kode_toko,
         proyek: payloadCandidate.proyek,
         cabang: payloadCandidate.cabang,
         alamat: payloadCandidate.alamat,
@@ -44,7 +43,6 @@ export const submitRab = asyncHandler(async (req: Request, res: Response) => {
     console.log("[RAB SUBMIT] parsed toko fields:", JSON.stringify({
         nomor_ulok: payload.nomor_ulok,
         nama_toko: payload.nama_toko,
-        kode_toko: payload.kode_toko,
         proyek: payload.proyek,
         cabang: payload.cabang,
         alamat: payload.alamat,

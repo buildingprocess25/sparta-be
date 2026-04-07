@@ -67,9 +67,22 @@ async function regenerateSpkPdfAndUpload(
 
 export const spkService = {
     async submit(payload: SubmitSpkInput) {
-        const toko = await tokoRepository.findByNomorUlok(payload.nomor_ulok);
-        if (!toko) {
+        const existingToko = await tokoRepository.findByNomorUlok(payload.nomor_ulok);
+        if (!existingToko) {
             throw new AppError("Nomor ULOK tidak ditemukan di master toko", 404);
+        }
+
+        const toko = await tokoRepository.updateKodeTokoByUlokAndLingkup(
+            payload.nomor_ulok,
+            payload.lingkup_pekerjaan,
+            payload.kode_toko
+        );
+
+        if (!toko) {
+            throw new AppError(
+                `Data toko untuk ULOK ${payload.nomor_ulok} dengan lingkup ${payload.lingkup_pekerjaan} tidak cocok`,
+                409
+            );
         }
 
         const isDuplicate = await spkRepository.existsActiveByUlokAndLingkup(

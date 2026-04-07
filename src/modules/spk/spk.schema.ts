@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const submitSpkSchema = z.object({
     nomor_ulok: z.string().min(1),
+    kode_toko: z.string().min(1),
     email_pembuat: z.string().email(),
     lingkup_pekerjaan: z.string().min(1),
     nama_kontraktor: z.string().min(1),

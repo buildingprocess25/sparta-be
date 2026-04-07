@@ -40,6 +40,7 @@ Status aktif (untuk cek duplikasi submit):
 Membuat pengajuan SPK baru. Sistem akan:
 
 - Validasi `nomor_ulok` wajib sudah ada di master tabel `toko`
+- Simpan `kode_toko` ke tabel `toko` berdasarkan pasangan `nomor_ulok + lingkup_pekerjaan`
 - Cek duplikasi SPK aktif berdasarkan kombinasi `nomor_ulok + lingkup_pekerjaan`
 - Jika ditemukan data existing dengan kombinasi yang sama namun status `SPK_REJECTED`, sistem tidak membuat baris baru. Sistem akan meng-update baris rejected tersebut (status kembali ke `WAITING_FOR_BM_APPROVAL`) dan memperbarui field pengajuan dengan payload terbaru
 - Hitung `waktu_selesai` dari `waktu_mulai + durasi - 1`
@@ -54,6 +55,7 @@ Membuat pengajuan SPK baru. Sistem akan:
 ```json
 {
   "nomor_ulok": "Z001-2512-TEST",
+  "kode_toko": "ALF001",
   "email_pembuat": "koordinator@example.com",
   "lingkup_pekerjaan": "SIPIL",
   "nama_kontraktor": "PT Kontraktor ABC",
@@ -72,6 +74,7 @@ Membuat pengajuan SPK baru. Sistem akan:
 | Field               | Aturan                                                             |
 | ------------------- | ------------------------------------------------------------------ |
 | `nomor_ulok`        | wajib, string min 1                                                |
+| `kode_toko`         | wajib, string min 1                                                |
 | `email_pembuat`     | wajib, format email valid                                          |
 | `lingkup_pekerjaan` | wajib, string min 1                                                |
 | `nama_kontraktor`   | wajib, string min 1                                                |

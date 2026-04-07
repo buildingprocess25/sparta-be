@@ -440,7 +440,6 @@ export const rabService = {
             nomor_ulok: payload.nomor_ulok,
             lingkup_pekerjaan: payload.lingkup_pekerjaan,
             nama_toko: payload.nama_toko,
-            kode_toko: payload.kode_toko,
             proyek: payload.proyek,
             cabang: payload.cabang,
             alamat: payload.alamat,

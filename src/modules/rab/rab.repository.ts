@@ -161,7 +161,6 @@ export const rabRepository = {
             nomor_ulok: string;
             lingkup_pekerjaan?: string;
             nama_toko?: string;
-            kode_toko?: string;
             proyek?: string;
             cabang?: string;
             alamat?: string;
@@ -207,16 +206,14 @@ export const rabRepository = {
                 `UPDATE toko
                  SET lingkup_pekerjaan = COALESCE($1, lingkup_pekerjaan),
                      nama_toko = COALESCE($2, nama_toko),
-                     kode_toko = COALESCE($3, kode_toko),
-                     proyek = COALESCE($4, proyek),
-                     cabang = COALESCE($5, cabang),
-                     alamat = COALESCE($6, alamat),
-                     nama_kontraktor = COALESCE($7, nama_kontraktor)
-                 WHERE id = $8`,
+                     proyek = COALESCE($3, proyek),
+                     cabang = COALESCE($4, cabang),
+                     alamat = COALESCE($5, alamat),
+                     nama_kontraktor = COALESCE($6, nama_kontraktor)
+                 WHERE id = $7`,
                 [
                     payload.lingkup_pekerjaan ?? null,
                     payload.nama_toko ?? null,
-                    payload.kode_toko ?? null,
                     payload.proyek ?? null,
                     payload.cabang ?? null,
                     payload.alamat ?? null,
@@ -293,7 +290,6 @@ export const rabRepository = {
         nomor_ulok: string;
         lingkup_pekerjaan?: string;
         nama_toko?: string;
-        kode_toko?: string;
         proyek?: string;
         cabang?: string;
         alamat?: string;
@@ -323,13 +319,12 @@ export const rabRepository = {
             // 1. Upsert toko – insert atau update jika nomor_ulok sudah ada
             const tokoRes = await client.query<{ id: number }>(
                 `INSERT INTO toko (
-                    nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko,
+                    nomor_ulok, lingkup_pekerjaan, nama_toko,
                     proyek, cabang, alamat, nama_kontraktor
-                ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+                ) VALUES ($1,$2,$3,$4,$5,$6,$7)
                 ON CONFLICT (nomor_ulok) DO UPDATE SET
                     lingkup_pekerjaan = COALESCE(EXCLUDED.lingkup_pekerjaan, toko.lingkup_pekerjaan),
                     nama_toko = COALESCE(EXCLUDED.nama_toko, toko.nama_toko),
-                    kode_toko = COALESCE(EXCLUDED.kode_toko, toko.kode_toko),
                     proyek = COALESCE(EXCLUDED.proyek, toko.proyek),
                     cabang = COALESCE(EXCLUDED.cabang, toko.cabang),
                     alamat = COALESCE(EXCLUDED.alamat, toko.alamat),
@@ -339,7 +334,6 @@ export const rabRepository = {
                     payload.nomor_ulok,
                     payload.lingkup_pekerjaan ?? null,
                     payload.nama_toko ?? null,
-                    payload.kode_toko ?? null,
                     payload.proyek ?? null,
                     payload.cabang ?? null,
                     payload.alamat ?? null,

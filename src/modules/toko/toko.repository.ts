@@ -49,6 +49,29 @@ export const tokoRepository = {
         return result.rows[0] ?? null;
     },
 
+    async updateKodeTokoByUlokAndLingkup(
+        nomorUlok: string,
+        lingkupPekerjaan: string,
+        kodeToko: string
+    ): Promise<TokoRow | null> {
+        const result = await pool.query<TokoRow>(
+            `
+      UPDATE toko
+      SET kode_toko = $3,
+          lingkup_pekerjaan = COALESCE(lingkup_pekerjaan, $2)
+      WHERE nomor_ulok = $1
+        AND (
+            LOWER(COALESCE(lingkup_pekerjaan, '')) = LOWER(COALESCE($2, ''))
+            OR lingkup_pekerjaan IS NULL
+        )
+      RETURNING id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor
+      `,
+            [nomorUlok, lingkupPekerjaan, kodeToko]
+        );
+
+        return result.rows[0] ?? null;
+    },
+
     async findAll(query: ListTokoQueryInput): Promise<TokoRow[]> {
         const { search, cabang } = query;
         const filters: string[] = [];

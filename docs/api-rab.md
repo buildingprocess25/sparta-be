@@ -43,7 +43,6 @@ Membuat pengajuan RAB baru. Sistem akan:
 {
   "nomor_ulok": "7AZ1-0001-0001",
   "nama_toko": "Alfamart Jl Sudirman",
-  "kode_toko": "ALF001",
   "proyek": "Renovasi",
   "cabang": "JAKARTA",
   "alamat": "Jl. Sudirman No 1",
@@ -101,7 +100,6 @@ curl -X POST http://localhost:3000/api/rab/submit \
   -H "Content-Type: multipart/form-data" \
   -F "nomor_ulok=7AZ1-0001-0001" \
   -F "nama_toko=Alfamart Jl Sudirman" \
-  -F "kode_toko=ALF001" \
   -F "proyek=Renovasi" \
   -F "cabang=JAKARTA" \
   -F "alamat=Jl. Sudirman No 1" \
@@ -123,7 +121,6 @@ curl -X POST http://localhost:3000/api/rab/submit \
 | ----------------------------------- | -------- | --------------------------------------------- |
 | `nomor_ulok`                        | toko     | **Wajib**, string minimal 1 karakter          |
 | `nama_toko`                         | toko     | Opsional                                      |
-| `kode_toko`                         | toko     | Opsional                                      |
 | `proyek`                            | toko     | Opsional                                      |
 | `cabang`                            | toko     | Opsional                                      |
 | `alamat`                            | toko     | Opsional                                      |
