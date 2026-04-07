@@ -574,9 +574,15 @@ Saat **REJECT** (contoh Koordinator):
 ```sql
 UPDATE rab SET
   status = 'Ditolak oleh Koordinator',
-  alasan_penolakan = 'Volume tidak sesuai survey'
+  alasan_penolakan = 'Volume tidak sesuai survey',
+  ditolak_oleh = 'koordinator@alfamart.com'
 WHERE id = :id
 ```
+
+`ditolak_oleh` diisi dari request body `approver_email` ketika tindakan `REJECT`.
+
+Saat `REJECT`, backend juga mengaktifkan kembali `gantt_chart` terbaru untuk `id_toko` yang sama (`status = 'active'`).
+Flow ini berjalan dalam transaksi dengan guard: jika ada perubahan data `toko` (`nomor_ulok`, `lingkup_pekerjaan`, `nama_toko`, `kode_toko`, `proyek`, `cabang`, `alamat`, `nama_kontraktor`), transaksi dibatalkan (rollback).
 
 ### Response — 200 OK
 
@@ -598,6 +604,7 @@ WHERE id = :id
 | ---- | --------------------------------------------------- |
 | 404  | RAB tidak ditemukan                                 |
 | 409  | Status saat ini tidak valid untuk tindakan tersebut |
+| 500  | Guard violation: terdeteksi perubahan data toko     |
 | 422  | Validasi gagal (misal: reject tanpa alasan)         |
 
 ---

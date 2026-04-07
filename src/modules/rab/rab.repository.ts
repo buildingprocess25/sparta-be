@@ -27,6 +27,7 @@ export type RabRow = {
     waktu_persetujuan_direktur: string | null;
     alasan_penolakan: string | null;
     waktu_penolakan: string | null;
+    ditolak_oleh: string | null;
     durasi_pekerjaan: string | null;
     kategori_lokasi: string | null;
     no_polis: string | null;
@@ -81,7 +82,7 @@ const RAB_COLUMNS = `
     r.pemberi_persetujuan_koordinator, r.waktu_persetujuan_koordinator,
     r.pemberi_persetujuan_manager, r.waktu_persetujuan_manager,
     r.pemberi_persetujuan_direktur, r.waktu_persetujuan_direktur,
-    r.alasan_penolakan, r.waktu_penolakan, r.durasi_pekerjaan, r.kategori_lokasi,
+    r.alasan_penolakan, r.waktu_penolakan, r.ditolak_oleh, r.durasi_pekerjaan, r.kategori_lokasi,
     r.no_polis, r.berlaku_polis, r.file_asuransi,
     r.luas_bangunan, r.luas_terbangun, r.luas_area_terbuka,
     r.luas_area_parkir, r.luas_area_sales, r.luas_gudang,
@@ -246,6 +247,7 @@ export const rabRepository = {
                      grand_total_final = $18,
                      alasan_penolakan = NULL,
                      waktu_penolakan = NULL,
+                     ditolak_oleh = NULL,
                      pemberi_persetujuan_direktur = NULL,
                      waktu_persetujuan_direktur = NULL,
                      pemberi_persetujuan_koordinator = NULL,
@@ -439,6 +441,7 @@ export const rabRepository = {
             waktu_persetujuan_direktur: row.waktu_persetujuan_direktur,
             alasan_penolakan: row.alasan_penolakan,
             waktu_penolakan: row.waktu_penolakan,
+            ditolak_oleh: row.ditolak_oleh,
             durasi_pekerjaan: row.durasi_pekerjaan,
             kategori_lokasi: row.kategori_lokasi,
             no_polis: row.no_polis,
@@ -550,38 +553,42 @@ export const rabRepository = {
      * Saat REJECT, hanya update kolom penolakan di tabel rab.
      * Tidak menyentuh kolom tabel lain.
      */
-    async rejectRab(rabId: string, newStatus: RabStatus, alasanPenolakan: string): Promise<void> {
+    async rejectRab(
+        rabId: string,
+        newStatus: RabStatus,
+        alasanPenolakan: string,
+        ditolakOleh: string
+    ): Promise<void> {
         await pool.query(
             `UPDATE rab
              SET status = $1,
                  alasan_penolakan = $2,
-                 waktu_penolakan = timezone('Asia/Jakarta', now())
-             WHERE id = $3`,
-            [newStatus, alasanPenolakan, rabId]
+                 waktu_penolakan = timezone('Asia/Jakarta', now()),
+                 ditolak_oleh = $3
+             WHERE id = $4`,
+            [newStatus, alasanPenolakan, ditolakOleh, rabId]
         );
     },
 
     /**
      * Saat REJECT:
      * - Update kolom penolakan di tabel rab
-     * - Aktifkan gantt_chart terbaru berdasarkan id_toko milik rab tersebut
-     *
-     * Tidak menyentuh tabel toko.
+     * - Aktifkan gantt_chart terbaru milik toko terkait
+     * - Guard: pastikan data tabel toko tidak berubah
      */
-    async rejectRabAndActivateLatestGantt(
+    async rejectRabAndActivateLatestGanttGuarded(
         rabId: string,
         newStatus: RabStatus,
-        alasanPenolakan: string
+        alasanPenolakan: string,
+        ditolakOleh: string
     ): Promise<void> {
         await withTransaction(async (client) => {
             const rabRes = await client.query<{ id_toko: number }>(
-                `UPDATE rab
-                 SET status = $1,
-                     alasan_penolakan = $2,
-                     waktu_penolakan = timezone('Asia/Jakarta', now())
-                 WHERE id = $3
-                 RETURNING id_toko`,
-                [newStatus, alasanPenolakan, rabId]
+                `SELECT id_toko
+                 FROM rab
+                 WHERE id = $1
+                 FOR UPDATE`,
+                [rabId]
             );
 
             if ((rabRes.rowCount ?? 0) === 0) {
@@ -589,6 +596,40 @@ export const rabRepository = {
             }
 
             const tokoId = rabRes.rows[0].id_toko;
+
+            const tokoBeforeRes = await client.query<{
+                nomor_ulok: string | null;
+                lingkup_pekerjaan: string | null;
+                nama_toko: string | null;
+                kode_toko: string | null;
+                proyek: string | null;
+                cabang: string | null;
+                alamat: string | null;
+                nama_kontraktor: string | null;
+            }>(
+                `SELECT nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko,
+                        proyek, cabang, alamat, nama_kontraktor
+                 FROM toko
+                 WHERE id = $1
+                 FOR UPDATE`,
+                [tokoId]
+            );
+
+            if ((tokoBeforeRes.rowCount ?? 0) === 0) {
+                throw new Error(`Toko dengan id ${tokoId} tidak ditemukan`);
+            }
+
+            const tokoBefore = tokoBeforeRes.rows[0];
+
+            await client.query(
+                `UPDATE rab
+                 SET status = $1,
+                     alasan_penolakan = $2,
+                     waktu_penolakan = timezone('Asia/Jakarta', now()),
+                     ditolak_oleh = $3
+                 WHERE id = $4`,
+                [newStatus, alasanPenolakan, ditolakOleh, rabId]
+            );
 
             await client.query(
                 `UPDATE gantt_chart
@@ -602,6 +643,28 @@ export const rabRepository = {
                  )`,
                 [tokoId]
             );
+
+            const tokoAfterRes = await client.query<{
+                nomor_ulok: string | null;
+                lingkup_pekerjaan: string | null;
+                nama_toko: string | null;
+                kode_toko: string | null;
+                proyek: string | null;
+                cabang: string | null;
+                alamat: string | null;
+                nama_kontraktor: string | null;
+            }>(
+                `SELECT nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko,
+                        proyek, cabang, alamat, nama_kontraktor
+                 FROM toko
+                 WHERE id = $1`,
+                [tokoId]
+            );
+
+            const tokoAfter = tokoAfterRes.rows[0];
+            if (JSON.stringify(tokoBefore) !== JSON.stringify(tokoAfter)) {
+                throw new Error("Guard violation: reject RAB tidak boleh mengubah data toko");
+            }
         });
     },
 

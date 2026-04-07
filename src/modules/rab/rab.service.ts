@@ -515,10 +515,11 @@ export const rabService = {
 
         const newStatus = resolveStatusTransition(data.rab.status, action);
         if (action.tindakan === "REJECT") {
-            await rabRepository.rejectRabAndActivateLatestGantt(
+            await rabRepository.rejectRabAndActivateLatestGanttGuarded(
                 id,
                 newStatus,
-                action.alasan_penolakan ?? ""
+                action.alasan_penolakan ?? "",
+                action.approver_email
             );
         } else {
             await rabRepository.updateApproval(id, newStatus, action);
