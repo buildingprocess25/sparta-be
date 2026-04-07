@@ -174,6 +174,7 @@ export const spkService = {
             pengajuan: {
                 ...data.pengajuan,
                 toko: {
+                    id: toko?.id ?? null,
                     nomor_ulok: toko?.nomor_ulok ?? data.pengajuan.nomor_ulok,
                     kode_toko: toko?.kode_toko ?? null,
                     nama_toko: toko?.nama_toko ?? null,

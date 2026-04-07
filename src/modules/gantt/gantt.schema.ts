@@ -70,6 +70,10 @@ export const ganttListQuerySchema = z.object({
     email_pembuat: z.string().optional()
 });
 
+export const ganttDetailQuerySchema = z.object({
+    id_toko: z.string().regex(/^\d+$/, "id_toko harus berupa angka").optional()
+});
+
 // --- Add Day Items ---
 
 export const addDayItemsSchema = z.object({
@@ -120,6 +124,7 @@ export type DayGanttItemInput = z.infer<typeof dayGanttItemSchema>;
 export type DependencyItemInput = z.infer<typeof dependencyItemSchema>;
 export type PengawasanItemInput = z.infer<typeof pengawasanItemSchema>;
 export type GanttListQuery = z.infer<typeof ganttListQuerySchema>;
+export type GanttDetailQuery = z.infer<typeof ganttDetailQuerySchema>;
 export type AddDayItemsInput = z.infer<typeof addDayItemsSchema>;
 export type UpdateKeterlambatanInput = z.infer<typeof updateKeterlambatanSchema>;
 export type UpdateKecepatanInput = z.infer<typeof updateKecepatanSchema>;

@@ -58,8 +58,8 @@ export const ganttService = {
         return ganttRepository.list(query);
     },
 
-    async getById(id: string) {
-        const data = await ganttRepository.findById(id);
+    async getById(id: string, idToko?: number) {
+        const data = await ganttRepository.findById(id, idToko);
         if (!data) {
             throw new AppError("Gantt Chart tidak ditemukan", 404);
         }

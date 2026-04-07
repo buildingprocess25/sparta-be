@@ -215,6 +215,7 @@ Mengambil detail 1 pengajuan SPK beserta data toko (berdasarkan `nomor_ulok`) da
       "status": "WAITING_FOR_BM_APPROVAL",
       "nomor_spk": "001/PROPNDEV-Z001/III/2026",
       "toko": {
+        "id": 10,
         "nomor_ulok": "Z001-2512-TEST",
         "kode_toko": "ALF001",
         "nama_toko": "ALFAMART CONTOH",

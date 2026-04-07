@@ -234,11 +234,26 @@ GET /api/gantt
 
 **`GET /api/gantt/:id`**
 
+Endpoint ini mendukung filter tambahan berdasarkan `id_toko` pada query param.
+
 ### Path Parameter
 
 | Parameter | Tipe   | Deskripsi      |
 | --------- | ------ | -------------- |
 | `id`      | number | ID Gantt Chart |
+
+### Query Parameter (opsional)
+
+| Parameter | Tipe   | Deskripsi                                                            |
+| --------- | ------ | -------------------------------------------------------------------- |
+| `id_toko` | number | Validasi tambahan agar data detail hanya diambil jika milik toko ini |
+
+### Contoh Request
+
+```
+GET /api/gantt/3
+GET /api/gantt/3?id_toko=5
+```
 
 ### Response — 200 OK
 
@@ -323,6 +338,7 @@ GET /api/gantt
 | Code | Kondisi                     |
 | ---- | --------------------------- |
 | 404  | Gantt Chart tidak ditemukan |
+| 422  | `id_toko` bukan angka valid |
 
 ---
 

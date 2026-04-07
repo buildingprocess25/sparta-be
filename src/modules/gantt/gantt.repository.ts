@@ -259,7 +259,7 @@ export const ganttRepository = {
     },
 
     /** Ambil gantt chart lengkap: header + toko + kategori + day + pengawasan + dependency */
-    async findById(id: string): Promise<{
+    async findById(id: string, idToko?: number): Promise<{
         gantt: GanttRow;
         toko: TokoJoinRow;
         kategori_pekerjaan: KategoriPekerjaanGanttRow[];
@@ -271,14 +271,22 @@ export const ganttRepository = {
         })[];
     } | null> {
         // Header + toko
+        const headerConditions = ["g.id = $1"];
+        const headerValues: unknown[] = [id];
+
+        if (idToko !== undefined) {
+            headerValues.push(idToko);
+            headerConditions.push(`g.id_toko = $${headerValues.length}`);
+        }
+
         const header = await pool.query<GanttRow & TokoJoinRow>(
             `SELECT ${GANTT_COLUMNS},
                 t.id AS toko_id, t.nomor_ulok, t.lingkup_pekerjaan,
                 t.nama_toko, t.kode_toko, t.proyek, t.cabang, t.alamat, t.nama_kontraktor
             FROM gantt_chart g
             JOIN toko t ON t.id = g.id_toko
-            WHERE g.id = $1`,
-            [id]
+            WHERE ${headerConditions.join(" AND ")}`,
+            headerValues
         );
 
         if (header.rowCount === 0) return null;

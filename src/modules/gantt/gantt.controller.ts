@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { asyncHandler } from "../../common/async-handler";
 import {
     addDayItemsSchema,
+    ganttDetailQuerySchema,
     ganttDetailByTokoSchema,
     ganttListQuerySchema,
     lockGanttSchema,
@@ -32,7 +33,9 @@ export const listGantt = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const getGanttById = asyncHandler(async (req: Request, res: Response) => {
-    const data = await ganttService.getById(req.params.id);
+    const query = ganttDetailQuerySchema.parse(req.query);
+    const idToko = query.id_toko ? Number(query.id_toko) : undefined;
+    const data = await ganttService.getById(req.params.id, idToko);
 
     res.json({ status: "success", data });
 });
