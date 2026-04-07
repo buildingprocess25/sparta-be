@@ -50,6 +50,16 @@ Status persetujuan yang dipakai pada flow approval:
 
 **`POST /api/pertambahan-spk`**
 
+Request dapat dikirim sebagai:
+
+- `application/json`
+- `multipart/form-data` (untuk upload file lampiran melalui field `file_lampiran_pendukung`)
+
+Catatan proses otomatis pada backend:
+
+- Field `link_pdf` di-generate otomatis dari data request, dibuat menjadi PDF, di-upload ke Google Drive, lalu URL hasil upload disimpan ke `link_pdf`.
+- Jika request menyertakan file `file_lampiran_pendukung`, file di-upload ke Google Drive dan URL hasil upload disimpan ke `link_lampiran_pendukung`.
+
 ### Request Body
 
 ```json
@@ -63,11 +73,14 @@ Status persetujuan yang dipakai pada flow approval:
   "status_persetujuan": "Menunggu Persetujuan",
   "disetujui_oleh": "",
   "waktu_persetujuan": "",
-  "alasan_penolakan": "",
-  "link_pdf": "https://drive.google.com/file/d/xxx/view",
-  "link_lampiran_pendukung": "https://drive.google.com/file/d/yyy/view"
+  "alasan_penolakan": ""
 }
 ```
+
+Contoh `multipart/form-data`:
+
+- field text: `id_spk`, `pertambahan_hari`, `tanggal_spk_akhir`, `tanggal_spk_akhir_setelah_perpanjangan`, `alasan_perpanjangan`, `dibuat_oleh`
+- field file: `file_lampiran_pendukung`
 
 ### Validasi
 
@@ -83,8 +96,12 @@ Status persetujuan yang dipakai pada flow approval:
 | `disetujui_oleh`                         | opsional                                 |
 | `waktu_persetujuan`                      | opsional                                 |
 | `alasan_penolakan`                       | opsional                                 |
-| `link_pdf`                               | opsional                                 |
-| `link_lampiran_pendukung`                | opsional                                 |
+| `file_lampiran_pendukung`                | opsional, file multipart                 |
+
+Field hasil proses backend:
+
+- `link_pdf` diisi otomatis oleh sistem.
+- `link_lampiran_pendukung` diisi otomatis jika ada upload `file_lampiran_pendukung`.
 
 ### Response - 201 Created
 

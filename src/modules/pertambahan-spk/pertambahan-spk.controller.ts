@@ -10,7 +10,15 @@ import { pertambahanSpkService } from "./pertambahan-spk.service";
 
 export const createPertambahanSpk = asyncHandler(async (req: Request, res: Response) => {
     const payload = createPertambahanSpkSchema.parse(req.body);
-    const data = await pertambahanSpkService.create(payload);
+    const uploadedLampiranPendukung = req.file
+        ? {
+            originalname: req.file.originalname,
+            mimetype: req.file.mimetype,
+            buffer: req.file.buffer
+        }
+        : undefined;
+
+    const data = await pertambahanSpkService.create(payload, uploadedLampiranPendukung);
 
     res.status(201).json({
         status: "success",

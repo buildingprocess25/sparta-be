@@ -1,4 +1,5 @@
 import { Router } from "express";
+import multer from "multer";
 import {
     createPertambahanSpk,
     deletePertambahanSpkById,
@@ -9,8 +10,14 @@ import {
 } from "./pertambahan-spk.controller";
 
 const pertambahanSpkRouter = Router();
+const pertambahanSpkUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+        fileSize: 10 * 1024 * 1024
+    }
+});
 
-pertambahanSpkRouter.post("/", createPertambahanSpk);
+pertambahanSpkRouter.post("/", pertambahanSpkUpload.single("file_lampiran_pendukung"), createPertambahanSpk);
 pertambahanSpkRouter.get("/", listPertambahanSpk);
 pertambahanSpkRouter.get("/:id", getPertambahanSpkById);
 pertambahanSpkRouter.put("/:id", updatePertambahanSpkById);
