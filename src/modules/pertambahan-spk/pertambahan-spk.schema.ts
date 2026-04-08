@@ -4,6 +4,7 @@ const VARCHAR_255 = 255;
 const VARCHAR_500 = 500;
 
 export const createPertambahanSpkSchema = z.object({
+    id: z.coerce.number().int().positive().optional(),
     id_spk: z.coerce.number().int().positive(),
     pertambahan_hari: z.string().min(1).max(VARCHAR_255),
     tanggal_spk_akhir: z.string().min(1).max(VARCHAR_255),

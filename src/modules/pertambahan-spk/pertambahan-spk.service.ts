@@ -114,13 +114,35 @@ export const pertambahanSpkService = {
         const spk = await ensureSpkExists(payload.id_spk);
         const toko = await tokoRepository.findByNomorUlok(spk.pengajuan.nomor_ulok);
 
+        const targetRejectedRecord = payload.id
+            ? await pertambahanSpkRepository.findById(String(payload.id))
+            : await pertambahanSpkRepository.findLatestRejectedBySpkId(payload.id_spk);
+
+        if (targetRejectedRecord && targetRejectedRecord.id_spk !== String(payload.id_spk)) {
+            throw new AppError("Data revisi tidak sesuai dengan id_spk", 409);
+        }
+
+        if (payload.id && !targetRejectedRecord) {
+            throw new AppError("Data pertambahan SPK tidak ditemukan", 404);
+        }
+
+        if (
+            targetRejectedRecord &&
+            targetRejectedRecord.status_persetujuan !== PERTAMBAHAN_SPK_STATUS.REJECTED_BY_BM
+        ) {
+            throw new AppError(
+                `Hanya data dengan status ${PERTAMBAHAN_SPK_STATUS.REJECTED_BY_BM} yang bisa direvisi`,
+                409
+            );
+        }
+
         const linkLampiranPendukung = uploadedLampiranPendukung
             ? await uploadLampiranPendukungToDrive(
                 uploadedLampiranPendukung,
                 spk.pengajuan.nomor_ulok,
                 spk.pengajuan.proyek,
             )
-            : payload.link_lampiran_pendukung?.trim() || null;
+            : payload.link_lampiran_pendukung?.trim() || targetRejectedRecord?.link_lampiran_pendukung || null;
 
         const pdfBuffer = await buildPertambahanSpkPdfBuffer({
             nomorSpk: spk.pengajuan.nomor_spk,
@@ -138,13 +160,36 @@ export const pertambahanSpkService = {
         const pdfFilename = `FORM_PERPANJANGAN_SPK_${safeNomorSpk}_${Date.now()}.pdf`;
         const linkPdf = await uploadPdfToDrive(pdfBuffer, pdfFilename);
 
-        const created = await pertambahanSpkRepository.create({
-            ...payload,
-            link_pdf: linkPdf,
-            link_lampiran_pendukung: linkLampiranPendukung ?? undefined,
-        });
+        let data: PertambahanSpkDetailRow | null;
+        if (targetRejectedRecord) {
+            data = await pertambahanSpkRepository.updateById(targetRejectedRecord.id, {
+                id_spk: payload.id_spk,
+                pertambahan_hari: payload.pertambahan_hari,
+                tanggal_spk_akhir: payload.tanggal_spk_akhir,
+                tanggal_spk_akhir_setelah_perpanjangan: payload.tanggal_spk_akhir_setelah_perpanjangan,
+                alasan_perpanjangan: payload.alasan_perpanjangan,
+                dibuat_oleh: payload.dibuat_oleh,
+                status_persetujuan: PERTAMBAHAN_SPK_STATUS.WAITING_FOR_BM_APPROVAL,
+                disetujui_oleh: null,
+                waktu_persetujuan: null,
+                alasan_penolakan: null,
+                link_pdf: linkPdf,
+                link_lampiran_pendukung: linkLampiranPendukung,
+            });
+        } else {
+            const created = await pertambahanSpkRepository.create({
+                ...payload,
+                status_persetujuan: PERTAMBAHAN_SPK_STATUS.WAITING_FOR_BM_APPROVAL,
+                disetujui_oleh: undefined,
+                waktu_persetujuan: undefined,
+                alasan_penolakan: undefined,
+                link_pdf: linkPdf,
+                link_lampiran_pendukung: linkLampiranPendukung ?? undefined,
+            });
 
-        const data = await pertambahanSpkRepository.findById(created.id);
+            data = await pertambahanSpkRepository.findById(created.id);
+        }
+
         if (!data) {
             throw new AppError("Pertambahan SPK gagal dibuat", 500);
         }

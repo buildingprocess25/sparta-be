@@ -190,6 +190,11 @@ GET /api/pertambahan-spk?status_persetujuan=Menunggu%20Persetujuan
 
 **`GET /api/pertambahan-spk/:id`**
 
+Response detail mengembalikan relasi:
+
+- `spk`: data pengajuan SPK dari `pengajuan_spk` berdasarkan `id_spk`
+- `toko`: data toko berdasarkan `nomor_ulok` milik objek `spk`
+
 ### Response - 200 OK
 
 ```json
@@ -210,7 +215,41 @@ GET /api/pertambahan-spk?status_persetujuan=Menunggu%20Persetujuan
     "link_pdf": null,
     "link_lampiran_pendukung": null,
     "created_at": "2026-04-06T10:00:00.000Z",
-    "nomor_spk": "001/PROPNDEV-Z001/IV/2026"
+    "nomor_spk": "001/PROPNDEV-Z001/IV/2026",
+    "spk": {
+      "id": 12,
+      "nomor_ulok": "ULOK-0001",
+      "email_pembuat": "creator@example.com",
+      "lingkup_pekerjaan": "Renovasi",
+      "nama_kontraktor": "PT Maju Jaya",
+      "proyek": "Project A",
+      "waktu_mulai": "2026-04-01",
+      "durasi": 30,
+      "waktu_selesai": "2026-04-30",
+      "grand_total": 120000000,
+      "terbilang": "Seratus dua puluh juta rupiah",
+      "nomor_spk": "001/PROPNDEV-Z001/IV/2026",
+      "par": "PAR-123",
+      "spk_manual_1": "MAN-1",
+      "spk_manual_2": "MAN-2",
+      "status": "SPK_WAITING_APPROVAL",
+      "link_pdf": "https://drive.google.com/file/d/xxx/view",
+      "approver_email": null,
+      "waktu_persetujuan": null,
+      "alasan_penolakan": null,
+      "created_at": "2026-04-01T08:00:00.000Z"
+    },
+    "toko": {
+      "id": 7,
+      "nomor_ulok": "ULOK-0001",
+      "lingkup_pekerjaan": "Renovasi",
+      "nama_toko": "Alfamart Example",
+      "kode_toko": "A001",
+      "proyek": "Project A",
+      "cabang": "Bandung",
+      "alamat": "Jl. Contoh No. 1",
+      "nama_kontraktor": "PT Maju Jaya"
+    }
   }
 }
 ```
