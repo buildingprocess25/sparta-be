@@ -145,6 +145,7 @@ export const pertambahanSpkService = {
             : payload.link_lampiran_pendukung?.trim() || targetRejectedRecord?.link_lampiran_pendukung || null;
 
         const pdfBuffer = await buildPertambahanSpkPdfBuffer({
+            nomorUlok: spk.pengajuan.nomor_ulok,
             nomorSpk: spk.pengajuan.nomor_spk,
             cabang: toko?.cabang,
             tanggalSpkAkhir: payload.tanggal_spk_akhir,

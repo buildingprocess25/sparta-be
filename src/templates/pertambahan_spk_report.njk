@@ -14,6 +14,23 @@
       font-size: 13px;
       line-height: 1.45;
       margin: 0;
+      position: relative;
+    }
+
+    .watermark {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 58%;
+      opacity: 0.08;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
     }
 
     .top-bar {
@@ -31,11 +48,6 @@
 
     .logo-alfamart {
       width: 140px;
-      height: auto;
-    }
-
-    .logo-building {
-      width: 46px;
       height: auto;
     }
 
@@ -113,13 +125,15 @@
   </style>
 </head>
 <body>
+  {% if logo_watermark %}
+  <img class="watermark" src="{{ logo_watermark }}" alt="Watermark" />
+  {% endif %}
+
+  <div class="content">
   <div class="top-bar">
     <div class="brand-group">
       {% if logo_alfamart %}
       <img class="logo-alfamart" src="{{ logo_alfamart }}" alt="Alfamart" />
-      {% endif %}
-      {% if logo_building %}
-      <img class="logo-building" src="{{ logo_building }}" alt="Building" />
       {% endif %}
     </div>
     <div class="header-location">{{ cabang_label }}, {{ tanggal_surat }}</div>
@@ -131,6 +145,10 @@
   <p class="lead">Bersama ini kami sampaikan detail pengajuan perpanjangan Surat Perintah Kerja (SPK) sebagai berikut:</p>
 
   <table>
+    <tr>
+      <td class="label">Nomor ULOK</td>
+      <td>{{ nomor_ulok }}</td>
+    </tr>
     <tr>
       <td class="label">Nomor SPK</td>
       <td>{{ nomor_spk }}</td>
@@ -168,6 +186,7 @@
       <div class="timestamp">Disetujui pada: {{ disetujui_pada }}</div>
       <div class="signer">{{ disetujui_oleh }}</div>
     </div>
+  </div>
   </div>
 </body>
 </html>

@@ -3,6 +3,7 @@ import path from "path";
 import { renderHtmlTemplate, renderPdfFromHtml, resolveTemplatePath } from "../../common/html-pdf";
 
 type BuildPertambahanSpkPdfInput = {
+    nomorUlok: string;
     nomorSpk: string;
     cabang?: string | null;
     tanggalSpkAkhir: string;
@@ -83,9 +84,10 @@ export const buildPertambahanSpkPdfBuffer = async (
     const templatePath = await resolveTemplatePath("pertambahan_spk_report.njk");
     const html = await renderHtmlTemplate(templatePath, {
         logo_alfamart: staticAssetPath("Alfamart-Emblem.png"),
-        logo_building: staticAssetPath("Building-Logo.png"),
+        logo_watermark: staticAssetPath("Building-Logo.png"),
         cabang_label: (input.cabang ?? "").toUpperCase() || "BATAM",
         tanggal_surat: formatDateIndonesia(new Date().toISOString()),
+        nomor_ulok: input.nomorUlok,
         nomor_spk: input.nomorSpk,
         tanggal_spk_akhir: formatDateIndonesia(input.tanggalSpkAkhir),
         pertambahan_hari: `${input.pertambahanHari} hari`,
