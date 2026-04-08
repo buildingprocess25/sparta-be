@@ -20,7 +20,7 @@ const pertambahanSpkUpload = multer({
 pertambahanSpkRouter.post("/", pertambahanSpkUpload.single("file_lampiran_pendukung"), createPertambahanSpk);
 pertambahanSpkRouter.get("/", listPertambahanSpk);
 pertambahanSpkRouter.get("/:id", getPertambahanSpkById);
-pertambahanSpkRouter.put("/:id", updatePertambahanSpkById);
+pertambahanSpkRouter.put("/:id", pertambahanSpkUpload.single("file_lampiran_pendukung"), updatePertambahanSpkById);
 pertambahanSpkRouter.post("/:id/approval", handlePertambahanSpkApproval);
 pertambahanSpkRouter.delete("/:id", deletePertambahanSpkById);
 

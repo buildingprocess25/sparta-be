@@ -42,7 +42,15 @@ export const getPertambahanSpkById = asyncHandler(async (req: Request, res: Resp
 
 export const updatePertambahanSpkById = asyncHandler(async (req: Request, res: Response) => {
     const payload = updatePertambahanSpkSchema.parse(req.body);
-    const data = await pertambahanSpkService.updateById(req.params.id, payload);
+    const uploadedLampiranPendukung = req.file
+        ? {
+            originalname: req.file.originalname,
+            mimetype: req.file.mimetype,
+            buffer: req.file.buffer
+        }
+        : undefined;
+
+    const data = await pertambahanSpkService.updateById(req.params.id, payload, uploadedLampiranPendukung);
 
     res.json({
         status: "success",

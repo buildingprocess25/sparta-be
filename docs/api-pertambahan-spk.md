@@ -266,18 +266,50 @@ Response detail mengembalikan relasi:
 
 **`PUT /api/pertambahan-spk/:id`**
 
-Semua field bersifat opsional saat update, tetapi minimal satu field wajib dikirim.
+Alur update mengikuti alur pengisian data yang sama seperti create, tetapi data yang diubah ditentukan oleh `:id` pada path.
+
+Request dapat dikirim sebagai:
+
+- `application/json`
+- `multipart/form-data` (untuk upload file lampiran melalui field `file_lampiran_pendukung`)
+
+Catatan proses otomatis pada backend:
+
+- Field `link_pdf` di-generate ulang otomatis dari data terbaru, dibuat menjadi PDF, di-upload ke Google Drive, lalu URL hasil upload disimpan ke `link_pdf`.
+- Jika request menyertakan file `file_lampiran_pendukung`, file di-upload ke Google Drive dan URL hasil upload disimpan ke `link_lampiran_pendukung`.
+- Setelah update, status approval di-reset ke `Menunggu Persetujuan` dan field approval (`disetujui_oleh`, `waktu_persetujuan`, `alasan_penolakan`) dikosongkan oleh sistem.
+
+### Path Parameter
+
+| Parameter | Tipe   | Deskripsi                           |
+| --------- | ------ | ----------------------------------- |
+| `id`      | number | ID data pertambahan SPK yang diubah |
 
 ### Contoh Request Body
 
 ```json
 {
-  "status_persetujuan": "Disetujui",
-  "disetujui_oleh": "manager@example.com",
-  "waktu_persetujuan": "2026-04-06 15:30:00",
-  "link_pdf": "https://drive.google.com/file/d/baru/view"
+  "id_spk": 12,
+  "pertambahan_hari": "14",
+  "tanggal_spk_akhir": "2026-04-30",
+  "tanggal_spk_akhir_setelah_perpanjangan": "2026-05-14",
+  "alasan_perpanjangan": "Progress lapangan terdampak cuaca",
+  "dibuat_oleh": "koordinator@example.com",
+  "status_persetujuan": "Menunggu Persetujuan",
+  "disetujui_oleh": "",
+  "waktu_persetujuan": "",
+  "alasan_penolakan": "",
+  "link_pdf": "https://drive.google.com/file/d/xxx/view",
+  "link_lampiran_pendukung": "https://drive.google.com/file/d/yyy/view"
 }
 ```
+
+Semua field pada body bersifat opsional saat update, tetapi minimal satu field wajib dikirim.
+
+Contoh `multipart/form-data`:
+
+- field text: `id_spk`, `pertambahan_hari`, `tanggal_spk_akhir`, `tanggal_spk_akhir_setelah_perpanjangan`, `alasan_perpanjangan`, `dibuat_oleh`
+- field file: `file_lampiran_pendukung`
 
 ### Response - 200 OK
 
@@ -288,8 +320,17 @@ Semua field bersifat opsional saat update, tetapi minimal satu field wajib dikir
   "data": {
     "id": 1,
     "id_spk": 12,
-    "status_persetujuan": "Disetujui",
-    "disetujui_oleh": "manager@example.com"
+    "pertambahan_hari": "14",
+    "tanggal_spk_akhir": "2026-04-30",
+    "tanggal_spk_akhir_setelah_perpanjangan": "2026-05-14",
+    "alasan_perpanjangan": "Progress lapangan terdampak cuaca",
+    "dibuat_oleh": "koordinator@example.com",
+    "status_persetujuan": "Menunggu Persetujuan",
+    "disetujui_oleh": null,
+    "waktu_persetujuan": null,
+    "alasan_penolakan": null,
+    "link_pdf": "https://drive.google.com/file/d/xxx/view",
+    "link_lampiran_pendukung": "https://drive.google.com/file/d/yyy/view"
   }
 }
 ```

@@ -211,17 +211,69 @@ export const pertambahanSpkService = {
         return data;
     },
 
-    async updateById(id: string, payload: UpdatePertambahanSpkInput): Promise<PertambahanSpkDetailRow> {
+    async updateById(
+        id: string,
+        payload: UpdatePertambahanSpkInput,
+        uploadedLampiranPendukung?: UploadedLampiranPendukungFile
+    ): Promise<PertambahanSpkDetailRow> {
         const existing = await pertambahanSpkRepository.findById(id);
         if (!existing) {
             throw new AppError("Data pertambahan SPK tidak ditemukan", 404);
         }
 
-        if (payload.id_spk !== undefined) {
-            await ensureSpkExists(payload.id_spk);
-        }
+        const idSpk = payload.id_spk ?? Number(existing.id_spk);
+        const spk = await ensureSpkExists(idSpk);
+        const toko = await tokoRepository.findByNomorUlok(spk.pengajuan.nomor_ulok);
 
-        const updated = await pertambahanSpkRepository.updateById(id, payload);
+        const pertambahanHari = payload.pertambahan_hari ?? existing.pertambahan_hari;
+        const tanggalSpkAkhir = payload.tanggal_spk_akhir ?? existing.tanggal_spk_akhir;
+        const tanggalSpkAkhirSetelahPerpanjangan = payload.tanggal_spk_akhir_setelah_perpanjangan
+            ?? existing.tanggal_spk_akhir_setelah_perpanjangan;
+        const alasanPerpanjangan = payload.alasan_perpanjangan ?? existing.alasan_perpanjangan;
+        const dibuatOleh = payload.dibuat_oleh ?? existing.dibuat_oleh;
+
+        const linkLampiranPendukung = uploadedLampiranPendukung
+            ? await uploadLampiranPendukungToDrive(
+                uploadedLampiranPendukung,
+                spk.pengajuan.nomor_ulok,
+                spk.pengajuan.proyek,
+            )
+            : Object.prototype.hasOwnProperty.call(payload, "link_lampiran_pendukung")
+                ? (payload.link_lampiran_pendukung?.trim() || null)
+                : existing.link_lampiran_pendukung;
+
+        const pdfBuffer = await buildPertambahanSpkPdfBuffer({
+            nomorUlok: spk.pengajuan.nomor_ulok,
+            nomorSpk: spk.pengajuan.nomor_spk,
+            cabang: toko?.cabang,
+            tanggalSpkAkhir,
+            tanggalSpkAkhirSetelahPerpanjangan,
+            pertambahanHari,
+            alasanPerpanjangan,
+            dibuatOleh,
+            dibuatPada: new Date().toISOString(),
+            disetujuiOleh: undefined,
+            disetujuiPada: undefined,
+        });
+
+        const safeNomorSpk = sanitizeFilenamePart(spk.pengajuan.nomor_spk, "SPK");
+        const pdfFilename = `FORM_PERPANJANGAN_SPK_${safeNomorSpk}_${Date.now()}.pdf`;
+        const linkPdf = await uploadPdfToDrive(pdfBuffer, pdfFilename);
+
+        const updated = await pertambahanSpkRepository.updateById(id, {
+            id_spk: idSpk,
+            pertambahan_hari: pertambahanHari,
+            tanggal_spk_akhir: tanggalSpkAkhir,
+            tanggal_spk_akhir_setelah_perpanjangan: tanggalSpkAkhirSetelahPerpanjangan,
+            alasan_perpanjangan: alasanPerpanjangan,
+            dibuat_oleh: dibuatOleh,
+            status_persetujuan: PERTAMBAHAN_SPK_STATUS.WAITING_FOR_BM_APPROVAL,
+            disetujui_oleh: null,
+            waktu_persetujuan: null,
+            alasan_penolakan: null,
+            link_pdf: linkPdf,
+            link_lampiran_pendukung: linkLampiranPendukung,
+        });
         if (!updated) {
             throw new AppError("Data pertambahan SPK tidak ditemukan", 404);
         }
