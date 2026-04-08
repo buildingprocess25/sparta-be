@@ -94,19 +94,28 @@ const insertRabItems = async (
     rabId: number,
     detailItems: DetailItemInput[]
 ): Promise<void> => {
-    for (const item of detailItems) {
-        const totalMaterial = item.volume * item.harga_material;
-        const totalUpah = item.volume * item.harga_upah;
-        const totalHarga = totalMaterial + totalUpah;
-        const catatan = item.catatan?.trim() || null;
+    if (detailItems.length === 0) return;
 
-        await client.query(
-            `INSERT INTO rab_item (
-                id_rab, kategori_pekerjaan, jenis_pekerjaan, satuan,
-                volume, harga_material, harga_upah,
-                total_material, total_upah, total_harga, catatan
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-            [
+    // Keep query size bounded for very large payloads.
+    const chunkSize = 200;
+
+    for (let start = 0; start < detailItems.length; start += chunkSize) {
+        const chunk = detailItems.slice(start, start + chunkSize);
+        const values: Array<string | number | null> = [];
+        const placeholders: string[] = [];
+
+        for (const item of chunk) {
+            const totalMaterial = item.volume * item.harga_material;
+            const totalUpah = item.volume * item.harga_upah;
+            const totalHarga = totalMaterial + totalUpah;
+            const catatan = item.catatan?.trim() || null;
+
+            const base = values.length;
+            placeholders.push(
+                `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11})`
+            );
+
+            values.push(
                 rabId,
                 item.kategori_pekerjaan,
                 item.jenis_pekerjaan,
@@ -118,7 +127,16 @@ const insertRabItems = async (
                 totalUpah,
                 totalHarga,
                 catatan
-            ]
+            );
+        }
+
+        await client.query(
+            `INSERT INTO rab_item (
+                id_rab, kategori_pekerjaan, jenis_pekerjaan, satuan,
+                volume, harga_material, harga_upah,
+                total_material, total_upah, total_harga, catatan
+            ) VALUES ${placeholders.join(", ")}`,
+            values
         );
     }
 };

@@ -117,37 +117,37 @@ curl -X POST http://localhost:3000/api/rab/submit \
 
 ### Validasi
 
-| Field                               | Tabel    | Aturan                                        |
-| ----------------------------------- | -------- | --------------------------------------------- |
-| `nomor_ulok`                        | toko     | **Wajib**, string minimal 1 karakter          |
-| `nama_toko`                         | toko     | Opsional                                      |
-| `proyek`                            | toko     | Opsional                                      |
-| `cabang`                            | toko     | Opsional                                      |
-| `alamat`                            | toko     | Opsional                                      |
-| `nama_kontraktor`                   | toko     | Opsional                                      |
-| `lingkup_pekerjaan`                 | toko     | Opsional                                      |
-| `email_pembuat`                     | rab      | **Wajib**, format email valid                 |
-| `nama_pt`                           | rab      | **Wajib**, string minimal 1 karakter          |
-| `durasi_pekerjaan`                  | rab      | **Wajib**, string minimal 1 karakter          |
-| `logo`                              | rab      | Opsional, URL                                 |
-| `kategori_lokasi`                   | rab      | Opsional                                      |
-| `no_polis`                          | rab      | Opsional, string                              |
-| `berlaku_polis`                     | rab      | Opsional, string                              |
-| `file_asuransi`                     | rab      | Opsional, string URL/path atau file multipart |
-| `luas_bangunan`                     | rab      | Opsional, string                              |
-| `luas_terbangun`                    | rab      | Opsional, string                              |
-| `luas_area_terbuka`                 | rab      | Opsional, string                              |
-| `luas_area_parkir`                  | rab      | Opsional, string                              |
-| `luas_area_sales`                   | rab      | Opsional, string                              |
-| `luas_gudang`                       | rab      | Opsional, string                              |
-| `detail_items`                      | rab_item | **Wajib**, array minimal 1 item               |
-| `detail_items[].kategori_pekerjaan` | rab_item | **Wajib**                                     |
-| `detail_items[].jenis_pekerjaan`    | rab_item | **Wajib**                                     |
-| `detail_items[].satuan`             | rab_item | **Wajib**                                     |
-| `detail_items[].volume`             | rab_item | **Wajib**, angka ≥ 0                          |
-| `detail_items[].harga_material`     | rab_item | **Wajib**, angka ≥ 0                          |
-| `detail_items[].harga_upah`         | rab_item | **Wajib**, angka ≥ 0                          |
-| `detail_items[].catatan`            | rab_item | Opsional, string                              |
+| Field                               | Tabel    | Aturan                                                            |
+| ----------------------------------- | -------- | ----------------------------------------------------------------- |
+| `nomor_ulok`                        | toko     | **Wajib**, string minimal 1 karakter                              |
+| `nama_toko`                         | toko     | Opsional                                                          |
+| `proyek`                            | toko     | Opsional                                                          |
+| `cabang`                            | toko     | Opsional                                                          |
+| `alamat`                            | toko     | Opsional                                                          |
+| `nama_kontraktor`                   | toko     | Opsional                                                          |
+| `lingkup_pekerjaan`                 | toko     | Opsional                                                          |
+| `email_pembuat`                     | rab      | **Wajib**, format email valid                                     |
+| `nama_pt`                           | rab      | **Wajib**, string minimal 1 karakter                              |
+| `durasi_pekerjaan`                  | rab      | **Wajib**, string minimal 1 karakter                              |
+| `logo`                              | rab      | Opsional, URL (maks 255 karakter)                                 |
+| `kategori_lokasi`                   | rab      | Opsional (maks 255 karakter)                                      |
+| `no_polis`                          | rab      | Opsional, string (maks 255 karakter)                              |
+| `berlaku_polis`                     | rab      | Opsional, string (maks 255 karakter)                              |
+| `file_asuransi`                     | rab      | Opsional, string URL/path (maks 500 karakter) atau file multipart |
+| `luas_bangunan`                     | rab      | Opsional, string (maks 255 karakter)                              |
+| `luas_terbangun`                    | rab      | Opsional, string (maks 255 karakter)                              |
+| `luas_area_terbuka`                 | rab      | Opsional, string (maks 255 karakter)                              |
+| `luas_area_parkir`                  | rab      | Opsional, string (maks 255 karakter)                              |
+| `luas_area_sales`                   | rab      | Opsional, string (maks 255 karakter)                              |
+| `luas_gudang`                       | rab      | Opsional, string (maks 255 karakter)                              |
+| `detail_items`                      | rab_item | **Wajib**, array minimal 1 item                                   |
+| `detail_items[].kategori_pekerjaan` | rab_item | **Wajib**, maks 255 karakter                                      |
+| `detail_items[].jenis_pekerjaan`    | rab_item | **Wajib**, maks 255 karakter                                      |
+| `detail_items[].satuan`             | rab_item | **Wajib**, maks 50 karakter                                       |
+| `detail_items[].volume`             | rab_item | **Wajib**, angka ≥ 0                                              |
+| `detail_items[].harga_material`     | rab_item | **Wajib**, angka ≥ 0                                              |
+| `detail_items[].harga_upah`         | rab_item | **Wajib**, angka ≥ 0                                              |
+| `detail_items[].catatan`            | rab_item | Opsional, string (maks 255 karakter)                              |
 
 ### Perhitungan Otomatis (per item)
 
