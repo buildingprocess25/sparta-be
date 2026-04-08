@@ -12,11 +12,11 @@ export const createPertambahanSpkSchema = z.object({
     alasan_perpanjangan: z.string().min(1).max(VARCHAR_500),
     dibuat_oleh: z.string().min(1).max(VARCHAR_255),
     status_persetujuan: z.string().min(1).max(VARCHAR_255).default("Menunggu Persetujuan"),
-    disetujui_oleh: z.string().max(VARCHAR_255).optional(),
-    waktu_persetujuan: z.string().optional(),
-    alasan_penolakan: z.string().max(VARCHAR_500).optional(),
-    link_pdf: z.string().max(VARCHAR_500).optional(),
-    link_lampiran_pendukung: z.string().max(VARCHAR_500).optional()
+    disetujui_oleh: z.string().max(VARCHAR_255).nullable().optional(),
+    waktu_persetujuan: z.string().nullable().optional(),
+    alasan_penolakan: z.string().max(VARCHAR_500).nullable().optional(),
+    link_pdf: z.string().max(VARCHAR_500).nullable().optional(),
+    link_lampiran_pendukung: z.string().max(VARCHAR_500).nullable().optional()
 });
 
 export const updatePertambahanSpkSchema = z.object({
@@ -27,11 +27,11 @@ export const updatePertambahanSpkSchema = z.object({
     alasan_perpanjangan: z.string().min(1).max(VARCHAR_500).optional(),
     dibuat_oleh: z.string().min(1).max(VARCHAR_255).optional(),
     status_persetujuan: z.string().min(1).max(VARCHAR_255).optional(),
-    disetujui_oleh: z.string().max(VARCHAR_255).optional(),
-    waktu_persetujuan: z.string().optional(),
-    alasan_penolakan: z.string().max(VARCHAR_500).optional(),
-    link_pdf: z.string().max(VARCHAR_500).optional(),
-    link_lampiran_pendukung: z.string().max(VARCHAR_500).optional()
+    disetujui_oleh: z.string().max(VARCHAR_255).nullable().optional(),
+    waktu_persetujuan: z.string().nullable().optional(),
+    alasan_penolakan: z.string().max(VARCHAR_500).nullable().optional(),
+    link_pdf: z.string().max(VARCHAR_500).nullable().optional(),
+    link_lampiran_pendukung: z.string().max(VARCHAR_500).nullable().optional()
 })
     .refine((value) => Object.keys(value).length > 0, {
         message: "Minimal satu field harus diisi untuk update"
