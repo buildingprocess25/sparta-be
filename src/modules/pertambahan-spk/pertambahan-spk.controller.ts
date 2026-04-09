@@ -40,6 +40,22 @@ export const getPertambahanSpkById = asyncHandler(async (req: Request, res: Resp
     res.json({ status: "success", data });
 });
 
+export const downloadPertambahanSpkPdf = asyncHandler(async (req: Request, res: Response) => {
+    const result = await pertambahanSpkService.getDownloadPayload(req.params.id, "link_pdf");
+
+    res.setHeader("Content-Type", result.contentType);
+    res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);
+    res.send(result.fileBuffer);
+});
+
+export const downloadPertambahanSpkLampiranPendukung = asyncHandler(async (req: Request, res: Response) => {
+    const result = await pertambahanSpkService.getDownloadPayload(req.params.id, "link_lampiran_pendukung");
+
+    res.setHeader("Content-Type", result.contentType);
+    res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);
+    res.send(result.fileBuffer);
+});
+
 export const updatePertambahanSpkById = asyncHandler(async (req: Request, res: Response) => {
     const payload = updatePertambahanSpkSchema.parse(req.body);
     const uploadedLampiranPendukung = req.file

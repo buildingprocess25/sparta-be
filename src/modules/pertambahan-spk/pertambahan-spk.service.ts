@@ -32,6 +32,40 @@ interface UploadedLampiranPendukungFile {
     buffer: Buffer;
 }
 
+const extractDriveFileId = (value: string): string | null => {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    const byIdParam = /[?&]id=([^&]+)/.exec(trimmed);
+    if (byIdParam?.[1]) return byIdParam[1];
+
+    const byPath = /\/d\/([^/]+)/.exec(trimmed);
+    if (byPath?.[1]) return byPath[1];
+
+    return null;
+};
+
+const normalizeDriveDownloadLink = (value?: string | null): string | undefined => {
+    const trimmed = (value ?? "").trim();
+    if (!trimmed) return undefined;
+
+    const fileId = extractDriveFileId(trimmed);
+    if (!fileId) return trimmed;
+
+    return `https://drive.google.com/uc?export=download&id=${fileId}`;
+};
+
+const inferFileExtension = (mimeType?: string | null): string => {
+    const value = (mimeType ?? "").toLowerCase();
+    if (value === "application/pdf") return ".pdf";
+    if (value === "image/png") return ".png";
+    if (value === "image/jpeg") return ".jpg";
+    if (value === "image/webp") return ".webp";
+    if (value === "image/svg+xml") return ".svg";
+    if (value === "application/zip") return ".zip";
+    return "";
+};
+
 const sanitizeFilenamePart = (value: string | undefined, fallback: string): string => {
     const normalized = (value ?? "").trim().replace(/[^a-zA-Z0-9_-]+/g, "_");
     return normalized || fallback;
@@ -311,5 +345,68 @@ export const pertambahanSpkService = {
         }
 
         return updated;
+    },
+
+    async getDownloadPayload(
+        id: string,
+        field: "link_pdf" | "link_lampiran_pendukung"
+    ): Promise<{ filename: string; contentType: string; fileBuffer: Buffer }> {
+        const data = await pertambahanSpkRepository.findById(id);
+        if (!data) {
+            throw new AppError("Data pertambahan SPK tidak ditemukan", 404);
+        }
+
+        const rawLink = (field === "link_pdf" ? data.link_pdf : data.link_lampiran_pendukung)?.trim();
+        if (!rawLink) {
+            const label = field === "link_pdf" ? "Link PDF" : "Link lampiran pendukung";
+            throw new AppError(`${label} tidak tersedia`, 404);
+        }
+
+        const fileId = extractDriveFileId(rawLink);
+        const gp = GoogleProvider.instance;
+
+        let fileBuffer: Buffer | null = null;
+        let contentType: string | null = null;
+        let filename: string | null = null;
+
+        if (fileId && gp.spartaDrive) {
+            fileBuffer = await gp.getFileBufferById(gp.spartaDrive, fileId);
+
+            try {
+                const meta = await gp.spartaDrive.files.get({ fileId, fields: "name,mimeType" });
+                filename = meta.data.name ?? null;
+                contentType = meta.data.mimeType ?? null;
+            } catch {
+                // best effort metadata only
+            }
+        }
+
+        if (!fileBuffer) {
+            const fallbackUrl = normalizeDriveDownloadLink(rawLink) ?? rawLink;
+            const response = await fetch(fallbackUrl);
+            if (!response.ok) {
+                throw new AppError("Gagal mengambil file dari Google Drive", 502);
+            }
+            fileBuffer = Buffer.from(await response.arrayBuffer());
+            contentType = response.headers.get("content-type") || contentType;
+        }
+
+        if (!fileBuffer.length) {
+            throw new AppError("File kosong", 502);
+        }
+
+        const defaultPrefix = field === "link_pdf"
+            ? "FORM_PERPANJANGAN_SPK"
+            : "LAMPIRAN_PENDUKUNG_PERTAMBAHAN_SPK";
+        const defaultContentType = field === "link_pdf" ? "application/pdf" : "application/octet-stream";
+        const defaultExt = field === "link_pdf" ? ".pdf" : inferFileExtension(contentType);
+        const safeNomorSpk = sanitizeFilenamePart(data.nomor_spk ?? data.spk?.nomor_spk ?? "SPK", "SPK");
+        const resolvedFilename = filename || `${defaultPrefix}_${safeNomorSpk}_${data.id}${defaultExt}`;
+
+        return {
+            filename: resolvedFilename,
+            contentType: contentType || defaultContentType,
+            fileBuffer,
+        };
     }
 };

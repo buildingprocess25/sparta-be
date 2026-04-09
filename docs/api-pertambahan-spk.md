@@ -8,14 +8,16 @@ Base URL: `/api/pertambahan-spk`
 
 ## Daftar Endpoint
 
-| #   | Method   | Path                                | Deskripsi                                  |
-| --- | -------- | ----------------------------------- | ------------------------------------------ |
-| 1   | `POST`   | `/api/pertambahan-spk`              | Membuat data pertambahan SPK baru          |
-| 2   | `GET`    | `/api/pertambahan-spk`              | List data pertambahan SPK (+ filter)       |
-| 3   | `GET`    | `/api/pertambahan-spk/:id`          | Detail data pertambahan SPK berdasarkan ID |
-| 4   | `PUT`    | `/api/pertambahan-spk/:id`          | Update data pertambahan SPK                |
-| 5   | `POST`   | `/api/pertambahan-spk/:id/approval` | Approve / Reject pertambahan SPK (BM)      |
-| 6   | `DELETE` | `/api/pertambahan-spk/:id`          | Hapus data pertambahan SPK                 |
+| #   | Method   | Path                                          | Deskripsi                                  |
+| --- | -------- | --------------------------------------------- | ------------------------------------------ |
+| 1   | `POST`   | `/api/pertambahan-spk`                        | Membuat data pertambahan SPK baru          |
+| 2   | `GET`    | `/api/pertambahan-spk`                        | List data pertambahan SPK (+ filter)       |
+| 3   | `GET`    | `/api/pertambahan-spk/:id`                    | Detail data pertambahan SPK berdasarkan ID |
+| 4   | `PUT`    | `/api/pertambahan-spk/:id`                    | Update data pertambahan SPK                |
+| 5   | `POST`   | `/api/pertambahan-spk/:id/approval`           | Approve / Reject pertambahan SPK (BM)      |
+| 6   | `DELETE` | `/api/pertambahan-spk/:id`                    | Hapus data pertambahan SPK                 |
+| 7   | `GET`    | `/api/pertambahan-spk/:id/pdf`                | Download file PDF pertambahan SPK          |
+| 8   | `GET`    | `/api/pertambahan-spk/:id/lampiran-pendukung` | Download file lampiran pendukung           |
 
 ---
 
@@ -420,3 +422,61 @@ Aturan:
 | Code | Kondisi                              |
 | ---- | ------------------------------------ |
 | 404  | Data pertambahan SPK tidak ditemukan |
+
+---
+
+## 7) Download PDF Pertambahan SPK
+
+**`GET /api/pertambahan-spk/:id/pdf`**
+
+Endpoint ini akan mengunduh file dari kolom `link_pdf` berdasarkan `id` pertambahan SPK.
+
+### Path Parameter
+
+| Parameter | Tipe   | Deskripsi                                 |
+| --------- | ------ | ----------------------------------------- |
+| `id`      | number | ID data pertambahan SPK yang akan diunduh |
+
+### Response - 200 OK
+
+Response berupa binary file dengan header:
+
+- `Content-Type: application/pdf` (atau mengikuti metadata file di Google Drive)
+- `Content-Disposition: attachment; filename="..."`
+
+### Error Responses
+
+| Code | Kondisi                                              |
+| ---- | ---------------------------------------------------- |
+| 404  | Data pertambahan SPK tidak ditemukan                 |
+| 404  | `link_pdf` tidak tersedia                            |
+| 502  | Gagal mengambil file dari Google Drive / file kosong |
+
+---
+
+## 8) Download Lampiran Pendukung Pertambahan SPK
+
+**`GET /api/pertambahan-spk/:id/lampiran-pendukung`**
+
+Endpoint ini akan mengunduh file dari kolom `link_lampiran_pendukung` berdasarkan `id` pertambahan SPK.
+
+### Path Parameter
+
+| Parameter | Tipe   | Deskripsi                                 |
+| --------- | ------ | ----------------------------------------- |
+| `id`      | number | ID data pertambahan SPK yang akan diunduh |
+
+### Response - 200 OK
+
+Response berupa binary file dengan header:
+
+- `Content-Type` mengikuti metadata file (mis. `application/pdf`, `image/png`, dll)
+- `Content-Disposition: attachment; filename="..."`
+
+### Error Responses
+
+| Code | Kondisi                                              |
+| ---- | ---------------------------------------------------- |
+| 404  | Data pertambahan SPK tidak ditemukan                 |
+| 404  | `link_lampiran_pendukung` tidak tersedia             |
+| 502  | Gagal mengambil file dari Google Drive / file kosong |
