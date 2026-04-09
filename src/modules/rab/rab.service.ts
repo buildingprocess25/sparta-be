@@ -516,10 +516,11 @@ export const rabService = {
             : undefined;
 
         if (hasLogoInput) {
-            logoLink = normalizeDriveDownloadLink(payload.logo);
+            const logoValue = payload.logo!;
+            logoLink = normalizeDriveDownloadLink(logoValue);
             try {
                 const filename = `RAB_LOGO_${payload.proyek ?? "PROYEK"}_${payload.nomor_ulok}.png`;
-                const uploadedLink = await uploadLogoToDrive(payload.logo, filename);
+                const uploadedLink = await uploadLogoToDrive(logoValue, filename);
                 if (uploadedLink) {
                     logoLink = uploadedLink;
                 }
@@ -529,10 +530,11 @@ export const rabService = {
         }
 
         if (hasRevLogoInput) {
-            let revLogoLink = normalizeDriveDownloadLink(payload.rev_logo);
+            const revLogoValue = payload.rev_logo!;
+            let revLogoLink = normalizeDriveDownloadLink(revLogoValue);
             try {
                 const filename = `RAB_LOGO_${payload.proyek ?? "PROYEK"}_${payload.nomor_ulok}_${Date.now()}.png`;
-                const uploadedLink = await uploadLogoToDrive(payload.rev_logo!, filename);
+                const uploadedLink = await uploadLogoToDrive(revLogoValue, filename);
                 if (uploadedLink) {
                     revLogoLink = uploadedLink;
                 }
