@@ -95,7 +95,11 @@
             text-align: left;
             font-style: italic;
             color: #444;
-            padding: 3px 6px;
+            padding: 4px 8px;
+            background-color: #fff7bf;
+            border-left: 1px solid #333;
+            border-right: 1px solid #333;
+            border-bottom: 1px solid #333;
         }
 
         .grand-total-table {
@@ -230,8 +234,7 @@
                 </tr>
                 {% if item.catatan %}
                 <tr class="catatan-row">
-                    <td></td>
-                    <td colspan="8" class="catatan-cell">Catatan: {{ item.catatan }}</td>
+                    <td colspan="9" class="catatan-cell">Catatan: {{ item.catatan }}</td>
                 </tr>
                 {% endif %}
                 {% endfor %}

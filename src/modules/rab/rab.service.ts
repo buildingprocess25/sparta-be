@@ -346,7 +346,7 @@ async function regenerateRabPdfs(
         `SPH_${proyek}_${nomorUlok}.pdf`
     );
 
-    pdfBuffersToMerge.push(pdfNonSbo, pdfRecap);
+    pdfBuffersToMerge.push(pdfRecap, pdfNonSbo);
 
     const pdfMerged = await mergePdfBuffers(pdfBuffersToMerge);
 
