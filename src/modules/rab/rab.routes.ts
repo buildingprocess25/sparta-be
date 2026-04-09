@@ -18,7 +18,15 @@ const rabUpload = multer({
 	}
 });
 
-rabRouter.post("/submit", rabUpload.single("file_asuransi"), submitRab);
+rabRouter.post(
+	"/submit",
+	rabUpload.fields([
+		{ name: "file_asuransi", maxCount: 1 },
+		{ name: "rev_file_asuransi", maxCount: 1 },
+		{ name: "rev_logo", maxCount: 1 },
+	]),
+	submitRab
+);
 rabRouter.get("/", listRab);
 rabRouter.get("/:id", getRabById);
 rabRouter.get("/:id/pdf", downloadRabPdf);

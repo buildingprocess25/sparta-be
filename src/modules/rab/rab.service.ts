@@ -8,10 +8,16 @@ import { buildRabPdfBuffer, buildRecapPdfBuffer, mergePdfBuffers, generateSphPdf
 import { rabRepository } from "./rab.repository";
 import type { DetailItemInput, RabListQuery, SubmitRabInput } from "./rab.schema";
 
-interface UploadedInsuranceFile {
+interface UploadedFile {
     originalname: string;
     mimetype: string;
     buffer: Buffer;
+}
+
+interface SubmitUploadedFiles {
+    insuranceFile?: UploadedFile;
+    revInsuranceFile?: UploadedFile;
+    revLogoFile?: UploadedFile;
 }
 
 // ---------------------------------------------------------------------------
@@ -124,6 +130,22 @@ const normalizeBase64Image = (value: string): { mimeType: string; buffer: Buffer
     return { mimeType: "image/png", buffer: Buffer.from(trimmed, "base64") };
 };
 
+const normalizeBase64Binary = (value: string): { mimeType: string; buffer: Buffer } | null => {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    const dataUriMatch = /^data:([\w/+.-]+);base64,(.+)$/i.exec(trimmed);
+    if (dataUriMatch) {
+        const [, mimeType, base64Data] = dataUriMatch;
+        return { mimeType, buffer: Buffer.from(base64Data, "base64") };
+    }
+
+    const looksLikeBase64 = /^[A-Za-z0-9+/=\s]+$/.test(trimmed) && trimmed.length > 100;
+    if (!looksLikeBase64) return null;
+
+    return { mimeType: "application/octet-stream", buffer: Buffer.from(trimmed, "base64") };
+};
+
 const driveDownloadLink = (fileId: string): string => {
     return `https://drive.google.com/uc?export=download&id=${fileId}`;
 };
@@ -200,7 +222,7 @@ const sanitizeFilenamePart = (value: string | undefined, fallback: string): stri
     return normalized || fallback;
 };
 
-const resolveFileExtension = (file: UploadedInsuranceFile): string => {
+const resolveFileExtension = (file: UploadedFile): string => {
     const fromName = (() => {
         const rawName = file.originalname ?? "";
         const lastDot = rawName.lastIndexOf(".");
@@ -218,7 +240,7 @@ const resolveFileExtension = (file: UploadedInsuranceFile): string => {
 };
 
 const uploadInsuranceFileToDrive = async (
-    file: UploadedInsuranceFile,
+    file: UploadedFile,
     nomorUlok: string,
     proyek?: string,
 ): Promise<string> => {
@@ -236,6 +258,73 @@ const uploadInsuranceFileToDrive = async (
         filename,
         file.mimetype || "application/octet-stream",
         file.buffer,
+        2,
+        drive,
+    );
+
+    if (!result.id) {
+        if (result.webViewLink) return normalizeDriveDownloadLink(result.webViewLink) ?? result.webViewLink;
+        throw new AppError("Upload file asuransi ke Google Drive gagal", 500);
+    }
+
+    return driveDownloadLink(result.id);
+};
+
+const uploadLogoFileToDrive = async (
+    file: UploadedFile,
+    nomorUlok: string,
+    proyek?: string,
+): Promise<string> => {
+    const gp = GoogleProvider.instance;
+    const drive = gp.spartaDrive;
+    if (!drive) throw new AppError("Google Drive (Sparta) belum terkonfigurasi", 500);
+
+    const safeProyek = sanitizeFilenamePart(proyek, "PROYEK");
+    const safeUlok = sanitizeFilenamePart(nomorUlok, "ULOK");
+    const ext = resolveFileExtension(file);
+    const filename = `RAB_LOGO_${safeProyek}_${safeUlok}_${Date.now()}${ext}`;
+
+    const result = await gp.uploadFile(
+        env.PDF_STORAGE_FOLDER_ID,
+        filename,
+        file.mimetype || "application/octet-stream",
+        file.buffer,
+        2,
+        drive,
+    );
+
+    if (!result.id) {
+        if (result.webViewLink) return normalizeDriveDownloadLink(result.webViewLink) ?? result.webViewLink;
+        throw new AppError("Upload logo ke Google Drive gagal", 500);
+    }
+
+    return driveDownloadLink(result.id);
+};
+
+const uploadInsuranceStringToDrive = async (
+    fileValue: string,
+    nomorUlok: string,
+    proyek?: string,
+): Promise<string> => {
+    const normalized = normalizeBase64Binary(fileValue);
+    if (!normalized) {
+        return normalizeDriveDownloadLink(fileValue) ?? fileValue;
+    }
+
+    const ext = inferFileExtension(normalized.mimeType) || ".bin";
+    const safeProyek = sanitizeFilenamePart(proyek, "PROYEK");
+    const safeUlok = sanitizeFilenamePart(nomorUlok, "ULOK");
+    const filename = `RAB_ASURANSI_${safeProyek}_${safeUlok}_${Date.now()}${ext}`;
+
+    const gp = GoogleProvider.instance;
+    const drive = gp.spartaDrive;
+    if (!drive) throw new AppError("Google Drive (Sparta) belum terkonfigurasi", 500);
+
+    const result = await gp.uploadFile(
+        env.PDF_STORAGE_FOLDER_ID,
+        filename,
+        normalized.mimeType,
+        normalized.buffer,
         2,
         drive,
     );
@@ -376,15 +465,19 @@ async function regenerateRabPdfs(
 // ---------------------------------------------------------------------------
 
 export const rabService = {
-    async submit(payload: SubmitRabInput, insuranceFile?: UploadedInsuranceFile) {
+    async submit(payload: SubmitRabInput, uploadedFiles: SubmitUploadedFiles = {}) {
         // 1. Cek apakah ini submit baru atau resubmit dari data yang ditolak
         let rejectedRabToReplaceId: number | null = null;
+        let rejectedRabExistingLogo: string | null = null;
+        let rejectedRabExistingInsurance: string | null = null;
         const existingToko = await tokoRepository.findByNomorUlok(payload.nomor_ulok);
         if (existingToko) {
             const latestRab = await rabRepository.findLatestByTokoId(existingToko.id);
 
             if (latestRab && REJECTED_RAB_STATUSES.includes(latestRab.status)) {
                 rejectedRabToReplaceId = latestRab.id;
+                rejectedRabExistingLogo = latestRab.logo;
+                rejectedRabExistingInsurance = latestRab.file_asuransi;
             } else {
                 const isDuplicate = await rabRepository.existsActiveByTokoId(existingToko.id);
                 if (isDuplicate) {
@@ -413,8 +506,17 @@ export const rabService = {
         const totals = computeTotals(payload.detail_items);
 
         // 3. Simpan ke DB (upsert toko + insert rab + insert rab_item dalam 1 transaksi)
-        let logoLink = normalizeDriveDownloadLink(payload.logo);
-        if (payload.logo) {
+        const hasLogoInput = (payload.logo ?? "").trim().length > 0;
+        const hasRevLogoInput = (payload.rev_logo ?? "").trim().length > 0;
+        const hasFileAsuransiInput = (payload.file_asuransi ?? "").trim().length > 0;
+        const hasRevFileAsuransiInput = (payload.rev_file_asuransi ?? "").trim().length > 0;
+
+        let logoLink = rejectedRabToReplaceId !== null
+            ? normalizeDriveDownloadLink(rejectedRabExistingLogo)
+            : undefined;
+
+        if (hasLogoInput) {
+            logoLink = normalizeDriveDownloadLink(payload.logo);
             try {
                 const filename = `RAB_LOGO_${payload.proyek ?? "PROYEK"}_${payload.nomor_ulok}.png`;
                 const uploadedLink = await uploadLogoToDrive(payload.logo, filename);
@@ -426,10 +528,58 @@ export const rabService = {
             }
         }
 
-        let insuranceLink = normalizeDriveDownloadLink(payload.file_asuransi);
-        if (insuranceFile) {
+        if (hasRevLogoInput) {
+            let revLogoLink = normalizeDriveDownloadLink(payload.rev_logo);
+            try {
+                const filename = `RAB_LOGO_${payload.proyek ?? "PROYEK"}_${payload.nomor_ulok}_${Date.now()}.png`;
+                const uploadedLink = await uploadLogoToDrive(payload.rev_logo!, filename);
+                if (uploadedLink) {
+                    revLogoLink = uploadedLink;
+                }
+            } catch (err) {
+                console.error("Warning: Gagal upload rev_logo RAB ke Drive:", err);
+            }
+
+            if (revLogoLink) {
+                logoLink = revLogoLink;
+            }
+        }
+
+        if (uploadedFiles.revLogoFile) {
+            logoLink = await uploadLogoFileToDrive(
+                uploadedFiles.revLogoFile,
+                payload.nomor_ulok,
+                payload.proyek
+            );
+        }
+
+        let insuranceLink = rejectedRabToReplaceId !== null
+            ? normalizeDriveDownloadLink(rejectedRabExistingInsurance)
+            : undefined;
+
+        if (hasFileAsuransiInput) {
+            insuranceLink = normalizeDriveDownloadLink(payload.file_asuransi);
+        }
+
+        if (uploadedFiles.insuranceFile) {
             insuranceLink = await uploadInsuranceFileToDrive(
-                insuranceFile,
+                uploadedFiles.insuranceFile,
+                payload.nomor_ulok,
+                payload.proyek
+            );
+        }
+
+        if (hasRevFileAsuransiInput) {
+            insuranceLink = await uploadInsuranceStringToDrive(
+                payload.rev_file_asuransi!,
+                payload.nomor_ulok,
+                payload.proyek
+            );
+        }
+
+        if (uploadedFiles.revInsuranceFile) {
+            insuranceLink = await uploadInsuranceFileToDrive(
+                uploadedFiles.revInsuranceFile,
                 payload.nomor_ulok,
                 payload.proyek
             );

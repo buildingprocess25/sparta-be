@@ -39,6 +39,16 @@ Membuat pengajuan RAB baru. Sistem akan:
 - `application/json`: `file_asuransi` dikirim sebagai string URL/path (backward compatible)
 - `multipart/form-data`: `file_asuransi` dikirim sebagai file, backend upload ke Google Drive dan menyimpan link hasil upload
 
+Khusus resubmit data yang sebelumnya berstatus reject, endpoint ini juga mendukung field revisi:
+
+- `rev_logo`: file/logo baru (base64 string pada JSON atau file pada multipart) untuk menimpa kolom `logo`
+- `rev_file_asuransi`: file asuransi baru (base64 string pada JSON atau file pada multipart) untuk menimpa kolom `file_asuransi`
+
+Aturan fallback saat resubmit reject:
+
+- Jika `rev_logo` tidak dikirim, link `logo` lama tetap dipakai
+- Jika `rev_file_asuransi` tidak dikirim, link `file_asuransi` lama tetap dipakai
+
 ```json
 {
   "nomor_ulok": "7AZ1-0001-0001",
@@ -52,10 +62,12 @@ Membuat pengajuan RAB baru. Sistem akan:
   "nama_pt": "PT Contoh Kontraktor",
   "durasi_pekerjaan": "30 Hari",
   "logo": "https://drive.google.com/...",
+  "rev_logo": "data:image/png;base64,iVBORw0KGgoAAA...",
   "kategori_lokasi": "URBAN",
   "no_polis": "POL-12345",
   "berlaku_polis": "2026-12-31",
   "file_asuransi": "https://drive.google.com/file/d/insurance-file/view",
+  "rev_file_asuransi": "data:application/pdf;base64,JVBERi0xLjQKJ...",
   "luas_bangunan": "200",
   "luas_terbangun": "180",
   "luas_area_terbuka": "20",
@@ -91,7 +103,9 @@ Gunakan `multipart/form-data` dengan field berikut:
 
 - Semua field teks sama seperti JSON request
 - `detail_items` dikirim sebagai JSON string
-- `file_asuransi` dikirim sebagai file (pdf/jpg/png/dll)
+- `file_asuransi` dikirim sebagai file (pdf/jpg/png/dll) untuk submit normal
+- `rev_logo` opsional sebagai file baru untuk mengganti `logo` saat resubmit reject
+- `rev_file_asuransi` opsional sebagai file baru untuk mengganti `file_asuransi` saat resubmit reject
 
 Contoh `curl`:
 
@@ -112,7 +126,9 @@ curl -X POST http://localhost:3000/api/rab/submit \
   -F "no_polis=POL-12345" \
   -F "berlaku_polis=2026-12-31" \
   -F "detail_items=[{\"kategori_pekerjaan\":\"PEKERJAAN PERSIAPAN\",\"jenis_pekerjaan\":\"Pembersihan Lokasi\",\"satuan\":\"m2\",\"volume\":100,\"harga_material\":50000,\"harga_upah\":30000}]" \
-  -F "file_asuransi=@./asuransi.pdf"
+  -F "file_asuransi=@./asuransi.pdf" \
+  -F "rev_logo=@./logo-baru.png" \
+  -F "rev_file_asuransi=@./asuransi-baru.pdf"
 ```
 
 ### Validasi
@@ -130,10 +146,12 @@ curl -X POST http://localhost:3000/api/rab/submit \
 | `nama_pt`                           | rab      | **Wajib**, string minimal 1 karakter                              |
 | `durasi_pekerjaan`                  | rab      | **Wajib**, string minimal 1 karakter                              |
 | `logo`                              | rab      | Opsional, URL (maks 255 karakter)                                 |
+| `rev_logo`                          | rab      | Opsional, string base64/data URI atau file multipart              |
 | `kategori_lokasi`                   | rab      | Opsional (maks 255 karakter)                                      |
 | `no_polis`                          | rab      | Opsional, string (maks 255 karakter)                              |
 | `berlaku_polis`                     | rab      | Opsional, string (maks 255 karakter)                              |
 | `file_asuransi`                     | rab      | Opsional, string URL/path (maks 500 karakter) atau file multipart |
+| `rev_file_asuransi`                 | rab      | Opsional, string base64/data URI atau file multipart              |
 | `luas_bangunan`                     | rab      | Opsional, string (maks 255 karakter)                              |
 | `luas_terbangun`                    | rab      | Opsional, string (maks 255 karakter)                              |
 | `luas_area_terbuka`                 | rab      | Opsional, string (maks 255 karakter)                              |

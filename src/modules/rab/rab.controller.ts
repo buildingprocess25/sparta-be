@@ -18,7 +18,9 @@ export const submitRab = asyncHandler(async (req: Request, res: Response) => {
     const payloadCandidate = {
         ...req.body,
         detail_items: detailItems,
-        file_asuransi: typeof req.body.file_asuransi === "string" ? req.body.file_asuransi : undefined
+        file_asuransi: typeof req.body.file_asuransi === "string" ? req.body.file_asuransi : undefined,
+        rev_logo: typeof req.body.rev_logo === "string" ? req.body.rev_logo : undefined,
+        rev_file_asuransi: typeof req.body.rev_file_asuransi === "string" ? req.body.rev_file_asuransi : undefined,
     };
 
     // Debug: log raw body toko fields yang diterima dari frontend
@@ -32,13 +34,26 @@ export const submitRab = asyncHandler(async (req: Request, res: Response) => {
         lingkup_pekerjaan: payloadCandidate.lingkup_pekerjaan,
     }));
     const payload = submitRabSchema.parse(payloadCandidate);
-    const uploadedInsuranceFile = req.file
-        ? {
-            originalname: req.file.originalname,
-            mimetype: req.file.mimetype,
-            buffer: req.file.buffer
-        }
-        : undefined;
+
+    const uploadedFiles = (req.files ?? {}) as Record<string, Array<{
+        originalname: string;
+        mimetype: string;
+        buffer: Buffer;
+    }>>;
+    const getUploadedFile = (fieldName: string) => {
+        const file = uploadedFiles[fieldName]?.[0];
+        if (!file) return undefined;
+
+        return {
+            originalname: file.originalname,
+            mimetype: file.mimetype,
+            buffer: file.buffer
+        };
+    };
+
+    const uploadedInsuranceFile = getUploadedFile("file_asuransi");
+    const uploadedRevInsuranceFile = getUploadedFile("rev_file_asuransi");
+    const uploadedRevLogoFile = getUploadedFile("rev_logo");
 
     console.log("[RAB SUBMIT] parsed toko fields:", JSON.stringify({
         nomor_ulok: payload.nomor_ulok,
@@ -49,7 +64,11 @@ export const submitRab = asyncHandler(async (req: Request, res: Response) => {
         nama_kontraktor: payload.nama_kontraktor,
         lingkup_pekerjaan: payload.lingkup_pekerjaan,
     }));
-    const data = await rabService.submit(payload, uploadedInsuranceFile);
+    const data = await rabService.submit(payload, {
+        insuranceFile: uploadedInsuranceFile,
+        revInsuranceFile: uploadedRevInsuranceFile,
+        revLogoFile: uploadedRevLogoFile,
+    });
 
     res.status(201).json({
         status: "success",
