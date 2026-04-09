@@ -586,7 +586,7 @@ export const rabRepository = {
      * Saat REJECT:
      * - Update kolom penolakan di tabel rab
      * - Aktifkan gantt_chart terbaru milik toko terkait
-     * - Guard: pastikan data tabel toko tidak berubah
+     * - Lindungi kolom toko agar tidak berubah oleh side-effect trigger
      */
     async rejectRabAndActivateLatestGanttGuarded(
         rabId: string,
@@ -610,17 +610,11 @@ export const rabRepository = {
             const tokoId = rabRes.rows[0].id_toko;
 
             const tokoBeforeRes = await client.query<{
-                nomor_ulok: string | null;
-                lingkup_pekerjaan: string | null;
-                nama_toko: string | null;
                 kode_toko: string | null;
-                proyek: string | null;
-                cabang: string | null;
                 alamat: string | null;
                 nama_kontraktor: string | null;
             }>(
-                `SELECT nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko,
-                        proyek, cabang, alamat, nama_kontraktor
+                `SELECT kode_toko, alamat, nama_kontraktor
                  FROM toko
                  WHERE id = $1
                  FOR UPDATE`,
@@ -656,18 +650,27 @@ export const rabRepository = {
                 [tokoId]
             );
 
+            // Hard-guard: pulihkan kolom toko yang wajib stabil setelah reject.
+            await client.query(
+                `UPDATE toko
+                 SET kode_toko = $1,
+                     alamat = $2,
+                     nama_kontraktor = $3
+                 WHERE id = $4`,
+                [
+                    tokoBefore.kode_toko,
+                    tokoBefore.alamat,
+                    tokoBefore.nama_kontraktor,
+                    tokoId
+                ]
+            );
+
             const tokoAfterRes = await client.query<{
-                nomor_ulok: string | null;
-                lingkup_pekerjaan: string | null;
-                nama_toko: string | null;
                 kode_toko: string | null;
-                proyek: string | null;
-                cabang: string | null;
                 alamat: string | null;
                 nama_kontraktor: string | null;
             }>(
-                `SELECT nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko,
-                        proyek, cabang, alamat, nama_kontraktor
+                `SELECT kode_toko, alamat, nama_kontraktor
                  FROM toko
                  WHERE id = $1`,
                 [tokoId]
