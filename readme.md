@@ -79,6 +79,9 @@ npm run dev
 - `PUT /api/pertambahan-spk/:id`
 - `POST /api/pertambahan-spk/:id/approval`
 - `DELETE /api/pertambahan-spk/:id`
+- `POST /api/pic_pengawasan`
+- `GET /api/pic_pengawasan`
+- `GET /api/pic_pengawasan/:id`
 
 ## Dokumentasi API
 
@@ -87,6 +90,7 @@ npm run dev
 - `docs/api-gantt.md`
 - `docs/api-spk.md`
 - `docs/api-pertambahan-spk.md`
+- `docs/api-pic-pengawasan.md`
 
 ## Contoh Submit RAB
 

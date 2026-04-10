@@ -11,6 +11,7 @@ import { dokumentasiRouter } from "./modules/dokumentasi/dokumentasi.routes";
 import { ganttRouter } from "./modules/gantt/gantt.routes";
 import { priceRabRouter } from "./modules/price-rab/price-rab.routes";
 import { pertambahanSpkRouter } from "./modules/pertambahan-spk/pertambahan-spk.routes";
+import { picPengawasanRouter } from "./modules/pic-pengawasan/pic-pengawasan.routes";
 import { getKontraktor, loginUserCabang } from "./modules/toko/toko.controller";
 
 
@@ -37,6 +38,7 @@ app.use("/api/doc", documentRouter);
 app.use("/api/dok", dokumentasiRouter);
 app.use("/api/gantt", ganttRouter);
 app.use("/api/pertambahan-spk", pertambahanSpkRouter);
+app.use("/api/pic_pengawasan", picPengawasanRouter);
 app.use("/", priceRabRouter);
 app.use("/api", priceRabRouter);
 
