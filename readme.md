@@ -82,6 +82,11 @@ npm run dev
 - `POST /api/pic_pengawasan`
 - `GET /api/pic_pengawasan`
 - `GET /api/pic_pengawasan/:id`
+- `POST /api/user_cabang`
+- `GET /api/user_cabang`
+- `GET /api/user_cabang/:id`
+- `PUT /api/user_cabang/:id`
+- `DELETE /api/user_cabang/:id`
 
 ## Dokumentasi API
 
@@ -91,6 +96,7 @@ npm run dev
 - `docs/api-spk.md`
 - `docs/api-pertambahan-spk.md`
 - `docs/api-pic-pengawasan.md`
+- `docs/api-user-cabang.md`
 
 ## Contoh Submit RAB
 
