@@ -181,17 +181,28 @@ export const ganttService = {
             throw new AppError("Gantt Chart tidak ditemukan", 404);
         }
 
-        if (payload.kategori_pekerjaan) {
-            const result = await ganttRepository.addPengawasan(id, payload.kategori_pekerjaan);
-            return { action: "added" as const, id: result.id };
+        if (payload.tanggal_pengawasan) {
+            const tanggalList = Array.isArray(payload.tanggal_pengawasan)
+                ? payload.tanggal_pengawasan
+                : [payload.tanggal_pengawasan];
+
+            const result = await ganttRepository.addPengawasan(id, tanggalList);
+            return {
+                action: "added" as const,
+                inserted: result.inserted,
+                ids: result.ids
+            };
         }
 
-        if (payload.remove_kategori) {
-            await ganttRepository.removePengawasan(id, payload.remove_kategori);
+        if (payload.remove_tanggal_pengawasan) {
+            await ganttRepository.removePengawasan(id, payload.remove_tanggal_pengawasan);
             return { action: "removed" as const };
         }
 
-        throw new AppError("Field 'kategori_pekerjaan' atau 'remove_kategori' wajib diisi", 400);
+        throw new AppError(
+            "Field 'tanggal_pengawasan' atau 'remove_tanggal_pengawasan' wajib diisi",
+            400
+        );
     },
 
     async getDetailByTokoId(idToko: number) {

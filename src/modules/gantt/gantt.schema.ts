@@ -16,7 +16,7 @@ export const dependencyItemSchema = z.object({
 });
 
 export const pengawasanItemSchema = z.object({
-    kategori_pekerjaan: z.string().min(1)
+    tanggal_pengawasan: z.string().min(1)
 });
 
 // --- Submit Gantt Chart ---
@@ -101,11 +101,14 @@ export const updateKecepatanSchema = z.object({
 // --- Manage Pengawasan ---
 
 export const managePengawasanSchema = z.object({
-    kategori_pekerjaan: z.string().min(1).optional(),
-    remove_kategori: z.string().min(1).optional()
+    tanggal_pengawasan: z.union([
+        z.string().min(1),
+        z.array(z.string().min(1)).min(1)
+    ]).optional(),
+    remove_tanggal_pengawasan: z.string().min(1).optional()
 }).refine(
-    (data) => data.kategori_pekerjaan || data.remove_kategori,
-    { message: "Field 'kategori_pekerjaan' atau 'remove_kategori' wajib diisi" }
+    (data) => data.tanggal_pengawasan || data.remove_tanggal_pengawasan,
+    { message: "Field 'tanggal_pengawasan' atau 'remove_tanggal_pengawasan' wajib diisi" }
 );
 
 // --- Detail by Toko ---

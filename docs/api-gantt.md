@@ -41,11 +41,12 @@ Base URL (Python): `/api/gantt-sql`
    ┌──────────▼──────┐  ┌─────▼──────────┐  ┌───▼──────────────┐
    │kategori_pekerjaan│  │ pengawasan_    │  │  dependency_     │
    │    _gantt        │  │   gantt        │  │    gantt         │
-   │ (id, id_gantt,  │  │ (id, id_gantt, │  │ (id, id_gantt,   │
-   │  kategori)      │  │  kategori)     │  │  id_kategori,    │
-   └───────┬─────────┘  └────────────────┘  │  id_kat_terikat) │
-           │ 1                               └──────────────────┘
-           │ N
+   │ (id, id_gantt,   │  │ (id, id_gantt, │  │ (id, id_gantt,   │
+   │  kategori)       │  │  tanggal_      │  │  id_kategori,    │
+   │                  │  │  pengawasan)   │  │  id_kat_terikat) │
+   └───────┬─────────┘  └────────────────┘  └──────────────────┘
+     │ 1
+     │ N
    ┌───────▼─────────┐
    │ day_gantt_chart  │
    │ (id, id_gantt,  │
@@ -113,8 +114,8 @@ Membuat Gantt Chart baru. Sistem akan:
     }
   ],
   "pengawasan": [
-    { "kategori_pekerjaan": "PEKERJAAN PERSIAPAN" },
-    { "kategori_pekerjaan": "PEKERJAAN FINISHING" }
+    { "tanggal_pengawasan": "14/04/2026" },
+    { "tanggal_pengawasan": "22/04/2026" }
   ],
   "dependencies": [
     {
@@ -154,7 +155,7 @@ Membuat Gantt Chart baru. Sistem akan:
 | `day_items[].keterlambatan`                 | day_gantt_chart          | Opsional                                     |
 | `day_items[].kecepatan`                     | day_gantt_chart          | Opsional                                     |
 | `pengawasan`                                | pengawasan_gantt         | Opsional, array                              |
-| `pengawasan[].kategori_pekerjaan`           | pengawasan_gantt         | Wajib jika ada                               |
+| `pengawasan[].tanggal_pengawasan`           | pengawasan_gantt         | Wajib jika ada                               |
 | `dependencies`                              | dependency_gantt         | Opsional, array                              |
 | `dependencies[].kategori_pekerjaan`         | dependency_gantt         | Wajib, harus ada di `kategori_pekerjaan`     |
 | `dependencies[].kategori_pekerjaan_terikat` | dependency_gantt         | Wajib, harus ada di `kategori_pekerjaan`     |
@@ -308,8 +309,8 @@ GET /api/gantt/3?id_toko=5
       }
     ],
     "pengawasan": [
-      { "id": 1, "id_gantt": 1, "kategori_pekerjaan": "PEKERJAAN PERSIAPAN" },
-      { "id": 2, "id_gantt": 1, "kategori_pekerjaan": "PEKERJAAN FINISHING" }
+      { "id": 1, "id_gantt": 1, "tanggal_pengawasan": "14/04/2026" },
+      { "id": 2, "id_gantt": 1, "tanggal_pengawasan": "22/04/2026" }
     ],
     "dependencies": [
       {
@@ -386,7 +387,7 @@ Update isi Gantt Chart. Jika `kategori_pekerjaan` dan `day_items` dikirim, semua
       "kategori_pekerjaan_terikat": "PEKERJAAN PERSIAPAN"
     }
   ],
-  "pengawasan": [{ "kategori_pekerjaan": "PEKERJAAN FINISHING" }]
+  "pengawasan": [{ "tanggal_pengawasan": "22/04/2026" }]
 }
 ```
 
@@ -658,7 +659,11 @@ Update nilai kecepatan pada day item tertentu. Day item diidentifikasi berdasark
 
 **`POST /api/gantt/:id/pengawasan`** (Node.js) | **`POST /api/gantt-sql/:id/pengawasan`** (Python)
 
-Tambah atau hapus pengawasan pada Gantt Chart. Kirim `kategori_pekerjaan` untuk menambah, atau `remove_kategori` untuk menghapus.
+Tambah atau hapus pengawasan pada Gantt Chart.
+
+- Untuk insert tunggal, kirim `tanggal_pengawasan` berupa string.
+- Untuk bulk insert, kirim `tanggal_pengawasan` berupa array string.
+- Untuk menghapus, kirim `remove_tanggal_pengawasan`.
 
 ### Path Parameter
 
@@ -670,7 +675,15 @@ Tambah atau hapus pengawasan pada Gantt Chart. Kirim `kategori_pekerjaan` untuk 
 
 ```json
 {
-  "kategori_pekerjaan": "PEKERJAAN PERSIAPAN"
+  "tanggal_pengawasan": "14/04/2026"
+}
+```
+
+### Bulk Insert — Request Body
+
+```json
+{
+  "tanggal_pengawasan": ["14/04/2026", "15/04/2026", "16/04/2026"]
 }
 ```
 
@@ -680,7 +693,7 @@ Tambah atau hapus pengawasan pada Gantt Chart. Kirim `kategori_pekerjaan` untuk 
 {
   "status": "success",
   "message": "Pengawasan berhasil ditambahkan",
-  "data": { "action": "added", "id": 5 }
+  "data": { "action": "added", "inserted": 3, "ids": [5, 6, 7] }
 }
 ```
 
@@ -688,7 +701,7 @@ Tambah atau hapus pengawasan pada Gantt Chart. Kirim `kategori_pekerjaan` untuk 
 
 ```json
 {
-  "remove_kategori": "PEKERJAAN PERSIAPAN"
+  "remove_tanggal_pengawasan": "14/04/2026"
 }
 ```
 
@@ -704,11 +717,11 @@ Tambah atau hapus pengawasan pada Gantt Chart. Kirim `kategori_pekerjaan` untuk 
 
 ### Validasi
 
-| Field                | Aturan                                            |
-| -------------------- | ------------------------------------------------- |
-| `kategori_pekerjaan` | Opsional, string min 1 — untuk menambah           |
-| `remove_kategori`    | Opsional, string min 1 — untuk menghapus          |
-|                      | Salah satu dari dua field di atas **wajib** diisi |
+| Field                       | Aturan                                                                        |
+| --------------------------- | ----------------------------------------------------------------------------- |
+| `tanggal_pengawasan`        | Opsional, string min 1 atau array string min 1 — untuk menambah (single/bulk) |
+| `remove_tanggal_pengawasan` | Opsional, string min 1 — untuk menghapus                                      |
+|                             | Salah satu dari dua field di atas **wajib** diisi                             |
 
 ### Error
 

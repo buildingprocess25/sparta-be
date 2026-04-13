@@ -38,7 +38,7 @@ export type DayGanttRow = {
 export type PengawasanGanttRow = {
     id: number;
     id_gantt: number;
-    kategori_pekerjaan: string;
+    tanggal_pengawasan: string;
 };
 
 export type DependencyGanttRow = {
@@ -129,9 +129,9 @@ const insertPengawasan = async (
 ): Promise<void> => {
     for (const item of pengawasanItems) {
         await client.query(
-            `INSERT INTO pengawasan_gantt (id_gantt, kategori_pekerjaan)
+            `INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan)
              VALUES ($1, $2)`,
-            [ganttId, item.kategori_pekerjaan]
+            [ganttId, item.tanggal_pengawasan]
         );
     }
 };
@@ -315,7 +315,7 @@ export const ganttRepository = {
 
         // Pengawasan
         const pengawasanRes = await pool.query<PengawasanGanttRow>(
-            `SELECT id, id_gantt, kategori_pekerjaan
+            `SELECT id, id_gantt, tanggal_pengawasan
              FROM pengawasan_gantt
              WHERE id_gantt = $1
              ORDER BY id ASC`,
@@ -628,28 +628,34 @@ export const ganttRepository = {
         return { day_id: result.rows[0].id };
     },
 
-    /** Tambah pengawasan */
+    /** Tambah pengawasan (single/bulk) */
     async addPengawasan(
         ganttId: string,
-        kategoriPekerjaan: string
-    ): Promise<{ id: number }> {
-        const result = await pool.query<{ id: number }>(
-            `INSERT INTO pengawasan_gantt (id_gantt, kategori_pekerjaan)
-             VALUES ($1, $2) RETURNING id`,
-            [ganttId, kategoriPekerjaan]
-        );
-        return { id: result.rows[0].id };
+        tanggalPengawasanList: string[]
+    ): Promise<{ inserted: number; ids: number[] }> {
+        const ids: number[] = [];
+
+        for (const tanggalPengawasan of tanggalPengawasanList) {
+            const result = await pool.query<{ id: number }>(
+                `INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan)
+                 VALUES ($1, $2) RETURNING id`,
+                [ganttId, tanggalPengawasan]
+            );
+            ids.push(result.rows[0].id);
+        }
+
+        return { inserted: ids.length, ids };
     },
 
-    /** Hapus pengawasan berdasarkan kategori */
+    /** Hapus pengawasan berdasarkan tanggal pengawasan */
     async removePengawasan(
         ganttId: string,
-        kategoriPekerjaan: string
+        tanggalPengawasan: string
     ): Promise<boolean> {
         const result = await pool.query(
             `DELETE FROM pengawasan_gantt
-             WHERE id_gantt = $1 AND kategori_pekerjaan = $2`,
-            [ganttId, kategoriPekerjaan]
+             WHERE id_gantt = $1 AND tanggal_pengawasan = $2`,
+            [ganttId, tanggalPengawasan]
         );
         return (result.rowCount ?? 0) > 0;
     },
@@ -748,7 +754,7 @@ export const ganttRepository = {
 
         // 7. Pengawasan
         const pengawasanRes = await pool.query<PengawasanGanttRow>(
-            `SELECT id, id_gantt, kategori_pekerjaan
+            `SELECT id, id_gantt, tanggal_pengawasan
              FROM pengawasan_gantt
              WHERE id_gantt = $1
              ORDER BY id ASC`,
