@@ -1,18 +1,18 @@
 import { Router } from "express";
 import {
     createUserCabang,
-    deleteUserCabangById,
-    getUserCabangById,
+    deleteUserCabangByKey,
+    getUserCabangByKey,
     listUserCabang,
-    updateUserCabangById
+    updateUserCabangByKey
 } from "./user-cabang.controller";
 
 const userCabangRouter = Router();
 
 userCabangRouter.post("/", createUserCabang);
 userCabangRouter.get("/", listUserCabang);
-userCabangRouter.get("/:id", getUserCabangById);
-userCabangRouter.put("/:id", updateUserCabangById);
-userCabangRouter.delete("/:id", deleteUserCabangById);
+userCabangRouter.get("/:cabang/:email_sat", getUserCabangByKey);
+userCabangRouter.put("/:cabang/:email_sat", updateUserCabangByKey);
+userCabangRouter.delete("/:cabang/:email_sat", deleteUserCabangByKey);
 
 export { userCabangRouter };

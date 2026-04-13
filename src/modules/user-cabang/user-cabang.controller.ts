@@ -4,7 +4,7 @@ import {
     createUserCabangSchema,
     listUserCabangQuerySchema,
     updateUserCabangSchema,
-    userCabangIdParamSchema
+    userCabangKeyParamSchema
 } from "./user-cabang.schema";
 import { userCabangService } from "./user-cabang.service";
 
@@ -26,17 +26,17 @@ export const listUserCabang = asyncHandler(async (req: Request, res: Response) =
     res.json({ status: "success", data });
 });
 
-export const getUserCabangById = asyncHandler(async (req: Request, res: Response) => {
-    const params = userCabangIdParamSchema.parse(req.params);
-    const data = await userCabangService.getById(params.id);
+export const getUserCabangByKey = asyncHandler(async (req: Request, res: Response) => {
+    const params = userCabangKeyParamSchema.parse(req.params);
+    const data = await userCabangService.getByKey(params.cabang, params.email_sat);
 
     res.json({ status: "success", data });
 });
 
-export const updateUserCabangById = asyncHandler(async (req: Request, res: Response) => {
-    const params = userCabangIdParamSchema.parse(req.params);
+export const updateUserCabangByKey = asyncHandler(async (req: Request, res: Response) => {
+    const params = userCabangKeyParamSchema.parse(req.params);
     const payload = updateUserCabangSchema.parse(req.body);
-    const data = await userCabangService.updateById(params.id, payload);
+    const data = await userCabangService.updateByKey(params.cabang, params.email_sat, payload);
 
     res.json({
         status: "success",
@@ -45,9 +45,9 @@ export const updateUserCabangById = asyncHandler(async (req: Request, res: Respo
     });
 });
 
-export const deleteUserCabangById = asyncHandler(async (req: Request, res: Response) => {
-    const params = userCabangIdParamSchema.parse(req.params);
-    const data = await userCabangService.deleteById(params.id);
+export const deleteUserCabangByKey = asyncHandler(async (req: Request, res: Response) => {
+    const params = userCabangKeyParamSchema.parse(req.params);
+    const data = await userCabangService.deleteByKey(params.cabang, params.email_sat);
 
     res.json({
         status: "success",

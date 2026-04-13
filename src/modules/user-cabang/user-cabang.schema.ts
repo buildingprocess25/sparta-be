@@ -26,8 +26,9 @@ export const listUserCabangQuerySchema = z.object({
     nama_pt: z.string().trim().min(1).optional()
 });
 
-export const userCabangIdParamSchema = z.object({
-    id: z.coerce.number().int().positive()
+export const userCabangKeyParamSchema = z.object({
+    cabang: z.string().trim().min(1),
+    email_sat: z.string().trim().email()
 });
 
 export type CreateUserCabangInput = z.infer<typeof createUserCabangSchema>;
