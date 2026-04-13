@@ -1,5 +1,5 @@
 import { AppError } from "../../common/app-error";
-import { pengawasanRepository } from "./pengawasan.repository";
+import { pengawasanRepository, type PengawasanRow } from "./pengawasan.repository";
 import type {
     CreatePengawasanInput,
     ListPengawasanQueryInput,
@@ -34,19 +34,19 @@ const mapPgError = (error: unknown): never => {
 };
 
 export const pengawasanService = {
-    async create(input: CreatePengawasanInput) {
+    async create(input: CreatePengawasanInput): Promise<PengawasanRow> {
         try {
             return await pengawasanRepository.create(input);
         } catch (error) {
-            mapPgError(error);
+            return mapPgError(error);
         }
     },
 
-    async createBulk(items: CreatePengawasanInput[]) {
+    async createBulk(items: CreatePengawasanInput[]): Promise<PengawasanRow[]> {
         try {
             return await pengawasanRepository.createBulk(items);
         } catch (error) {
-            mapPgError(error);
+            return mapPgError(error);
         }
     },
 
@@ -63,7 +63,7 @@ export const pengawasanService = {
         return data;
     },
 
-    async update(id: string, input: UpdatePengawasanInput) {
+    async update(id: string, input: UpdatePengawasanInput): Promise<PengawasanRow> {
         try {
             const data = await pengawasanRepository.updateById(id, input);
             if (!data) {
@@ -76,7 +76,7 @@ export const pengawasanService = {
                 throw error;
             }
 
-            mapPgError(error);
+            return mapPgError(error);
         }
     },
 
