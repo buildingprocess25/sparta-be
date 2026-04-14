@@ -123,16 +123,56 @@ export const pengawasanService = {
 
     async createBulk(
         items: CreatePengawasanInput[],
-        uploadedDokumentasiFiles: UploadedDokumentasiFile[] = []
+        uploadedDokumentasiFiles: UploadedDokumentasiFile[] = [],
+        uploadedDokumentasiIndexes?: number[]
     ): Promise<PengawasanRow[]> {
         try {
             if (uploadedDokumentasiFiles.length === 0) {
                 return await pengawasanRepository.createBulk(items);
             }
 
+            if (uploadedDokumentasiIndexes && uploadedDokumentasiIndexes.length > 0) {
+                if (uploadedDokumentasiIndexes.length !== uploadedDokumentasiFiles.length) {
+                    throw new AppError(
+                        "Jumlah file_dokumentasi_indexes harus sama dengan jumlah file_dokumentasi",
+                        400
+                    );
+                }
+
+                const usedIndexes = new Set<number>();
+                const payloadWithDokumentasi: CreatePengawasanData[] = items.map((item) => ({ ...item }));
+
+                for (let filePosition = 0; filePosition < uploadedDokumentasiFiles.length; filePosition++) {
+                    const itemIndex = uploadedDokumentasiIndexes[filePosition];
+                    if (itemIndex < 0 || itemIndex >= items.length) {
+                        throw new AppError(
+                            `file_dokumentasi_indexes[${filePosition}] di luar range items (0-${items.length - 1})`,
+                            400
+                        );
+                    }
+
+                    if (usedIndexes.has(itemIndex)) {
+                        throw new AppError(
+                            `file_dokumentasi_indexes tidak boleh duplikat (duplikat di index item ${itemIndex})`,
+                            400
+                        );
+                    }
+                    usedIndexes.add(itemIndex);
+
+                    const item = items[itemIndex];
+                    const dokumentasiLink = await uploadDokumentasiToDrive(item.id_gantt, uploadedDokumentasiFiles[filePosition]);
+                    payloadWithDokumentasi[itemIndex] = {
+                        ...item,
+                        dokumentasi: dokumentasiLink
+                    };
+                }
+
+                return await pengawasanRepository.createBulk(payloadWithDokumentasi);
+            }
+
             if (uploadedDokumentasiFiles.length !== 1 && uploadedDokumentasiFiles.length !== items.length) {
                 throw new AppError(
-                    "Jumlah file_dokumentasi harus 1 file untuk semua item atau sama dengan jumlah items",
+                    "Jumlah file_dokumentasi harus 1 file untuk semua item, sama dengan jumlah items, atau kirim file_dokumentasi_indexes untuk mapping item tertentu",
                     400
                 );
             }

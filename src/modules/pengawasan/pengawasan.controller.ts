@@ -72,9 +72,36 @@ export const createBulkPengawasan = asyncHandler(async (req: Request, res: Respo
         items: parsedItems
     };
     const { items } = bulkCreatePengawasanSchema.parse(payloadCandidate);
+
+    let parsedDokumentasiIndexes = req.body.file_dokumentasi_indexes;
+    if (typeof req.body.file_dokumentasi_indexes === "string") {
+        try {
+            parsedDokumentasiIndexes = JSON.parse(req.body.file_dokumentasi_indexes);
+        } catch {
+            throw new AppError(
+                "Format file_dokumentasi_indexes tidak valid. Untuk multipart/form-data kirim sebagai JSON string array index.",
+                400
+            );
+        }
+    }
+
+    if (typeof parsedDokumentasiIndexes !== "undefined" && !Array.isArray(parsedDokumentasiIndexes)) {
+        throw new AppError("file_dokumentasi_indexes harus berupa array index", 400);
+    }
+
+    const dokumentasiIndexes = Array.isArray(parsedDokumentasiIndexes)
+        ? parsedDokumentasiIndexes.map((value, index) => {
+            const numberValue = Number(value);
+            if (!Number.isInteger(numberValue) || numberValue < 0) {
+                throw new AppError(`file_dokumentasi_indexes[${index}] harus integer >= 0`, 400);
+            }
+            return numberValue;
+        })
+        : undefined;
+
     const uploadedFiles = req.files as UploadedFilesMap | undefined;
     const uploadedDokumentasiFiles = getUploadedFiles(uploadedFiles, "file_dokumentasi");
-    const data = await pengawasanService.createBulk(items, uploadedDokumentasiFiles);
+    const data = await pengawasanService.createBulk(items, uploadedDokumentasiFiles, dokumentasiIndexes);
 
     res.status(201).json({
         status: "success",

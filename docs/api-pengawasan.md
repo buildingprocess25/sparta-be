@@ -121,10 +121,20 @@ Endpoint bulk juga menerima upload file:
 
 - field file: `file_dokumentasi`
 - field body: `items` dikirim sebagai JSON string
+- field body opsional: `file_dokumentasi_indexes` dikirim sebagai JSON string array index item
 - behavior:
   - jika jumlah `file_dokumentasi` = 1, link file tersebut dipakai untuk semua item
   - jika jumlah `file_dokumentasi` = jumlah item, tiap file dipetakan berdasarkan index item
+  - jika hanya sebagian item yang punya file, kirim `file_dokumentasi_indexes` agar tiap file diarahkan ke index item tertentu (contoh `[2,6]` berarti file pertama untuk `items[2]`, file kedua untuk `items[6]`)
   - link hasil upload otomatis disimpan ke kolom `dokumentasi`
+
+Contoh multipart untuk sparse file mapping:
+
+- `items`: string JSON array (misalnya total 10 item)
+- `file_dokumentasi`: 2 file upload
+- `file_dokumentasi_indexes`: `[2,6]`
+
+Hasilnya: hanya `items[2]` dan `items[6]` yang kolom `dokumentasi` terisi dari link upload; item lain tetap `null` jika tidak punya file.
 
 ### Response — 201 Created
 
