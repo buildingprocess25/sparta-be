@@ -1,0 +1,65 @@
+import { z } from "zod";
+
+export const createOpnameSchema = z.object({
+    id_toko: z.coerce.number().int().positive(),
+    id_rab_item: z.coerce.number().int().positive(),
+    volume_akhir: z.coerce.number().int(),
+    selisih_volume: z.coerce.number().int(),
+    total_selisih: z.coerce.number().int(),
+    desain: z.string().trim().min(1).optional(),
+    kualitas: z.string().trim().min(1).optional(),
+    spesifikasi: z.string().trim().min(1).optional(),
+    catatan: z.string().trim().min(1).optional()
+});
+
+export const bulkCreateOpnameSchema = z.object({
+    items: z.array(createOpnameSchema).min(1)
+});
+
+export const updateOpnameSchema = z.object({
+    id_toko: z.coerce.number().int().positive().optional(),
+    id_rab_item: z.coerce.number().int().positive().optional(),
+    volume_akhir: z.coerce.number().int().optional(),
+    selisih_volume: z.coerce.number().int().optional(),
+    total_selisih: z.coerce.number().int().optional(),
+    desain: z.string().trim().min(1).optional(),
+    kualitas: z.string().trim().min(1).optional(),
+    spesifikasi: z.string().trim().min(1).optional(),
+    foto: z.string().trim().min(1).optional(),
+    catatan: z.string().trim().min(1).optional()
+}).refine(
+    (data: {
+        id_toko?: number;
+        id_rab_item?: number;
+        volume_akhir?: number;
+        selisih_volume?: number;
+        total_selisih?: number;
+        desain?: string;
+        kualitas?: string;
+        spesifikasi?: string;
+        foto?: string;
+        catatan?: string;
+    }) =>
+        typeof data.id_toko !== "undefined"
+        || typeof data.id_rab_item !== "undefined"
+        || typeof data.volume_akhir !== "undefined"
+        || typeof data.selisih_volume !== "undefined"
+        || typeof data.total_selisih !== "undefined"
+        || typeof data.desain !== "undefined"
+        || typeof data.kualitas !== "undefined"
+        || typeof data.spesifikasi !== "undefined"
+        || typeof data.foto !== "undefined"
+        || typeof data.catatan !== "undefined",
+    { message: "Minimal satu field harus diisi untuk update" }
+);
+
+export const listOpnameQuerySchema = z.object({
+    id_toko: z.coerce.number().int().positive().optional(),
+    id_rab_item: z.coerce.number().int().positive().optional()
+});
+
+export type CreateOpnameInput = z.infer<typeof createOpnameSchema>;
+export type CreateOpnameData = CreateOpnameInput & { foto?: string };
+export type BulkCreateOpnameInput = z.infer<typeof bulkCreateOpnameSchema>;
+export type UpdateOpnameInput = z.infer<typeof updateOpnameSchema>;
+export type ListOpnameQueryInput = z.infer<typeof listOpnameQuerySchema>;
