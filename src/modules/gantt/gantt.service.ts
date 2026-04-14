@@ -139,19 +139,60 @@ export const ganttService = {
             throw new AppError("Gantt Chart tidak ditemukan", 404);
         }
 
-        const result = await ganttRepository.updateKeterlambatan(
-            id,
-            payload.kategori_pekerjaan,
-            payload.h_awal,
-            payload.h_akhir,
-            payload.keterlambatan
-        );
+        const updates = payload.updates && payload.updates.length > 0
+            ? payload.updates
+            : payload.kategori_pekerjaan !== undefined && payload.keterlambatan !== undefined
+                ? [{
+                    kategori_pekerjaan: payload.kategori_pekerjaan,
+                    keterlambatan: payload.keterlambatan
+                }]
+                : [];
 
-        if (!result) {
-            throw new AppError("Day item tidak ditemukan untuk kombinasi tersebut", 404);
+        if (updates.length === 0) {
+            throw new AppError(
+                "Payload tidak valid, isi 'updates' atau 'kategori_pekerjaan' + 'keterlambatan'",
+                400
+            );
         }
 
-        return { day_id: result.day_id, keterlambatan: payload.keterlambatan };
+        const updatedCategories: Array<{
+            kategori_pekerjaan: string;
+            keterlambatan: string;
+            day_ids: number[];
+        }> = [];
+        const notFoundCategories: string[] = [];
+
+        for (const item of updates) {
+            const result = await ganttRepository.updateKeterlambatan(
+                id,
+                item.kategori_pekerjaan,
+                item.keterlambatan
+            );
+
+            if (!result) {
+                notFoundCategories.push(item.kategori_pekerjaan);
+                continue;
+            }
+
+            updatedCategories.push({
+                kategori_pekerjaan: item.kategori_pekerjaan,
+                keterlambatan: item.keterlambatan,
+                day_ids: result.day_ids
+            });
+        }
+
+        if (updatedCategories.length === 0) {
+            throw new AppError("Kategori pekerjaan tidak ditemukan pada gantt ini", 404);
+        }
+
+        return {
+            total_rows_updated: updatedCategories.reduce(
+                (sum, item) => sum + item.day_ids.length,
+                0
+            ),
+            updated_categories: updatedCategories,
+            not_found_categories: notFoundCategories
+        };
     },
 
     async updateKecepatan(id: string, payload: UpdateKecepatanInput) {

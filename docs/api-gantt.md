@@ -19,7 +19,7 @@ Base URL (Python): `/api/gantt-sql`
 | 5   | `POST`   | `/api/gantt/:id/lock`              | `/api/gantt-sql/:id/lock`              | Kunci Gantt Chart                     |
 | 6   | `DELETE` | `/api/gantt/:id`                   | `/api/gantt-sql/:id`                   | Hapus Gantt Chart                     |
 | 7   | `POST`   | `/api/gantt/:id/day`               | `/api/gantt-sql/:id/day`               | Tambah day items                      |
-| 8   | `POST`   | `/api/gantt/:id/day/keterlambatan` | `/api/gantt-sql/:id/day/keterlambatan` | Update keterlambatan                  |
+| 8   | `POST`   | `/api/gantt/:id/day/keterlambatan` | `/api/gantt-sql/:id/day/keterlambatan` | Update keterlambatan (single/bulk)    |
 | 9   | `POST`   | `/api/gantt/:id/day/kecepatan`     | `/api/gantt-sql/:id/day/kecepatan`     | Update kecepatan                      |
 | 10  | `POST`   | `/api/gantt/:id/pengawasan`        | `/api/gantt-sql/:id/pengawasan`        | Manage pengawasan                     |
 | 11  | `GET`    | `/api/gantt/detail/:id_toko`       | —                                      | Detail Gantt + RAB categories by toko |
@@ -557,7 +557,9 @@ Menambah day items ke Gantt Chart yang sudah ada tanpa replace data lama.
 
 **`POST /api/gantt/:id/day/keterlambatan`** (Node.js) | **`POST /api/gantt-sql/:id/day/keterlambatan`** (Python)
 
-Update nilai keterlambatan pada day item tertentu. Day item diidentifikasi berdasarkan kombinasi `kategori_pekerjaan` + `h_awal` + `h_akhir`.
+Update nilai keterlambatan berdasarkan `kategori_pekerjaan` untuk `id_gantt` tertentu.
+Semua baris `day_gantt_chart` yang memiliki kategori tersebut akan ikut diperbarui.
+Endpoint ini mendukung mode single dan bulk.
 
 ### Path Parameter
 
@@ -565,25 +567,41 @@ Update nilai keterlambatan pada day item tertentu. Day item diidentifikasi berda
 | --------- | ------ | -------------- |
 | `id`      | number | ID Gantt Chart |
 
-### Request Body
+### Request Body (Single)
 
 ```json
 {
   "kategori_pekerjaan": "PEKERJAAN INSTALASI",
-  "h_awal": "13/04/2026",
-  "h_akhir": "20/04/2026",
   "keterlambatan": "3"
+}
+```
+
+### Request Body (Bulk)
+
+```json
+{
+  "updates": [
+    {
+      "kategori_pekerjaan": "PEKERJAAN PERSIAPAN",
+      "keterlambatan": "1"
+    },
+    {
+      "kategori_pekerjaan": "PEKERJAAN INSTALASI",
+      "keterlambatan": "3"
+    }
+  ]
 }
 ```
 
 ### Validasi
 
-| Field                | Aturan                  |
-| -------------------- | ----------------------- |
-| `kategori_pekerjaan` | **Wajib**, string min 1 |
-| `h_awal`             | **Wajib**, string min 1 |
-| `h_akhir`            | **Wajib**, string min 1 |
-| `keterlambatan`      | **Wajib**, string       |
+| Field                          | Aturan                               |
+| ------------------------------ | ------------------------------------ |
+| `kategori_pekerjaan`           | Wajib jika mode single, string min 1 |
+| `keterlambatan`                | Wajib jika mode single, string       |
+| `updates`                      | Wajib jika mode bulk, array min 1    |
+| `updates[].kategori_pekerjaan` | Wajib jika mode bulk, string min 1   |
+| `updates[].keterlambatan`      | Wajib jika mode bulk, string         |
 
 ### Response — 200 OK
 
@@ -591,16 +609,26 @@ Update nilai keterlambatan pada day item tertentu. Day item diidentifikasi berda
 {
   "status": "success",
   "message": "Keterlambatan berhasil diperbarui",
-  "data": { "day_id": 3, "keterlambatan": "3" }
+  "data": {
+    "total_rows_updated": 2,
+    "updated_categories": [
+      {
+        "kategori_pekerjaan": "PEKERJAAN INSTALASI",
+        "keterlambatan": "3",
+        "day_ids": [3, 7]
+      }
+    ],
+    "not_found_categories": []
+  }
 }
 ```
 
 ### Error
 
-| Code | Kondisi                                   |
-| ---- | ----------------------------------------- |
-| 404  | Gantt Chart atau Day item tidak ditemukan |
-| 422  | Validasi Zod gagal                        |
+| Code | Kondisi                                                |
+| ---- | ------------------------------------------------------ |
+| 404  | Gantt Chart tidak ditemukan / kategori tidak ditemukan |
+| 422  | Validasi Zod gagal                                     |
 
 ---
 

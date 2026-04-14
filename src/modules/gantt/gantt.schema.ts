@@ -83,11 +83,27 @@ export const addDayItemsSchema = z.object({
 // --- Update Keterlambatan ---
 
 export const updateKeterlambatanSchema = z.object({
-    kategori_pekerjaan: z.string().min(1),
-    h_awal: z.string().min(1),
-    h_akhir: z.string().min(1),
-    keterlambatan: z.string()
-});
+    kategori_pekerjaan: z.string().min(1).optional(),
+    keterlambatan: z.string().optional(),
+    updates: z.array(
+        z.object({
+            kategori_pekerjaan: z.string().min(1),
+            keterlambatan: z.string()
+        })
+    ).min(1).optional()
+}).refine(
+    (data: {
+        kategori_pekerjaan?: string;
+        keterlambatan?: string;
+        updates?: Array<{ kategori_pekerjaan: string; keterlambatan: string }>;
+    }) =>
+        (data.updates && data.updates.length > 0) ||
+        (typeof data.kategori_pekerjaan === "string" && typeof data.keterlambatan === "string"),
+    {
+        message:
+            "Gunakan field 'updates' untuk bulk update atau isi 'kategori_pekerjaan' + 'keterlambatan' untuk single update"
+    }
+);
 
 // --- Update Kecepatan ---
 
@@ -107,7 +123,8 @@ export const managePengawasanSchema = z.object({
     ]).optional(),
     remove_tanggal_pengawasan: z.string().min(1).optional()
 }).refine(
-    (data) => data.tanggal_pengawasan || data.remove_tanggal_pengawasan,
+    (data: { tanggal_pengawasan?: string | string[]; remove_tanggal_pengawasan?: string }) =>
+        data.tanggal_pengawasan || data.remove_tanggal_pengawasan,
     { message: "Field 'tanggal_pengawasan' atau 'remove_tanggal_pengawasan' wajib diisi" }
 );
 

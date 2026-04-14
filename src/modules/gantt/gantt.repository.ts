@@ -578,29 +578,26 @@ export const ganttRepository = {
         return inserted;
     },
 
-    /** Update keterlambatan pada day item tertentu */
+    /** Update keterlambatan semua day item pada kategori tertentu */
     async updateKeterlambatan(
         ganttId: string,
         kategoriPekerjaan: string,
-        hAwal: string,
-        hAkhir: string,
         keterlambatan: string
-    ): Promise<{ day_id: number } | null> {
+    ): Promise<{ day_ids: number[] } | null> {
         const result = await pool.query<{ id: number }>(
             `UPDATE day_gantt_chart d
              SET keterlambatan = $1
              FROM kategori_pekerjaan_gantt k
              WHERE d.id_kategori_pekerjaan_gantt = k.id
                AND d.id_gantt = $2
+               AND k.id_gantt = $2
                AND k.kategori_pekerjaan = $3
-               AND d.h_awal = $4
-               AND d.h_akhir = $5
              RETURNING d.id`,
-            [keterlambatan, ganttId, kategoriPekerjaan, hAwal, hAkhir]
+            [keterlambatan, ganttId, kategoriPekerjaan]
         );
 
         if (result.rowCount === 0) return null;
-        return { day_id: result.rows[0].id };
+        return { day_ids: result.rows.map((row: { id: number }) => row.id) };
     },
 
     /** Update kecepatan pada day item tertentu */
@@ -705,7 +702,9 @@ export const ganttRepository = {
                  ORDER BY kategori_pekerjaan ASC`,
                 [rab.id]
             );
-            filteredCategories = catRes.rows.map((r) => r.kategori_pekerjaan);
+            filteredCategories = catRes.rows.map(
+                (r: { kategori_pekerjaan: string }) => r.kategori_pekerjaan
+            );
         }
 
         // 4. Ambil gantt_chart terbaru untuk toko ini
