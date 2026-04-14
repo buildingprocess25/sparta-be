@@ -49,6 +49,13 @@ Kolom sesuai relasi ke `gantt_chart`:
 }
 ```
 
+### Upload Dokumentasi (multipart/form-data)
+
+Selain JSON biasa, endpoint ini juga menerima upload file:
+
+- field file: `file_dokumentasi`
+- behavior: file diupload ke Google Drive, lalu link hasil upload otomatis disimpan ke `dokumentasi`
+
 ### Validasi
 
 | Field                | Aturan                                           |
@@ -109,6 +116,13 @@ Kolom sesuai relasi ke `gantt_chart`:
   ]
 }
 ```
+
+### Upload Revisi Dokumentasi (multipart/form-data)
+
+Untuk update berdasarkan `id`, kirim file pada field:
+
+- field file: `rev_file_dokumentasi`
+- behavior: file diupload ke Google Drive, lalu kolom `dokumentasi` pada data `id` terkait diupdate dengan link baru
 
 ### Response — 201 Created
 

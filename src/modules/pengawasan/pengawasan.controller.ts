@@ -8,9 +8,31 @@ import {
 } from "./pengawasan.schema";
 import { pengawasanService } from "./pengawasan.service";
 
+type UploadedDokumentasiFile = {
+    originalname: string;
+    mimetype: string;
+    buffer: Buffer;
+};
+
+const getUploadedFile = (
+    files: Record<string, Express.Multer.File[]> | undefined,
+    fieldName: "file_dokumentasi" | "rev_file_dokumentasi"
+): UploadedDokumentasiFile | undefined => {
+    const file = files?.[fieldName]?.[0];
+    if (!file) return undefined;
+
+    return {
+        originalname: file.originalname,
+        mimetype: file.mimetype,
+        buffer: file.buffer
+    };
+};
+
 export const createPengawasan = asyncHandler(async (req: Request, res: Response) => {
     const payload = createPengawasanSchema.parse(req.body);
-    const data = await pengawasanService.create(payload);
+    const uploadedFiles = req.files as Record<string, Express.Multer.File[]> | undefined;
+    const uploadedDokumentasi = getUploadedFile(uploadedFiles, "file_dokumentasi");
+    const data = await pengawasanService.create(payload, uploadedDokumentasi);
 
     res.status(201).json({
         status: "success",
@@ -44,7 +66,9 @@ export const getPengawasanById = asyncHandler(async (req: Request, res: Response
 
 export const updatePengawasan = asyncHandler(async (req: Request, res: Response) => {
     const payload = updatePengawasanSchema.parse(req.body);
-    const data = await pengawasanService.update(req.params.id, payload);
+    const uploadedFiles = req.files as Record<string, Express.Multer.File[]> | undefined;
+    const uploadedDokumentasi = getUploadedFile(uploadedFiles, "rev_file_dokumentasi");
+    const data = await pengawasanService.update(req.params.id, payload, uploadedDokumentasi);
 
     res.json({
         status: "success",
