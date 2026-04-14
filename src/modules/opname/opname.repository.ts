@@ -9,6 +9,7 @@ export type OpnameRow = {
     id: number;
     id_toko: number;
     id_rab_item: number;
+    status: "progress" | "selesai" | "terlambat";
     volume_akhir: number;
     selisih_volume: number;
     total_selisih: number;
@@ -24,6 +25,7 @@ const returningColumns = `
     id,
     id_toko,
     id_rab_item,
+    status,
     volume_akhir,
     selisih_volume,
     total_selisih,
@@ -42,6 +44,7 @@ export const opnameRepository = {
             INSERT INTO opname (
                 id_toko,
                 id_rab_item,
+                status,
                 volume_akhir,
                 selisih_volume,
                 total_selisih,
@@ -51,12 +54,13 @@ export const opnameRepository = {
                 foto,
                 catatan
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             RETURNING ${returningColumns}
             `,
             [
                 input.id_toko,
                 input.id_rab_item,
+                input.status ?? "progress",
                 input.volume_akhir,
                 input.selisih_volume,
                 input.total_selisih,
@@ -75,10 +79,11 @@ export const opnameRepository = {
         return withTransaction(async (client) => {
             const values: Array<number | string | null> = [];
             const placeholders = items.map((item, index) => {
-                const base = index * 10;
+                const base = index * 11;
                 values.push(
                     item.id_toko,
                     item.id_rab_item,
+                    item.status ?? "progress",
                     item.volume_akhir,
                     item.selisih_volume,
                     item.total_selisih,
@@ -88,7 +93,7 @@ export const opnameRepository = {
                     item.foto ?? null,
                     item.catatan ?? null
                 );
-                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10})`;
+                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11})`;
             });
 
             const result = await client.query<OpnameRow>(
@@ -96,6 +101,7 @@ export const opnameRepository = {
                 INSERT INTO opname (
                     id_toko,
                     id_rab_item,
+                    status,
                     volume_akhir,
                     selisih_volume,
                     total_selisih,
@@ -142,6 +148,11 @@ export const opnameRepository = {
             conditions.push(`id_rab_item = $${values.length}`);
         }
 
+        if (typeof query.status !== "undefined") {
+            values.push(query.status);
+            conditions.push(`status = $${values.length}`);
+        }
+
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
         const result = await pool.query<OpnameRow>(
             `
@@ -168,6 +179,11 @@ export const opnameRepository = {
         if (typeof input.id_rab_item !== "undefined") {
             values.push(input.id_rab_item);
             setClauses.push(`id_rab_item = $${values.length}`);
+        }
+
+        if (typeof input.status !== "undefined") {
+            values.push(input.status);
+            setClauses.push(`status = $${values.length}`);
         }
 
         if (typeof input.volume_akhir !== "undefined") {

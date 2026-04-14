@@ -39,6 +39,10 @@ const mapPgError = (error: unknown): never => {
         throw new AppError("id_rab_item tidak ditemukan di tabel rab_item", 404);
     }
 
+    if (pgError.code === "23514" && pgError.constraint === "chk_opname_status") {
+        throw new AppError("status opname tidak valid (gunakan: progress, selesai, terlambat)", 400);
+    }
+
     throw error;
 };
 

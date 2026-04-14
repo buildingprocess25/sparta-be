@@ -1,8 +1,11 @@
 import { z } from "zod";
 
+export const opnameStatusSchema = z.enum(["progress", "selesai", "terlambat"]);
+
 export const createOpnameSchema = z.object({
     id_toko: z.coerce.number().int().positive(),
     id_rab_item: z.coerce.number().int().positive(),
+    status: opnameStatusSchema.optional(),
     volume_akhir: z.coerce.number().int(),
     selisih_volume: z.coerce.number().int(),
     total_selisih: z.coerce.number().int(),
@@ -19,6 +22,7 @@ export const bulkCreateOpnameSchema = z.object({
 export const updateOpnameSchema = z.object({
     id_toko: z.coerce.number().int().positive().optional(),
     id_rab_item: z.coerce.number().int().positive().optional(),
+    status: opnameStatusSchema.optional(),
     volume_akhir: z.coerce.number().int().optional(),
     selisih_volume: z.coerce.number().int().optional(),
     total_selisih: z.coerce.number().int().optional(),
@@ -31,6 +35,7 @@ export const updateOpnameSchema = z.object({
     (data: {
         id_toko?: number;
         id_rab_item?: number;
+        status?: "progress" | "selesai" | "terlambat";
         volume_akhir?: number;
         selisih_volume?: number;
         total_selisih?: number;
@@ -42,6 +47,7 @@ export const updateOpnameSchema = z.object({
     }) =>
         typeof data.id_toko !== "undefined"
         || typeof data.id_rab_item !== "undefined"
+        || typeof data.status !== "undefined"
         || typeof data.volume_akhir !== "undefined"
         || typeof data.selisih_volume !== "undefined"
         || typeof data.total_selisih !== "undefined"
@@ -55,7 +61,8 @@ export const updateOpnameSchema = z.object({
 
 export const listOpnameQuerySchema = z.object({
     id_toko: z.coerce.number().int().positive().optional(),
-    id_rab_item: z.coerce.number().int().positive().optional()
+    id_rab_item: z.coerce.number().int().positive().optional(),
+    status: opnameStatusSchema.optional()
 });
 
 export type CreateOpnameInput = z.infer<typeof createOpnameSchema>;
