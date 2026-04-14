@@ -1,6 +1,6 @@
 import { pool, withTransaction } from "../../db/pool";
 import type {
-    CreatePengawasanInput,
+    CreatePengawasanData,
     ListPengawasanQueryInput,
     UpdatePengawasanInput
 } from "./pengawasan.schema";
@@ -17,7 +17,7 @@ export type PengawasanRow = {
 };
 
 export const pengawasanRepository = {
-    async create(input: CreatePengawasanInput): Promise<PengawasanRow> {
+    async create(input: CreatePengawasanData): Promise<PengawasanRow> {
         const result = await pool.query<PengawasanRow>(
             `
             INSERT INTO pengawasan (id_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, status)
@@ -37,7 +37,7 @@ export const pengawasanRepository = {
         return result.rows[0];
     },
 
-    async createBulk(items: CreatePengawasanInput[]): Promise<PengawasanRow[]> {
+    async createBulk(items: CreatePengawasanData[]): Promise<PengawasanRow[]> {
         return withTransaction(async (client) => {
             const values: Array<number | string | null> = [];
             const placeholders = items.map((item, index) => {

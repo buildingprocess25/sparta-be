@@ -7,7 +7,6 @@ export const createPengawasanSchema = z.object({
     kategori_pekerjaan: z.string().trim().min(1),
     jenis_pekerjaan: z.string().trim().min(1),
     catatan: z.string().trim().min(1).optional(),
-    dokumentasi: z.string().trim().min(1).optional(),
     status: pengawasanStatusSchema.optional()
 });
 
@@ -40,6 +39,7 @@ export const listPengawasanQuerySchema = z.object({
 
 export type PengawasanStatusInput = z.infer<typeof pengawasanStatusSchema>;
 export type CreatePengawasanInput = z.infer<typeof createPengawasanSchema>;
+export type CreatePengawasanData = CreatePengawasanInput & { dokumentasi?: string };
 export type BulkCreatePengawasanInput = z.infer<typeof bulkCreatePengawasanSchema>;
 export type UpdatePengawasanInput = z.infer<typeof updatePengawasanSchema>;
 export type ListPengawasanQueryInput = z.infer<typeof listPengawasanQuerySchema>;

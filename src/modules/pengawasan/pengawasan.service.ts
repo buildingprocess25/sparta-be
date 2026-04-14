@@ -3,6 +3,7 @@ import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
 import { pengawasanRepository, type PengawasanRow } from "./pengawasan.repository";
 import type {
+    CreatePengawasanData,
     CreatePengawasanInput,
     ListPengawasanQueryInput,
     UpdatePengawasanInput
@@ -110,7 +111,7 @@ export const pengawasanService = {
                 ? await uploadDokumentasiToDrive(input.id_gantt, uploadedDokumentasi)
                 : undefined;
 
-            const payload = dokumentasiLink
+            const payload: CreatePengawasanData = dokumentasiLink
                 ? { ...input, dokumentasi: dokumentasiLink }
                 : input;
 
@@ -136,7 +137,7 @@ export const pengawasanService = {
                 );
             }
 
-            const payloadWithDokumentasi: CreatePengawasanInput[] = [];
+            const payloadWithDokumentasi: CreatePengawasanData[] = [];
             for (let index = 0; index < items.length; index++) {
                 const item = items[index];
                 const file = uploadedDokumentasiFiles.length === 1

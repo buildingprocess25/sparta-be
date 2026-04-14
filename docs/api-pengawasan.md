@@ -44,7 +44,6 @@ Kolom sesuai relasi ke `gantt_chart`:
   "kategori_pekerjaan": "PEKERJAAN SIPIL",
   "jenis_pekerjaan": "PENGECATAN DINDING",
   "catatan": "Mulai pengecatan area depan",
-  "dokumentasi": "https://example.com/foto-awal.jpg",
   "status": "progress"
 }
 ```
@@ -64,8 +63,9 @@ Selain JSON biasa, endpoint ini juga menerima upload file:
 | `kategori_pekerjaan` | wajib, string min 1                              |
 | `jenis_pekerjaan`    | wajib, string min 1                              |
 | `catatan`            | opsional, string min 1                           |
-| `dokumentasi`        | opsional, string min 1                           |
 | `status`             | opsional, hanya `progress`/`selesai`/`terlambat` |
+
+Catatan: field `dokumentasi` tidak perlu dikirim di request body create. Nilai `dokumentasi` akan diisi otomatis dari link hasil upload `file_dokumentasi`.
 
 ### Response — 201 Created
 
@@ -102,7 +102,6 @@ Selain JSON biasa, endpoint ini juga menerima upload file:
       "kategori_pekerjaan": "PEKERJAAN SIPIL",
       "jenis_pekerjaan": "PENGECATAN DINDING",
       "catatan": "Mulai pekerjaan hari ini",
-      "dokumentasi": "https://example.com/progress-1.jpg",
       "status": "progress"
     },
     {
@@ -110,7 +109,6 @@ Selain JSON biasa, endpoint ini juga menerima upload file:
       "kategori_pekerjaan": "PEKERJAAN ELEKTRIKAL",
       "jenis_pekerjaan": "INSTALASI LAMPU",
       "catatan": "Pekerjaan sudah selesai",
-      "dokumentasi": "https://example.com/final-1.jpg",
       "status": "selesai"
     }
   ]
