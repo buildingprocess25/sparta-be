@@ -117,12 +117,16 @@ Selain JSON biasa, endpoint ini juga menerima upload file:
 }
 ```
 
-### Upload Revisi Dokumentasi (multipart/form-data)
+### Upload Dokumentasi (multipart/form-data)
 
-Untuk update berdasarkan `id`, kirim file pada field:
+Endpoint bulk juga menerima upload file:
 
-- field file: `rev_file_dokumentasi`
-- behavior: file diupload ke Google Drive, lalu kolom `dokumentasi` pada data `id` terkait diupdate dengan link baru
+- field file: `file_dokumentasi`
+- field body: `items` dikirim sebagai JSON string
+- behavior:
+  - jika jumlah `file_dokumentasi` = 1, link file tersebut dipakai untuk semua item
+  - jika jumlah `file_dokumentasi` = jumlah item, tiap file dipetakan berdasarkan index item
+  - link hasil upload otomatis disimpan ke kolom `dokumentasi`
 
 ### Response — 201 Created
 
@@ -230,6 +234,13 @@ Untuk update berdasarkan `id`, kirim file pada field:
   "status": "progress"
 }
 ```
+
+### Upload Revisi Dokumentasi (multipart/form-data)
+
+Untuk revisi dokumentasi berdasarkan `id`, kirim file:
+
+- field file: `rev_file_dokumentasi`
+- behavior: file diupload ke Google Drive, lalu kolom `dokumentasi` diupdate dengan link baru
 
 ### Validasi
 

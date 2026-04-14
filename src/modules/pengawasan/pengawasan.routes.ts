@@ -25,7 +25,13 @@ pengawasanRouter.post(
     ]),
     createPengawasan
 );
-pengawasanRouter.post("/bulk", createBulkPengawasan);
+pengawasanRouter.post(
+    "/bulk",
+    pengawasanUpload.fields([
+        { name: "file_dokumentasi", maxCount: 50 }
+    ]),
+    createBulkPengawasan
+);
 pengawasanRouter.get("/", listPengawasan);
 pengawasanRouter.get("/:id", getPengawasanById);
 pengawasanRouter.put(

@@ -120,9 +120,42 @@ export const pengawasanService = {
         }
     },
 
-    async createBulk(items: CreatePengawasanInput[]): Promise<PengawasanRow[]> {
+    async createBulk(
+        items: CreatePengawasanInput[],
+        uploadedDokumentasiFiles: UploadedDokumentasiFile[] = []
+    ): Promise<PengawasanRow[]> {
         try {
-            return await pengawasanRepository.createBulk(items);
+            if (uploadedDokumentasiFiles.length === 0) {
+                return await pengawasanRepository.createBulk(items);
+            }
+
+            if (uploadedDokumentasiFiles.length !== 1 && uploadedDokumentasiFiles.length !== items.length) {
+                throw new AppError(
+                    "Jumlah file_dokumentasi harus 1 file untuk semua item atau sama dengan jumlah items",
+                    400
+                );
+            }
+
+            const payloadWithDokumentasi: CreatePengawasanInput[] = [];
+            for (let index = 0; index < items.length; index++) {
+                const item = items[index];
+                const file = uploadedDokumentasiFiles.length === 1
+                    ? uploadedDokumentasiFiles[0]
+                    : uploadedDokumentasiFiles[index];
+
+                if (!file) {
+                    payloadWithDokumentasi.push(item);
+                    continue;
+                }
+
+                const dokumentasiLink = await uploadDokumentasiToDrive(item.id_gantt, file);
+                payloadWithDokumentasi.push({
+                    ...item,
+                    dokumentasi: dokumentasiLink
+                });
+            }
+
+            return await pengawasanRepository.createBulk(payloadWithDokumentasi);
         } catch (error) {
             return mapPgError(error);
         }
