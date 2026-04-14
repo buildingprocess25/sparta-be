@@ -27,7 +27,7 @@ const mapPgError = (error: unknown): never => {
     }
 
     if (pgError.code === "23514" && pgError.constraint === "chk_pengawasan_status") {
-        throw new AppError("status harus bernilai active atau terkunci", 400);
+        throw new AppError("status harus bernilai progress, selesai, atau terlambat", 400);
     }
 
     throw error;

@@ -1,11 +1,13 @@
 import { z } from "zod";
 
-export const pengawasanStatusSchema = z.enum(["active", "terkunci"]);
+export const pengawasanStatusSchema = z.enum(["progress", "selesai", "terlambat"]);
 
 export const createPengawasanSchema = z.object({
     id_gantt: z.coerce.number().int().positive(),
     kategori_pekerjaan: z.string().trim().min(1),
     jenis_pekerjaan: z.string().trim().min(1),
+    catatan: z.string().trim().min(1).optional(),
+    dokumentasi: z.string().trim().min(1).optional(),
     status: pengawasanStatusSchema.optional()
 });
 
@@ -16,11 +18,15 @@ export const bulkCreatePengawasanSchema = z.object({
 export const updatePengawasanSchema = z.object({
     kategori_pekerjaan: z.string().trim().min(1).optional(),
     jenis_pekerjaan: z.string().trim().min(1).optional(),
+    catatan: z.string().trim().min(1).optional(),
+    dokumentasi: z.string().trim().min(1).optional(),
     status: pengawasanStatusSchema.optional()
 }).refine(
     (data) =>
         typeof data.kategori_pekerjaan !== "undefined"
         || typeof data.jenis_pekerjaan !== "undefined"
+        || typeof data.catatan !== "undefined"
+        || typeof data.dokumentasi !== "undefined"
         || typeof data.status !== "undefined",
     { message: "Minimal satu field harus diisi untuk update" }
 );

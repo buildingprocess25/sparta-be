@@ -25,7 +25,9 @@ Kolom sesuai relasi ke `gantt_chart`:
 - `id_gantt` (FK -> `gantt_chart.id`)
 - `kategori_pekerjaan` (varchar)
 - `jenis_pekerjaan` (varchar)
-- `status` (varchar: `active` / `terkunci`)
+- `catatan` (varchar, nullable)
+- `dokumentasi` (varchar, nullable)
+- `status` (varchar: `progress` / `selesai` / `terlambat`)
 - `created_at` (timestamp)
 
 ---
@@ -41,18 +43,22 @@ Kolom sesuai relasi ke `gantt_chart`:
   "id_gantt": 10,
   "kategori_pekerjaan": "PEKERJAAN SIPIL",
   "jenis_pekerjaan": "PENGECATAN DINDING",
-  "status": "active"
+  "catatan": "Mulai pengecatan area depan",
+  "dokumentasi": "https://example.com/foto-awal.jpg",
+  "status": "progress"
 }
 ```
 
 ### Validasi
 
-| Field                | Aturan                                   |
-| -------------------- | ---------------------------------------- |
-| `id_gantt`           | wajib, integer > 0                       |
-| `kategori_pekerjaan` | wajib, string min 1                      |
-| `jenis_pekerjaan`    | wajib, string min 1                      |
-| `status`             | opsional, hanya `active` atau `terkunci` |
+| Field                | Aturan                                           |
+| -------------------- | ------------------------------------------------ |
+| `id_gantt`           | wajib, integer > 0                               |
+| `kategori_pekerjaan` | wajib, string min 1                              |
+| `jenis_pekerjaan`    | wajib, string min 1                              |
+| `catatan`            | opsional, string min 1                           |
+| `dokumentasi`        | opsional, string min 1                           |
+| `status`             | opsional, hanya `progress`/`selesai`/`terlambat` |
 
 ### Response — 201 Created
 
@@ -65,7 +71,9 @@ Kolom sesuai relasi ke `gantt_chart`:
     "id_gantt": 10,
     "kategori_pekerjaan": "PEKERJAAN SIPIL",
     "jenis_pekerjaan": "PENGECATAN DINDING",
-    "status": "active",
+    "catatan": "Mulai pengecatan area depan",
+    "dokumentasi": "https://example.com/foto-awal.jpg",
+    "status": "progress",
     "created_at": "2026-04-13T12:00:00.000Z"
   }
 }
@@ -86,13 +94,17 @@ Kolom sesuai relasi ke `gantt_chart`:
       "id_gantt": 10,
       "kategori_pekerjaan": "PEKERJAAN SIPIL",
       "jenis_pekerjaan": "PENGECATAN DINDING",
-      "status": "active"
+      "catatan": "Mulai pekerjaan hari ini",
+      "dokumentasi": "https://example.com/progress-1.jpg",
+      "status": "progress"
     },
     {
       "id_gantt": 10,
       "kategori_pekerjaan": "PEKERJAAN ELEKTRIKAL",
       "jenis_pekerjaan": "INSTALASI LAMPU",
-      "status": "terkunci"
+      "catatan": "Pekerjaan sudah selesai",
+      "dokumentasi": "https://example.com/final-1.jpg",
+      "status": "selesai"
     }
   ]
 }
@@ -110,7 +122,9 @@ Kolom sesuai relasi ke `gantt_chart`:
       "id_gantt": 10,
       "kategori_pekerjaan": "PEKERJAAN SIPIL",
       "jenis_pekerjaan": "PENGECATAN DINDING",
-      "status": "active",
+      "catatan": "Mulai pekerjaan hari ini",
+      "dokumentasi": "https://example.com/progress-1.jpg",
+      "status": "progress",
       "created_at": "2026-04-13T12:00:00.000Z"
     },
     {
@@ -118,7 +132,9 @@ Kolom sesuai relasi ke `gantt_chart`:
       "id_gantt": 10,
       "kategori_pekerjaan": "PEKERJAAN ELEKTRIKAL",
       "jenis_pekerjaan": "INSTALASI LAMPU",
-      "status": "terkunci",
+      "catatan": "Pekerjaan sudah selesai",
+      "dokumentasi": "https://example.com/final-1.jpg",
+      "status": "selesai",
       "created_at": "2026-04-13T12:00:00.000Z"
     }
   ]
@@ -133,12 +149,12 @@ Kolom sesuai relasi ke `gantt_chart`:
 
 ### Query Parameters (opsional)
 
-| Parameter            | Tipe     | Deskripsi                    |
-| -------------------- | -------- | ---------------------------- |
-| `id_gantt`           | `number` | Filter berdasarkan gantt     |
-| `kategori_pekerjaan` | `string` | Filter berdasarkan kategori  |
-| `jenis_pekerjaan`    | `string` | Filter berdasarkan jenis     |
-| `status`             | `string` | Filter `active` / `terkunci` |
+| Parameter            | Tipe     | Deskripsi                               |
+| -------------------- | -------- | --------------------------------------- |
+| `id_gantt`           | `number` | Filter berdasarkan gantt                |
+| `kategori_pekerjaan` | `string` | Filter berdasarkan kategori             |
+| `jenis_pekerjaan`    | `string` | Filter berdasarkan jenis                |
+| `status`             | `string` | Filter `progress`/`selesai`/`terlambat` |
 
 ### Response — 200 OK
 
@@ -151,7 +167,9 @@ Kolom sesuai relasi ke `gantt_chart`:
       "id_gantt": 10,
       "kategori_pekerjaan": "PEKERJAAN ELEKTRIKAL",
       "jenis_pekerjaan": "INSTALASI LAMPU",
-      "status": "terkunci",
+      "catatan": "Pekerjaan sudah selesai",
+      "dokumentasi": "https://example.com/final-1.jpg",
+      "status": "selesai",
       "created_at": "2026-04-13T12:00:00.000Z"
     }
   ]
@@ -174,7 +192,9 @@ Kolom sesuai relasi ke `gantt_chart`:
     "id_gantt": 10,
     "kategori_pekerjaan": "PEKERJAAN ELEKTRIKAL",
     "jenis_pekerjaan": "INSTALASI LAMPU",
-    "status": "terkunci",
+    "catatan": "Pekerjaan sudah selesai",
+    "dokumentasi": "https://example.com/final-1.jpg",
+    "status": "selesai",
     "created_at": "2026-04-13T12:00:00.000Z"
   }
 }
@@ -191,7 +211,9 @@ Kolom sesuai relasi ke `gantt_chart`:
 ```json
 {
   "jenis_pekerjaan": "INSTALASI PANEL",
-  "status": "active"
+  "catatan": "Update progress mingguan",
+  "dokumentasi": "https://example.com/progress-terbaru.jpg",
+  "status": "progress"
 }
 ```
 
@@ -201,6 +223,8 @@ Minimal salah satu field berikut harus diisi:
 
 - `kategori_pekerjaan`
 - `jenis_pekerjaan`
+- `catatan`
+- `dokumentasi`
 - `status`
 
 ### Response — 200 OK
@@ -214,7 +238,9 @@ Minimal salah satu field berikut harus diisi:
     "id_gantt": 10,
     "kategori_pekerjaan": "PEKERJAAN ELEKTRIKAL",
     "jenis_pekerjaan": "INSTALASI PANEL",
-    "status": "active",
+    "catatan": "Update progress mingguan",
+    "dokumentasi": "https://example.com/progress-terbaru.jpg",
+    "status": "progress",
     "created_at": "2026-04-13T12:00:00.000Z"
   }
 }
@@ -243,9 +269,9 @@ Minimal salah satu field berikut harus diisi:
 
 ## Error Responses
 
-| Code | Kondisi                                           |
-| ---- | ------------------------------------------------- |
-| 400  | Status tidak valid (`active`/`terkunci`)          |
-| 404  | Data pengawasan tidak ditemukan                   |
-| 404  | `id_gantt` tidak ditemukan di tabel `gantt_chart` |
-| 422  | Validasi request gagal (Zod)                      |
+| Code | Kondisi                                               |
+| ---- | ----------------------------------------------------- |
+| 400  | Status tidak valid (`progress`/`selesai`/`terlambat`) |
+| 404  | Data pengawasan tidak ditemukan                       |
+| 404  | `id_gantt` tidak ditemukan di tabel `gantt_chart`     |
+| 422  | Validasi request gagal (Zod)                          |
