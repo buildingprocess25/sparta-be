@@ -11,7 +11,7 @@ import type {
 type UploadedDokumentasiFile = {
     originalname: string;
     mimetype: string;
-    buffer: Uint8Array;
+    buffer: Parameters<GoogleProvider["uploadFile"]>[3];
 };
 
 type PgError = {
