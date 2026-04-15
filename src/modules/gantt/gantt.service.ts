@@ -45,6 +45,22 @@ const normalizeUpdateKategoriPekerjaan = (
     return kategori;
 };
 
+const deriveKategoriPekerjaanFromDayItems = (
+    dayItems?: DayGanttItemInput[]
+): string[] | undefined => {
+    if (!dayItems || dayItems.length === 0) return undefined;
+
+    const uniqueKategori = Array.from(
+        new Set(
+            dayItems
+                .map((item) => item.kategori_pekerjaan)
+                .filter((value): value is string => Boolean(value && value.trim()))
+        )
+    );
+
+    return uniqueKategori.length > 0 ? uniqueKategori : undefined;
+};
+
 const normalizeUpdatePengawasan = (
     pengawasan?: UpdateGanttInput["pengawasan"]
 ): UpdateGanttInput["pengawasan"] | undefined => {
@@ -134,8 +150,10 @@ export const ganttService = {
             throw new AppError("Gantt Chart sudah terkunci, tidak bisa diubah", 409);
         }
 
-        const normalizedKategoriPekerjaan = normalizeUpdateKategoriPekerjaan(payload.kategori_pekerjaan);
         const normalizedDayItems = normalizeUpdateDayItems(payload.day_items);
+        const normalizedKategoriPekerjaan =
+            normalizeUpdateKategoriPekerjaan(payload.kategori_pekerjaan)
+            ?? deriveKategoriPekerjaanFromDayItems(normalizedDayItems);
         const normalizedPengawasan = normalizeUpdatePengawasan(payload.pengawasan);
 
         const shouldReplaceMainData = Boolean(
