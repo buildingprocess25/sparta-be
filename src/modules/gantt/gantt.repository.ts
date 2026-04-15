@@ -186,13 +186,13 @@ export const ganttRepository = {
     async createWithDetails(payload: {
         // toko
         nomor_ulok: string;
-        lingkup_pekerjaan?: string;
-        nama_toko?: string;
-        kode_toko?: string;
-        proyek?: string;
-        cabang?: string;
-        alamat?: string;
-        nama_kontraktor?: string;
+        lingkup_pekerjaan?: string | null;
+        nama_toko?: string | null;
+        kode_toko?: string | null;
+        proyek?: string | null;
+        cabang?: string | null;
+        alamat?: string | null;
+        nama_kontraktor?: string | null;
         // gantt
         email_pembuat: string;
         status: GanttStatus;
