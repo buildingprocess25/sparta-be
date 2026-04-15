@@ -38,21 +38,57 @@ const normalizeUpdateDayItems = (dayItems?: UpdateGanttInput["day_items"]): DayG
     });
 };
 
+const normalizeUpdateKategoriPekerjaan = (
+    kategori?: UpdateGanttInput["kategori_pekerjaan"]
+): string[] | undefined => {
+    if (!kategori || kategori.length === 0) return undefined;
+    return kategori;
+};
+
+const normalizeUpdatePengawasan = (
+    pengawasan?: UpdateGanttInput["pengawasan"]
+): UpdateGanttInput["pengawasan"] | undefined => {
+    if (!pengawasan || pengawasan.length === 0) return undefined;
+    return pengawasan;
+};
+
 export const ganttService = {
     async submit(payload: SubmitGanttInput) {
-        // 1. Cek duplikasi gantt aktif untuk nomor_ulok ini
+        // 1. Jika sudah ada gantt aktif untuk ULOK ini, lakukan replace data (bukan create baru)
         const existingToko = await tokoRepository.findByNomorUlok(payload.nomor_ulok);
         if (existingToko) {
-            const isDuplicate = await ganttRepository.existsActiveByTokoId(existingToko.id);
-            if (isDuplicate) {
-                throw new AppError(
-                    `Gantt Chart aktif untuk ULOK ${payload.nomor_ulok} sudah ada`,
-                    409
-                );
+            const activeGantt = await ganttRepository.findLatestActiveByTokoId(existingToko.id);
+            if (activeGantt) {
+                await ganttRepository.updateTokoFieldsById(existingToko.id, {
+                    lingkup_pekerjaan: payload.lingkup_pekerjaan,
+                    nama_toko: payload.nama_toko,
+                    kode_toko: payload.kode_toko,
+                    proyek: payload.proyek,
+                    cabang: payload.cabang,
+                    alamat: payload.alamat,
+                    nama_kontraktor: payload.nama_kontraktor,
+                });
+
+                await ganttRepository.updateWithDetails(String(activeGantt.id), {
+                    kategori_pekerjaan: payload.kategori_pekerjaan,
+                    day_items: payload.day_items,
+                    pengawasan: payload.pengawasan,
+                    dependencies: payload.dependencies,
+                });
+
+                const refreshed = await ganttRepository.findById(String(activeGantt.id));
+                if (!refreshed) {
+                    throw new AppError("Gantt Chart tidak ditemukan setelah update", 500);
+                }
+
+                return {
+                    ...refreshed.gantt,
+                    toko_id: refreshed.gantt.id_toko,
+                };
             }
         }
 
-        // 2. Simpan ke DB (upsert toko + insert gantt + children dalam 1 transaksi)
+        // 2. Jika belum ada gantt aktif, buat data baru
         const gantt = await ganttRepository.createWithDetails({
             // toko fields
             nomor_ulok: payload.nomor_ulok,
@@ -98,12 +134,21 @@ export const ganttService = {
             throw new AppError("Gantt Chart sudah terkunci, tidak bisa diubah", 409);
         }
 
+        const normalizedKategoriPekerjaan = normalizeUpdateKategoriPekerjaan(payload.kategori_pekerjaan);
         const normalizedDayItems = normalizeUpdateDayItems(payload.day_items);
+        const normalizedPengawasan = normalizeUpdatePengawasan(payload.pengawasan);
+
+        const shouldReplaceMainData = Boolean(
+            normalizedKategoriPekerjaan
+            && normalizedDayItems
+            && normalizedKategoriPekerjaan.length > 0
+            && normalizedDayItems.length > 0
+        );
 
         await ganttRepository.updateWithDetails(id, {
-            kategori_pekerjaan: payload.kategori_pekerjaan,
-            day_items: normalizedDayItems,
-            pengawasan: payload.pengawasan,
+            kategori_pekerjaan: shouldReplaceMainData ? normalizedKategoriPekerjaan : undefined,
+            day_items: shouldReplaceMainData ? normalizedDayItems : undefined,
+            pengawasan: normalizedPengawasan,
             dependencies: payload.dependencies
         });
 

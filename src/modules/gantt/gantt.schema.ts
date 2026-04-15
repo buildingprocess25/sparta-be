@@ -76,8 +76,8 @@ export const submitGanttSchema = z.object({
 
 export const updateGanttSchema = z.object({
     // kategori pekerjaan + day items
-    kategori_pekerjaan: z.array(kategoriPekerjaanValueSchema).min(1).optional(),
-    day_items: z.array(dayGanttItemUpdateSchema).min(1).optional(),
+    kategori_pekerjaan: z.array(kategoriPekerjaanValueSchema).optional(),
+    day_items: z.array(dayGanttItemUpdateSchema).optional(),
 
     // optional: pengawasan & dependency
     pengawasan: z.array(pengawasanItemSchema).optional(),

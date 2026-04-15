@@ -169,6 +169,55 @@ const insertDependencies = async (
 // ---------------------------------------------------------------------------
 
 export const ganttRepository = {
+    async findLatestActiveByTokoId(tokoId: number): Promise<GanttRow | null> {
+        const result = await pool.query<GanttRow>(
+            `SELECT id, id_toko, status, email_pembuat, timestamp
+             FROM gantt_chart
+             WHERE id_toko = $1
+               AND status = 'active'
+             ORDER BY id DESC
+             LIMIT 1`,
+            [tokoId]
+        );
+
+        return result.rows[0] ?? null;
+    },
+
+    async updateTokoFieldsById(
+        tokoId: number,
+        payload: {
+            lingkup_pekerjaan?: string | null;
+            nama_toko?: string | null;
+            kode_toko?: string | null;
+            proyek?: string | null;
+            cabang?: string | null;
+            alamat?: string | null;
+            nama_kontraktor?: string | null;
+        }
+    ): Promise<void> {
+        await pool.query(
+            `UPDATE toko
+             SET lingkup_pekerjaan = COALESCE($1, lingkup_pekerjaan),
+                 nama_toko = COALESCE($2, nama_toko),
+                 kode_toko = COALESCE($3, kode_toko),
+                 proyek = COALESCE($4, proyek),
+                 cabang = COALESCE($5, cabang),
+                 alamat = COALESCE($6, alamat),
+                 nama_kontraktor = COALESCE($7, nama_kontraktor)
+             WHERE id = $8`,
+            [
+                payload.lingkup_pekerjaan ?? null,
+                payload.nama_toko ?? null,
+                payload.kode_toko ?? null,
+                payload.proyek ?? null,
+                payload.cabang ?? null,
+                payload.alamat ?? null,
+                payload.nama_kontraktor ?? null,
+                tokoId
+            ]
+        );
+    },
+
     /** Cek gantt chart aktif berdasarkan toko id */
     async existsActiveByTokoId(tokoId: number): Promise<boolean> {
         const result = await pool.query<{ exists: boolean }>(
