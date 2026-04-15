@@ -183,12 +183,28 @@ Hasilnya: hanya `items[2]` dan `items[6]` yang kolom `dokumentasi` terisi dari l
 
 ### Query Parameters (opsional)
 
-| Parameter            | Tipe     | Deskripsi                               |
-| -------------------- | -------- | --------------------------------------- |
-| `id_gantt`           | `number` | Filter berdasarkan gantt                |
-| `kategori_pekerjaan` | `string` | Filter berdasarkan kategori             |
-| `jenis_pekerjaan`    | `string` | Filter berdasarkan jenis                |
-| `status`             | `string` | Filter `progress`/`selesai`/`terlambat` |
+| Parameter            | Tipe     | Deskripsi                                             |
+| -------------------- | -------- | ----------------------------------------------------- |
+| `id_gantt`           | `number` | Filter berdasarkan gantt                              |
+| `tanggal`            | `string` | Filter tanggal pengawasan (wajib disertai `id_gantt`) |
+| `kategori_pekerjaan` | `string` | Filter berdasarkan kategori                           |
+| `jenis_pekerjaan`    | `string` | Filter berdasarkan jenis                              |
+| `status`             | `string` | Filter `progress`/`selesai`/`terlambat`               |
+
+Jika menggunakan `tanggal`, backend akan:
+
+1. mencari data di tabel `pengawasan_gantt` berdasarkan pasangan `id_gantt` + `tanggal_pengawasan`
+2. mengambil `id` dari hasil tersebut (`id_pengawasan_gantt`)
+3. memfilter data tabel `pengawasan` berdasarkan `id_gantt` dan `id_pengawasan_gantt`
+
+Contoh query:
+
+- `GET /api/pengawasan?tanggal=2026-04-15&id_gantt=10`
+
+Catatan:
+
+- jika `tanggal` diisi tanpa `id_gantt`, API mengembalikan `400`
+- jika pasangan `tanggal` + `id_gantt` tidak ditemukan di `pengawasan_gantt`, response list bernilai array kosong
 
 ### Response — 200 OK
 

@@ -82,7 +82,10 @@ export const pengawasanRepository = {
         return result.rows[0] ?? null;
     },
 
-    async findAll(query: ListPengawasanQueryInput): Promise<PengawasanRow[]> {
+    async findAll(
+        query: ListPengawasanQueryInput,
+        idPengawasanGantt?: number
+    ): Promise<PengawasanRow[]> {
         const conditions: string[] = [];
         const values: Array<number | string> = [];
 
@@ -104,6 +107,11 @@ export const pengawasanRepository = {
         if (query.status) {
             values.push(query.status);
             conditions.push(`status = $${values.length}`);
+        }
+
+        if (typeof idPengawasanGantt !== "undefined") {
+            values.push(idPengawasanGantt);
+            conditions.push(`id_pengawasan_gantt = $${values.length}`);
         }
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";

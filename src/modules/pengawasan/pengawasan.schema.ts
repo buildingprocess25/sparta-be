@@ -22,7 +22,13 @@ export const updatePengawasanSchema = z.object({
     dokumentasi: z.string().trim().min(1).optional(),
     status: pengawasanStatusSchema.optional()
 }).refine(
-    (data) =>
+    (data: {
+        kategori_pekerjaan?: string;
+        jenis_pekerjaan?: string;
+        catatan?: string;
+        dokumentasi?: string;
+        status?: "progress" | "selesai" | "terlambat";
+    }) =>
         typeof data.kategori_pekerjaan !== "undefined"
         || typeof data.jenis_pekerjaan !== "undefined"
         || typeof data.catatan !== "undefined"
@@ -33,6 +39,7 @@ export const updatePengawasanSchema = z.object({
 
 export const listPengawasanQuerySchema = z.object({
     id_gantt: z.coerce.number().int().positive().optional(),
+    tanggal: z.string().trim().min(1).optional(),
     kategori_pekerjaan: z.string().trim().min(1).optional(),
     jenis_pekerjaan: z.string().trim().min(1).optional(),
     status: pengawasanStatusSchema.optional()

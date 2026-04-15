@@ -261,6 +261,23 @@ export const pengawasanService = {
     },
 
     async list(query: ListPengawasanQueryInput) {
+        if (query.tanggal) {
+            if (typeof query.id_gantt === "undefined") {
+                throw new AppError("Query id_gantt wajib diisi jika menggunakan query tanggal", 400);
+            }
+
+            const idPengawasanGantt = await pengawasanRepository.findPengawasanGanttIdByDate(
+                query.id_gantt,
+                query.tanggal
+            );
+
+            if (!idPengawasanGantt) {
+                return [];
+            }
+
+            return pengawasanRepository.findAll(query, idPengawasanGantt);
+        }
+
         return pengawasanRepository.findAll(query);
     },
 
