@@ -4,6 +4,7 @@ import { GANTT_STATUS } from "./gantt.constants";
 import { ganttRepository } from "./gantt.repository";
 import type {
     AddDayItemsInput,
+    DayGanttItemInput,
     GanttListQuery,
     ManagePengawasanInput,
     SubmitGanttInput,
@@ -15,6 +16,27 @@ import type {
 // ---------------------------------------------------------------------------
 // Service
 // ---------------------------------------------------------------------------
+
+const normalizeUpdateDayItems = (dayItems?: UpdateGanttInput["day_items"]): DayGanttItemInput[] | undefined => {
+    if (!dayItems) return undefined;
+
+    return dayItems.map((item: NonNullable<UpdateGanttInput["day_items"]>[number], index: number) => {
+        if (!item.h_awal || !item.h_akhir) {
+            throw new AppError(
+                `day_items[${index}] wajib memiliki h_awal dan h_akhir`,
+                400
+            );
+        }
+
+        return {
+            kategori_pekerjaan: item.kategori_pekerjaan,
+            h_awal: item.h_awal,
+            h_akhir: item.h_akhir,
+            keterlambatan: item.keterlambatan,
+            kecepatan: item.kecepatan,
+        };
+    });
+};
 
 export const ganttService = {
     async submit(payload: SubmitGanttInput) {
@@ -76,9 +98,11 @@ export const ganttService = {
             throw new AppError("Gantt Chart sudah terkunci, tidak bisa diubah", 409);
         }
 
+        const normalizedDayItems = normalizeUpdateDayItems(payload.day_items);
+
         await ganttRepository.updateWithDetails(id, {
             kategori_pekerjaan: payload.kategori_pekerjaan,
-            day_items: payload.day_items,
+            day_items: normalizedDayItems,
             pengawasan: payload.pengawasan,
             dependencies: payload.dependencies
         });
