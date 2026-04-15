@@ -23,6 +23,7 @@ Kolom sesuai relasi ke `gantt_chart`:
 
 - `id` (PK)
 - `id_gantt` (FK -> `gantt_chart.id`)
+- `id_pengawasan_gantt` (FK -> `pengawasan_gantt.id`)
 - `kategori_pekerjaan` (varchar)
 - `jenis_pekerjaan` (varchar)
 - `catatan` (varchar, nullable)
@@ -41,6 +42,7 @@ Kolom sesuai relasi ke `gantt_chart`:
 ```json
 {
   "id_gantt": 10,
+  "tanggal_pengawasan": "2026-04-15",
   "kategori_pekerjaan": "PEKERJAAN SIPIL",
   "jenis_pekerjaan": "PENGECATAN DINDING",
   "catatan": "Mulai pengecatan area depan",
@@ -60,6 +62,7 @@ Selain JSON biasa, endpoint ini juga menerima upload file:
 | Field                | Aturan                                           |
 | -------------------- | ------------------------------------------------ |
 | `id_gantt`           | wajib, integer > 0                               |
+| `tanggal_pengawasan` | wajib, string min 1                              |
 | `kategori_pekerjaan` | wajib, string min 1                              |
 | `jenis_pekerjaan`    | wajib, string min 1                              |
 | `catatan`            | opsional, string min 1                           |
@@ -76,6 +79,7 @@ Catatan: field `dokumentasi` tidak perlu dikirim di request body create. Nilai `
   "data": {
     "id": 1,
     "id_gantt": 10,
+    "id_pengawasan_gantt": 77,
     "kategori_pekerjaan": "PEKERJAAN SIPIL",
     "jenis_pekerjaan": "PENGECATAN DINDING",
     "catatan": "Mulai pengecatan area depan",
@@ -99,6 +103,7 @@ Catatan: field `dokumentasi` tidak perlu dikirim di request body create. Nilai `
   "items": [
     {
       "id_gantt": 10,
+      "tanggal_pengawasan": "2026-04-15",
       "kategori_pekerjaan": "PEKERJAAN SIPIL",
       "jenis_pekerjaan": "PENGECATAN DINDING",
       "catatan": "Mulai pekerjaan hari ini",
@@ -106,6 +111,7 @@ Catatan: field `dokumentasi` tidak perlu dikirim di request body create. Nilai `
     },
     {
       "id_gantt": 10,
+      "tanggal_pengawasan": "2026-04-15",
       "kategori_pekerjaan": "PEKERJAAN ELEKTRIKAL",
       "jenis_pekerjaan": "INSTALASI LAMPU",
       "catatan": "Pekerjaan sudah selesai",
@@ -146,6 +152,7 @@ Hasilnya: hanya `items[2]` dan `items[6]` yang kolom `dokumentasi` terisi dari l
     {
       "id": 11,
       "id_gantt": 10,
+      "id_pengawasan_gantt": 77,
       "kategori_pekerjaan": "PEKERJAAN SIPIL",
       "jenis_pekerjaan": "PENGECATAN DINDING",
       "catatan": "Mulai pekerjaan hari ini",
@@ -156,6 +163,7 @@ Hasilnya: hanya `items[2]` dan `items[6]` yang kolom `dokumentasi` terisi dari l
     {
       "id": 12,
       "id_gantt": 10,
+      "id_pengawasan_gantt": 77,
       "kategori_pekerjaan": "PEKERJAAN ELEKTRIKAL",
       "jenis_pekerjaan": "INSTALASI LAMPU",
       "catatan": "Pekerjaan sudah selesai",
@@ -191,6 +199,7 @@ Hasilnya: hanya `items[2]` dan `items[6]` yang kolom `dokumentasi` terisi dari l
     {
       "id": 12,
       "id_gantt": 10,
+      "id_pengawasan_gantt": 77,
       "kategori_pekerjaan": "PEKERJAAN ELEKTRIKAL",
       "jenis_pekerjaan": "INSTALASI LAMPU",
       "catatan": "Pekerjaan sudah selesai",
@@ -216,6 +225,7 @@ Hasilnya: hanya `items[2]` dan `items[6]` yang kolom `dokumentasi` terisi dari l
   "data": {
     "id": 12,
     "id_gantt": 10,
+    "id_pengawasan_gantt": 77,
     "kategori_pekerjaan": "PEKERJAAN ELEKTRIKAL",
     "jenis_pekerjaan": "INSTALASI LAMPU",
     "catatan": "Pekerjaan sudah selesai",

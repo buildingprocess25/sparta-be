@@ -4,6 +4,7 @@ export const pengawasanStatusSchema = z.enum(["progress", "selesai", "terlambat"
 
 export const createPengawasanSchema = z.object({
     id_gantt: z.coerce.number().int().positive(),
+    tanggal_pengawasan: z.string().trim().min(1),
     kategori_pekerjaan: z.string().trim().min(1),
     jenis_pekerjaan: z.string().trim().min(1),
     catatan: z.string().trim().min(1).optional(),
@@ -39,7 +40,10 @@ export const listPengawasanQuerySchema = z.object({
 
 export type PengawasanStatusInput = z.infer<typeof pengawasanStatusSchema>;
 export type CreatePengawasanInput = z.infer<typeof createPengawasanSchema>;
-export type CreatePengawasanData = CreatePengawasanInput & { dokumentasi?: string };
+export type CreatePengawasanData = Omit<CreatePengawasanInput, "tanggal_pengawasan"> & {
+    id_pengawasan_gantt: number;
+    dokumentasi?: string;
+};
 export type BulkCreatePengawasanInput = z.infer<typeof bulkCreatePengawasanSchema>;
 export type UpdatePengawasanInput = z.infer<typeof updatePengawasanSchema>;
 export type ListPengawasanQueryInput = z.infer<typeof listPengawasanQuerySchema>;

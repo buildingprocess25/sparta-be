@@ -35,6 +35,10 @@ const mapPgError = (error: unknown): never => {
         throw new AppError("id_gantt tidak ditemukan di tabel gantt_chart", 404);
     }
 
+    if (pgError.code === "23503" && pgError.constraint === "fk_pengawasan_pengawasan_gantt_ref") {
+        throw new AppError("id_pengawasan_gantt tidak ditemukan di tabel pengawasan_gantt", 404);
+    }
+
     if (pgError.code === "23514" && pgError.constraint === "chk_pengawasan_status") {
         throw new AppError("status harus bernilai progress, selesai, atau terlambat", 400);
     }
@@ -101,19 +105,57 @@ const uploadDokumentasiToDrive = async (
     throw new AppError("Upload dokumentasi ke Google Drive gagal", 500);
 };
 
+const resolvePengawasanGanttId = async (
+    idGantt: number,
+    tanggalPengawasan: string,
+    itemIndex?: number
+): Promise<number> => {
+    const pengawasanGanttId = await pengawasanRepository.findPengawasanGanttIdByDate(
+        idGantt,
+        tanggalPengawasan
+    );
+
+    if (!pengawasanGanttId) {
+        const context = typeof itemIndex === "number"
+            ? ` pada items[${itemIndex}]`
+            : "";
+
+        throw new AppError(
+            `tanggal_pengawasan tidak ditemukan di pengawasan_gantt${context} (id_gantt=${idGantt}, tanggal_pengawasan=${tanggalPengawasan})`,
+            404
+        );
+    }
+
+    return pengawasanGanttId;
+};
+
 export const pengawasanService = {
     async create(
         input: CreatePengawasanInput,
         uploadedDokumentasi?: UploadedDokumentasiFile
     ): Promise<PengawasanRow> {
         try {
+            const idPengawasanGantt = await resolvePengawasanGanttId(
+                input.id_gantt,
+                input.tanggal_pengawasan
+            );
+
             const dokumentasiLink = uploadedDokumentasi
                 ? await uploadDokumentasiToDrive(input.id_gantt, uploadedDokumentasi)
                 : undefined;
 
+            const { tanggal_pengawasan: _tanggalPengawasan, ...inputWithoutTanggal } = input;
+
             const payload: CreatePengawasanData = dokumentasiLink
-                ? { ...input, dokumentasi: dokumentasiLink }
-                : input;
+                ? {
+                    ...inputWithoutTanggal,
+                    id_pengawasan_gantt: idPengawasanGantt,
+                    dokumentasi: dokumentasiLink
+                }
+                : {
+                    ...inputWithoutTanggal,
+                    id_pengawasan_gantt: idPengawasanGantt
+                };
 
             return await pengawasanRepository.create(payload);
         } catch (error) {
@@ -127,8 +169,24 @@ export const pengawasanService = {
         uploadedDokumentasiIndexes?: number[]
     ): Promise<PengawasanRow[]> {
         try {
+            const basePayloads = await Promise.all(
+                items.map(async (item, index): Promise<CreatePengawasanData> => {
+                    const idPengawasanGantt = await resolvePengawasanGanttId(
+                        item.id_gantt,
+                        item.tanggal_pengawasan,
+                        index
+                    );
+
+                    const { tanggal_pengawasan: _tanggalPengawasan, ...itemWithoutTanggal } = item;
+                    return {
+                        ...itemWithoutTanggal,
+                        id_pengawasan_gantt: idPengawasanGantt
+                    };
+                })
+            );
+
             if (uploadedDokumentasiFiles.length === 0) {
-                return await pengawasanRepository.createBulk(items);
+                return await pengawasanRepository.createBulk(basePayloads);
             }
 
             if (uploadedDokumentasiIndexes && uploadedDokumentasiIndexes.length > 0) {
@@ -140,7 +198,7 @@ export const pengawasanService = {
                 }
 
                 const usedIndexes = new Set<number>();
-                const payloadWithDokumentasi: CreatePengawasanData[] = items.map((item) => ({ ...item }));
+                const payloadWithDokumentasi: CreatePengawasanData[] = basePayloads.map((item) => ({ ...item }));
 
                 for (let filePosition = 0; filePosition < uploadedDokumentasiFiles.length; filePosition++) {
                     const itemIndex = uploadedDokumentasiIndexes[filePosition];
@@ -159,7 +217,7 @@ export const pengawasanService = {
                     }
                     usedIndexes.add(itemIndex);
 
-                    const item = items[itemIndex];
+                    const item = basePayloads[itemIndex];
                     const dokumentasiLink = await uploadDokumentasiToDrive(item.id_gantt, uploadedDokumentasiFiles[filePosition]);
                     payloadWithDokumentasi[itemIndex] = {
                         ...item,
@@ -179,7 +237,7 @@ export const pengawasanService = {
 
             const payloadWithDokumentasi: CreatePengawasanData[] = [];
             for (let index = 0; index < items.length; index++) {
-                const item = items[index];
+                const item = basePayloads[index];
                 const file = uploadedDokumentasiFiles.length === 1
                     ? uploadedDokumentasiFiles[0]
                     : uploadedDokumentasiFiles[index];

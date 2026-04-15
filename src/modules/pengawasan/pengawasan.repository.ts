@@ -8,6 +8,7 @@ import type {
 export type PengawasanRow = {
     id: number;
     id_gantt: number;
+    id_pengawasan_gantt: number;
     kategori_pekerjaan: string;
     jenis_pekerjaan: string;
     catatan: string | null;
@@ -20,12 +21,13 @@ export const pengawasanRepository = {
     async create(input: CreatePengawasanData): Promise<PengawasanRow> {
         const result = await pool.query<PengawasanRow>(
             `
-            INSERT INTO pengawasan (id_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, status)
-            VALUES ($1, $2, $3, $4, $5, COALESCE($6, 'progress'))
-            RETURNING id, id_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, status, created_at
+            INSERT INTO pengawasan (id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, status)
+            VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, 'progress'))
+            RETURNING id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, status, created_at
             `,
             [
                 input.id_gantt,
+                input.id_pengawasan_gantt,
                 input.kategori_pekerjaan,
                 input.jenis_pekerjaan,
                 input.catatan ?? null,
@@ -41,23 +43,24 @@ export const pengawasanRepository = {
         return withTransaction(async (client) => {
             const values: Array<number | string | null> = [];
             const placeholders = items.map((item, index) => {
-                const base = index * 6;
+                const base = index * 7;
                 values.push(
                     item.id_gantt,
+                    item.id_pengawasan_gantt,
                     item.kategori_pekerjaan,
                     item.jenis_pekerjaan,
                     item.catatan ?? null,
                     item.dokumentasi ?? null,
                     item.status ?? null
                 );
-                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, COALESCE($${base + 6}, 'progress'))`;
+                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, COALESCE($${base + 7}, 'progress'))`;
             });
 
             const result = await client.query<PengawasanRow>(
                 `
-                INSERT INTO pengawasan (id_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, status)
+                INSERT INTO pengawasan (id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, status)
                 VALUES ${placeholders.join(", ")}
-                RETURNING id, id_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, status, created_at
+                RETURNING id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, status, created_at
                 `,
                 values
             );
@@ -69,7 +72,7 @@ export const pengawasanRepository = {
     async findById(id: string): Promise<PengawasanRow | null> {
         const result = await pool.query<PengawasanRow>(
             `
-            SELECT id, id_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, status, created_at
+            SELECT id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, status, created_at
             FROM pengawasan
             WHERE id = $1
             `,
@@ -106,7 +109,7 @@ export const pengawasanRepository = {
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
         const result = await pool.query<PengawasanRow>(
             `
-            SELECT id, id_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, status, created_at
+            SELECT id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, status, created_at
             FROM pengawasan
             ${whereClause}
             ORDER BY id DESC
@@ -153,7 +156,7 @@ export const pengawasanRepository = {
             UPDATE pengawasan
             SET ${setClauses.join(", ")}
             WHERE id = $${values.length}
-            RETURNING id, id_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, status, created_at
+            RETURNING id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, status, created_at
             `,
             values
         );
@@ -168,5 +171,21 @@ export const pengawasanRepository = {
         );
 
         return (result.rowCount ?? 0) > 0;
+    },
+
+    async findPengawasanGanttIdByDate(idGantt: number, tanggalPengawasan: string): Promise<number | null> {
+        const result = await pool.query<{ id: number }>(
+            `
+            SELECT id
+            FROM pengawasan_gantt
+            WHERE id_gantt = $1
+              AND tanggal_pengawasan = $2
+            ORDER BY id ASC
+            LIMIT 1
+            `,
+            [idGantt, tanggalPengawasan]
+        );
+
+        return result.rows[0]?.id ?? null;
     }
 };
