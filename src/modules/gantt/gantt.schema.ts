@@ -2,12 +2,14 @@ import { z } from "zod";
 
 // --- Sub-schemas ---
 
+const nullableOptionalString = z.string().nullable().optional();
+
 export const dayGanttItemSchema = z.object({
     kategori_pekerjaan: z.string().min(1),
     h_awal: z.string().min(1),
     h_akhir: z.string().min(1),
-    keterlambatan: z.string().optional(),
-    kecepatan: z.string().optional()
+    keterlambatan: nullableOptionalString,
+    kecepatan: nullableOptionalString
 });
 
 export const dependencyItemSchema = z.object({
@@ -24,13 +26,13 @@ export const pengawasanItemSchema = z.object({
 export const submitGanttSchema = z.object({
     // toko fields
     nomor_ulok: z.string().min(1),
-    lingkup_pekerjaan: z.string().optional(),
-    nama_toko: z.string().optional(),
-    kode_toko: z.string().optional(),
-    proyek: z.string().optional(),
-    cabang: z.string().optional(),
-    alamat: z.string().optional(),
-    nama_kontraktor: z.string().optional(),
+    lingkup_pekerjaan: nullableOptionalString,
+    nama_toko: nullableOptionalString,
+    kode_toko: nullableOptionalString,
+    proyek: nullableOptionalString,
+    cabang: nullableOptionalString,
+    alamat: nullableOptionalString,
+    nama_kontraktor: nullableOptionalString,
 
     // gantt header
     email_pembuat: z.string().email(),

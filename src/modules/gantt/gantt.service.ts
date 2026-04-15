@@ -92,11 +92,21 @@ export const ganttService = {
             throw new AppError("Gantt Chart tidak ditemukan", 404);
         }
 
+        const tokoStableFields = {
+            kode_toko: data.toko.kode_toko,
+            alamat: data.toko.alamat,
+            nama_kontraktor: data.toko.nama_kontraktor,
+        };
+
         if (data.gantt.status === GANTT_STATUS.TERKUNCI) {
             throw new AppError("Gantt Chart sudah terkunci", 409);
         }
 
-        await ganttRepository.updateStatus(id, GANTT_STATUS.TERKUNCI);
+        try {
+            await ganttRepository.updateStatus(id, GANTT_STATUS.TERKUNCI);
+        } finally {
+            await ganttRepository.restoreTokoStableFieldsByGanttId(id, tokoStableFields);
+        }
 
         return {
             id,

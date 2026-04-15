@@ -60,6 +60,12 @@ export type TokoJoinRow = {
     nama_kontraktor: string | null;
 };
 
+export type TokoStableFields = {
+    kode_toko: string | null;
+    alamat: string | null;
+    nama_kontraktor: string | null;
+};
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -441,6 +447,23 @@ export const ganttRepository = {
         );
 
         return (result.rowCount ?? 0) > 0;
+    },
+
+    /**
+     * Pulihkan kolom toko yang wajib stabil setelah proses lock gantt chart.
+     * Ini menjadi guard jika ada side-effect trigger saat update status gantt.
+     */
+    async restoreTokoStableFieldsByGanttId(ganttId: string, fields: TokoStableFields): Promise<void> {
+        await pool.query(
+            `UPDATE toko t
+             SET kode_toko = $1,
+                 alamat = $2,
+                 nama_kontraktor = $3
+             FROM gantt_chart g
+             WHERE g.id = $4
+               AND t.id = g.id_toko`,
+            [fields.kode_toko, fields.alamat, fields.nama_kontraktor, ganttId]
+        );
     },
 
     /** Update gantt chart (replace children data) */
