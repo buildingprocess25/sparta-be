@@ -125,7 +125,7 @@
         white-space: nowrap;
     }
     .signature-section {
-        margin-top: 16px;
+        margin-top: 20px;
         width: 100%;
     }
     .signature-section table {
@@ -141,7 +141,14 @@
         text-align: center;
     }
     .date-text {
-        margin-bottom: 30px;
+        margin-bottom: 44px;
+        text-align: center;
+    }
+    .approved-middle {
+        margin-bottom: 12px;
+        text-align: center;
+        font-size: 8pt;
+        color: #444;
     }
     .sign-name {
         font-weight: bold;
@@ -155,12 +162,6 @@
     .sign-title {
         margin-top: 6px;
         text-align: center;
-    }
-    .sign-approved-at {
-        margin-top: 6px;
-        text-align: center;
-        font-size: 8pt;
-        color: #444;
     }
 </style>
 </head>
@@ -266,9 +267,9 @@
             <td></td>
             <td class="signature-right">
                 <div class="date-text">Tangerang, {{ tanggal_persetujuan }}<br><strong>{{ nama_pt }}</strong></div>
+                <div class="approved-middle">Disetujui pada: {{ direktur_approval_time }}</div>
                 <!-- Menampilkan signature dari Direktur atau identitas pembuat RAB -->
                 <div class="sign-name">( {{ nama_direktur | default("__________________") }} )</div>
-                <div class="sign-approved-at">Disetujui pada: {{ direktur_approval_time }}</div>
                 <div class="sign-title">Direktur</div>
             </td>
         </tr>

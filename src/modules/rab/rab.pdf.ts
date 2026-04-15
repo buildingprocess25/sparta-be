@@ -337,7 +337,9 @@ export const generateSphPdf = async (
             ? formatDateIndonesia(input.rab.waktu_persetujuan_direktur)
             : formatDateIndonesia(input.rab.created_at),
         nama_pt: input.rab.nama_pt || "PT. ONTOSENO BAYUAJI",
-        nama_direktur: input.rab.pemberi_persetujuan_direktur || "__________________",
+        nama_direktur: input.rab.nama_lengkap_persetujuan_direktur
+            || input.rab.pemberi_persetujuan_direktur
+            || "__________________",
         direktur_approval_time: formatApprovalDateTimeIndonesia(input.rab.waktu_persetujuan_direktur),
         fallback_logo: input.logoOverride || input.rab.logo || staticAssetPath("Building-Logo.png"),
         watermark_logo_path: staticAssetPath("Building-Logo.png")

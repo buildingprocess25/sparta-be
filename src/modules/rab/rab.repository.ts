@@ -24,6 +24,7 @@ export type RabRow = {
     pemberi_persetujuan_manager: string | null;
     waktu_persetujuan_manager: string | null;
     pemberi_persetujuan_direktur: string | null;
+    nama_lengkap_persetujuan_direktur?: string | null;
     waktu_persetujuan_direktur: string | null;
     alasan_penolakan: string | null;
     waktu_penolakan: string | null;
@@ -419,9 +420,13 @@ export const rabRepository = {
         const header = await pool.query<RabRow & TokoJoinRow>(
             `SELECT ${RAB_COLUMNS},
                 t.id AS toko_id, t.nomor_ulok, t.lingkup_pekerjaan,
-                t.nama_toko, t.kode_toko, t.proyek, t.cabang, t.alamat, t.nama_kontraktor
+                t.nama_toko, t.kode_toko, t.proyek, t.cabang, t.alamat, t.nama_kontraktor,
+                uc_dir.nama_lengkap AS nama_lengkap_persetujuan_direktur
             FROM rab r
             JOIN toko t ON t.id = r.id_toko
+            LEFT JOIN user_cabang uc_dir
+                ON LOWER(uc_dir.email_sat) = LOWER(r.pemberi_persetujuan_direktur)
+                AND LOWER(uc_dir.cabang) = LOWER(t.cabang)
             WHERE r.id = $1`,
             [id]
         );
@@ -456,6 +461,7 @@ export const rabRepository = {
             pemberi_persetujuan_manager: row.pemberi_persetujuan_manager,
             waktu_persetujuan_manager: row.waktu_persetujuan_manager,
             pemberi_persetujuan_direktur: row.pemberi_persetujuan_direktur,
+            nama_lengkap_persetujuan_direktur: (row as any).nama_lengkap_persetujuan_direktur ?? null,
             waktu_persetujuan_direktur: row.waktu_persetujuan_direktur,
             alasan_penolakan: row.alasan_penolakan,
             waktu_penolakan: row.waktu_penolakan,
