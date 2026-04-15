@@ -63,12 +63,12 @@ Base URL (Python): `/api/gantt-sql`
 
 **`POST /api/gantt/submit`**
 
-Membuat Gantt Chart baru. Sistem akan:
+Endpoint ini bersifat create-or-replace untuk gantt aktif. Sistem akan:
 
-- Upsert toko berdasarkan `nomor_ulok`
-- Cek duplikasi Gantt Chart aktif untuk ULOK yang sama
-- Simpan data ke 5 tabel dalam 1 transaksi (`toko` + `gantt_chart` + `kategori_pekerjaan_gantt` + `day_gantt_chart` + opsional `pengawasan_gantt` & `dependency_gantt`)
-- Set status awal: `active`
+- Cari toko berdasarkan `nomor_ulok`
+- Jika **belum ada** gantt aktif untuk toko tersebut: create gantt baru (status awal `active`)
+- Jika **sudah ada** gantt aktif untuk toko tersebut: update field toko lalu replace isi gantt aktif yang ada
+- Simpan/replace data children (`kategori_pekerjaan_gantt`, `day_gantt_chart`, `dependency_gantt`, `pengawasan_gantt`)
 
 ### Request Body
 
@@ -179,11 +179,10 @@ Membuat Gantt Chart baru. Sistem akan:
 
 ### Error Responses
 
-| Code | Kondisi                                          |
-| ---- | ------------------------------------------------ |
-| 400  | JSON body tidak valid / field wajib kosong       |
-| 409  | Gantt Chart aktif untuk ULOK yang sama sudah ada |
-| 422  | Validasi Zod gagal (Node.js)                     |
+| Code | Kondisi                                    |
+| ---- | ------------------------------------------ |
+| 400  | JSON body tidak valid / field wajib kosong |
+| 422  | Validasi Zod gagal (Node.js)               |
 
 ---
 
@@ -347,7 +346,11 @@ GET /api/gantt/3?id_toko=5
 
 **`PUT /api/gantt/:id`**
 
-Update isi Gantt Chart. Jika `kategori_pekerjaan` dan `day_items` dikirim, semua data children (kategori, day, dependency) akan di-replace total. Pengawasan di-replace jika field `pengawasan` dikirim.
+Update isi Gantt Chart.
+
+- Jika `kategori_pekerjaan` dan `day_items` dikirim **dan keduanya berisi data valid**, data utama children (kategori/day/dependency) akan di-replace total.
+- Jika salah satu tidak dikirim atau array kosong, replace utama tidak dijalankan (no-op untuk bagian itu).
+- Jika `pengawasan` dikirim, data pengawasan akan di-replace sesuai payload.
 
 ### Path Parameter
 
@@ -409,6 +412,44 @@ Update isi Gantt Chart. Jika `kategori_pekerjaan` dan `day_items` dikirim, semua
 | ---- | --------------------------- |
 | 404  | Gantt Chart tidak ditemukan |
 | 409  | Gantt Chart sudah terkunci  |
+
+---
+
+## Catatan Integrasi FE (Penting)
+
+Untuk mencegah error `Validasi request gagal` (422), perhatikan kontrak payload berikut.
+
+### 1) Field yang boleh string kosong
+
+Field berikut boleh dikirim kosong:
+
+- `day_items[].kecepatan`: `""` diperbolehkan
+- `day_items[].keterlambatan`: `""` diperbolehkan
+
+### 2) Field yang tidak boleh kosong
+
+Field kategori tetap wajib string non-empty:
+
+- `kategori_pekerjaan[]`
+- `day_items[].kategori_pekerjaan`
+- `dependencies[].kategori_pekerjaan`
+- `dependencies[].kategori_pekerjaan_terikat`
+
+Jika frontend mengirim `""` pada field kategori di atas, backend akan reject 422.
+
+### 3) Bentuk object/string yang diterima
+
+Backend menerima dua bentuk untuk field kategori/tanggal tertentu:
+
+- String langsung: `"PEKERJAAN PERSIAPAN"`
+- Object hasil mapping UI:
+  - `{ "kategori_pekerjaan": "PEKERJAAN PERSIAPAN" }`
+  - `{ "tanggal_pengawasan": "14/04/2026" }`
+
+### 4) Khusus endpoint update (`PUT /api/gantt/:id`)
+
+- Jika mengirim `day_items`, setiap item yang diproses replace wajib punya `h_awal` dan `h_akhir`.
+- Jika payload update tidak mengubah data utama, kirimkan field utama sebagai tidak ada/array kosong agar backend memperlakukannya no-op.
 
 ---
 
