@@ -105,14 +105,28 @@ const uploadDokumentasiToDrive = async (
     throw new AppError("Upload dokumentasi ke Google Drive gagal", 500);
 };
 
+const normalizeTanggalPengawasan = (value: string): string => {
+    const trimmed = value.trim();
+
+    const isoLike = /^(\d{4})[-\/](\d{2})[-\/](\d{2})$/.exec(trimmed);
+    if (isoLike) {
+        const [, year, month, day] = isoLike;
+        return `${day}/${month}/${year}`;
+    }
+
+    return trimmed.replace(/-/g, "/");
+};
+
 const resolvePengawasanGanttId = async (
     idGantt: number,
     tanggalPengawasan: string,
     itemIndex?: number
 ): Promise<number> => {
+    const normalizedTanggalPengawasan = normalizeTanggalPengawasan(tanggalPengawasan);
+
     const pengawasanGanttId = await pengawasanRepository.findPengawasanGanttIdByDate(
         idGantt,
-        tanggalPengawasan
+        normalizedTanggalPengawasan
     );
 
     if (!pengawasanGanttId) {
@@ -121,7 +135,7 @@ const resolvePengawasanGanttId = async (
             : "";
 
         throw new AppError(
-            `tanggal_pengawasan tidak ditemukan di pengawasan_gantt${context} (id_gantt=${idGantt}, tanggal_pengawasan=${tanggalPengawasan})`,
+            `tanggal_pengawasan tidak ditemukan di pengawasan_gantt${context} (id_gantt=${idGantt}, tanggal_pengawasan=${normalizedTanggalPengawasan})`,
             404
         );
     }
@@ -268,7 +282,7 @@ export const pengawasanService = {
 
             const idPengawasanGantt = await pengawasanRepository.findPengawasanGanttIdByDate(
                 query.id_gantt,
-                query.tanggal
+                normalizeTanggalPengawasan(query.tanggal)
             );
 
             if (!idPengawasanGantt) {

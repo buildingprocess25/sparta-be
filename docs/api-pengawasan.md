@@ -70,6 +70,12 @@ Selain JSON biasa, endpoint ini juga menerima upload file:
 
 Catatan: field `dokumentasi` tidak perlu dikirim di request body create. Nilai `dokumentasi` akan diisi otomatis dari link hasil upload `file_dokumentasi`.
 
+Catatan format tanggal:
+
+- backend menormalkan `tanggal_pengawasan` sebelum lookup ke tabel `pengawasan_gantt`
+- jika frontend kirim format dengan `-`, otomatis diubah ke format `/`
+- contoh: `15-04-2026` -> `15/04/2026`, `2026-04-15` -> `15/04/2026`
+
 ### Response — 201 Created
 
 ```json
@@ -205,6 +211,7 @@ Catatan:
 
 - jika `tanggal` diisi tanpa `id_gantt`, API mengembalikan `400`
 - jika pasangan `tanggal` + `id_gantt` tidak ditemukan di `pengawasan_gantt`, response list bernilai array kosong
+- format `tanggal` dengan `-` juga didukung karena backend otomatis normalisasi ke `/`
 
 ### Response — 200 OK
 
