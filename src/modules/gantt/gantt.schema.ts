@@ -4,21 +4,47 @@ import { z } from "zod";
 
 const nullableOptionalString = z.string().nullable().optional();
 
+const kategoriPekerjaanValueSchema = z
+    .union([
+        z.string().trim().min(1),
+        z.object({ kategori_pekerjaan: z.string().trim().min(1) })
+    ])
+    .transform((value: string | { kategori_pekerjaan: string }) =>
+        (typeof value === "string" ? value : value.kategori_pekerjaan)
+    );
+
+const tanggalPengawasanValueSchema = z
+    .union([
+        z.string().trim().min(1),
+        z.object({ tanggal_pengawasan: z.string().trim().min(1) })
+    ])
+    .transform((value: string | { tanggal_pengawasan: string }) =>
+        (typeof value === "string" ? value : value.tanggal_pengawasan)
+    );
+
 export const dayGanttItemSchema = z.object({
-    kategori_pekerjaan: z.string().min(1),
+    kategori_pekerjaan: kategoriPekerjaanValueSchema,
     h_awal: z.string().min(1),
     h_akhir: z.string().min(1),
     keterlambatan: nullableOptionalString,
     kecepatan: nullableOptionalString
 });
 
+const dayGanttItemUpdateSchema = z.object({
+    kategori_pekerjaan: kategoriPekerjaanValueSchema,
+    h_awal: z.string().nullable().optional(),
+    h_akhir: z.string().nullable().optional(),
+    keterlambatan: nullableOptionalString,
+    kecepatan: nullableOptionalString
+});
+
 export const dependencyItemSchema = z.object({
-    kategori_pekerjaan: z.string().min(1),
-    kategori_pekerjaan_terikat: z.string().min(1)
+    kategori_pekerjaan: kategoriPekerjaanValueSchema,
+    kategori_pekerjaan_terikat: kategoriPekerjaanValueSchema
 });
 
 export const pengawasanItemSchema = z.object({
-    tanggal_pengawasan: z.string().min(1)
+    tanggal_pengawasan: tanggalPengawasanValueSchema
 });
 
 // --- Submit Gantt Chart ---
@@ -38,7 +64,7 @@ export const submitGanttSchema = z.object({
     email_pembuat: z.string().email(),
 
     // kategori pekerjaan + day items
-    kategori_pekerjaan: z.array(z.string().min(1)).min(1),
+    kategori_pekerjaan: z.array(kategoriPekerjaanValueSchema).min(1),
     day_items: z.array(dayGanttItemSchema).min(1),
 
     // optional: pengawasan & dependency
@@ -50,8 +76,8 @@ export const submitGanttSchema = z.object({
 
 export const updateGanttSchema = z.object({
     // kategori pekerjaan + day items
-    kategori_pekerjaan: z.array(z.string().min(1)).min(1).optional(),
-    day_items: z.array(dayGanttItemSchema).min(1).optional(),
+    kategori_pekerjaan: z.array(kategoriPekerjaanValueSchema).min(1).optional(),
+    day_items: z.array(dayGanttItemUpdateSchema).min(1).optional(),
 
     // optional: pengawasan & dependency
     pengawasan: z.array(pengawasanItemSchema).optional(),
