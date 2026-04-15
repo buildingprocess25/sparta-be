@@ -664,6 +664,12 @@ export const rabService = {
             throw new AppError("Pengajuan RAB tidak ditemukan", 404);
         }
 
+        const tokoStableFields = {
+            kode_toko: data.toko.kode_toko,
+            alamat: data.toko.alamat,
+            nama_kontraktor: data.toko.nama_kontraktor,
+        };
+
         const newStatus = resolveStatusTransition(data.rab.status, action);
         if (action.tindakan === "REJECT") {
             await rabRepository.rejectRabAndActivateLatestGanttGuarded(
@@ -697,6 +703,8 @@ export const rabService = {
                 }
             } catch (err) {
                 console.error("Warning: Gagal regenerate PDF RAB setelah approval:", err);
+            } finally {
+                await rabRepository.restoreTokoStableFieldsByRabId(id, tokoStableFields);
             }
         }
 

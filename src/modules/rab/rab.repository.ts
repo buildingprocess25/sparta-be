@@ -72,6 +72,12 @@ export type TokoJoinRow = {
     nama_kontraktor: string | null;
 };
 
+export type TokoStableFields = {
+    kode_toko: string | null;
+    alamat: string | null;
+    nama_kontraktor: string | null;
+};
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -764,6 +770,23 @@ export const rabRepository = {
                  link_pdf_rekapitulasi = $3
              WHERE id = $4`,
             [links.link_pdf_gabungan, links.link_pdf_non_sbo, links.link_pdf_rekapitulasi, rabId]
+        );
+    },
+
+    /**
+     * Pulihkan kolom toko yang wajib stabil setelah proses approval RAB.
+     * Ini menjadi guard jika ada side-effect trigger saat update tabel rab.
+     */
+    async restoreTokoStableFieldsByRabId(rabId: string, fields: TokoStableFields): Promise<void> {
+        await pool.query(
+            `UPDATE toko t
+             SET kode_toko = $1,
+                 alamat = $2,
+                 nama_kontraktor = $3
+             FROM rab r
+             WHERE r.id = $4
+               AND t.id = r.id_toko`,
+            [fields.kode_toko, fields.alamat, fields.nama_kontraktor, rabId]
         );
     }
 };
