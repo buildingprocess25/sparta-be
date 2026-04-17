@@ -148,6 +148,21 @@ const insertRabItems = async (
     }
 };
 
+const isRabAssetProxyPath = (value?: string | null): boolean => {
+    const trimmed = (value ?? "").trim();
+    if (!trimmed) return false;
+
+    return /^\/api\/rab\/\d+\/(logo|file-asuransi)$/i.test(trimmed);
+};
+
+const toPersistedAssetLink = (value?: string | null): string | null => {
+    const trimmed = (value ?? "").trim();
+    if (!trimmed) return null;
+    if (isRabAssetProxyPath(trimmed)) return null;
+
+    return trimmed;
+};
+
 // ---------------------------------------------------------------------------
 // Repository
 // ---------------------------------------------------------------------------
@@ -227,6 +242,9 @@ export const rabRepository = {
                 throw new Error(`RAB dengan id ${rabId} tidak dalam status reject`);
             }
 
+            const logoToPersist = toPersistedAssetLink(payload.logo);
+            const insuranceToPersist = toPersistedAssetLink(payload.file_asuransi);
+
             await client.query(
                 `UPDATE toko
                  SET lingkup_pekerjaan = COALESCE($1, lingkup_pekerjaan),
@@ -283,12 +301,12 @@ export const rabRepository = {
                     payload.status,
                     payload.nama_pt,
                     payload.email_pembuat,
-                    payload.logo ?? null,
+                    logoToPersist,
                     payload.durasi_pekerjaan,
                     payload.kategori_lokasi ?? null,
                     payload.no_polis ?? null,
                     payload.berlaku_polis ?? null,
-                    payload.file_asuransi ?? null,
+                    insuranceToPersist,
                     payload.luas_bangunan ?? null,
                     payload.luas_terbangun ?? null,
                     payload.luas_area_terbuka ?? null,
@@ -366,6 +384,8 @@ export const rabRepository = {
                 ]
             );
             const tokoId = tokoRes.rows[0].id;
+            const logoToPersist = toPersistedAssetLink(payload.logo);
+            const insuranceToPersist = toPersistedAssetLink(payload.file_asuransi);
 
             // 2. Insert RAB header
             const res = await client.query<RabRow>(
@@ -384,12 +404,12 @@ export const rabRepository = {
                     payload.status,
                     payload.nama_pt,
                     payload.email_pembuat,
-                    payload.logo ?? null,
+                    logoToPersist,
                     payload.durasi_pekerjaan,
                     payload.kategori_lokasi ?? null,
                     payload.no_polis ?? null,
                     payload.berlaku_polis ?? null,
-                    payload.file_asuransi ?? null,
+                    insuranceToPersist,
                     payload.luas_bangunan ?? null,
                     payload.luas_terbangun ?? null,
                     payload.luas_area_terbuka ?? null,

@@ -160,6 +160,26 @@ const normalizeDriveDownloadLink = (value?: string | null): string | undefined =
     return driveDownloadLink(fileId);
 };
 
+const isRabAssetProxyPath = (value?: string | null): boolean => {
+    const trimmed = (value ?? "").trim();
+    if (!trimmed) return false;
+
+    try {
+        const parsed = new URL(trimmed, "http://local");
+        return /^\/api\/rab\/\d+\/(logo|file-asuransi)$/i.test(parsed.pathname);
+    } catch {
+        return /^\/api\/rab\/\d+\/(logo|file-asuransi)$/i.test(trimmed);
+    }
+};
+
+const normalizeIncomingAssetLink = (value?: string | null): string | undefined => {
+    const trimmed = (value ?? "").trim();
+    if (!trimmed) return undefined;
+    if (isRabAssetProxyPath(trimmed)) return undefined;
+
+    return normalizeDriveDownloadLink(trimmed);
+};
+
 const buildRabAssetDownloadPath = (
     rabId: number | string,
     assetField: "logo" | "file_asuransi",
@@ -506,18 +526,24 @@ export const rabService = {
         const totals = computeTotals(payload.detail_items);
 
         // 3. Simpan ke DB (upsert toko + insert rab + insert rab_item dalam 1 transaksi)
-        const hasLogoInput = (payload.logo ?? "").trim().length > 0;
-        const hasRevLogoInput = (payload.rev_logo ?? "").trim().length > 0;
-        const hasFileAsuransiInput = (payload.file_asuransi ?? "").trim().length > 0;
-        const hasRevFileAsuransiInput = (payload.rev_file_asuransi ?? "").trim().length > 0;
+        const logoInput = (payload.logo ?? "").trim();
+        const revLogoInput = (payload.rev_logo ?? "").trim();
+        const fileAsuransiInput = (payload.file_asuransi ?? "").trim();
+        const revFileAsuransiInput = (payload.rev_file_asuransi ?? "").trim();
+
+        const hasLogoInput = logoInput.length > 0 && !isRabAssetProxyPath(logoInput);
+        const hasRevLogoInput = revLogoInput.length > 0 && !isRabAssetProxyPath(revLogoInput);
+        const hasFileAsuransiInput = fileAsuransiInput.length > 0 && !isRabAssetProxyPath(fileAsuransiInput);
+        const hasRevFileAsuransiInput = revFileAsuransiInput.length > 0 && !isRabAssetProxyPath(revFileAsuransiInput);
+        const isRejectedResubmit = rejectedRabToReplaceId !== null;
 
         let logoLink = rejectedRabToReplaceId !== null
-            ? normalizeDriveDownloadLink(rejectedRabExistingLogo)
+            ? normalizeIncomingAssetLink(rejectedRabExistingLogo)
             : undefined;
 
-        if (hasLogoInput) {
-            const logoValue = payload.logo!;
-            logoLink = normalizeDriveDownloadLink(logoValue);
+        if (!isRejectedResubmit && hasLogoInput) {
+            const logoValue = logoInput;
+            logoLink = normalizeIncomingAssetLink(logoValue);
             try {
                 const filename = `RAB_LOGO_${payload.proyek ?? "PROYEK"}_${payload.nomor_ulok}.png`;
                 const uploadedLink = await uploadLogoToDrive(logoValue, filename);
@@ -529,9 +555,9 @@ export const rabService = {
             }
         }
 
-        if (hasRevLogoInput) {
-            const revLogoValue = payload.rev_logo!;
-            let revLogoLink = normalizeDriveDownloadLink(revLogoValue);
+        if (isRejectedResubmit && hasRevLogoInput) {
+            const revLogoValue = revLogoInput;
+            let revLogoLink = normalizeIncomingAssetLink(revLogoValue);
             try {
                 const filename = `RAB_LOGO_${payload.proyek ?? "PROYEK"}_${payload.nomor_ulok}_${Date.now()}.png`;
                 const uploadedLink = await uploadLogoToDrive(revLogoValue, filename);
@@ -547,7 +573,7 @@ export const rabService = {
             }
         }
 
-        if (uploadedFiles.revLogoFile) {
+        if (isRejectedResubmit && uploadedFiles.revLogoFile) {
             logoLink = await uploadLogoFileToDrive(
                 uploadedFiles.revLogoFile,
                 payload.nomor_ulok,
@@ -556,14 +582,14 @@ export const rabService = {
         }
 
         let insuranceLink = rejectedRabToReplaceId !== null
-            ? normalizeDriveDownloadLink(rejectedRabExistingInsurance)
+            ? normalizeIncomingAssetLink(rejectedRabExistingInsurance)
             : undefined;
 
-        if (hasFileAsuransiInput) {
-            insuranceLink = normalizeDriveDownloadLink(payload.file_asuransi);
+        if (!isRejectedResubmit && hasFileAsuransiInput) {
+            insuranceLink = normalizeIncomingAssetLink(fileAsuransiInput);
         }
 
-        if (uploadedFiles.insuranceFile) {
+        if (!isRejectedResubmit && uploadedFiles.insuranceFile) {
             insuranceLink = await uploadInsuranceFileToDrive(
                 uploadedFiles.insuranceFile,
                 payload.nomor_ulok,
@@ -571,15 +597,15 @@ export const rabService = {
             );
         }
 
-        if (hasRevFileAsuransiInput) {
+        if (isRejectedResubmit && hasRevFileAsuransiInput) {
             insuranceLink = await uploadInsuranceStringToDrive(
-                payload.rev_file_asuransi!,
+                revFileAsuransiInput,
                 payload.nomor_ulok,
                 payload.proyek
             );
         }
 
-        if (uploadedFiles.revInsuranceFile) {
+        if (isRejectedResubmit && uploadedFiles.revInsuranceFile) {
             insuranceLink = await uploadInsuranceFileToDrive(
                 uploadedFiles.revInsuranceFile,
                 payload.nomor_ulok,
