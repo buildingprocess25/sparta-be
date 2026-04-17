@@ -81,8 +81,6 @@ export const ganttService = {
                     kode_toko: payload.kode_toko,
                     proyek: payload.proyek,
                     cabang: payload.cabang,
-                    alamat: payload.alamat,
-                    nama_kontraktor: payload.nama_kontraktor,
                 });
 
                 await ganttRepository.updateWithDetails(String(activeGantt.id), {

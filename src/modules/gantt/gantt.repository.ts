@@ -263,9 +263,7 @@ export const ganttRepository = {
                     nama_toko = COALESCE(EXCLUDED.nama_toko, toko.nama_toko),
                     kode_toko = COALESCE(EXCLUDED.kode_toko, toko.kode_toko),
                     proyek = COALESCE(EXCLUDED.proyek, toko.proyek),
-                    cabang = COALESCE(EXCLUDED.cabang, toko.cabang),
-                    alamat = COALESCE(EXCLUDED.alamat, toko.alamat),
-                    nama_kontraktor = COALESCE(EXCLUDED.nama_kontraktor, toko.nama_kontraktor)
+                    cabang = COALESCE(EXCLUDED.cabang, toko.cabang)
                 RETURNING id`,
                 [
                     payload.nomor_ulok,
