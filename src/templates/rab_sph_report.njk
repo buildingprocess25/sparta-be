@@ -267,7 +267,9 @@
             <td></td>
             <td class="signature-right">
                 <div class="date-text">Tangerang, {{ tanggal_persetujuan }}<br><strong>{{ nama_pt }}</strong></div>
+                {% if direktur_approval_time %}
                 <div class="approved-middle">Disetujui pada: {{ direktur_approval_time }}</div>
+                {% endif %}
                 <!-- Menampilkan signature dari Direktur atau identitas pembuat RAB -->
                 <div class="sign-name">( {{ nama_direktur | default("__________________") }} )</div>
                 <div class="sign-title">Direktur</div>

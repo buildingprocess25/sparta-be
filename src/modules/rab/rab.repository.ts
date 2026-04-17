@@ -706,8 +706,7 @@ export const rabRepository = {
     /**
      * Ambil / assign no_sph dengan aturan:
      * - jika rab sudah punya no_sph, pakai itu
-     * - jika belum, ambil no_sph terakhir (hanya yang terisi)
-     * - reset ke 1 bila bulan terakhir berbeda dengan bulan sekarang (Asia/Jakarta)
+     * - jika belum, generate nomor acak 4 digit (1000-9999)
      */
     async ensureSphNumber(rabId: string): Promise<number> {
         return withTransaction(async (client) => {
@@ -727,25 +726,26 @@ export const rabRepository = {
                 return currentNoSph;
             }
 
-            const lastNumberRes = await client.query<{ no_sph: number; created_at: string }>(
-                `SELECT no_sph, created_at
-                 FROM rab
-                 WHERE no_sph IS NOT NULL
-                 ORDER BY created_at DESC, id DESC
-                 LIMIT 1`
-            );
+            const min = 1000;
+            const max = 9999;
+            const maxAttempts = 50;
 
-            let nextNoSph = 1;
-            if ((lastNumberRes.rowCount ?? 0) > 0) {
-                const lastNo = lastNumberRes.rows[0].no_sph;
-                const sameMonthRes = await client.query<{ same_month: boolean }>(
-                    `SELECT DATE_TRUNC('month', $1::timestamp) = DATE_TRUNC('month', timezone('Asia/Jakarta', now())) AS same_month`,
-                    [lastNumberRes.rows[0].created_at]
+            let nextNoSph: number | null = null;
+            for (let attempt = 0; attempt < maxAttempts; attempt++) {
+                const candidate = Math.floor(Math.random() * (max - min + 1)) + min;
+                const existsRes = await client.query<{ exists: boolean }>(
+                    `SELECT EXISTS(SELECT 1 FROM rab WHERE no_sph = $1) AS exists`,
+                    [candidate]
                 );
 
-                if (sameMonthRes.rows[0]?.same_month) {
-                    nextNoSph = lastNo + 1;
+                if (!existsRes.rows[0]?.exists) {
+                    nextNoSph = candidate;
+                    break;
                 }
+            }
+
+            if (nextNoSph === null) {
+                throw new Error("Gagal generate no_sph acak 4 digit yang unik");
             }
 
             const updatedRes = await client.query<{ no_sph: number }>(

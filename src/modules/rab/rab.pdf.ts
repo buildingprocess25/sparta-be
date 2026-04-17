@@ -32,7 +32,7 @@ const buildSphDocumentNumber = (
     noSph: number | null | undefined,
     dateValue?: string | null
 ): string => {
-    const numberPart = String(Math.max(Number(noSph ?? 0), 1)).padStart(2, "0");
+    const numberPart = String(Math.max(Number(noSph ?? 0), 1)).padStart(4, "0");
     const baseDate = dateValue ? new Date(dateValue) : new Date();
     const safeDate = Number.isNaN(baseDate.getTime()) ? new Date() : baseDate;
     const monthRoman = monthToRoman(safeDate.getMonth() + 1);
@@ -64,7 +64,7 @@ const formatDateTimeIndonesia = (value?: string | null): string => {
 };
 
 const formatApprovalDateTimeIndonesia = (value?: string | null): string => {
-    if (!value) return "Menunggu disetujui Direktur";
+    if (!value) return "";
     return formatDateTimeIndonesia(value);
 };
 
