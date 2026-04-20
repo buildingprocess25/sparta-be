@@ -47,7 +47,7 @@ async function regenerateSpkPdfAndUpload(
     const data = await spkRepository.findById(pengajuanSpkId);
     if (!data) return null;
 
-    const toko = await tokoRepository.findByNomorUlok(data.pengajuan.nomor_ulok);
+    const toko = await tokoRepository.findById(data.pengajuan.id_toko);
     if (!toko) return null;
 
     const pdfBuffer = await buildSpkPdfBuffer({
@@ -67,9 +67,13 @@ async function regenerateSpkPdfAndUpload(
 
 export const spkService = {
     async submit(payload: SubmitSpkInput) {
-        const existingToko = await tokoRepository.findByNomorUlok(payload.nomor_ulok);
+        const existingToko = await tokoRepository.findById(payload.id_toko);
         if (!existingToko) {
-            throw new AppError("Nomor ULOK tidak ditemukan di master toko", 404);
+            throw new AppError("id_toko tidak ditemukan di master toko", 404);
+        }
+
+        if (existingToko.nomor_ulok !== payload.nomor_ulok) {
+            throw new AppError("id_toko tidak cocok dengan nomor_ulok", 409);
         }
 
         const toko = await tokoRepository.updateKodeTokoByUlokAndLingkup(
@@ -78,21 +82,17 @@ export const spkService = {
             payload.kode_toko
         );
 
-        if (!toko) {
+        if (!toko || toko.id !== payload.id_toko) {
             throw new AppError(
                 `Data toko untuk ULOK ${payload.nomor_ulok} dengan lingkup ${payload.lingkup_pekerjaan} tidak cocok`,
                 409
             );
         }
 
-        const isDuplicate = await spkRepository.existsActiveByUlokAndLingkup(
-            payload.nomor_ulok,
-            payload.lingkup_pekerjaan
-        );
-
-        if (isDuplicate) {
+        const existingSpkByToko = await spkRepository.findLatestByTokoId(payload.id_toko);
+        if (existingSpkByToko && existingSpkByToko.status !== SPK_STATUS.SPK_REJECTED) {
             throw new AppError(
-                `SPK aktif untuk ULOK ${payload.nomor_ulok} dengan lingkup ${payload.lingkup_pekerjaan} sudah ada`,
+                `SPK untuk toko dengan id_toko ${payload.id_toko} sudah ada`,
                 409
             );
         }
@@ -114,6 +114,7 @@ export const spkService = {
         const nomorSpk = `${String(sequence).padStart(3, "0")}/PROPNDEV-${cabangCode}/${payload.spk_manual_1}/${payload.spk_manual_2}`;
 
         const submitPayload = {
+            id_toko: payload.id_toko,
             nomor_ulok: payload.nomor_ulok,
             email_pembuat: payload.email_pembuat,
             lingkup_pekerjaan: payload.lingkup_pekerjaan,
@@ -131,13 +132,8 @@ export const spkService = {
             status: SPK_STATUS.WAITING_FOR_BM_APPROVAL
         };
 
-        const rejectedData = await spkRepository.findLatestRejectedByUlokAndLingkup(
-            payload.nomor_ulok,
-            payload.lingkup_pekerjaan
-        );
-
-        const created = rejectedData
-            ? await spkRepository.resubmitRejected(String(rejectedData.id), submitPayload)
+        const created = existingSpkByToko?.status === SPK_STATUS.SPK_REJECTED
+            ? await spkRepository.resubmitRejected(String(existingSpkByToko.id), submitPayload)
             : await spkRepository.create(submitPayload);
 
         try {
@@ -167,7 +163,7 @@ export const spkService = {
             throw new AppError("Pengajuan SPK tidak ditemukan", 404);
         }
 
-        const toko = await tokoRepository.findByNomorUlok(data.pengajuan.nomor_ulok);
+        const toko = await tokoRepository.findById(data.pengajuan.id_toko);
 
         return {
             ...data,
@@ -234,7 +230,7 @@ export const spkService = {
             throw new AppError("Pengajuan SPK tidak ditemukan", 404);
         }
 
-        const toko = await tokoRepository.findByNomorUlok(data.pengajuan.nomor_ulok);
+        const toko = await tokoRepository.findById(data.pengajuan.id_toko);
         if (!toko) {
             throw new AppError("Data toko tidak ditemukan", 404);
         }

@@ -4,6 +4,7 @@ import type { SpkApprovalInput } from "./spk.schema";
 
 export type PengajuanSpkRow = {
     id: string;
+    id_toko: number;
     nomor_ulok: string;
     email_pembuat: string;
     lingkup_pekerjaan: string;
@@ -27,6 +28,7 @@ export type PengajuanSpkRow = {
 };
 
 export type SpkTokoSummary = {
+    id: number | null;
     nomor_ulok: string;
     kode_toko: string | null;
     nama_toko: string | null;
@@ -48,6 +50,7 @@ export type SpkApprovalLogRow = {
 };
 
 type SpkListJoinRow = PengajuanSpkRow & {
+    toko_id: number | null;
     toko_nomor_ulok: string;
     toko_kode_toko: string | null;
     toko_nama_toko: string | null;
@@ -56,13 +59,28 @@ type SpkListJoinRow = PengajuanSpkRow & {
 };
 
 const SPK_COLUMNS = `
-  id, nomor_ulok, email_pembuat, lingkup_pekerjaan, nama_kontraktor, proyek,
+    id, id_toko, nomor_ulok, email_pembuat, lingkup_pekerjaan, nama_kontraktor, proyek,
   waktu_mulai, durasi, waktu_selesai, grand_total, terbilang, nomor_spk,
   par, spk_manual_1, spk_manual_2, status, link_pdf, approver_email,
   waktu_persetujuan, alasan_penolakan, created_at
 `;
 
 export const spkRepository = {
+    async findLatestByTokoId(idToko: number): Promise<PengajuanSpkRow | null> {
+        const result = await pool.query<PengajuanSpkRow>(
+            `
+      SELECT ${SPK_COLUMNS}
+      FROM pengajuan_spk
+      WHERE id_toko = $1
+      ORDER BY created_at DESC, id DESC
+      LIMIT 1
+      `,
+            [idToko]
+        );
+
+        return result.rows[0] ?? null;
+    },
+
     async existsActiveByUlokAndLingkup(nomorUlok: string, lingkupPekerjaan: string): Promise<boolean> {
         const result = await pool.query<{ exists: boolean }>(
             `
@@ -85,7 +103,7 @@ export const spkRepository = {
             `
       SELECT COUNT(*)::text AS count
       FROM pengajuan_spk p
-      JOIN toko t ON t.nomor_ulok = p.nomor_ulok
+    JOIN toko t ON t.id = p.id_toko
       WHERE UPPER(t.cabang) = UPPER($1)
         AND EXTRACT(YEAR FROM p.created_at) = $2
         AND EXTRACT(MONTH FROM p.created_at) = $3
@@ -97,6 +115,7 @@ export const spkRepository = {
     },
 
     async create(payload: {
+        id_toko: number;
         nomor_ulok: string;
         email_pembuat: string;
         lingkup_pekerjaan: string;
@@ -116,13 +135,14 @@ export const spkRepository = {
         const result = await pool.query<PengajuanSpkRow>(
             `
       INSERT INTO pengajuan_spk (
-        nomor_ulok, email_pembuat, lingkup_pekerjaan, nama_kontraktor, proyek,
+      id_toko, nomor_ulok, email_pembuat, lingkup_pekerjaan, nama_kontraktor, proyek,
         waktu_mulai, durasi, waktu_selesai, grand_total, terbilang, nomor_spk,
         par, spk_manual_1, spk_manual_2, status, created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW())
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW())
       RETURNING ${SPK_COLUMNS}
       `,
             [
+            payload.id_toko,
                 payload.nomor_ulok,
                 payload.email_pembuat,
                 payload.lingkup_pekerjaan,
@@ -167,6 +187,7 @@ export const spkRepository = {
     async resubmitRejected(
         id: string,
         payload: {
+            id_toko: number;
             nomor_ulok: string;
             email_pembuat: string;
             lingkup_pekerjaan: string;
@@ -187,30 +208,32 @@ export const spkRepository = {
         const result = await pool.query<PengajuanSpkRow>(
             `
       UPDATE pengajuan_spk
-      SET nomor_ulok = $1,
-          email_pembuat = $2,
-          lingkup_pekerjaan = $3,
-          nama_kontraktor = $4,
-          proyek = $5,
-          waktu_mulai = $6,
-          durasi = $7,
-          waktu_selesai = $8,
-          grand_total = $9,
-          terbilang = $10,
-          nomor_spk = $11,
-          par = $12,
-          spk_manual_1 = $13,
-          spk_manual_2 = $14,
-          status = $15,
+      SET id_toko = $1,
+          nomor_ulok = $2,
+          email_pembuat = $3,
+          lingkup_pekerjaan = $4,
+          nama_kontraktor = $5,
+          proyek = $6,
+          waktu_mulai = $7,
+          durasi = $8,
+          waktu_selesai = $9,
+          grand_total = $10,
+          terbilang = $11,
+          nomor_spk = $12,
+          par = $13,
+          spk_manual_1 = $14,
+          spk_manual_2 = $15,
+          status = $16,
           link_pdf = NULL,
           approver_email = NULL,
           waktu_persetujuan = NULL,
           alasan_penolakan = NULL,
           created_at = NOW()
-      WHERE id = $16
+      WHERE id = $17
       RETURNING ${SPK_COLUMNS}
       `,
             [
+                payload.id_toko,
                 payload.nomor_ulok,
                 payload.email_pembuat,
                 payload.lingkup_pekerjaan,
@@ -280,17 +303,18 @@ export const spkRepository = {
 
         const result = await pool.query<SpkListJoinRow>(
             `
-            SELECT p.id, p.nomor_ulok, p.email_pembuat, p.lingkup_pekerjaan, p.nama_kontraktor, p.proyek,
+          SELECT p.id, p.id_toko, p.nomor_ulok, p.email_pembuat, p.lingkup_pekerjaan, p.nama_kontraktor, p.proyek,
                 p.waktu_mulai, p.durasi, p.waktu_selesai, p.grand_total, p.terbilang, p.nomor_spk,
                 p.par, p.spk_manual_1, p.spk_manual_2, p.status, p.link_pdf, p.approver_email,
                 p.waktu_persetujuan, p.alasan_penolakan, p.created_at,
+        t.id AS toko_id,
         t.nomor_ulok AS toko_nomor_ulok,
         t.kode_toko AS toko_kode_toko,
         t.nama_toko AS toko_nama_toko,
         t.cabang AS toko_cabang,
         t.alamat AS toko_alamat
       FROM pengajuan_spk p
-      LEFT JOIN toko t ON t.nomor_ulok = p.nomor_ulok
+        LEFT JOIN toko t ON t.id = p.id_toko
       ${whereClause}
       ORDER BY p.created_at DESC
       `,
@@ -299,6 +323,7 @@ export const spkRepository = {
 
         return result.rows.map((row: SpkListJoinRow): SpkListRow => {
             const {
+                toko_id,
                 toko_nomor_ulok,
                 toko_kode_toko,
                 toko_nama_toko,
@@ -310,6 +335,7 @@ export const spkRepository = {
             return {
                 ...spk,
                 toko: {
+                    id: toko_id,
                     nomor_ulok: toko_nomor_ulok ?? spk.nomor_ulok,
                     kode_toko: toko_kode_toko,
                     nama_toko: toko_nama_toko,

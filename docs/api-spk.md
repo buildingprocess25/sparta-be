@@ -39,10 +39,12 @@ Status aktif (untuk cek duplikasi submit):
 
 Membuat pengajuan SPK baru. Sistem akan:
 
+- Validasi `id_toko` wajib sudah ada di master tabel `toko`
 - Validasi `nomor_ulok` wajib sudah ada di master tabel `toko`
+- Validasi `id_toko` harus cocok dengan `nomor_ulok`
 - Simpan `kode_toko` ke tabel `toko` berdasarkan pasangan `nomor_ulok + lingkup_pekerjaan`
-- Cek duplikasi SPK aktif berdasarkan kombinasi `nomor_ulok + lingkup_pekerjaan`
-- Jika ditemukan data existing dengan kombinasi yang sama namun status `SPK_REJECTED`, sistem tidak membuat baris baru. Sistem akan meng-update baris rejected tersebut (status kembali ke `WAITING_FOR_BM_APPROVAL`) dan memperbarui field pengajuan dengan payload terbaru
+- Cek duplikasi SPK berdasarkan `id_toko` (1 data toko hanya boleh punya 1 SPK)
+- Jika untuk `id_toko` yang sama ditemukan data existing berstatus `SPK_REJECTED`, sistem tidak membuat baris baru. Sistem akan meng-update baris rejected tersebut (status kembali ke `WAITING_FOR_BM_APPROVAL`) dan memperbarui field pengajuan dengan payload terbaru
 - Hitung `waktu_selesai` dari `waktu_mulai + durasi - 1`
 - Hitung `terbilang` dari `grand_total`
 - Generate `nomor_spk` dengan format:
@@ -54,6 +56,7 @@ Membuat pengajuan SPK baru. Sistem akan:
 
 ```json
 {
+  "id_toko": 10,
   "nomor_ulok": "Z001-2512-TEST",
   "kode_toko": "ALF001",
   "email_pembuat": "koordinator@example.com",
@@ -73,6 +76,7 @@ Membuat pengajuan SPK baru. Sistem akan:
 
 | Field               | Aturan                                                             |
 | ------------------- | ------------------------------------------------------------------ |
+| `id_toko`           | wajib, integer > 0                                                 |
 | `nomor_ulok`        | wajib, string min 1                                                |
 | `kode_toko`         | wajib, string min 1                                                |
 | `email_pembuat`     | wajib, format email valid                                          |
@@ -94,6 +98,7 @@ Membuat pengajuan SPK baru. Sistem akan:
   "message": "Pengajuan SPK berhasil disimpan",
   "data": {
     "id": 12,
+    "id_toko": 10,
     "nomor_ulok": "Z001-2512-TEST",
     "email_pembuat": "koordinator@example.com",
     "lingkup_pekerjaan": "SIPIL",
@@ -120,11 +125,11 @@ Membuat pengajuan SPK baru. Sistem akan:
 
 ### Error Responses
 
-| Code | Kondisi                                                                                                |
-| ---- | ------------------------------------------------------------------------------------------------------ |
-| 404  | `nomor_ulok` tidak ditemukan di master `toko`                                                          |
-| 409  | SPK aktif (`WAITING_FOR_BM_APPROVAL`/`SPK_APPROVED`) dengan `nomor_ulok + lingkup_pekerjaan` sudah ada |
-| 422  | Validasi Zod gagal                                                                                     |
+| Code | Kondisi                                                                                |
+| ---- | -------------------------------------------------------------------------------------- |
+| 404  | `id_toko`/`nomor_ulok` tidak ditemukan di master `toko`                                |
+| 409  | `id_toko` tidak cocok dengan `nomor_ulok`, atau SPK untuk `id_toko` tersebut sudah ada |
+| 422  | Validasi Zod gagal                                                                     |
 
 ---
 
@@ -157,6 +162,7 @@ GET /api/spk?nomor_ulok=Z001-2512-TEST
   "data": [
     {
       "id": 12,
+      "id_toko": 10,
       "nomor_ulok": "Z001-2512-TEST",
       "email_pembuat": "koordinator@example.com",
       "lingkup_pekerjaan": "SIPIL",
@@ -178,6 +184,7 @@ GET /api/spk?nomor_ulok=Z001-2512-TEST
       "alasan_penolakan": null,
       "created_at": "2026-03-17T10:25:10.123Z",
       "toko": {
+        "id": 10,
         "nomor_ulok": "Z001-2512-TEST",
         "kode_toko": "ALF001",
         "nama_toko": "ALFAMART CONTOH",
@@ -195,7 +202,7 @@ GET /api/spk?nomor_ulok=Z001-2512-TEST
 
 **`GET /api/spk/:id`**
 
-Mengambil detail 1 pengajuan SPK beserta data toko (berdasarkan `nomor_ulok`) dan histori approval.
+Mengambil detail 1 pengajuan SPK beserta data toko (berdasarkan relasi `id_toko`) dan histori approval.
 
 ### Path Parameter
 
@@ -211,6 +218,7 @@ Mengambil detail 1 pengajuan SPK beserta data toko (berdasarkan `nomor_ulok`) da
   "data": {
     "pengajuan": {
       "id": 12,
+      "id_toko": 10,
       "nomor_ulok": "Z001-2512-TEST",
       "status": "WAITING_FOR_BM_APPROVAL",
       "nomor_spk": "001/PROPNDEV-Z001/III/2026",
