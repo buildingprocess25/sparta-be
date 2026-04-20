@@ -80,17 +80,46 @@ export const pengawasanRepository = {
         });
     },
 
-    async findById(id: string): Promise<PengawasanRow | null> {
-        const result = await pool.query<PengawasanRow>(
+    async findById(id: string): Promise<PengawasanRowWithBerkas | null> {
+        type RawRow = PengawasanRow & {
+            bp_id: number | null;
+            bp_id_pengawasan_gantt: number | null;
+            bp_link_pdf_pengawasan: string | null;
+            bp_created_at: string | null;
+        };
+
+        const result = await pool.query<RawRow>(
             `
-            SELECT id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, status, created_at
-            FROM pengawasan
-            WHERE id = $1
+            SELECT
+                p.id, p.id_gantt, p.id_pengawasan_gantt,
+                p.kategori_pekerjaan, p.jenis_pekerjaan,
+                p.catatan, p.dokumentasi, p.status, p.created_at,
+                bp.id AS bp_id,
+                bp.id_pengawasan_gantt AS bp_id_pengawasan_gantt,
+                bp.link_pdf_pengawasan AS bp_link_pdf_pengawasan,
+                bp.created_at AS bp_created_at
+            FROM pengawasan p
+            LEFT JOIN berkas_pengawasan bp ON bp.id_pengawasan_gantt = p.id_pengawasan_gantt
+            WHERE p.id = $1
             `,
             [id]
         );
 
-        return result.rows[0] ?? null;
+        const row = result.rows[0];
+        if (!row) return null;
+
+        const { bp_id, bp_id_pengawasan_gantt, bp_link_pdf_pengawasan, bp_created_at, ...pengawasan } = row;
+        return {
+            ...pengawasan,
+            berkas_pengawasan: bp_id !== null
+                ? {
+                    id: bp_id,
+                    id_pengawasan_gantt: bp_id_pengawasan_gantt!,
+                    link_pdf_pengawasan: bp_link_pdf_pengawasan,
+                    created_at: bp_created_at!
+                }
+                : null
+        };
     },
 
     async findAll(
