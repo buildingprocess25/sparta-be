@@ -32,6 +32,23 @@ Kolom sesuai relasi ke `gantt_chart`:
 - `status` (varchar: `progress` / `selesai` / `terlambat`)
 - `created_at` (timestamp)
 
+## Struktur Tabel `berkas_pengawasan`
+
+Tabel relasi 1-ke-1 dengan `pengawasan_gantt` untuk menyimpan link PDF laporan pengawasan:
+
+- `id` (PK)
+- `id_pengawasan_gantt` (FK -> `pengawasan_gantt.id`, UNIQUE)
+- `link_pdf_pengawasan` (varchar, nullable)
+- `created_at` (timestamp)
+
+**Catatan penting:**
+
+- Setiap kali ada create pengawasan (single atau bulk), sistem otomatis generate PDF laporan pengawasan yang berisi semua item pengawasan untuk `id_pengawasan_gantt` tersebut.
+- PDF diupload ke Google Drive, lalu linknya disimpan/ditimpa (upsert) ke tabel `berkas_pengawasan`.
+- Proses PDF generation berjalan secara **background (fire-and-forget)**, sehingga response create tetap cepat.
+- Jika ada request create baru untuk `id_pengawasan_gantt` yang sama, PDF akan di-generate ulang (file lama di Drive dihapus, diganti file baru).
+- Objek `berkas_pengawasan` ditampilkan di response endpoint **list** (`GET /`) dan **detail** (`GET /:id`).
+
 ---
 
 ## 1. Create Pengawasan (Single)
@@ -96,6 +113,8 @@ Catatan format tanggal:
   }
 }
 ```
+
+**Side-effect:** di background, sistem akan generate PDF laporan pengawasan dan menyimpan linknya ke tabel `berkas_pengawasan` (upsert berdasarkan `id_pengawasan_gantt`). PDF lama akan ditimpa jika sudah ada.
 
 ---
 
@@ -182,6 +201,8 @@ Hasilnya: hanya `items[2]` dan `items[6]` yang kolom `dokumentasi` terisi dari l
 }
 ```
 
+**Side-effect:** di background, sistem akan generate PDF laporan pengawasan untuk setiap `id_pengawasan_gantt` unik dan menyimpan linknya ke tabel `berkas_pengawasan` (upsert). PDF lama akan ditimpa jika sudah ada.
+
 ---
 
 ## 3. List Pengawasan
@@ -229,11 +250,22 @@ Catatan:
       "catatan": "Pekerjaan sudah selesai",
       "dokumentasi": "https://example.com/final-1.jpg",
       "status": "selesai",
-      "created_at": "2026-04-13T12:00:00.000Z"
+      "created_at": "2026-04-13T12:00:00.000Z",
+      "berkas_pengawasan": {
+        "id": 1,
+        "id_pengawasan_gantt": 77,
+        "link_pdf_pengawasan": "https://drive.google.com/file/d/abc123/view",
+        "created_at": "2026-04-13T12:00:05.000Z"
+      }
     }
   ]
 }
 ```
+
+Catatan:
+
+- Objek `berkas_pengawasan` ditampilkan di setiap item response berdasarkan `id_pengawasan_gantt`.
+- Jika PDF belum di-generate (misalnya masih proses background), nilai `berkas_pengawasan` adalah `null`.
 
 ---
 
@@ -255,10 +287,18 @@ Catatan:
     "catatan": "Pekerjaan sudah selesai",
     "dokumentasi": "https://example.com/final-1.jpg",
     "status": "selesai",
-    "created_at": "2026-04-13T12:00:00.000Z"
+    "created_at": "2026-04-13T12:00:00.000Z",
+    "berkas_pengawasan": {
+      "id": 1,
+      "id_pengawasan_gantt": 77,
+      "link_pdf_pengawasan": "https://drive.google.com/file/d/abc123/view",
+      "created_at": "2026-04-13T12:00:05.000Z"
+    }
   }
 }
 ```
+
+Catatan: jika PDF belum di-generate, nilai `berkas_pengawasan` adalah `null`.
 
 ---
 
