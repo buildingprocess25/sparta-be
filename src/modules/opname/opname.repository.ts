@@ -1,5 +1,6 @@
 import { pool, withTransaction } from "../../db/pool";
 import type {
+    CreateBulkOpnameItemData,
     CreateOpnameData,
     ListOpnameQueryInput,
     UpdateOpnameInput
@@ -8,6 +9,7 @@ import type {
 export type OpnameRow = {
     id: number;
     id_toko: number;
+    id_opname_final: number;
     id_rab_item: number;
     status: "pending" | "disetujui" | "ditolak";
     volume_akhir: number;
@@ -21,9 +23,28 @@ export type OpnameRow = {
     created_at: string;
 };
 
+export type OpnameFinalHeaderRow = {
+    id: number;
+    id_toko: number;
+    status_opname_final: string;
+    link_pdf_opname: string | null;
+    email_pembuat: string | null;
+    pemberi_persetujuan_direktur: string | null;
+    waktu_persetujuan_direktur: string | null;
+    pemberi_persetujuan_koordinator: string | null;
+    waktu_persetujuan_koordinator: string | null;
+    pemberi_persetujuan_manager: string | null;
+    waktu_persetujuan_manager: string | null;
+    alasan_penolakan: string | null;
+    grand_total_opname: string | null;
+    grand_total_rab: string | null;
+    created_at: string;
+};
+
 const returningColumns = `
     id,
     id_toko,
+    id_opname_final,
     id_rab_item,
     status,
     volume_akhir,
@@ -37,12 +58,31 @@ const returningColumns = `
     created_at
 `;
 
+const opnameFinalColumns = `
+    id,
+    id_toko,
+    status_opname_final,
+    link_pdf_opname,
+    email_pembuat,
+    pemberi_persetujuan_direktur,
+    waktu_persetujuan_direktur,
+    pemberi_persetujuan_koordinator,
+    waktu_persetujuan_koordinator,
+    pemberi_persetujuan_manager,
+    waktu_persetujuan_manager,
+    alasan_penolakan,
+    grand_total_opname,
+    grand_total_rab,
+    created_at
+`;
+
 export const opnameRepository = {
     async create(input: CreateOpnameData): Promise<OpnameRow> {
         const result = await pool.query<OpnameRow>(
             `
-            INSERT INTO opname (
+            INSERT INTO opname_item (
                 id_toko,
+                id_opname_final,
                 id_rab_item,
                 status,
                 volume_akhir,
@@ -54,11 +94,12 @@ export const opnameRepository = {
                 foto,
                 catatan
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             RETURNING ${returningColumns}
             `,
             [
                 input.id_toko,
+                input.id_opname_final,
                 input.id_rab_item,
                 input.status ?? "pending",
                 input.volume_akhir,
@@ -75,13 +116,31 @@ export const opnameRepository = {
         return result.rows[0];
     },
 
-    async createBulk(items: CreateOpnameData[]): Promise<OpnameRow[]> {
+    async createBulkWithFinal(payload: {
+        id_toko: number;
+        email_pembuat: string;
+        items: CreateBulkOpnameItemData[];
+    }): Promise<{ opnameFinal: OpnameFinalHeaderRow; items: OpnameRow[] }> {
         return withTransaction(async (client) => {
+            const finalResult = await client.query<OpnameFinalHeaderRow>(
+                `
+                INSERT INTO opname_final (
+                    id_toko,
+                    email_pembuat
+                )
+                VALUES ($1, $2)
+                RETURNING ${opnameFinalColumns}
+                `,
+                [payload.id_toko, payload.email_pembuat]
+            );
+
+            const opnameFinal = finalResult.rows[0];
             const values: Array<number | string | null> = [];
-            const placeholders = items.map((item, index) => {
-                const base = index * 11;
+            const placeholders = payload.items.map((item, index) => {
+                const base = index * 12;
                 values.push(
-                    item.id_toko,
+                    payload.id_toko,
+                    opnameFinal.id,
                     item.id_rab_item,
                     item.status ?? "pending",
                     item.volume_akhir,
@@ -93,13 +152,14 @@ export const opnameRepository = {
                     item.foto ?? null,
                     item.catatan ?? null
                 );
-                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11})`;
+                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12})`;
             });
 
             const result = await client.query<OpnameRow>(
                 `
-                INSERT INTO opname (
+                INSERT INTO opname_item (
                     id_toko,
+                    id_opname_final,
                     id_rab_item,
                     status,
                     volume_akhir,
@@ -117,7 +177,45 @@ export const opnameRepository = {
                 values
             );
 
-            return result.rows;
+            const totals = await client.query<{ grand_total_opname: string; grand_total_rab: string }>(
+                `
+                SELECT
+                    COALESCE(SUM(oi.total_selisih), 0)::text AS grand_total_opname,
+                    COALESCE(SUM(ri.total_harga), 0)::text AS grand_total_rab
+                FROM opname_item oi
+                JOIN rab_item ri ON ri.id = oi.id_rab_item
+                WHERE oi.id_opname_final = $1
+                `,
+                [opnameFinal.id]
+            );
+
+            await client.query(
+                `
+                UPDATE opname_final
+                SET grand_total_opname = $1,
+                    grand_total_rab = $2
+                WHERE id = $3
+                `,
+                [
+                    totals.rows[0]?.grand_total_opname ?? "0",
+                    totals.rows[0]?.grand_total_rab ?? "0",
+                    opnameFinal.id
+                ]
+            );
+
+            const refreshedFinal = await client.query<OpnameFinalHeaderRow>(
+                `
+                SELECT ${opnameFinalColumns}
+                FROM opname_final
+                WHERE id = $1
+                `,
+                [opnameFinal.id]
+            );
+
+            return {
+                opnameFinal: refreshedFinal.rows[0],
+                items: result.rows
+            };
         });
     },
 
@@ -125,7 +223,7 @@ export const opnameRepository = {
         const result = await pool.query<OpnameRow>(
             `
             SELECT ${returningColumns}
-            FROM opname
+            FROM opname_item
             WHERE id = $1
             `,
             [id]
@@ -143,6 +241,11 @@ export const opnameRepository = {
             conditions.push(`id_toko = $${values.length}`);
         }
 
+        if (typeof query.id_opname_final !== "undefined") {
+            values.push(query.id_opname_final);
+            conditions.push(`id_opname_final = $${values.length}`);
+        }
+
         if (typeof query.id_rab_item !== "undefined") {
             values.push(query.id_rab_item);
             conditions.push(`id_rab_item = $${values.length}`);
@@ -157,7 +260,7 @@ export const opnameRepository = {
         const result = await pool.query<OpnameRow>(
             `
             SELECT ${returningColumns}
-            FROM opname
+            FROM opname_item
             ${whereClause}
             ORDER BY id DESC
             `,
@@ -174,6 +277,11 @@ export const opnameRepository = {
         if (typeof input.id_toko !== "undefined") {
             values.push(input.id_toko);
             setClauses.push(`id_toko = $${values.length}`);
+        }
+
+        if (typeof input.id_opname_final !== "undefined") {
+            values.push(input.id_opname_final);
+            setClauses.push(`id_opname_final = $${values.length}`);
         }
 
         if (typeof input.id_rab_item !== "undefined") {
@@ -230,7 +338,7 @@ export const opnameRepository = {
 
         const result = await pool.query<OpnameRow>(
             `
-            UPDATE opname
+            UPDATE opname_item
             SET ${setClauses.join(", ")}
             WHERE id = $${values.length}
             RETURNING ${returningColumns}
@@ -243,7 +351,7 @@ export const opnameRepository = {
 
     async deleteById(id: string): Promise<boolean> {
         const result = await pool.query(
-            `DELETE FROM opname WHERE id = $1`,
+            `DELETE FROM opname_item WHERE id = $1`,
             [id]
         );
 

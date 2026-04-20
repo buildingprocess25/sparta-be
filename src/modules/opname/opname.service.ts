@@ -3,6 +3,8 @@ import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
 import { opnameRepository, type OpnameRow } from "./opname.repository";
 import type {
+    CreateBulkOpnameItemData,
+    CreateBulkOpnameItemInput,
     CreateOpnameData,
     CreateOpnameInput,
     ListOpnameQueryInput,
@@ -31,15 +33,19 @@ const toPgError = (error: unknown): PgError => {
 const mapPgError = (error: unknown): never => {
     const pgError = toPgError(error);
 
-    if (pgError.code === "23503" && pgError.constraint === "fk_opname_toko") {
+    if (pgError.code === "23503" && pgError.constraint === "fk_opname_item_toko") {
         throw new AppError("id_toko tidak ditemukan di tabel toko", 404);
     }
 
-    if (pgError.code === "23503" && pgError.constraint === "fk_opname_rab_item") {
+    if (pgError.code === "23503" && pgError.constraint === "fk_opname_item_rab_item") {
         throw new AppError("id_rab_item tidak ditemukan di tabel rab_item", 404);
     }
 
-    if (pgError.code === "23514" && pgError.constraint === "chk_opname_status") {
+    if (pgError.code === "23503" && pgError.constraint === "fk_opname_item_opname_final") {
+        throw new AppError("id_opname_final tidak ditemukan di tabel opname_final", 404);
+    }
+
+    if (pgError.code === "23514" && pgError.constraint === "chk_opname_item_status") {
         throw new AppError("status opname tidak valid (gunakan: pending, disetujui, ditolak)", 400);
     }
 
@@ -126,13 +132,32 @@ export const opnameService = {
     },
 
     async createBulk(
-        items: CreateOpnameInput[],
+        payload: {
+            id_toko: number;
+            email_pembuat: string;
+            items: CreateBulkOpnameItemInput[];
+        },
         uploadedFotoOpnameFiles: UploadedFotoOpnameFile[] = [],
         uploadedFotoOpnameIndexes?: number[]
-    ): Promise<OpnameRow[]> {
+    ): Promise<{ opname_final: { id: number; id_toko: number; status_opname_final: string }; items: OpnameRow[] }> {
         try {
+            const { id_toko: idToko, email_pembuat: emailPembuat, items } = payload;
+
             if (uploadedFotoOpnameFiles.length === 0) {
-                return await opnameRepository.createBulk(items);
+                const created = await opnameRepository.createBulkWithFinal({
+                    id_toko: idToko,
+                    email_pembuat: emailPembuat,
+                    items
+                });
+
+                return {
+                    opname_final: {
+                        id: created.opnameFinal.id,
+                        id_toko: created.opnameFinal.id_toko,
+                        status_opname_final: created.opnameFinal.status_opname_final
+                    },
+                    items: created.items
+                };
             }
 
             if (uploadedFotoOpnameIndexes && uploadedFotoOpnameIndexes.length > 0) {
@@ -144,7 +169,7 @@ export const opnameService = {
                 }
 
                 const usedIndexes = new Set<number>();
-                const payloadWithFoto: CreateOpnameData[] = items.map((item) => ({ ...item }));
+                const payloadWithFoto: CreateBulkOpnameItemData[] = items.map((item) => ({ ...item }));
 
                 for (let filePosition = 0; filePosition < uploadedFotoOpnameFiles.length; filePosition++) {
                     const itemIndex = uploadedFotoOpnameIndexes[filePosition];
@@ -163,15 +188,27 @@ export const opnameService = {
                     }
                     usedIndexes.add(itemIndex);
 
-                    const item = items[itemIndex];
-                    const fotoLink = await uploadFotoOpnameToDrive(item.id_toko, uploadedFotoOpnameFiles[filePosition]);
+                    const fotoLink = await uploadFotoOpnameToDrive(idToko, uploadedFotoOpnameFiles[filePosition]);
                     payloadWithFoto[itemIndex] = {
-                        ...item,
+                        ...items[itemIndex],
                         foto: fotoLink
                     };
                 }
 
-                return await opnameRepository.createBulk(payloadWithFoto);
+                const created = await opnameRepository.createBulkWithFinal({
+                    id_toko: idToko,
+                    email_pembuat: emailPembuat,
+                    items: payloadWithFoto
+                });
+
+                return {
+                    opname_final: {
+                        id: created.opnameFinal.id,
+                        id_toko: created.opnameFinal.id_toko,
+                        status_opname_final: created.opnameFinal.status_opname_final
+                    },
+                    items: created.items
+                };
             }
 
             if (uploadedFotoOpnameFiles.length !== 1 && uploadedFotoOpnameFiles.length !== items.length) {
@@ -181,7 +218,7 @@ export const opnameService = {
                 );
             }
 
-            const payloadWithFoto: CreateOpnameData[] = [];
+            const payloadWithFoto: CreateBulkOpnameItemData[] = [];
             for (let index = 0; index < items.length; index++) {
                 const item = items[index];
                 const file = uploadedFotoOpnameFiles.length === 1
@@ -193,14 +230,27 @@ export const opnameService = {
                     continue;
                 }
 
-                const fotoLink = await uploadFotoOpnameToDrive(item.id_toko, file);
+                const fotoLink = await uploadFotoOpnameToDrive(idToko, file);
                 payloadWithFoto.push({
                     ...item,
                     foto: fotoLink
                 });
             }
 
-            return await opnameRepository.createBulk(payloadWithFoto);
+            const created = await opnameRepository.createBulkWithFinal({
+                id_toko: idToko,
+                email_pembuat: emailPembuat,
+                items: payloadWithFoto
+            });
+
+            return {
+                opname_final: {
+                    id: created.opnameFinal.id,
+                    id_toko: created.opnameFinal.id_toko,
+                    status_opname_final: created.opnameFinal.status_opname_final
+                },
+                items: created.items
+            };
         } catch (error) {
             return mapPgError(error);
         }

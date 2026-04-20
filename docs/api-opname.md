@@ -1,4 +1,4 @@
-# Dokumentasi API Opname — sparta-api
+# Dokumentasi API Opname Item — sparta-api
 
 Base URL: `/api/opname`
 
@@ -6,23 +6,22 @@ Base URL: `/api/opname`
 
 ## Daftar Endpoint
 
-| #   | Method   | Path               | Deskripsi                         |
-| --- | -------- | ------------------ | --------------------------------- |
-| 1   | `POST`   | `/api/opname`      | Buat data opname (single)         |
-| 2   | `POST`   | `/api/opname/bulk` | Buat banyak data opname (bulk)    |
-| 3   | `GET`    | `/api/opname`      | List data opname (+ filter)       |
-| 4   | `GET`    | `/api/opname/:id`  | Detail data opname berdasarkan ID |
-| 5   | `PUT`    | `/api/opname/:id`  | Update data opname                |
-| 6   | `DELETE` | `/api/opname/:id`  | Hapus data opname                 |
+| #   | Method   | Path               | Deskripsi                                    |
+| --- | -------- | ------------------ | -------------------------------------------- |
+| 1   | `POST`   | `/api/opname`      | Buat data opname item (single)               |
+| 2   | `POST`   | `/api/opname/bulk` | Bulk create opname item + auto create header |
+| 3   | `GET`    | `/api/opname`      | List data opname item (+ filter)             |
+| 4   | `GET`    | `/api/opname/:id`  | Detail data opname item berdasarkan ID       |
+| 5   | `PUT`    | `/api/opname/:id`  | Update data opname item                      |
+| 6   | `DELETE` | `/api/opname/:id`  | Hapus data opname item                       |
 
 ---
 
-## Struktur Tabel `opname`
-
-Tabel `opname` sekarang punya dua relasi:
+## Struktur Tabel `opname_item`
 
 - `id` (PK)
 - `id_toko` (FK -> `toko.id`)
+- `id_opname_final` (FK -> `opname_final.id`)
 - `id_rab_item` (FK -> `rab_item.id`)
 - `status` (enum: `pending` | `disetujui` | `ditolak`, default `pending`)
 - `volume_akhir` (integer)
@@ -35,13 +34,9 @@ Tabel `opname` sekarang punya dua relasi:
 - `catatan` (varchar, nullable)
 - `created_at` (timestamp)
 
-Catatan:
-
-- Kolom `kategori_pekerjaan`, `jenis_pekerjaan`, `satuan`, `volume`, `harga_material`, `harga_upah` sudah dipindahkan sumbernya dari relasi `rab_item`.
-
 ---
 
-## 1. Create Opname (Single)
+## 1. Create Opname Item (Single)
 
 **`POST /api/opname`**
 
@@ -50,6 +45,7 @@ Catatan:
 ```json
 {
   "id_toko": 12,
+  "id_opname_final": 7,
   "id_rab_item": 120,
   "status": "pending",
   "volume_akhir": 95,
@@ -62,65 +58,31 @@ Catatan:
 }
 ```
 
-### Upload Foto Opname (multipart/form-data)
-
-Selain JSON biasa, endpoint ini juga menerima upload file:
+### Upload Foto (multipart/form-data)
 
 - field file: `file_foto_opname`
-- behavior: file diupload ke Google Drive, lalu link hasil upload otomatis disimpan ke `foto`
-
-### Validasi
-
-| Field            | Aturan                                             |
-| ---------------- | -------------------------------------------------- |
-| `id_toko`        | wajib, integer > 0                                 |
-| `id_rab_item`    | wajib, integer > 0                                 |
-| `status`         | opsional, enum (`pending`, `disetujui`, `ditolak`) |
-| `volume_akhir`   | wajib, integer                                     |
-| `selisih_volume` | wajib, integer                                     |
-| `total_selisih`  | wajib, integer                                     |
-| `desain`         | opsional, string min 1                             |
-| `kualitas`       | opsional, string min 1                             |
-| `spesifikasi`    | opsional, string min 1                             |
-| `catatan`        | opsional, string min 1                             |
-
-### Response — 201 Created
-
-```json
-{
-  "status": "success",
-  "message": "Data opname berhasil disimpan",
-  "data": {
-    "id": 1,
-    "id_toko": 12,
-    "id_rab_item": 120,
-    "status": "pending",
-    "volume_akhir": 95,
-    "selisih_volume": -5,
-    "total_selisih": -400000,
-    "desain": "Sesuai gambar kerja",
-    "kualitas": "A",
-    "spesifikasi": "Cat eksterior premium",
-    "foto": "https://drive.google.com/file/d/xxx/view",
-    "catatan": "Ada pengurangan volume di area belakang",
-    "created_at": "2026-04-14T08:00:00.000Z"
-  }
-}
-```
+- behavior: file diupload ke Google Drive dan link disimpan ke `foto`
 
 ---
 
-## 2. Create Opname (Bulk)
+## 2. Bulk Create Opname Item
 
 **`POST /api/opname/bulk`**
+
+Endpoint ini mengikuti flow:
+
+1. Insert 1 baris ke `opname_final` (header) dengan `id_toko` dan `email_pembuat`
+2. Ambil `id` hasil insert `opname_final`
+3. Insert seluruh item ke `opname_item` memakai `id_opname_final` tersebut
 
 ### Request Body
 
 ```json
 {
+  "id_toko": 12,
+  "email_pembuat": "user@example.com",
   "items": [
     {
-      "id_toko": 12,
       "id_rab_item": 120,
       "status": "pending",
       "volume_akhir": 95,
@@ -128,9 +90,8 @@ Selain JSON biasa, endpoint ini juga menerima upload file:
       "total_selisih": -400000
     },
     {
-      "id_toko": 12,
       "id_rab_item": 121,
-      "status": "disetujui",
+      "status": "pending",
       "volume_akhir": 52,
       "selisih_volume": 2,
       "total_selisih": 330000
@@ -139,81 +100,72 @@ Selain JSON biasa, endpoint ini juga menerima upload file:
 }
 ```
 
-### Upload Foto Opname (multipart/form-data)
+### Response Ringkas
 
-Endpoint bulk juga menerima upload file:
+```json
+{
+  "status": "success",
+  "message": "2 data opname berhasil disimpan",
+  "data": {
+    "opname_final": {
+      "id": 17,
+      "id_toko": 12,
+      "status_opname_final": "Menunggu Persetujuan Direktur"
+    },
+    "items": [
+      { "id": 201, "id_opname_final": 17 },
+      { "id": 202, "id_opname_final": 17 }
+    ]
+  }
+}
+```
+
+### Upload Foto Bulk (multipart/form-data)
 
 - field file: `file_foto_opname`
-- field body: `items` dikirim sebagai JSON string
-- field body opsional: `file_foto_opname_indexes` dikirim sebagai JSON string array index item
-- behavior:
-  - jika jumlah `file_foto_opname` = 1, link file tersebut dipakai untuk semua item
-  - jika jumlah `file_foto_opname` = jumlah item, tiap file dipetakan berdasarkan index item
-  - jika hanya sebagian item yang punya file, kirim `file_foto_opname_indexes` untuk mapping item tertentu
-  - link hasil upload otomatis disimpan ke kolom `foto`
+- field body: `items` sebagai JSON string
+- field body opsional: `file_foto_opname_indexes` sebagai JSON string array index item
+- behavior mapping:
+  - 1 file -> dipakai semua item
+  - jumlah file = jumlah item -> map per index
+  - sebagian item saja -> gunakan `file_foto_opname_indexes`
 
 ---
 
-## 3. List Opname
+## 3. List Opname Item
 
 **`GET /api/opname`**
 
 ### Query Parameters (opsional)
 
-| Parameter     | Tipe     | Deskripsi                   |
-| ------------- | -------- | --------------------------- |
-| `id_toko`     | `number` | Filter berdasarkan toko     |
-| `id_rab_item` | `number` | Filter berdasarkan rab_item |
-| `status`      | `string` | Filter status opname        |
+| Parameter         | Tipe     | Deskripsi                       |
+| ----------------- | -------- | ------------------------------- |
+| `id_toko`         | `number` | Filter berdasarkan toko         |
+| `id_opname_final` | `number` | Filter berdasarkan header final |
+| `id_rab_item`     | `number` | Filter berdasarkan rab_item     |
+| `status`          | `string` | Filter status item opname       |
 
 ---
 
-## 4. Detail Opname
+## 4. Detail Opname Item
 
 **`GET /api/opname/:id`**
 
 ---
 
-## 5. Update Opname
+## 5. Update Opname Item
 
 **`PUT /api/opname/:id`**
 
-### Request Body (contoh)
+Minimal salah satu field wajib diisi (`id_toko`, `id_opname_final`, `id_rab_item`, `status`, `volume_akhir`, `selisih_volume`, `total_selisih`, `desain`, `kualitas`, `spesifikasi`, `foto`, `catatan`).
 
-```json
-{
-  "status": "disetujui",
-  "volume_akhir": 98,
-  "selisih_volume": -2,
-  "total_selisih": -160000,
-  "catatan": "Revisi volume setelah ukur ulang"
-}
-```
-
-### Upload Revisi Foto Opname (multipart/form-data)
+Upload revisi foto:
 
 - field file: `rev_file_foto_opname`
-- opsional: jika tidak dikirim maka nilai `foto` tidak diubah
-
-### Validasi
-
-Minimal salah satu field berikut harus diisi:
-
-- `id_rab_item`
-- `id_toko`
-- `status` (`pending` / `disetujui` / `ditolak`)
-- `volume_akhir`
-- `selisih_volume`
-- `total_selisih`
-- `desain`
-- `kualitas`
-- `spesifikasi`
-- `foto`
-- `catatan`
 
 ---
 
-## 6. Delete Opname
+## 6. Delete Opname Item
 
 **`DELETE /api/opname/:id`**
 
@@ -221,11 +173,8 @@ Minimal salah satu field berikut harus diisi:
 
 ## Error Responses
 
-| Code | Kondisi                                     |
-| ---- | ------------------------------------------- |
-| 400  | Format payload bulk tidak valid             |
-| 400  | `status` opname tidak valid                 |
-| 404  | Data opname tidak ditemukan                 |
-| 404  | `id_toko` tidak ditemukan di `toko`         |
-| 404  | `id_rab_item` tidak ditemukan di `rab_item` |
-| 422  | Validasi request gagal (Zod)                |
+| Code | Kondisi                                                 |
+| ---- | ------------------------------------------------------- |
+| 400  | Format payload bulk / status tidak valid                |
+| 404  | Data opname item / relasi FK (`id_toko`, dll) tidak ada |
+| 422  | Validasi request gagal (Zod)                            |

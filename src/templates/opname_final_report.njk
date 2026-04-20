@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    @page {
+      size: A4;
+      margin: 18mm 14mm;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 11px;
+      color: #1f2937;
+      margin: 0;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 12px;
+    }
+
+    .title {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .subtitle {
+      margin: 4px 0 0;
+      color: #4b5563;
+    }
+
+    .meta {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 12px;
+    }
+
+    .meta td {
+      border: 1px solid #c7cbd1;
+      padding: 6px 8px;
+      vertical-align: top;
+    }
+
+    .meta .label {
+      width: 170px;
+      font-weight: 600;
+      background: #f6f8fb;
+    }
+
+    .items {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+    }
+
+    .items th,
+    .items td {
+      border: 1px solid #aeb4bc;
+      padding: 5px 6px;
+      vertical-align: top;
+      font-size: 10px;
+    }
+
+    .items th {
+      background: #1f4e78;
+      color: #ffffff;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .num {
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .center {
+      text-align: center;
+    }
+
+    .summary {
+      margin-top: 10px;
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .summary td {
+      border: 1px solid #c7cbd1;
+      padding: 6px 8px;
+    }
+
+    .summary .label {
+      width: 220px;
+      background: #f6f8fb;
+      font-weight: 600;
+    }
+
+    .footer {
+      margin-top: 14px;
+      font-size: 10px;
+      color: #6b7280;
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1 class="title">Laporan Opname Final</h1>
+    <p class="subtitle">Status: {{ opname_final.status_opname_final }}</p>
+  </div>
+
+  <table class="meta">
+    <tr>
+      <td class="label">ID Opname Final</td>
+      <td>{{ opname_final.id }}</td>
+      <td class="label">Tanggal Dokumen</td>
+      <td>{{ created_at_formatted }}</td>
+    </tr>
+    <tr>
+      <td class="label">Nomor ULOK</td>
+      <td>{{ toko.nomor_ulok }}</td>
+      <td class="label">Nama Toko</td>
+      <td>{{ toko.nama_toko or '-' }}</td>
+    </tr>
+    <tr>
+      <td class="label">Proyek</td>
+      <td>{{ toko.proyek or '-' }}</td>
+      <td class="label">Cabang</td>
+      <td>{{ toko.cabang or '-' }}</td>
+    </tr>
+    <tr>
+      <td class="label">Email Pembuat</td>
+      <td>{{ opname_final.email_pembuat or '-' }}</td>
+      <td class="label">Alasan Penolakan</td>
+      <td>{{ opname_final.alasan_penolakan or '-' }}</td>
+    </tr>
+  </table>
+
+  <table class="items">
+    <thead>
+      <tr>
+        <th style="width:28px">No</th>
+        <th>Kategori</th>
+        <th>Jenis Pekerjaan</th>
+        <th class="center" style="width:65px">Volume RAB</th>
+        <th class="center" style="width:65px">Volume Akhir</th>
+        <th class="center" style="width:65px">Selisih Vol</th>
+        <th class="num" style="width:85px">Total RAB</th>
+        <th class="num" style="width:85px">Total Opname</th>
+        <th style="width:80px">Status</th>
+        <th>Catatan</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+      <tr>
+        <td class="center">{{ loop.index }}</td>
+        <td>{{ item.kategori_pekerjaan or '-' }}</td>
+        <td>{{ item.jenis_pekerjaan or '-' }}</td>
+        <td class="center">{{ item.volume_rab or 0 }}</td>
+        <td class="center">{{ item.volume_akhir }}</td>
+        <td class="center">{{ item.selisih_volume }}</td>
+        <td class="num">{{ item.total_harga_rab_formatted }}</td>
+        <td class="num">{{ item.total_selisih_formatted }}</td>
+        <td>{{ item.status }}</td>
+        <td>{{ item.catatan or '-' }}</td>
+      </tr>
+      {% endfor %}
+      {% if items.length === 0 %}
+      <tr>
+        <td colspan="10" class="center">Belum ada item opname.</td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
+
+  <table class="summary">
+    <tr>
+      <td class="label">Grand Total Opname</td>
+      <td class="num">{{ grand_total_opname_formatted }}</td>
+    </tr>
+    <tr>
+      <td class="label">Grand Total RAB</td>
+      <td class="num">{{ grand_total_rab_formatted }}</td>
+    </tr>
+    <tr>
+      <td class="label">Selisih Total</td>
+      <td class="num">{{ selisih_total_formatted }}</td>
+    </tr>
+  </table>
+
+  <div class="footer">
+    Digenerate otomatis oleh sistem SPARTA pada {{ generated_at }}
+  </div>
+</body>
+</html>

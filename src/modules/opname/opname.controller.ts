@@ -71,7 +71,7 @@ export const createBulkOpname = asyncHandler(async (req: Request, res: Response)
         ...req.body,
         items: parsedItems
     };
-    const { items } = bulkCreateOpnameSchema.parse(payloadCandidate);
+    const { id_toko, email_pembuat, items } = bulkCreateOpnameSchema.parse(payloadCandidate);
 
     let parsedFotoIndexes = req.body.file_foto_opname_indexes;
     if (typeof req.body.file_foto_opname_indexes === "string") {
@@ -101,11 +101,15 @@ export const createBulkOpname = asyncHandler(async (req: Request, res: Response)
 
     const uploadedFiles = req.files as UploadedFilesMap | undefined;
     const uploadedFotoOpnameFiles = getUploadedFiles(uploadedFiles, "file_foto_opname");
-    const data = await opnameService.createBulk(items, uploadedFotoOpnameFiles, fotoIndexes);
+    const data = await opnameService.createBulk(
+        { id_toko, email_pembuat, items },
+        uploadedFotoOpnameFiles,
+        fotoIndexes
+    );
 
     res.status(201).json({
         status: "success",
-        message: `${data.length} data opname berhasil disimpan`,
+        message: `${data.items.length} data opname berhasil disimpan`,
         data
     });
 });

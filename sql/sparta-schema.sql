@@ -276,10 +276,47 @@ BEGIN
     END IF;
 END $$;
 
--- 8b) OPNAME (relasi ke tabel toko dan rab_item)
-CREATE TABLE IF NOT EXISTS opname (
+-- 8b) OPNAME_FINAL (header approval untuk hasil opname)
+CREATE TABLE IF NOT EXISTS opname_final (
     id SERIAL PRIMARY KEY,
     id_toko INT NOT NULL,
+    status_opname_final VARCHAR(255) NOT NULL DEFAULT 'Menunggu Persetujuan Direktur',
+    link_pdf_opname VARCHAR(500),
+    email_pembuat VARCHAR(255),
+    pemberi_persetujuan_direktur VARCHAR(255),
+    waktu_persetujuan_direktur VARCHAR(255),
+    pemberi_persetujuan_koordinator VARCHAR(255),
+    waktu_persetujuan_koordinator VARCHAR(255),
+    pemberi_persetujuan_manager VARCHAR(255),
+    waktu_persetujuan_manager VARCHAR(255),
+    alasan_penolakan VARCHAR(255),
+    grand_total_opname VARCHAR(255),
+    grand_total_rab VARCHAR(255),
+    created_at TIMESTAMP NOT NULL DEFAULT timezone('Asia/Jakarta', now()),
+    CONSTRAINT fk_opname_final_toko FOREIGN KEY (id_toko) REFERENCES toko(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_opname_final_id_toko ON opname_final(id_toko);
+CREATE INDEX IF NOT EXISTS idx_opname_final_status ON opname_final(status_opname_final);
+
+-- 8c) OPNAME_ITEM (rename dari tabel opname lama)
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_name = 'opname'
+    ) AND NOT EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_name = 'opname_item'
+    ) THEN
+        ALTER TABLE opname RENAME TO opname_item;
+    END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS opname_item (
+    id SERIAL PRIMARY KEY,
+    id_toko INT NOT NULL,
+    id_opname_final INT NOT NULL,
     id_rab_item INT NOT NULL,
     status VARCHAR(50) NOT NULL DEFAULT 'pending',
     volume_akhir INTEGER NOT NULL,
@@ -291,17 +328,20 @@ CREATE TABLE IF NOT EXISTS opname (
     foto VARCHAR(500),
     catatan VARCHAR(500),
     created_at TIMESTAMP NOT NULL DEFAULT timezone('Asia/Jakarta', now()),
-    CONSTRAINT fk_opname_toko FOREIGN KEY (id_toko) REFERENCES toko(id) ON DELETE CASCADE,
-    CONSTRAINT fk_opname_rab_item FOREIGN KEY (id_rab_item) REFERENCES rab_item(id) ON DELETE CASCADE,
-    CONSTRAINT chk_opname_status CHECK (status IN ('pending', 'disetujui', 'ditolak'))
+    CONSTRAINT fk_opname_item_toko FOREIGN KEY (id_toko) REFERENCES toko(id) ON DELETE CASCADE,
+    CONSTRAINT fk_opname_item_opname_final FOREIGN KEY (id_opname_final) REFERENCES opname_final(id) ON DELETE CASCADE,
+    CONSTRAINT fk_opname_item_rab_item FOREIGN KEY (id_rab_item) REFERENCES rab_item(id) ON DELETE CASCADE,
+    CONSTRAINT chk_opname_item_status CHECK (status IN ('pending', 'disetujui', 'ditolak'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_opname_id_toko ON opname(id_toko);
-CREATE INDEX IF NOT EXISTS idx_opname_id_rab_item ON opname(id_rab_item);
+CREATE INDEX IF NOT EXISTS idx_opname_item_id_toko ON opname_item(id_toko);
+CREATE INDEX IF NOT EXISTS idx_opname_item_id_opname_final ON opname_item(id_opname_final);
+CREATE INDEX IF NOT EXISTS idx_opname_item_id_rab_item ON opname_item(id_rab_item);
 
--- Migration safety untuk environment yang tabelnya sudah ada tetapi belum lengkap.
-ALTER TABLE opname
+-- Migration safety untuk environment lama (dari tabel opname lama).
+ALTER TABLE opname_item
     ADD COLUMN IF NOT EXISTS id_toko INT,
+    ADD COLUMN IF NOT EXISTS id_opname_final INT,
     ADD COLUMN IF NOT EXISTS id_rab_item INT,
     ADD COLUMN IF NOT EXISTS status VARCHAR(50),
     ADD COLUMN IF NOT EXISTS volume_akhir INTEGER,
@@ -316,37 +356,97 @@ ALTER TABLE opname
 
 DO $$
 BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'opname_item'
+          AND column_name = 'id_opname_final'
+    ) THEN
+        ALTER TABLE opname_item
+        ADD COLUMN id_opname_final INT;
+    END IF;
+
+    -- Backfill header opname_final jika kolom id_opname_final belum terisi.
+    INSERT INTO opname_final (id_toko, status_opname_final, email_pembuat, created_at)
+    SELECT DISTINCT oi.id_toko,
+        'Menunggu Persetujuan Direktur',
+        NULL,
+        timezone('Asia/Jakarta', now())
+    FROM opname_item oi
+        WHERE oi.id_opname_final IS NULL
+            AND oi.id_toko IS NOT NULL;
+
+    UPDATE opname_item oi
+    SET id_opname_final = ofn.id
+    FROM opname_final ofn
+    WHERE oi.id_opname_final IS NULL
+      AND ofn.id_toko = oi.id_toko
+      AND ofn.status_opname_final = 'Menunggu Persetujuan Direktur';
+
     IF EXISTS (
         SELECT 1
         FROM information_schema.table_constraints
         WHERE constraint_name = 'fk_opname_toko'
-          AND table_name = 'opname'
+          AND table_name = 'opname_item'
     ) THEN
-        ALTER TABLE opname
-        DROP CONSTRAINT fk_opname_toko;
+        ALTER TABLE opname_item DROP CONSTRAINT fk_opname_toko;
     END IF;
 
     IF EXISTS (
         SELECT 1
         FROM information_schema.table_constraints
         WHERE constraint_name = 'fk_opname_rab_item'
-          AND table_name = 'opname'
+          AND table_name = 'opname_item'
     ) THEN
-        ALTER TABLE opname
-        DROP CONSTRAINT fk_opname_rab_item;
+        ALTER TABLE opname_item DROP CONSTRAINT fk_opname_rab_item;
     END IF;
 
     IF EXISTS (
         SELECT 1
         FROM information_schema.table_constraints
         WHERE constraint_name = 'chk_opname_status'
-          AND table_name = 'opname'
+          AND table_name = 'opname_item'
     ) THEN
-        ALTER TABLE opname
-        DROP CONSTRAINT chk_opname_status;
+        ALTER TABLE opname_item DROP CONSTRAINT chk_opname_status;
     END IF;
 
-    ALTER TABLE opname
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.table_constraints
+        WHERE constraint_name = 'fk_opname_item_toko'
+          AND table_name = 'opname_item'
+    ) THEN
+        ALTER TABLE opname_item DROP CONSTRAINT fk_opname_item_toko;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.table_constraints
+        WHERE constraint_name = 'fk_opname_item_opname_final'
+          AND table_name = 'opname_item'
+    ) THEN
+        ALTER TABLE opname_item DROP CONSTRAINT fk_opname_item_opname_final;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.table_constraints
+        WHERE constraint_name = 'fk_opname_item_rab_item'
+          AND table_name = 'opname_item'
+    ) THEN
+        ALTER TABLE opname_item DROP CONSTRAINT fk_opname_item_rab_item;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.table_constraints
+        WHERE constraint_name = 'chk_opname_item_status'
+          AND table_name = 'opname_item'
+    ) THEN
+        ALTER TABLE opname_item DROP CONSTRAINT chk_opname_item_status;
+    END IF;
+
+    ALTER TABLE opname_item
         DROP COLUMN IF EXISTS kategori_pekerjaan,
         DROP COLUMN IF EXISTS jenis_pekerjaan,
         DROP COLUMN IF EXISTS satuan,
@@ -354,45 +454,43 @@ BEGIN
         DROP COLUMN IF EXISTS harga_material,
         DROP COLUMN IF EXISTS harga_upah;
 
-    ALTER TABLE opname
-        ADD CONSTRAINT fk_opname_toko
-        FOREIGN KEY (id_toko) REFERENCES toko(id) ON DELETE CASCADE;
-
-    IF NOT EXISTS (
-        SELECT 1
-        FROM information_schema.table_constraints
-        WHERE constraint_name = 'fk_opname_rab_item'
-          AND table_name = 'opname'
-    ) THEN
-        ALTER TABLE opname
-        ADD CONSTRAINT fk_opname_rab_item
-        FOREIGN KEY (id_rab_item) REFERENCES rab_item(id) ON DELETE CASCADE;
-    END IF;
-
-    ALTER TABLE opname
-        ALTER COLUMN status SET DEFAULT 'pending';
-
-    UPDATE opname
+    UPDATE opname_item
     SET status = 'pending'
     WHERE status IS NULL OR status = 'progress';
 
-    UPDATE opname
+    UPDATE opname_item
     SET status = 'disetujui'
     WHERE status = 'selesai';
 
-    UPDATE opname
+    UPDATE opname_item
     SET status = 'ditolak'
     WHERE status = 'terlambat';
 
-    UPDATE opname
+    UPDATE opname_item
     SET status = 'pending'
     WHERE status IS NULL OR status NOT IN ('pending', 'disetujui', 'ditolak');
 
-    ALTER TABLE opname
-        ALTER COLUMN status SET NOT NULL;
+    ALTER TABLE opname_item
+        ALTER COLUMN status SET DEFAULT 'pending',
+        ALTER COLUMN status SET NOT NULL,
+        ALTER COLUMN id_toko SET NOT NULL,
+        ALTER COLUMN id_opname_final SET NOT NULL,
+        ALTER COLUMN id_rab_item SET NOT NULL;
 
-    ALTER TABLE opname
-        ADD CONSTRAINT chk_opname_status
+    ALTER TABLE opname_item
+        ADD CONSTRAINT fk_opname_item_toko
+        FOREIGN KEY (id_toko) REFERENCES toko(id) ON DELETE CASCADE;
+
+    ALTER TABLE opname_item
+        ADD CONSTRAINT fk_opname_item_opname_final
+        FOREIGN KEY (id_opname_final) REFERENCES opname_final(id) ON DELETE CASCADE;
+
+    ALTER TABLE opname_item
+        ADD CONSTRAINT fk_opname_item_rab_item
+        FOREIGN KEY (id_rab_item) REFERENCES rab_item(id) ON DELETE CASCADE;
+
+    ALTER TABLE opname_item
+        ADD CONSTRAINT chk_opname_item_status
         CHECK (status IN ('pending', 'disetujui', 'ditolak'));
 END $$;
 
