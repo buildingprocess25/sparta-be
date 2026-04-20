@@ -1,6 +1,6 @@
 # Sparta API (Node.js + TypeScript)
 
-Service ini khusus untuk alur **RAB utama** (bukan RAB kedua), dengan PostgreSQL sebagai sumber data.
+Service ini khusus untuk alur **RAB utama** (bukan RAB kedua), dengan PostgreSQL sebagai sumber data..
 
 ## Fitur
 
