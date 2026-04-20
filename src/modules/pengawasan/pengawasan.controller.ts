@@ -3,6 +3,7 @@ import { AppError } from "../../common/app-error";
 import { asyncHandler } from "../../common/async-handler";
 import { GoogleProvider } from "../../common/google";
 import {
+    bulkUpdatePengawasanSchema,
     bulkCreatePengawasanSchema,
     createPengawasanSchema,
     listPengawasanQuerySchema,
@@ -123,14 +124,72 @@ export const getPengawasanById = asyncHandler(async (req: Request, res: Response
 });
 
 export const updatePengawasan = asyncHandler(async (req: Request, res: Response) => {
-    const payload = updatePengawasanSchema.parse(req.body);
     const uploadedFiles = req.files as UploadedFilesMap | undefined;
     const uploadedDokumentasi = getUploadedFile(uploadedFiles, "rev_file_dokumentasi");
+    const payload = updatePengawasanSchema.parse(req.body);
+
+    if (Object.keys(payload).length === 0 && !uploadedDokumentasi) {
+        throw new AppError("Minimal satu field harus diisi untuk update atau kirim rev_file_dokumentasi", 400);
+    }
+
     const data = await pengawasanService.update(req.params.id, payload, uploadedDokumentasi);
 
     res.json({
         status: "success",
         message: "Data pengawasan berhasil diperbarui",
+        data
+    });
+});
+
+export const updateBulkPengawasan = asyncHandler(async (req: Request, res: Response) => {
+    let parsedItems = req.body.items;
+    if (typeof req.body.items === "string") {
+        try {
+            parsedItems = JSON.parse(req.body.items);
+        } catch {
+            throw new AppError("Format items tidak valid. Untuk multipart/form-data kirim items sebagai JSON string.", 400);
+        }
+    }
+
+    const payloadCandidate = {
+        ...req.body,
+        items: parsedItems
+    };
+    const { items } = bulkUpdatePengawasanSchema.parse(payloadCandidate);
+
+    let parsedDokumentasiIndexes = req.body.rev_file_dokumentasi_indexes;
+    if (typeof req.body.rev_file_dokumentasi_indexes === "string") {
+        try {
+            parsedDokumentasiIndexes = JSON.parse(req.body.rev_file_dokumentasi_indexes);
+        } catch {
+            throw new AppError(
+                "Format rev_file_dokumentasi_indexes tidak valid. Untuk multipart/form-data kirim sebagai JSON string array index.",
+                400
+            );
+        }
+    }
+
+    if (typeof parsedDokumentasiIndexes !== "undefined" && !Array.isArray(parsedDokumentasiIndexes)) {
+        throw new AppError("rev_file_dokumentasi_indexes harus berupa array index", 400);
+    }
+
+    const dokumentasiIndexes = Array.isArray(parsedDokumentasiIndexes)
+        ? parsedDokumentasiIndexes.map((value, index) => {
+            const numberValue = Number(value);
+            if (!Number.isInteger(numberValue) || numberValue < 0) {
+                throw new AppError(`rev_file_dokumentasi_indexes[${index}] harus integer >= 0`, 400);
+            }
+            return numberValue;
+        })
+        : undefined;
+
+    const uploadedFiles = req.files as UploadedFilesMap | undefined;
+    const uploadedDokumentasiFiles = getUploadedFiles(uploadedFiles, "rev_file_dokumentasi");
+    const data = await pengawasanService.updateBulk(items, uploadedDokumentasiFiles, dokumentasiIndexes);
+
+    res.json({
+        status: "success",
+        message: `${data.length} data pengawasan berhasil diperbarui`,
         data
     });
 });

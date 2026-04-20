@@ -3,6 +3,7 @@ import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
 import { pengawasanRepository, type PengawasanRow } from "./pengawasan.repository";
 import type {
+    BulkUpdatePengawasanItemInput,
     CreatePengawasanData,
     CreatePengawasanInput,
     ListPengawasanQueryInput,
@@ -142,6 +143,13 @@ const resolvePengawasanGanttId = async (
 
     return pengawasanGanttId;
 };
+
+const hasAnyUpdateField = (input: UpdatePengawasanInput): boolean =>
+    typeof input.kategori_pekerjaan !== "undefined"
+    || typeof input.jenis_pekerjaan !== "undefined"
+    || typeof input.catatan !== "undefined"
+    || typeof input.dokumentasi !== "undefined"
+    || typeof input.status !== "undefined";
 
 export const pengawasanService = {
     async create(
@@ -310,6 +318,10 @@ export const pengawasanService = {
         uploadedDokumentasi?: UploadedDokumentasiFile
     ): Promise<PengawasanRow> {
         try {
+            if (!hasAnyUpdateField(input) && !uploadedDokumentasi) {
+                throw new AppError("Minimal satu field harus diisi untuk update atau kirim rev_file_dokumentasi", 400);
+            }
+
             const existing = await pengawasanRepository.findById(id);
             if (!existing) {
                 throw new AppError("Data pengawasan tidak ditemukan", 404);
@@ -329,6 +341,109 @@ export const pengawasanService = {
             }
 
             return data;
+        } catch (error) {
+            if (error instanceof AppError) {
+                throw error;
+            }
+
+            return mapPgError(error);
+        }
+    },
+
+    async updateBulk(
+        items: BulkUpdatePengawasanItemInput[],
+        uploadedDokumentasiFiles: UploadedDokumentasiFile[] = [],
+        uploadedDokumentasiIndexes?: number[]
+    ): Promise<PengawasanRow[]> {
+        try {
+            const fileByItemIndex = new Map<number, UploadedDokumentasiFile>();
+
+            if (uploadedDokumentasiFiles.length > 0) {
+                if (uploadedDokumentasiIndexes && uploadedDokumentasiIndexes.length > 0) {
+                    if (uploadedDokumentasiIndexes.length !== uploadedDokumentasiFiles.length) {
+                        throw new AppError(
+                            "Jumlah rev_file_dokumentasi_indexes harus sama dengan jumlah rev_file_dokumentasi",
+                            400
+                        );
+                    }
+
+                    const usedIndexes = new Set<number>();
+                    for (let filePosition = 0; filePosition < uploadedDokumentasiFiles.length; filePosition++) {
+                        const itemIndex = uploadedDokumentasiIndexes[filePosition];
+                        if (itemIndex < 0 || itemIndex >= items.length) {
+                            throw new AppError(
+                                `rev_file_dokumentasi_indexes[${filePosition}] di luar range items (0-${items.length - 1})`,
+                                400
+                            );
+                        }
+
+                        if (usedIndexes.has(itemIndex)) {
+                            throw new AppError(
+                                `rev_file_dokumentasi_indexes tidak boleh duplikat (duplikat di index item ${itemIndex})`,
+                                400
+                            );
+                        }
+
+                        usedIndexes.add(itemIndex);
+                        fileByItemIndex.set(itemIndex, uploadedDokumentasiFiles[filePosition]);
+                    }
+                } else {
+                    if (uploadedDokumentasiFiles.length !== items.length) {
+                        throw new AppError(
+                            "Jumlah rev_file_dokumentasi harus sama dengan jumlah items, atau kirim rev_file_dokumentasi_indexes untuk mapping item tertentu",
+                            400
+                        );
+                    }
+
+                    uploadedDokumentasiFiles.forEach((file, index) => {
+                        fileByItemIndex.set(index, file);
+                    });
+                }
+            }
+
+            const usedIds = new Set<number>();
+            const updatedRows: PengawasanRow[] = [];
+
+            for (let index = 0; index < items.length; index++) {
+                const item = items[index];
+                if (usedIds.has(item.id)) {
+                    throw new AppError(`id duplikat ditemukan pada items[${index}] (id=${item.id})`, 400);
+                }
+                usedIds.add(item.id);
+
+                const { id, ...rawPayload } = item;
+                const payload: UpdatePengawasanInput = rawPayload;
+                const uploadedDokumentasi = fileByItemIndex.get(index);
+
+                if (!hasAnyUpdateField(payload) && !uploadedDokumentasi) {
+                    throw new AppError(
+                        `Minimal satu field update atau rev_file_dokumentasi wajib diisi pada items[${index}]`,
+                        400
+                    );
+                }
+
+                const existing = await pengawasanRepository.findById(String(id));
+                if (!existing) {
+                    throw new AppError(`Data pengawasan tidak ditemukan pada items[${index}] (id=${id})`, 404);
+                }
+
+                const dokumentasiLink = uploadedDokumentasi
+                    ? await uploadDokumentasiToDrive(existing.id_gantt, uploadedDokumentasi)
+                    : undefined;
+
+                const finalPayload = dokumentasiLink
+                    ? { ...payload, dokumentasi: dokumentasiLink }
+                    : payload;
+
+                const data = await pengawasanRepository.updateById(String(id), finalPayload);
+                if (!data) {
+                    throw new AppError(`Data pengawasan tidak ditemukan pada items[${index}] (id=${id})`, 404);
+                }
+
+                updatedRows.push(data);
+            }
+
+            return updatedRows;
         } catch (error) {
             if (error instanceof AppError) {
                 throw error;

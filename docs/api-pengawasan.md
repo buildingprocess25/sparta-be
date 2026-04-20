@@ -13,7 +13,8 @@ Base URL: `/api/pengawasan`
 | 3   | `GET`    | `/api/pengawasan`      | List data pengawasan (+ filter)       |
 | 4   | `GET`    | `/api/pengawasan/:id`  | Detail data pengawasan berdasarkan ID |
 | 5   | `PUT`    | `/api/pengawasan/:id`  | Update data pengawasan                |
-| 6   | `DELETE` | `/api/pengawasan/:id`  | Hapus data pengawasan                 |
+| 6   | `PUT`    | `/api/pengawasan/bulk` | Update banyak data pengawasan (bulk)  |
+| 7   | `DELETE` | `/api/pengawasan/:id`  | Hapus data pengawasan                 |
 
 ---
 
@@ -293,6 +294,20 @@ Minimal salah satu field berikut harus diisi:
 - `dokumentasi`
 - `status`
 
+Jika update via multipart hanya kirim `rev_file_dokumentasi` tanpa field body lain, tetap valid dan hanya kolom `dokumentasi` yang diupdate.
+
+Partial update:
+
+- jika kirim hanya `status`, maka hanya kolom `status` yang diupdate
+- jika kirim hanya `catatan`, maka hanya kolom `catatan` yang diupdate
+- jika kirim `catatan` + `status`, hanya 2 kolom itu yang diupdate
+- kolom lain yang tidak dikirim tetap menggunakan nilai lama
+
+Catatan upload revisi dokumentasi:
+
+- jika `rev_file_dokumentasi` dikirim, file diupload ke Google Drive lalu `dokumentasi` diisi link baru
+- jika `rev_file_dokumentasi` tidak dikirim, `dokumentasi` lama tetap di database
+
 ### Response — 200 OK
 
 ```json
@@ -314,7 +329,93 @@ Minimal salah satu field berikut harus diisi:
 
 ---
 
-## 6. Delete Pengawasan
+## 6. Update Pengawasan (Bulk)
+
+**`PUT /api/pengawasan/bulk`**
+
+### Request Body (JSON)
+
+```json
+{
+  "items": [
+    {
+      "id": 12,
+      "status": "progress"
+    },
+    {
+      "id": 13,
+      "catatan": "Update progress mingguan",
+      "status": "selesai"
+    }
+  ]
+}
+```
+
+Catatan:
+
+- setiap item wajib punya `id`
+- setiap item diupdate berdasarkan `id` di body
+- update bersifat partial per item (hanya field yang dikirim yang diupdate)
+- field yang tidak dikirim tetap menggunakan nilai lama
+
+### Upload Revisi Dokumentasi (multipart/form-data)
+
+Untuk update bulk dengan file revisi dokumentasi:
+
+- field body: `items` dikirim sebagai JSON string
+- field file: `rev_file_dokumentasi` (bisa banyak file)
+- field body opsional: `rev_file_dokumentasi_indexes` sebagai JSON string array index item
+
+Behavior mapping file:
+
+- jika kirim `rev_file_dokumentasi_indexes`, tiap file dipetakan ke item index tertentu
+- jika tidak kirim `rev_file_dokumentasi_indexes`, jumlah file harus sama dengan jumlah item dan dipetakan 1:1 sesuai urutan index
+- jika item tidak dapat file revisi dan tidak ada `dokumentasi` di body, nilai dokumentasi lama tetap
+
+Contoh sparse mapping:
+
+- `items`: total 3 item
+- `rev_file_dokumentasi`: 2 file
+- `rev_file_dokumentasi_indexes`: `[0,2]`
+
+Hasilnya: hanya `items[0]` dan `items[2]` yang kolom `dokumentasi` diupdate dari file upload.
+
+### Response — 200 OK
+
+```json
+{
+  "status": "success",
+  "message": "2 data pengawasan berhasil diperbarui",
+  "data": [
+    {
+      "id": 12,
+      "id_gantt": 10,
+      "id_pengawasan_gantt": 77,
+      "kategori_pekerjaan": "PEKERJAAN ELEKTRIKAL",
+      "jenis_pekerjaan": "INSTALASI PANEL",
+      "catatan": "Update progress mingguan",
+      "dokumentasi": "https://example.com/progress-terbaru.jpg",
+      "status": "progress",
+      "created_at": "2026-04-13T12:00:00.000Z"
+    },
+    {
+      "id": 13,
+      "id_gantt": 10,
+      "id_pengawasan_gantt": 77,
+      "kategori_pekerjaan": "PEKERJAAN SIPIL",
+      "jenis_pekerjaan": "PENGECATAN DINDING",
+      "catatan": "Selesai hari ini",
+      "dokumentasi": "https://example.com/progress-final.jpg",
+      "status": "selesai",
+      "created_at": "2026-04-13T12:00:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
+## 7. Delete Pengawasan
 
 **`DELETE /api/pengawasan/:id`**
 

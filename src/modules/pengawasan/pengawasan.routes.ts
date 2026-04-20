@@ -6,6 +6,7 @@ import {
     deletePengawasan,
     getPengawasanById,
     listPengawasan,
+    updateBulkPengawasan,
     updatePengawasan
 } from "./pengawasan.controller";
 
@@ -34,6 +35,13 @@ pengawasanRouter.post(
 );
 pengawasanRouter.get("/", listPengawasan);
 pengawasanRouter.get("/:id", getPengawasanById);
+pengawasanRouter.put(
+    "/bulk",
+    pengawasanUpload.fields([
+        { name: "rev_file_dokumentasi", maxCount: 50 }
+    ]),
+    updateBulkPengawasan
+);
 pengawasanRouter.put(
     "/:id",
     pengawasanUpload.fields([

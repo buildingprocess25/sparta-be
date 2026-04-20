@@ -15,27 +15,23 @@ export const bulkCreatePengawasanSchema = z.object({
     items: z.array(createPengawasanSchema).min(1)
 });
 
-export const updatePengawasanSchema = z.object({
+const updatePengawasanFieldsSchema = z.object({
     kategori_pekerjaan: z.string().trim().min(1).optional(),
     jenis_pekerjaan: z.string().trim().min(1).optional(),
     catatan: z.string().trim().min(1).optional(),
     dokumentasi: z.string().trim().min(1).optional(),
     status: pengawasanStatusSchema.optional()
-}).refine(
-    (data: {
-        kategori_pekerjaan?: string;
-        jenis_pekerjaan?: string;
-        catatan?: string;
-        dokumentasi?: string;
-        status?: "progress" | "selesai" | "terlambat";
-    }) =>
-        typeof data.kategori_pekerjaan !== "undefined"
-        || typeof data.jenis_pekerjaan !== "undefined"
-        || typeof data.catatan !== "undefined"
-        || typeof data.dokumentasi !== "undefined"
-        || typeof data.status !== "undefined",
-    { message: "Minimal satu field harus diisi untuk update" }
-);
+});
+
+export const updatePengawasanSchema = updatePengawasanFieldsSchema;
+
+export const bulkUpdatePengawasanSchema = z.object({
+    items: z.array(
+        updatePengawasanFieldsSchema.extend({
+            id: z.coerce.number().int().positive()
+        })
+    ).min(1)
+});
 
 export const listPengawasanQuerySchema = z.object({
     id_gantt: z.coerce.number().int().positive().optional(),
@@ -53,4 +49,6 @@ export type CreatePengawasanData = Omit<CreatePengawasanInput, "tanggal_pengawas
 };
 export type BulkCreatePengawasanInput = z.infer<typeof bulkCreatePengawasanSchema>;
 export type UpdatePengawasanInput = z.infer<typeof updatePengawasanSchema>;
+export type BulkUpdatePengawasanInput = z.infer<typeof bulkUpdatePengawasanSchema>;
+export type BulkUpdatePengawasanItemInput = BulkUpdatePengawasanInput["items"][number];
 export type ListPengawasanQueryInput = z.infer<typeof listPengawasanQuerySchema>;
