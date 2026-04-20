@@ -24,7 +24,7 @@ Tabel `opname` sekarang punya dua relasi:
 - `id` (PK)
 - `id_toko` (FK -> `toko.id`)
 - `id_rab_item` (FK -> `rab_item.id`)
-- `status` (enum: `progress` | `selesai` | `terlambat`, default `progress`)
+- `status` (enum: `pending` | `disetujui` | `ditolak`, default `pending`)
 - `volume_akhir` (integer)
 - `selisih_volume` (integer)
 - `total_selisih` (integer)
@@ -51,7 +51,7 @@ Catatan:
 {
   "id_toko": 12,
   "id_rab_item": 120,
-  "status": "progress",
+  "status": "pending",
   "volume_akhir": 95,
   "selisih_volume": -5,
   "total_selisih": -400000,
@@ -71,18 +71,18 @@ Selain JSON biasa, endpoint ini juga menerima upload file:
 
 ### Validasi
 
-| Field            | Aturan                                              |
-| ---------------- | --------------------------------------------------- |
-| `id_toko`        | wajib, integer > 0                                  |
-| `id_rab_item`    | wajib, integer > 0                                  |
-| `status`         | opsional, enum (`progress`, `selesai`, `terlambat`) |
-| `volume_akhir`   | wajib, integer                                      |
-| `selisih_volume` | wajib, integer                                      |
-| `total_selisih`  | wajib, integer                                      |
-| `desain`         | opsional, string min 1                              |
-| `kualitas`       | opsional, string min 1                              |
-| `spesifikasi`    | opsional, string min 1                              |
-| `catatan`        | opsional, string min 1                              |
+| Field            | Aturan                                             |
+| ---------------- | -------------------------------------------------- |
+| `id_toko`        | wajib, integer > 0                                 |
+| `id_rab_item`    | wajib, integer > 0                                 |
+| `status`         | opsional, enum (`pending`, `disetujui`, `ditolak`) |
+| `volume_akhir`   | wajib, integer                                     |
+| `selisih_volume` | wajib, integer                                     |
+| `total_selisih`  | wajib, integer                                     |
+| `desain`         | opsional, string min 1                             |
+| `kualitas`       | opsional, string min 1                             |
+| `spesifikasi`    | opsional, string min 1                             |
+| `catatan`        | opsional, string min 1                             |
 
 ### Response — 201 Created
 
@@ -94,7 +94,7 @@ Selain JSON biasa, endpoint ini juga menerima upload file:
     "id": 1,
     "id_toko": 12,
     "id_rab_item": 120,
-    "status": "progress",
+    "status": "pending",
     "volume_akhir": 95,
     "selisih_volume": -5,
     "total_selisih": -400000,
@@ -122,7 +122,7 @@ Selain JSON biasa, endpoint ini juga menerima upload file:
     {
       "id_toko": 12,
       "id_rab_item": 120,
-      "status": "progress",
+      "status": "pending",
       "volume_akhir": 95,
       "selisih_volume": -5,
       "total_selisih": -400000
@@ -130,7 +130,7 @@ Selain JSON biasa, endpoint ini juga menerima upload file:
     {
       "id_toko": 12,
       "id_rab_item": 121,
-      "status": "selesai",
+      "status": "disetujui",
       "volume_akhir": 52,
       "selisih_volume": 2,
       "total_selisih": 330000
@@ -182,7 +182,7 @@ Endpoint bulk juga menerima upload file:
 
 ```json
 {
-  "status": "selesai",
+  "status": "disetujui",
   "volume_akhir": 98,
   "selisih_volume": -2,
   "total_selisih": -160000,
@@ -201,7 +201,7 @@ Minimal salah satu field berikut harus diisi:
 
 - `id_rab_item`
 - `id_toko`
-- `status` (`progress` / `selesai` / `terlambat`)
+- `status` (`pending` / `disetujui` / `ditolak`)
 - `volume_akhir`
 - `selisih_volume`
 - `total_selisih`

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const opnameStatusSchema = z.enum(["progress", "selesai", "terlambat"]);
+export const opnameStatusSchema = z.enum(["pending", "disetujui", "ditolak"]);
 
 export const createOpnameSchema = z.object({
     id_toko: z.coerce.number().int().positive(),
@@ -35,7 +35,7 @@ export const updateOpnameSchema = z.object({
     (data: {
         id_toko?: number;
         id_rab_item?: number;
-        status?: "progress" | "selesai" | "terlambat";
+        status?: "pending" | "disetujui" | "ditolak";
         volume_akhir?: number;
         selisih_volume?: number;
         total_selisih?: number;

@@ -40,7 +40,7 @@ const mapPgError = (error: unknown): never => {
     }
 
     if (pgError.code === "23514" && pgError.constraint === "chk_opname_status") {
-        throw new AppError("status opname tidak valid (gunakan: progress, selesai, terlambat)", 400);
+        throw new AppError("status opname tidak valid (gunakan: pending, disetujui, ditolak)", 400);
     }
 
     throw error;

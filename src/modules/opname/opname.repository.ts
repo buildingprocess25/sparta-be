@@ -9,7 +9,7 @@ export type OpnameRow = {
     id: number;
     id_toko: number;
     id_rab_item: number;
-    status: "progress" | "selesai" | "terlambat";
+    status: "pending" | "disetujui" | "ditolak";
     volume_akhir: number;
     selisih_volume: number;
     total_selisih: number;
@@ -60,7 +60,7 @@ export const opnameRepository = {
             [
                 input.id_toko,
                 input.id_rab_item,
-                input.status ?? "progress",
+                input.status ?? "pending",
                 input.volume_akhir,
                 input.selisih_volume,
                 input.total_selisih,
@@ -83,7 +83,7 @@ export const opnameRepository = {
                 values.push(
                     item.id_toko,
                     item.id_rab_item,
-                    item.status ?? "progress",
+                    item.status ?? "pending",
                     item.volume_akhir,
                     item.selisih_volume,
                     item.total_selisih,
