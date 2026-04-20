@@ -1,5 +1,6 @@
 import { AppError } from "../../common/app-error";
 import { GoogleProvider } from "../../common/google";
+import { renderHtmlTemplate, renderPdfFromHtml, resolveTemplatePath } from "../../common/html-pdf";
 import { env } from "../../config/env";
 import { pengawasanRepository, type PengawasanRow } from "./pengawasan.repository";
 import type {
@@ -144,6 +145,105 @@ const resolvePengawasanGanttId = async (
     return pengawasanGanttId;
 };
 
+const formatJakartaTimestamp = (): string =>
+    new Intl.DateTimeFormat("id-ID", {
+        timeZone: "Asia/Jakarta",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false
+    }).format(new Date());
+
+/**
+ * Generate PDF laporan pengawasan untuk suatu id_pengawasan_gantt,
+ * upload ke Google Drive, lalu upsert link-nya ke tabel berkas_pengawasan.
+ * Dipanggil setiap kali ada create pengawasan baru (akan menimpa PDF lama).
+ */
+const generateAndUploadPengawasanPdf = async (
+    idGantt: number,
+    idPengawasanGantt: number,
+    tanggalPengawasan: string
+): Promise<void> => {
+    try {
+        // 1. Ambil semua item pengawasan untuk id_pengawasan_gantt ini
+        const items = await pengawasanRepository.findAllPengawasanByGanttId(idPengawasanGantt);
+
+        // 2. Hitung ringkasan status
+        let countProgress = 0;
+        let countSelesai = 0;
+        let countTerlambat = 0;
+        for (const item of items) {
+            if (item.status === "progress") countProgress++;
+            else if (item.status === "selesai") countSelesai++;
+            else if (item.status === "terlambat") countTerlambat++;
+        }
+
+        // 3. Render HTML dari template
+        const templatePath = await resolveTemplatePath("pengawasan_report.njk");
+        const html = await renderHtmlTemplate(templatePath, {
+            id_gantt: idGantt,
+            tanggal_pengawasan: tanggalPengawasan,
+            items,
+            count_progress: countProgress,
+            count_selesai: countSelesai,
+            count_terlambat: countTerlambat,
+            generated_at: formatJakartaTimestamp()
+        });
+
+        // 4. Render PDF dari HTML
+        const pdfBuffer = await renderPdfFromHtml(html);
+
+        // 5. Upload ke Google Drive (timpa berdasarkan nama unik per id_pengawasan_gantt)
+        const gp = GoogleProvider.instance;
+        const drive = gp.spartaDrive;
+        if (!drive) {
+            console.error("[berkas_pengawasan] Google Drive belum terkonfigurasi, skip upload PDF.");
+            return;
+        }
+
+        // Hapus file PDF lama di Drive untuk id_pengawasan_gantt ini (jika ada)
+        const existingBerkas = await pengawasanRepository.findBerkasByPengawasanGanttId(idPengawasanGantt);
+        if (existingBerkas?.link_pdf_pengawasan) {
+            const fileIdMatch = /\/d\/([a-zA-Z0-9_-]+)/.exec(existingBerkas.link_pdf_pengawasan);
+            if (fileIdMatch?.[1]) {
+                try {
+                    await drive.files.delete({ fileId: fileIdMatch[1] });
+                } catch {
+                    // file mungkin sudah dihapus manual, abaikan
+                }
+            }
+        }
+
+        const filename = `PENGAWASAN_REPORT_GANTT${idGantt}_PG${idPengawasanGantt}_${Date.now()}.pdf`;
+        const result = await gp.uploadFile(
+            env.PDF_STORAGE_FOLDER_ID,
+            filename,
+            "application/pdf",
+            pdfBuffer,
+            2,
+            drive
+        );
+
+        const link = result.webViewLink
+            ?? (result.id ? `https://drive.google.com/file/d/${result.id}/view` : null);
+
+        if (!link) {
+            console.error("[berkas_pengawasan] Upload PDF berhasil tapi tidak mendapat link.");
+            return;
+        }
+
+        // 6. Upsert ke tabel berkas_pengawasan
+        await pengawasanRepository.upsertBerkasPengawasan(idPengawasanGantt, link);
+        console.log(`[berkas_pengawasan] PDF berhasil digenerate & disimpan untuk id_pengawasan_gantt=${idPengawasanGantt}`);
+    } catch (error) {
+        // Jangan sampai error PDF generation menggagalkan create pengawasan
+        console.error("[berkas_pengawasan] Gagal generate/upload PDF:", error);
+    }
+};
+
 const hasAnyUpdateField = (input: UpdatePengawasanInput): boolean =>
     typeof input.kategori_pekerjaan !== "undefined"
     || typeof input.jenis_pekerjaan !== "undefined"
@@ -157,6 +257,7 @@ export const pengawasanService = {
         uploadedDokumentasi?: UploadedDokumentasiFile
     ): Promise<PengawasanRow> {
         try {
+            const normalizedTanggal = normalizeTanggalPengawasan(input.tanggal_pengawasan);
             const idPengawasanGantt = await resolvePengawasanGanttId(
                 input.id_gantt,
                 input.tanggal_pengawasan
@@ -179,7 +280,13 @@ export const pengawasanService = {
                     id_pengawasan_gantt: idPengawasanGantt
                 };
 
-            return await pengawasanRepository.create(payload);
+            const row = await pengawasanRepository.create(payload);
+
+            // Generate PDF & upsert berkas_pengawasan (fire-and-forget)
+            generateAndUploadPengawasanPdf(input.id_gantt, idPengawasanGantt, normalizedTanggal)
+                .catch((err) => console.error("[berkas_pengawasan] background error:", err));
+
+            return row;
         } catch (error) {
             return mapPgError(error);
         }
@@ -191,6 +298,8 @@ export const pengawasanService = {
         uploadedDokumentasiIndexes?: number[]
     ): Promise<PengawasanRow[]> {
         try {
+            const resolvedGanttIds = new Map<number, { idPengawasanGantt: number; tanggal: string }>();
+
             const basePayloads = await Promise.all(
                 items.map(async (item, index): Promise<CreatePengawasanData> => {
                     const idPengawasanGantt = await resolvePengawasanGanttId(
@@ -198,6 +307,11 @@ export const pengawasanService = {
                         item.tanggal_pengawasan,
                         index
                     );
+
+                    resolvedGanttIds.set(idPengawasanGantt, {
+                        idPengawasanGantt,
+                        tanggal: normalizeTanggalPengawasan(item.tanggal_pengawasan)
+                    });
 
                     const { tanggal_pengawasan: _tanggalPengawasan, ...itemWithoutTanggal } = item;
                     return {
@@ -207,11 +321,11 @@ export const pengawasanService = {
                 })
             );
 
-            if (uploadedDokumentasiFiles.length === 0) {
-                return await pengawasanRepository.createBulk(basePayloads);
-            }
+            let rows: PengawasanRow[];
 
-            if (uploadedDokumentasiIndexes && uploadedDokumentasiIndexes.length > 0) {
+            if (uploadedDokumentasiFiles.length === 0) {
+                rows = await pengawasanRepository.createBulk(basePayloads);
+            } else if (uploadedDokumentasiIndexes && uploadedDokumentasiIndexes.length > 0) {
                 if (uploadedDokumentasiIndexes.length !== uploadedDokumentasiFiles.length) {
                     throw new AppError(
                         "Jumlah file_dokumentasi_indexes harus sama dengan jumlah file_dokumentasi",
@@ -247,36 +361,45 @@ export const pengawasanService = {
                     };
                 }
 
-                return await pengawasanRepository.createBulk(payloadWithDokumentasi);
-            }
-
-            if (uploadedDokumentasiFiles.length !== 1 && uploadedDokumentasiFiles.length !== items.length) {
-                throw new AppError(
-                    "Jumlah file_dokumentasi harus 1 file untuk semua item, sama dengan jumlah items, atau kirim file_dokumentasi_indexes untuk mapping item tertentu",
-                    400
-                );
-            }
-
-            const payloadWithDokumentasi: CreatePengawasanData[] = [];
-            for (let index = 0; index < items.length; index++) {
-                const item = basePayloads[index];
-                const file = uploadedDokumentasiFiles.length === 1
-                    ? uploadedDokumentasiFiles[0]
-                    : uploadedDokumentasiFiles[index];
-
-                if (!file) {
-                    payloadWithDokumentasi.push(item);
-                    continue;
+                rows = await pengawasanRepository.createBulk(payloadWithDokumentasi);
+            } else {
+                if (uploadedDokumentasiFiles.length !== 1 && uploadedDokumentasiFiles.length !== items.length) {
+                    throw new AppError(
+                        "Jumlah file_dokumentasi harus 1 file untuk semua item, sama dengan jumlah items, atau kirim file_dokumentasi_indexes untuk mapping item tertentu",
+                        400
+                    );
                 }
 
-                const dokumentasiLink = await uploadDokumentasiToDrive(item.id_gantt, file);
-                payloadWithDokumentasi.push({
-                    ...item,
-                    dokumentasi: dokumentasiLink
-                });
+                const payloadWithDokumentasi: CreatePengawasanData[] = [];
+                for (let index = 0; index < items.length; index++) {
+                    const item = basePayloads[index];
+                    const file = uploadedDokumentasiFiles.length === 1
+                        ? uploadedDokumentasiFiles[0]
+                        : uploadedDokumentasiFiles[index];
+
+                    if (!file) {
+                        payloadWithDokumentasi.push(item);
+                        continue;
+                    }
+
+                    const dokumentasiLink = await uploadDokumentasiToDrive(item.id_gantt, file);
+                    payloadWithDokumentasi.push({
+                        ...item,
+                        dokumentasi: dokumentasiLink
+                    });
+                }
+
+                rows = await pengawasanRepository.createBulk(payloadWithDokumentasi);
             }
 
-            return await pengawasanRepository.createBulk(payloadWithDokumentasi);
+            // Generate PDF & upsert berkas_pengawasan for each unique id_pengawasan_gantt (fire-and-forget)
+            const idGantt = items[0].id_gantt;
+            for (const { idPengawasanGantt, tanggal } of resolvedGanttIds.values()) {
+                generateAndUploadPengawasanPdf(idGantt, idPengawasanGantt, tanggal)
+                    .catch((err) => console.error("[berkas_pengawasan] background error:", err));
+            }
+
+            return rows;
         } catch (error) {
             return mapPgError(error);
         }

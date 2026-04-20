@@ -250,6 +250,32 @@ END $$;
 
 CREATE INDEX IF NOT EXISTS idx_pengawasan_id_pengawasan_gantt ON pengawasan(id_pengawasan_gantt);
 
+-- 8a-ii) BERKAS_PENGAWASAN (relasi 1-ke-1 dengan pengawasan_gantt)
+CREATE TABLE IF NOT EXISTS berkas_pengawasan (
+    id SERIAL PRIMARY KEY,
+    id_pengawasan_gantt INT NOT NULL UNIQUE,
+    link_pdf_pengawasan VARCHAR(500),
+    created_at TIMESTAMP NOT NULL DEFAULT timezone('Asia/Jakarta', now()),
+    CONSTRAINT fk_berkas_pengawasan_gantt FOREIGN KEY (id_pengawasan_gantt) REFERENCES pengawasan_gantt(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_berkas_pengawasan_id_pengawasan_gantt ON berkas_pengawasan(id_pengawasan_gantt);
+
+-- Migration safety untuk environment yang tabelnya sudah ada tetapi belum lengkap.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.table_constraints
+        WHERE constraint_name = 'fk_berkas_pengawasan_gantt'
+          AND table_name = 'berkas_pengawasan'
+    ) THEN
+        ALTER TABLE berkas_pengawasan
+        ADD CONSTRAINT fk_berkas_pengawasan_gantt
+        FOREIGN KEY (id_pengawasan_gantt) REFERENCES pengawasan_gantt(id) ON DELETE CASCADE;
+    END IF;
+END $$;
+
 -- 8b) OPNAME (relasi ke tabel toko dan rab_item)
 CREATE TABLE IF NOT EXISTS opname (
     id SERIAL PRIMARY KEY,

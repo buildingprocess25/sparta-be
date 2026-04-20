@@ -17,6 +17,17 @@ export type PengawasanRow = {
     created_at: string;
 };
 
+export type BerkasPengawasanRow = {
+    id: number;
+    id_pengawasan_gantt: number;
+    link_pdf_pengawasan: string | null;
+    created_at: string;
+};
+
+export type PengawasanRowWithBerkas = PengawasanRow & {
+    berkas_pengawasan: BerkasPengawasanRow | null;
+};
+
 export const pengawasanRepository = {
     async create(input: CreatePengawasanData): Promise<PengawasanRow> {
         const result = await pool.query<PengawasanRow>(
@@ -85,47 +96,76 @@ export const pengawasanRepository = {
     async findAll(
         query: ListPengawasanQueryInput,
         idPengawasanGantt?: number
-    ): Promise<PengawasanRow[]> {
+    ): Promise<PengawasanRowWithBerkas[]> {
         const conditions: string[] = [];
         const values: Array<number | string> = [];
 
         if (typeof query.id_gantt !== "undefined") {
             values.push(query.id_gantt);
-            conditions.push(`id_gantt = $${values.length}`);
+            conditions.push(`p.id_gantt = $${values.length}`);
         }
 
         if (query.kategori_pekerjaan) {
             values.push(query.kategori_pekerjaan);
-            conditions.push(`kategori_pekerjaan = $${values.length}`);
+            conditions.push(`p.kategori_pekerjaan = $${values.length}`);
         }
 
         if (query.jenis_pekerjaan) {
             values.push(query.jenis_pekerjaan);
-            conditions.push(`jenis_pekerjaan = $${values.length}`);
+            conditions.push(`p.jenis_pekerjaan = $${values.length}`);
         }
 
         if (query.status) {
             values.push(query.status);
-            conditions.push(`status = $${values.length}`);
+            conditions.push(`p.status = $${values.length}`);
         }
 
         if (typeof idPengawasanGantt !== "undefined") {
             values.push(idPengawasanGantt);
-            conditions.push(`id_pengawasan_gantt = $${values.length}`);
+            conditions.push(`p.id_pengawasan_gantt = $${values.length}`);
         }
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-        const result = await pool.query<PengawasanRow>(
+
+        type RawRow = PengawasanRow & {
+            bp_id: number | null;
+            bp_id_pengawasan_gantt: number | null;
+            bp_link_pdf_pengawasan: string | null;
+            bp_created_at: string | null;
+        };
+
+        const result = await pool.query<RawRow>(
             `
-            SELECT id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, status, created_at
-            FROM pengawasan
+            SELECT
+                p.id, p.id_gantt, p.id_pengawasan_gantt,
+                p.kategori_pekerjaan, p.jenis_pekerjaan,
+                p.catatan, p.dokumentasi, p.status, p.created_at,
+                bp.id AS bp_id,
+                bp.id_pengawasan_gantt AS bp_id_pengawasan_gantt,
+                bp.link_pdf_pengawasan AS bp_link_pdf_pengawasan,
+                bp.created_at AS bp_created_at
+            FROM pengawasan p
+            LEFT JOIN berkas_pengawasan bp ON bp.id_pengawasan_gantt = p.id_pengawasan_gantt
             ${whereClause}
-            ORDER BY id DESC
+            ORDER BY p.id DESC
             `,
             values
         );
 
-        return result.rows;
+        return result.rows.map((row) => {
+            const { bp_id, bp_id_pengawasan_gantt, bp_link_pdf_pengawasan, bp_created_at, ...pengawasan } = row;
+            return {
+                ...pengawasan,
+                berkas_pengawasan: bp_id !== null
+                    ? {
+                        id: bp_id,
+                        id_pengawasan_gantt: bp_id_pengawasan_gantt!,
+                        link_pdf_pengawasan: bp_link_pdf_pengawasan,
+                        created_at: bp_created_at!
+                    }
+                    : null
+            };
+        });
     },
 
     async updateById(id: string, input: UpdatePengawasanInput): Promise<PengawasanRow | null> {
@@ -195,5 +235,53 @@ export const pengawasanRepository = {
         );
 
         return result.rows[0]?.id ?? null;
+    },
+
+    // ── berkas_pengawasan ────────────────────────────────────────────────
+
+    async upsertBerkasPengawasan(
+        idPengawasanGantt: number,
+        linkPdfPengawasan: string
+    ): Promise<BerkasPengawasanRow> {
+        const result = await pool.query<BerkasPengawasanRow>(
+            `
+            INSERT INTO berkas_pengawasan (id_pengawasan_gantt, link_pdf_pengawasan)
+            VALUES ($1, $2)
+            ON CONFLICT (id_pengawasan_gantt)
+            DO UPDATE SET link_pdf_pengawasan = EXCLUDED.link_pdf_pengawasan,
+                          created_at = timezone('Asia/Jakarta', now())
+            RETURNING id, id_pengawasan_gantt, link_pdf_pengawasan, created_at
+            `,
+            [idPengawasanGantt, linkPdfPengawasan]
+        );
+
+        return result.rows[0];
+    },
+
+    async findBerkasByPengawasanGanttId(idPengawasanGantt: number): Promise<BerkasPengawasanRow | null> {
+        const result = await pool.query<BerkasPengawasanRow>(
+            `
+            SELECT id, id_pengawasan_gantt, link_pdf_pengawasan, created_at
+            FROM berkas_pengawasan
+            WHERE id_pengawasan_gantt = $1
+            `,
+            [idPengawasanGantt]
+        );
+
+        return result.rows[0] ?? null;
+    },
+
+    async findAllPengawasanByGanttId(idPengawasanGantt: number): Promise<PengawasanRow[]> {
+        const result = await pool.query<PengawasanRow>(
+            `
+            SELECT id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, status, created_at
+            FROM pengawasan
+            WHERE id_pengawasan_gantt = $1
+            ORDER BY id ASC
+            `,
+            [idPengawasanGantt]
+        );
+
+        return result.rows;
     }
 };
