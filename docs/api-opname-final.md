@@ -6,13 +6,14 @@ Base URL: `/api/final_opname`
 
 ## Daftar Endpoint
 
-| #   | Method | Path                             | Deskripsi                                          |
-| --- | ------ | -------------------------------- | -------------------------------------------------- |
-| 1   | `GET`  | `/api/final_opname`              | List semua header opname_final (+ filter)          |
-| 2   | `GET`  | `/api/final_opname/:id`          | Detail opname_final + item                         |
-| 3   | `POST` | `/api/final_opname/:id/approval` | Approve / Reject oleh koordinator/manager/direktur |
-| 4   | `POST` | `/api/final_opname/approval/:id` | Alias endpoint approval                            |
-| 5   | `GET`  | `/api/final_opname/:id/pdf`      | Download PDF opname_final                          |
+| #   | Method | Path                                       | Deskripsi                                          |
+| --- | ------ | ------------------------------------------ | -------------------------------------------------- |
+| 1   | `GET`  | `/api/final_opname`                        | List semua header opname_final (+ filter)          |
+| 2   | `GET`  | `/api/final_opname/:id`                    | Detail opname_final + item                         |
+| 3   | `POST` | `/api/final_opname/:id/kunci_opname_final` | Kunci header + replace item + generate PDF         |
+| 4   | `POST` | `/api/final_opname/:id/approval`           | Approve / Reject oleh koordinator/manager/direktur |
+| 5   | `POST` | `/api/final_opname/approval/:id`           | Alias endpoint approval                            |
+| 6   | `GET`  | `/api/final_opname/:id/pdf`                | Download PDF opname_final                          |
 
 ---
 
@@ -88,7 +89,62 @@ Mengembalikan:
 
 ---
 
-## 3. Approval Opname Final
+## 3. Kunci Opname Final
+
+**`POST /api/final_opname/:id/kunci_opname_final`**
+
+Fungsi endpoint ini:
+
+1. Cari data `opname_final` berdasarkan `:id`
+2. Replace seluruh item `opname_item` pada `id_opname_final` tersebut
+3. Update header `id_toko`, `email_pembuat`, `grand_total_opname`, `grand_total_rab`
+4. Set status langsung ke `Menunggu Persetujuan Koordinator`
+5. Generate PDF terbaru dan upload ke Google Drive
+6. Simpan link PDF ke kolom `link_pdf_opname`
+
+### Request Body
+
+```json
+{
+  "id_toko": 12,
+  "email_pembuat": "user@example.com",
+  "grand_total_opname": "12500000",
+  "grand_total_rab": "13000000",
+  "opname_item": [
+    {
+      "id_rab_item": 120,
+      "status": "pending",
+      "volume_akhir": 95,
+      "selisih_volume": -5,
+      "total_selisih": -400000,
+      "desain": "Sesuai gambar kerja",
+      "kualitas": "A",
+      "spesifikasi": "Cat eksterior premium",
+      "catatan": "Ada pengurangan volume di area belakang"
+    }
+  ]
+}
+```
+
+### Response Ringkas
+
+```json
+{
+  "status": "success",
+  "message": "Opname final berhasil dikunci dan PDF berhasil dibuat",
+  "data": {
+    "id": 17,
+    "id_toko": 12,
+    "status_opname_final": "Menunggu Persetujuan Koordinator",
+    "item_count": 1,
+    "link_pdf_opname": "https://drive.google.com/file/d/xxxx/view"
+  }
+}
+```
+
+---
+
+## 4. Approval Opname Final
 
 **`POST /api/final_opname/:id/approval`**
 
@@ -131,7 +187,7 @@ Untuk reject:
 
 ---
 
-## 4. Download PDF Opname Final
+## 5. Download PDF Opname Final
 
 **`GET /api/final_opname/:id/pdf`**
 

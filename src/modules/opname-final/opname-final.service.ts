@@ -5,7 +5,42 @@ import type { ApprovalActionInput } from "../approval/approval.schema";
 import { buildOpnameFinalPdfBuffer } from "./opname-final.pdf";
 import { OPNAME_FINAL_STATUS, type OpnameFinalStatus } from "./opname-final.constants";
 import { opnameFinalRepository } from "./opname-final.repository";
-import type { OpnameFinalListQueryInput } from "./opname-final.schema";
+import type { LockOpnameFinalInput, OpnameFinalListQueryInput } from "./opname-final.schema";
+
+type PgError = {
+    code?: string;
+    constraint?: string;
+};
+
+const toPgError = (error: unknown): PgError => {
+    if (typeof error === "object" && error !== null) {
+        return error as PgError;
+    }
+
+    return {};
+};
+
+const mapPgError = (error: unknown): never => {
+    const pgError = toPgError(error);
+
+    if (pgError.code === "23503" && pgError.constraint === "fk_opname_final_toko") {
+        throw new AppError("id_toko tidak ditemukan di tabel toko", 404);
+    }
+
+    if (pgError.code === "23503" && pgError.constraint === "fk_opname_item_rab_item") {
+        throw new AppError("id_rab_item tidak ditemukan di tabel rab_item", 404);
+    }
+
+    if (pgError.code === "23503" && pgError.constraint === "fk_opname_item_toko") {
+        throw new AppError("id_toko tidak ditemukan di tabel toko", 404);
+    }
+
+    if (pgError.code === "23514" && pgError.constraint === "chk_opname_item_status") {
+        throw new AppError("status opname item tidak valid (gunakan: pending, disetujui, ditolak)", 400);
+    }
+
+    throw error;
+};
 
 const sanitizeFilenamePart = (value: string | undefined, fallback: string): string => {
     const normalized = (value ?? "").trim().replace(/[^a-zA-Z0-9_-]+/g, "_");
@@ -149,5 +184,31 @@ export const opnameFinalService = {
             filename: `OPNAME_FINAL_${proyek}_${nomorUlok}_${id}.pdf`,
             pdfBuffer
         };
+    },
+
+    async lockOpnameFinal(id: string, payload: LockOpnameFinalInput) {
+        try {
+            const result = await opnameFinalRepository.lockById(id, payload);
+            if (result.item_count === 0) {
+                throw new AppError("Data opname_final tidak ditemukan", 404);
+            }
+
+            const linkPdf = await regeneratePdfAndUpload(id);
+            await opnameFinalRepository.updatePdfLink(id, linkPdf);
+
+            return {
+                id: Number(id),
+                id_toko: payload.id_toko,
+                status_opname_final: OPNAME_FINAL_STATUS.WAITING_FOR_COORDINATOR,
+                item_count: result.item_count,
+                link_pdf_opname: linkPdf
+            };
+        } catch (error) {
+            if (error instanceof AppError) {
+                throw error;
+            }
+
+            return mapPgError(error);
+        }
     }
 };

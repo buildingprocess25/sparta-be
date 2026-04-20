@@ -1,7 +1,7 @@
-import { pool } from "../../db/pool";
+import { pool, withTransaction } from "../../db/pool";
 import type { ApprovalActionInput } from "../approval/approval.schema";
 import type { OpnameFinalStatus } from "./opname-final.constants";
-import type { OpnameFinalListQueryInput } from "./opname-final.schema";
+import type { LockOpnameFinalInput, OpnameFinalListQueryInput } from "./opname-final.schema";
 
 export type OpnameFinalRow = {
     id: number;
@@ -295,5 +295,94 @@ export const opnameFinalRepository = {
                 opnameFinalId
             ]
         );
+    },
+
+    async lockById(opnameFinalId: string, payload: LockOpnameFinalInput): Promise<{ item_count: number }> {
+        return withTransaction(async (client) => {
+            const existing = await client.query<{ id: number }>(
+                `SELECT id FROM opname_final WHERE id = $1 FOR UPDATE`,
+                [opnameFinalId]
+            );
+
+            if ((existing.rowCount ?? 0) === 0) {
+                return { item_count: 0 };
+            }
+
+            await client.query(
+                `DELETE FROM opname_item WHERE id_opname_final = $1`,
+                [opnameFinalId]
+            );
+
+            const values: Array<number | string | null> = [];
+            const placeholders = payload.opname_item.map((item, index) => {
+                const base = index * 12;
+                values.push(
+                    payload.id_toko,
+                    Number(opnameFinalId),
+                    item.id_rab_item,
+                    item.status ?? "pending",
+                    item.volume_akhir,
+                    item.selisih_volume,
+                    item.total_selisih,
+                    item.desain ?? null,
+                    item.kualitas ?? null,
+                    item.spesifikasi ?? null,
+                    item.foto ?? null,
+                    item.catatan ?? null
+                );
+
+                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12})`;
+            });
+
+            await client.query(
+                `
+                INSERT INTO opname_item (
+                    id_toko,
+                    id_opname_final,
+                    id_rab_item,
+                    status,
+                    volume_akhir,
+                    selisih_volume,
+                    total_selisih,
+                    desain,
+                    kualitas,
+                    spesifikasi,
+                    foto,
+                    catatan
+                )
+                VALUES ${placeholders.join(", ")}
+                `,
+                values
+            );
+
+            await client.query(
+                `
+                UPDATE opname_final
+                SET id_toko = $1,
+                    email_pembuat = $2,
+                    grand_total_opname = $3,
+                    grand_total_rab = $4,
+                    status_opname_final = $5,
+                    alasan_penolakan = NULL,
+                    pemberi_persetujuan_direktur = $2,
+                    waktu_persetujuan_direktur = ${approvalTimestampExpression},
+                    pemberi_persetujuan_koordinator = NULL,
+                    waktu_persetujuan_koordinator = NULL,
+                    pemberi_persetujuan_manager = NULL,
+                    waktu_persetujuan_manager = NULL
+                WHERE id = $6
+                `,
+                [
+                    payload.id_toko,
+                    payload.email_pembuat,
+                    payload.grand_total_opname,
+                    payload.grand_total_rab,
+                    "Menunggu Persetujuan Koordinator",
+                    opnameFinalId
+                ]
+            );
+
+            return { item_count: payload.opname_item.length };
+        });
     }
 };

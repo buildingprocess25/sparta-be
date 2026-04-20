@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { asyncHandler } from "../../common/async-handler";
 import { approvalActionSchema } from "../approval/approval.schema";
-import { opnameFinalListQuerySchema } from "./opname-final.schema";
+import { lockOpnameFinalSchema, opnameFinalListQuerySchema } from "./opname-final.schema";
 import { opnameFinalService } from "./opname-final.service";
 
 export const listOpnameFinal = asyncHandler(async (req: Request, res: Response) => {
@@ -34,4 +34,15 @@ export const downloadOpnameFinalPdf = asyncHandler(async (req: Request, res: Res
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);
     res.send(result.pdfBuffer);
+});
+
+export const lockOpnameFinal = asyncHandler(async (req: Request, res: Response) => {
+    const payload = lockOpnameFinalSchema.parse(req.body);
+    const data = await opnameFinalService.lockOpnameFinal(req.params.id, payload);
+
+    res.json({
+        status: "success",
+        message: "Opname final berhasil dikunci dan PDF berhasil dibuat",
+        data
+    });
 });
