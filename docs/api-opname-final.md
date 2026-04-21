@@ -41,9 +41,9 @@ Base URL: `/api/final_opname`
 
 Urutan approval:
 
-1. `Menunggu Persetujuan Direktur`
-2. `Menunggu Persetujuan Koordinator`
-3. `Menunggu Persetujuan Manajer`
+1. `Menunggu Persetujuan Koordinator`
+2. `Menunggu Persetujuan Manajer`
+3. `Menunggu Persetujuan Direktur`
 4. `Disetujui`
 
 Status reject:
@@ -59,6 +59,11 @@ Setiap action approval/reject akan:
 3. Re-generate PDF terbaru
 4. Upload PDF ke Google Drive
 5. Simpan link ke kolom `link_pdf_opname`
+
+Perilaku tambahan saat reject:
+
+1. Jika `opname_final` direject (oleh koordinator/manager/direktur), semua baris `opname_item` dengan `id_opname_final` yang sama otomatis di-set ke status `ditolak`.
+2. Status `opname_final` tetap mengikuti penolak terakhir (`Ditolak oleh Koordinator` / `Ditolak oleh Manajer` / `Ditolak oleh Direktur`).
 
 ---
 
@@ -184,6 +189,12 @@ Untuk reject:
   }
 }
 ```
+
+Contoh alur approve bertahap:
+
+1. `KOORDINATOR` approve: `Menunggu Persetujuan Koordinator` -> `Menunggu Persetujuan Manajer`
+2. `MANAGER` approve: `Menunggu Persetujuan Manajer` -> `Menunggu Persetujuan Direktur`
+3. `DIREKTUR` approve: `Menunggu Persetujuan Direktur` -> `Disetujui`
 
 ---
 

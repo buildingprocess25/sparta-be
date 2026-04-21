@@ -17,6 +17,8 @@ export const createOpnameSchema = z.object({
 });
 
 export const bulkCreateOpnameItemSchema = z.object({
+    id: z.coerce.number().int().positive().optional(),
+    id_toko: z.coerce.number().int().positive().optional(),
     id_rab_item: z.coerce.number().int().positive(),
     status: opnameStatusSchema.optional(),
     volume_akhir: z.coerce.number().int(),
@@ -31,6 +33,8 @@ export const bulkCreateOpnameItemSchema = z.object({
 export const bulkCreateOpnameSchema = z.object({
     id_toko: z.coerce.number().int().positive(),
     email_pembuat: z.string().email(),
+    grand_total_opname: z.union([z.string().trim().min(1), z.coerce.number()]).transform((value) => String(value)),
+    grand_total_rab: z.union([z.string().trim().min(1), z.coerce.number()]).transform((value) => String(value)),
     items: z.array(bulkCreateOpnameItemSchema).min(1)
 });
 

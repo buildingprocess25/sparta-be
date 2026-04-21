@@ -280,7 +280,7 @@ END $$;
 CREATE TABLE IF NOT EXISTS opname_final (
     id SERIAL PRIMARY KEY,
     id_toko INT NOT NULL,
-    status_opname_final VARCHAR(255) NOT NULL DEFAULT 'Menunggu Persetujuan Direktur',
+    status_opname_final VARCHAR(255) NOT NULL DEFAULT 'Menunggu Persetujuan Koordinator',
     link_pdf_opname VARCHAR(500),
     email_pembuat VARCHAR(255),
     pemberi_persetujuan_direktur VARCHAR(255),
@@ -298,6 +298,10 @@ CREATE TABLE IF NOT EXISTS opname_final (
 
 CREATE INDEX IF NOT EXISTS idx_opname_final_id_toko ON opname_final(id_toko);
 CREATE INDEX IF NOT EXISTS idx_opname_final_status ON opname_final(status_opname_final);
+
+-- Migration safety: pastikan default status mengikuti alur approval terbaru.
+ALTER TABLE opname_final
+    ALTER COLUMN status_opname_final SET DEFAULT 'Menunggu Persetujuan Koordinator';
 
 -- 8c) OPNAME_ITEM (rename dari tabel opname lama)
 DO $$
@@ -369,7 +373,7 @@ BEGIN
     -- Backfill header opname_final jika kolom id_opname_final belum terisi.
     INSERT INTO opname_final (id_toko, status_opname_final, email_pembuat, created_at)
     SELECT DISTINCT oi.id_toko,
-        'Menunggu Persetujuan Direktur',
+        'Menunggu Persetujuan Koordinator',
         NULL,
         timezone('Asia/Jakarta', now())
     FROM opname_item oi
@@ -381,7 +385,7 @@ BEGIN
     FROM opname_final ofn
     WHERE oi.id_opname_final IS NULL
       AND ofn.id_toko = oi.id_toko
-      AND ofn.status_opname_final = 'Menunggu Persetujuan Direktur';
+            AND ofn.status_opname_final = 'Menunggu Persetujuan Koordinator';
 
     IF EXISTS (
         SELECT 1

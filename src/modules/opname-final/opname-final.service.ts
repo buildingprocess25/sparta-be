@@ -52,13 +52,6 @@ const resolveStatusTransition = (
     action: ApprovalActionInput
 ): OpnameFinalStatus => {
     if (action.tindakan === "APPROVE") {
-        if (action.jabatan === "DIREKTUR") {
-            if (currentStatus !== OPNAME_FINAL_STATUS.WAITING_FOR_DIREKTUR) {
-                throw new AppError(`Status saat ini "${currentStatus}" tidak valid untuk approval direktur`, 409);
-            }
-            return OPNAME_FINAL_STATUS.WAITING_FOR_COORDINATOR;
-        }
-
         if (action.jabatan === "KOORDINATOR") {
             if (currentStatus !== OPNAME_FINAL_STATUS.WAITING_FOR_COORDINATOR) {
                 throw new AppError(`Status saat ini "${currentStatus}" tidak valid untuk approval koordinator`, 409);
@@ -69,6 +62,13 @@ const resolveStatusTransition = (
         if (action.jabatan === "MANAGER") {
             if (currentStatus !== OPNAME_FINAL_STATUS.WAITING_FOR_MANAGER) {
                 throw new AppError(`Status saat ini "${currentStatus}" tidak valid untuk approval manager`, 409);
+            }
+            return OPNAME_FINAL_STATUS.WAITING_FOR_DIREKTUR;
+        }
+
+        if (action.jabatan === "DIREKTUR") {
+            if (currentStatus !== OPNAME_FINAL_STATUS.WAITING_FOR_DIREKTUR) {
+                throw new AppError(`Status saat ini "${currentStatus}" tidak valid untuk approval direktur`, 409);
             }
             return OPNAME_FINAL_STATUS.APPROVED;
         }

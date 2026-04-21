@@ -71,7 +71,13 @@ export const createBulkOpname = asyncHandler(async (req: Request, res: Response)
         ...req.body,
         items: parsedItems
     };
-    const { id_toko, email_pembuat, items } = bulkCreateOpnameSchema.parse(payloadCandidate);
+    const {
+        id_toko,
+        email_pembuat,
+        grand_total_opname,
+        grand_total_rab,
+        items
+    } = bulkCreateOpnameSchema.parse(payloadCandidate);
 
     let parsedFotoIndexes = req.body.file_foto_opname_indexes;
     if (typeof req.body.file_foto_opname_indexes === "string") {
@@ -102,7 +108,7 @@ export const createBulkOpname = asyncHandler(async (req: Request, res: Response)
     const uploadedFiles = req.files as UploadedFilesMap | undefined;
     const uploadedFotoOpnameFiles = getUploadedFiles(uploadedFiles, "file_foto_opname");
     const data = await opnameService.createBulk(
-        { id_toko, email_pembuat, items },
+        { id_toko, email_pembuat, grand_total_opname, grand_total_rab, items },
         uploadedFotoOpnameFiles,
         fotoIndexes
     );

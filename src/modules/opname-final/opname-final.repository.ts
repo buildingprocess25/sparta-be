@@ -260,6 +260,15 @@ export const opnameFinalRepository = {
             `,
             [newStatus, action.alasan_penolakan?.trim() ?? null, opnameFinalId]
         );
+
+        await pool.query(
+            `
+            UPDATE opname_item
+            SET status = 'ditolak'
+            WHERE id_opname_final = $1
+            `,
+            [opnameFinalId]
+        );
     },
 
     async updatePdfLink(opnameFinalId: string, linkPdf: string): Promise<void> {
@@ -364,8 +373,8 @@ export const opnameFinalRepository = {
                     grand_total_rab = $4,
                     status_opname_final = $5,
                     alasan_penolakan = NULL,
-                    pemberi_persetujuan_direktur = $2,
-                    waktu_persetujuan_direktur = ${approvalTimestampExpression},
+                    pemberi_persetujuan_direktur = NULL,
+                    waktu_persetujuan_direktur = NULL,
                     pemberi_persetujuan_koordinator = NULL,
                     waktu_persetujuan_koordinator = NULL,
                     pemberi_persetujuan_manager = NULL,

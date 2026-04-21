@@ -135,18 +135,28 @@ export const opnameService = {
         payload: {
             id_toko: number;
             email_pembuat: string;
+            grand_total_opname: string;
+            grand_total_rab: string;
             items: CreateBulkOpnameItemInput[];
         },
         uploadedFotoOpnameFiles: UploadedFotoOpnameFile[] = [],
         uploadedFotoOpnameIndexes?: number[]
     ): Promise<{ opname_final: { id: number; id_toko: number; status_opname_final: string }; items: OpnameRow[] }> {
         try {
-            const { id_toko: idToko, email_pembuat: emailPembuat, items } = payload;
+            const {
+                id_toko: idToko,
+                email_pembuat: emailPembuat,
+                grand_total_opname: grandTotalOpname,
+                grand_total_rab: grandTotalRab,
+                items
+            } = payload;
 
             if (uploadedFotoOpnameFiles.length === 0) {
                 const created = await opnameRepository.createBulkWithFinal({
                     id_toko: idToko,
                     email_pembuat: emailPembuat,
+                    grand_total_opname: grandTotalOpname,
+                    grand_total_rab: grandTotalRab,
                     items
                 });
 
@@ -198,6 +208,8 @@ export const opnameService = {
                 const created = await opnameRepository.createBulkWithFinal({
                     id_toko: idToko,
                     email_pembuat: emailPembuat,
+                    grand_total_opname: grandTotalOpname,
+                    grand_total_rab: grandTotalRab,
                     items: payloadWithFoto
                 });
 
@@ -240,6 +252,8 @@ export const opnameService = {
             const created = await opnameRepository.createBulkWithFinal({
                 id_toko: idToko,
                 email_pembuat: emailPembuat,
+                grand_total_opname: grandTotalOpname,
+                grand_total_rab: grandTotalRab,
                 items: payloadWithFoto
             });
 

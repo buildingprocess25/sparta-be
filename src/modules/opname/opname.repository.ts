@@ -1,4 +1,5 @@
 import { pool, withTransaction } from "../../db/pool";
+import { REJECTED_OPNAME_FINAL_STATUSES } from "../opname-final/opname-final.constants";
 import type {
     CreateBulkOpnameItemData,
     CreateOpnameData,
@@ -119,89 +120,207 @@ export const opnameRepository = {
     async createBulkWithFinal(payload: {
         id_toko: number;
         email_pembuat: string;
+        grand_total_opname: string;
+        grand_total_rab: string;
         items: CreateBulkOpnameItemData[];
     }): Promise<{ opnameFinal: OpnameFinalHeaderRow; items: OpnameRow[] }> {
         return withTransaction(async (client) => {
-            const finalResult = await client.query<OpnameFinalHeaderRow>(
+            const existingFinalResult = await client.query<OpnameFinalHeaderRow>(
                 `
-                INSERT INTO opname_final (
-                    id_toko,
-                    email_pembuat
-                )
-                VALUES ($1, $2)
-                RETURNING ${opnameFinalColumns}
+                SELECT ${opnameFinalColumns}
+                FROM opname_final
+                WHERE id_toko = $1
+                ORDER BY id DESC
+                LIMIT 1
+                FOR UPDATE
                 `,
-                [payload.id_toko, payload.email_pembuat]
+                [payload.id_toko]
             );
 
-            const opnameFinal = finalResult.rows[0];
-            const values: Array<number | string | null> = [];
-            const placeholders = payload.items.map((item, index) => {
-                const base = index * 12;
-                values.push(
-                    payload.id_toko,
-                    opnameFinal.id,
-                    item.id_rab_item,
-                    item.status ?? "pending",
-                    item.volume_akhir,
-                    item.selisih_volume,
-                    item.total_selisih,
-                    item.desain ?? null,
-                    item.kualitas ?? null,
-                    item.spesifikasi ?? null,
-                    item.foto ?? null,
-                    item.catatan ?? null
+            let opnameFinalId: number;
+            let shouldResetItemsToPending = false;
+            if ((existingFinalResult.rowCount ?? 0) > 0) {
+                opnameFinalId = existingFinalResult.rows[0].id;
+                shouldResetItemsToPending = REJECTED_OPNAME_FINAL_STATUSES.includes(
+                    existingFinalResult.rows[0].status_opname_final as (typeof REJECTED_OPNAME_FINAL_STATUSES)[number]
                 );
-                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12})`;
-            });
+                await client.query(
+                    `
+                    UPDATE opname_final
+                    SET email_pembuat = $1,
+                        grand_total_opname = $2,
+                        grand_total_rab = $3,
+                        status_opname_final = $4,
+                        alasan_penolakan = NULL,
+                        pemberi_persetujuan_direktur = NULL,
+                        waktu_persetujuan_direktur = NULL,
+                        pemberi_persetujuan_koordinator = NULL,
+                        waktu_persetujuan_koordinator = NULL,
+                        pemberi_persetujuan_manager = NULL,
+                        waktu_persetujuan_manager = NULL
+                    WHERE id = $5
+                    `,
+                    [
+                        payload.email_pembuat,
+                        payload.grand_total_opname,
+                        payload.grand_total_rab,
+                        "Menunggu Persetujuan Koordinator",
+                        opnameFinalId
+                    ]
+                );
+            } else {
+                const createdFinalResult = await client.query<OpnameFinalHeaderRow>(
+                    `
+                    INSERT INTO opname_final (
+                        id_toko,
+                        email_pembuat,
+                        grand_total_opname,
+                        grand_total_rab,
+                        status_opname_final
+                    )
+                    VALUES ($1, $2, $3, $4, $5)
+                    RETURNING ${opnameFinalColumns}
+                    `,
+                    [
+                        payload.id_toko,
+                        payload.email_pembuat,
+                        payload.grand_total_opname,
+                        payload.grand_total_rab,
+                        "Menunggu Persetujuan Koordinator"
+                    ]
+                );
 
-            const result = await client.query<OpnameRow>(
-                `
-                INSERT INTO opname_item (
-                    id_toko,
-                    id_opname_final,
-                    id_rab_item,
-                    status,
-                    volume_akhir,
-                    selisih_volume,
-                    total_selisih,
-                    desain,
-                    kualitas,
-                    spesifikasi,
-                    foto,
-                    catatan
-                )
-                VALUES ${placeholders.join(", ")}
-                RETURNING ${returningColumns}
-                `,
-                values
-            );
+                opnameFinalId = createdFinalResult.rows[0].id;
+            }
 
-            const totals = await client.query<{ grand_total_opname: string; grand_total_rab: string }>(
-                `
-                SELECT
-                    COALESCE(SUM(oi.total_selisih), 0)::text AS grand_total_opname,
-                    COALESCE(SUM(ri.total_harga), 0)::text AS grand_total_rab
-                FROM opname_item oi
-                JOIN rab_item ri ON ri.id = oi.id_rab_item
-                WHERE oi.id_opname_final = $1
-                `,
-                [opnameFinal.id]
-            );
+            const items: OpnameRow[] = [];
+            for (const item of payload.items) {
+                const itemTokoId = item.id_toko ?? payload.id_toko;
+                const itemStatus = shouldResetItemsToPending ? "pending" : (item.status ?? "pending");
 
-            await client.query(
-                `
-                UPDATE opname_final
-                SET grand_total_opname = $1,
-                    grand_total_rab = $2
-                WHERE id = $3
-                `,
-                [
-                    totals.rows[0]?.grand_total_opname ?? "0",
-                    totals.rows[0]?.grand_total_rab ?? "0",
-                    opnameFinal.id
-                ]
-            );
+                if (typeof item.id !== "undefined") {
+                    const updateByIdResult = await client.query<OpnameRow>(
+                        `
+                        UPDATE opname_item
+                        SET id_toko = $1,
+                            id_opname_final = $2,
+                            id_rab_item = $3,
+                            status = $4,
+                            volume_akhir = $5,
+                            selisih_volume = $6,
+                            total_selisih = $7,
+                            desain = $8,
+                            kualitas = $9,
+                            spesifikasi = $10,
+                            foto = $11,
+                            catatan = $12
+                        WHERE id = $13
+                        RETURNING ${returningColumns}
+                        `,
+                        [
+                            itemTokoId,
+                            opnameFinalId,
+                            item.id_rab_item,
+                            itemStatus,
+                            item.volume_akhir,
+                            item.selisih_volume,
+                            item.total_selisih,
+                            item.desain ?? null,
+                            item.kualitas ?? null,
+                            item.spesifikasi ?? null,
+                            item.foto ?? null,
+                            item.catatan ?? null,
+                            item.id
+                        ]
+                    );
+
+                    if ((updateByIdResult.rowCount ?? 0) > 0) {
+                        items.push(updateByIdResult.rows[0]);
+                        continue;
+                    }
+                }
+
+                const updateByKeysResult = await client.query<OpnameRow>(
+                    `
+                    UPDATE opname_item
+                    SET id_opname_final = $1,
+                        status = $2,
+                        volume_akhir = $3,
+                        selisih_volume = $4,
+                        total_selisih = $5,
+                        desain = $6,
+                        kualitas = $7,
+                        spesifikasi = $8,
+                        foto = $9,
+                        catatan = $10
+                    WHERE id = (
+                        SELECT id
+                        FROM opname_item
+                        WHERE id_toko = $11
+                          AND id_rab_item = $12
+                        ORDER BY id DESC
+                        LIMIT 1
+                    )
+                    RETURNING ${returningColumns}
+                    `,
+                    [
+                        opnameFinalId,
+                        itemStatus,
+                        item.volume_akhir,
+                        item.selisih_volume,
+                        item.total_selisih,
+                        item.desain ?? null,
+                        item.kualitas ?? null,
+                        item.spesifikasi ?? null,
+                        item.foto ?? null,
+                        item.catatan ?? null,
+                        itemTokoId,
+                        item.id_rab_item
+                    ]
+                );
+
+                if ((updateByKeysResult.rowCount ?? 0) > 0) {
+                    items.push(updateByKeysResult.rows[0]);
+                    continue;
+                }
+
+                const insertResult = await client.query<OpnameRow>(
+                    `
+                    INSERT INTO opname_item (
+                        id_toko,
+                        id_opname_final,
+                        id_rab_item,
+                        status,
+                        volume_akhir,
+                        selisih_volume,
+                        total_selisih,
+                        desain,
+                        kualitas,
+                        spesifikasi,
+                        foto,
+                        catatan
+                    )
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                    RETURNING ${returningColumns}
+                    `,
+                    [
+                        itemTokoId,
+                        opnameFinalId,
+                        item.id_rab_item,
+                        itemStatus,
+                        item.volume_akhir,
+                        item.selisih_volume,
+                        item.total_selisih,
+                        item.desain ?? null,
+                        item.kualitas ?? null,
+                        item.spesifikasi ?? null,
+                        item.foto ?? null,
+                        item.catatan ?? null
+                    ]
+                );
+
+                items.push(insertResult.rows[0]);
+            }
 
             const refreshedFinal = await client.query<OpnameFinalHeaderRow>(
                 `
@@ -209,12 +328,12 @@ export const opnameRepository = {
                 FROM opname_final
                 WHERE id = $1
                 `,
-                [opnameFinal.id]
+                [opnameFinalId]
             );
 
             return {
                 opnameFinal: refreshedFinal.rows[0],
-                items: result.rows
+                items
             };
         });
     },

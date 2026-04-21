@@ -6,14 +6,14 @@ Base URL: `/api/opname`
 
 ## Daftar Endpoint
 
-| #   | Method   | Path               | Deskripsi                                    |
-| --- | -------- | ------------------ | -------------------------------------------- |
-| 1   | `POST`   | `/api/opname`      | Buat data opname item (single)               |
-| 2   | `POST`   | `/api/opname/bulk` | Bulk create opname item + auto create header |
-| 3   | `GET`    | `/api/opname`      | List data opname item (+ filter)             |
-| 4   | `GET`    | `/api/opname/:id`  | Detail data opname item berdasarkan ID       |
-| 5   | `PUT`    | `/api/opname/:id`  | Update data opname item                      |
-| 6   | `DELETE` | `/api/opname/:id`  | Hapus data opname item                       |
+| #   | Method   | Path               | Deskripsi                               |
+| --- | -------- | ------------------ | --------------------------------------- |
+| 1   | `POST`   | `/api/opname`      | Buat data opname item (single)          |
+| 2   | `POST`   | `/api/opname/bulk` | Bulk upsert opname item + upsert header |
+| 3   | `GET`    | `/api/opname`      | List data opname item (+ filter)        |
+| 4   | `GET`    | `/api/opname/:id`  | Detail data opname item berdasarkan ID  |
+| 5   | `PUT`    | `/api/opname/:id`  | Update data opname item                 |
+| 6   | `DELETE` | `/api/opname/:id`  | Hapus data opname item                  |
 
 ---
 
@@ -65,15 +65,25 @@ Base URL: `/api/opname`
 
 ---
 
-## 2. Bulk Create Opname Item
+## 2. Bulk Upsert Opname Item
 
 **`POST /api/opname/bulk`**
 
 Endpoint ini mengikuti flow:
 
-1. Insert 1 baris ke `opname_final` (header) dengan `id_toko` dan `email_pembuat`
-2. Ambil `id` hasil insert `opname_final`
-3. Insert seluruh item ke `opname_item` memakai `id_opname_final` tersebut
+1. Cek `opname_final` berdasarkan `id_toko`
+2. Jika sudah ada: update header (`email_pembuat`, `grand_total_opname`, `grand_total_rab`)
+3. Jika belum ada: insert header baru di `opname_final`
+4. Untuk setiap item di `items`:
+   - jika kirim `id`: update berdasarkan `id`
+   - jika `id` tidak ada, sistem cari item berdasarkan `id_toko` + `id_rab_item`, lalu update jika ketemu
+   - jika tidak ketemu juga, sistem insert item baru
+
+Catatan alur setelah reject:
+
+- Jika header `opname_final` terakhir untuk `id_toko` berada di status reject (`Ditolak oleh Koordinator/Manajer/Direktur`), maka saat endpoint bulk dipanggil lagi:
+  - status semua item yang diproses pada payload otomatis di-set `pending`
+  - status `opname_final` di-reset ke `Menunggu Persetujuan Koordinator`
 
 ### Request Body
 
@@ -81,8 +91,12 @@ Endpoint ini mengikuti flow:
 {
   "id_toko": 12,
   "email_pembuat": "user@example.com",
+  "grand_total_opname": "-70000",
+  "grand_total_rab": "13000000",
   "items": [
     {
+      "id": 201,
+      "id_toko": 12,
       "id_rab_item": 120,
       "status": "pending",
       "volume_akhir": 95,
@@ -110,7 +124,7 @@ Endpoint ini mengikuti flow:
     "opname_final": {
       "id": 17,
       "id_toko": 12,
-      "status_opname_final": "Menunggu Persetujuan Direktur"
+      "status_opname_final": "Menunggu Persetujuan Koordinator"
     },
     "items": [
       { "id": 201, "id_opname_final": 17 },
@@ -119,6 +133,12 @@ Endpoint ini mengikuti flow:
   }
 }
 ```
+
+### Field Item untuk Upsert
+
+- `id` (opsional): bila diisi, item akan diprioritaskan update berdasarkan `id`
+- `id_toko` (opsional): bila tidak diisi, sistem memakai `id_toko` dari level root body
+- `id_rab_item` (wajib): dipakai sebagai key pencarian fallback bersama `id_toko`
 
 ### Upload Foto Bulk (multipart/form-data)
 
