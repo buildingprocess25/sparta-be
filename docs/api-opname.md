@@ -27,6 +27,7 @@ Base URL: `/api/opname`
 - `volume_akhir` (integer)
 - `selisih_volume` (integer)
 - `total_selisih` (integer)
+- `total_harga_opname` (integer, default `0`)
 - `desain` (varchar, nullable)
 - `kualitas` (varchar, nullable)
 - `spesifikasi` (varchar, nullable)
@@ -51,6 +52,7 @@ Base URL: `/api/opname`
   "volume_akhir": 95,
   "selisih_volume": -5,
   "total_selisih": -400000,
+  "total_harga_opname": 12600000,
   "desain": "Sesuai gambar kerja",
   "kualitas": "A",
   "spesifikasi": "Cat eksterior premium",
@@ -101,14 +103,16 @@ Catatan alur setelah reject:
       "status": "pending",
       "volume_akhir": 95,
       "selisih_volume": -5,
-      "total_selisih": -400000
+      "total_selisih": -400000,
+      "total_harga_opname": 12600000
     },
     {
       "id_rab_item": 121,
       "status": "pending",
       "volume_akhir": 52,
       "selisih_volume": 2,
-      "total_selisih": 330000
+      "total_selisih": 330000,
+      "total_harga_opname": 880000
     }
   ]
 }
@@ -177,7 +181,7 @@ Catatan alur setelah reject:
 
 **`PUT /api/opname/:id`**
 
-Minimal salah satu field wajib diisi (`id_toko`, `id_opname_final`, `id_rab_item`, `status`, `volume_akhir`, `selisih_volume`, `total_selisih`, `desain`, `kualitas`, `spesifikasi`, `foto`, `catatan`).
+Minimal salah satu field wajib diisi (`id_toko`, `id_opname_final`, `id_rab_item`, `status`, `volume_akhir`, `selisih_volume`, `total_selisih`, `total_harga_opname`, `desain`, `kualitas`, `spesifikasi`, `foto`, `catatan`).
 
 Upload revisi foto:
 

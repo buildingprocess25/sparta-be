@@ -10,6 +10,7 @@ export const createOpnameSchema = z.object({
     volume_akhir: z.coerce.number().int(),
     selisih_volume: z.coerce.number().int(),
     total_selisih: z.coerce.number().int(),
+    total_harga_opname: z.coerce.number().int().optional().default(0),
     desain: z.string().trim().min(1).optional(),
     kualitas: z.string().trim().min(1).optional(),
     spesifikasi: z.string().trim().min(1).optional(),
@@ -24,6 +25,7 @@ export const bulkCreateOpnameItemSchema = z.object({
     volume_akhir: z.coerce.number().int(),
     selisih_volume: z.coerce.number().int(),
     total_selisih: z.coerce.number().int(),
+    total_harga_opname: z.coerce.number().int().optional().default(0),
     desain: z.string().trim().min(1).optional(),
     kualitas: z.string().trim().min(1).optional(),
     spesifikasi: z.string().trim().min(1).optional(),
@@ -46,6 +48,7 @@ export const updateOpnameSchema = z.object({
     volume_akhir: z.coerce.number().int().optional(),
     selisih_volume: z.coerce.number().int().optional(),
     total_selisih: z.coerce.number().int().optional(),
+    total_harga_opname: z.coerce.number().int().optional(),
     desain: z.string().trim().min(1).optional(),
     kualitas: z.string().trim().min(1).optional(),
     spesifikasi: z.string().trim().min(1).optional(),
@@ -60,6 +63,7 @@ export const updateOpnameSchema = z.object({
         volume_akhir?: number;
         selisih_volume?: number;
         total_selisih?: number;
+        total_harga_opname?: number;
         desain?: string;
         kualitas?: string;
         spesifikasi?: string;
@@ -73,6 +77,7 @@ export const updateOpnameSchema = z.object({
         || typeof data.volume_akhir !== "undefined"
         || typeof data.selisih_volume !== "undefined"
         || typeof data.total_selisih !== "undefined"
+        || typeof data.total_harga_opname !== "undefined"
         || typeof data.desain !== "undefined"
         || typeof data.kualitas !== "undefined"
         || typeof data.spesifikasi !== "undefined"

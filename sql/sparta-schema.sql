@@ -338,6 +338,7 @@ CREATE TABLE IF NOT EXISTS opname_item (
     volume_akhir INTEGER NOT NULL,
     selisih_volume INTEGER NOT NULL,
     total_selisih INTEGER NOT NULL,
+    total_harga_opname INTEGER NOT NULL DEFAULT 0,
     desain VARCHAR(255),
     kualitas VARCHAR(255),
     spesifikasi VARCHAR(255),
@@ -363,12 +364,21 @@ ALTER TABLE opname_item
     ADD COLUMN IF NOT EXISTS volume_akhir INTEGER,
     ADD COLUMN IF NOT EXISTS selisih_volume INTEGER,
     ADD COLUMN IF NOT EXISTS total_selisih INTEGER,
+    ADD COLUMN IF NOT EXISTS total_harga_opname INTEGER DEFAULT 0,
     ADD COLUMN IF NOT EXISTS desain VARCHAR(255),
     ADD COLUMN IF NOT EXISTS kualitas VARCHAR(255),
     ADD COLUMN IF NOT EXISTS spesifikasi VARCHAR(255),
     ADD COLUMN IF NOT EXISTS foto VARCHAR(500),
     ADD COLUMN IF NOT EXISTS catatan VARCHAR(500),
     ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT timezone('Asia/Jakarta', now());
+
+UPDATE opname_item
+SET total_harga_opname = 0
+WHERE total_harga_opname IS NULL;
+
+ALTER TABLE opname_item
+    ALTER COLUMN total_harga_opname SET DEFAULT 0,
+    ALTER COLUMN total_harga_opname SET NOT NULL;
 
 DO $$
 BEGIN

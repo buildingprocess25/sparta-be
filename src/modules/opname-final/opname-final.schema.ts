@@ -13,6 +13,7 @@ export const lockOpnameFinalItemSchema = z.object({
     volume_akhir: z.coerce.number().int(),
     selisih_volume: z.coerce.number().int(),
     total_selisih: z.coerce.number().int(),
+    total_harga_opname: z.coerce.number().int().optional().default(0),
     desain: z.string().trim().min(1).optional(),
     kualitas: z.string().trim().min(1).optional(),
     spesifikasi: z.string().trim().min(1).optional(),

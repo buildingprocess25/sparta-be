@@ -16,6 +16,7 @@ export type OpnameRow = {
     volume_akhir: number;
     selisih_volume: number;
     total_selisih: number;
+    total_harga_opname: number;
     desain: string | null;
     kualitas: string | null;
     spesifikasi: string | null;
@@ -51,6 +52,7 @@ const returningColumns = `
     volume_akhir,
     selisih_volume,
     total_selisih,
+    total_harga_opname,
     desain,
     kualitas,
     spesifikasi,
@@ -89,13 +91,14 @@ export const opnameRepository = {
                 volume_akhir,
                 selisih_volume,
                 total_selisih,
+                total_harga_opname,
                 desain,
                 kualitas,
                 spesifikasi,
                 foto,
                 catatan
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
             RETURNING ${returningColumns}
             `,
             [
@@ -106,6 +109,7 @@ export const opnameRepository = {
                 input.volume_akhir,
                 input.selisih_volume,
                 input.total_selisih,
+                input.total_harga_opname,
                 input.desain ?? null,
                 input.kualitas ?? null,
                 input.spesifikasi ?? null,
@@ -209,12 +213,13 @@ export const opnameRepository = {
                             volume_akhir = $5,
                             selisih_volume = $6,
                             total_selisih = $7,
-                            desain = $8,
-                            kualitas = $9,
-                            spesifikasi = $10,
-                            foto = $11,
-                            catatan = $12
-                        WHERE id = $13
+                            total_harga_opname = $8,
+                            desain = $9,
+                            kualitas = $10,
+                            spesifikasi = $11,
+                            foto = $12,
+                            catatan = $13
+                        WHERE id = $14
                         RETURNING ${returningColumns}
                         `,
                         [
@@ -225,6 +230,7 @@ export const opnameRepository = {
                             item.volume_akhir,
                             item.selisih_volume,
                             item.total_selisih,
+                            item.total_harga_opname,
                             item.desain ?? null,
                             item.kualitas ?? null,
                             item.spesifikasi ?? null,
@@ -248,16 +254,17 @@ export const opnameRepository = {
                         volume_akhir = $3,
                         selisih_volume = $4,
                         total_selisih = $5,
-                        desain = $6,
-                        kualitas = $7,
-                        spesifikasi = $8,
-                        foto = $9,
-                        catatan = $10
+                                                total_harga_opname = $6,
+                                                desain = $7,
+                                                kualitas = $8,
+                                                spesifikasi = $9,
+                                                foto = $10,
+                                                catatan = $11
                     WHERE id = (
                         SELECT id
                         FROM opname_item
-                        WHERE id_toko = $11
-                          AND id_rab_item = $12
+                                                WHERE id_toko = $12
+                                                    AND id_rab_item = $13
                         ORDER BY id DESC
                         LIMIT 1
                     )
@@ -269,6 +276,7 @@ export const opnameRepository = {
                         item.volume_akhir,
                         item.selisih_volume,
                         item.total_selisih,
+                                                item.total_harga_opname,
                         item.desain ?? null,
                         item.kualitas ?? null,
                         item.spesifikasi ?? null,
@@ -294,13 +302,14 @@ export const opnameRepository = {
                         volume_akhir,
                         selisih_volume,
                         total_selisih,
+                        total_harga_opname,
                         desain,
                         kualitas,
                         spesifikasi,
                         foto,
                         catatan
                     )
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
                     RETURNING ${returningColumns}
                     `,
                     [
@@ -311,6 +320,7 @@ export const opnameRepository = {
                         item.volume_akhir,
                         item.selisih_volume,
                         item.total_selisih,
+                        item.total_harga_opname,
                         item.desain ?? null,
                         item.kualitas ?? null,
                         item.spesifikasi ?? null,
@@ -426,6 +436,11 @@ export const opnameRepository = {
         if (typeof input.total_selisih !== "undefined") {
             values.push(input.total_selisih);
             setClauses.push(`total_selisih = $${values.length}`);
+        }
+
+        if (typeof input.total_harga_opname !== "undefined") {
+            values.push(input.total_harga_opname);
+            setClauses.push(`total_harga_opname = $${values.length}`);
         }
 
         if (typeof input.desain !== "undefined") {

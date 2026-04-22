@@ -37,6 +37,7 @@ export type OpnameFinalItemRow = {
     volume_akhir: number;
     selisih_volume: number;
     total_selisih: number;
+    total_harga_opname: number;
     desain: string | null;
     kualitas: string | null;
     spesifikasi: string | null;
@@ -170,6 +171,7 @@ export const opnameFinalRepository = {
                 oi.volume_akhir,
                 oi.selisih_volume,
                 oi.total_selisih,
+                oi.total_harga_opname,
                 oi.desain,
                 oi.kualitas,
                 oi.spesifikasi,
@@ -324,7 +326,7 @@ export const opnameFinalRepository = {
 
             const values: Array<number | string | null> = [];
             const placeholders = payload.opname_item.map((item, index) => {
-                const base = index * 12;
+                const base = index * 13;
                 values.push(
                     payload.id_toko,
                     Number(opnameFinalId),
@@ -333,6 +335,7 @@ export const opnameFinalRepository = {
                     item.volume_akhir,
                     item.selisih_volume,
                     item.total_selisih,
+                    item.total_harga_opname,
                     item.desain ?? null,
                     item.kualitas ?? null,
                     item.spesifikasi ?? null,
@@ -340,7 +343,7 @@ export const opnameFinalRepository = {
                     item.catatan ?? null
                 );
 
-                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12})`;
+                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13})`;
             });
 
             await client.query(
@@ -353,6 +356,7 @@ export const opnameFinalRepository = {
                     volume_akhir,
                     selisih_volume,
                     total_selisih,
+                    total_harga_opname,
                     desain,
                     kualitas,
                     spesifikasi,

@@ -122,6 +122,7 @@ Fungsi endpoint ini:
       "volume_akhir": 95,
       "selisih_volume": -5,
       "total_selisih": -400000,
+      "total_harga_opname": 12600000,
       "desain": "Sesuai gambar kerja",
       "kualitas": "A",
       "spesifikasi": "Cat eksterior premium",
