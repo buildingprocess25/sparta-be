@@ -150,6 +150,7 @@ CREATE TABLE day_gantt_chart (
 CREATE TABLE pengawasan_gantt (
     id SERIAL PRIMARY KEY,
     id_gantt INT,
+    id_pic_pengawasan INT,
     tanggal_pengawasan VARCHAR(255),
     CONSTRAINT fk_pengawasan_gantt FOREIGN KEY (id_gantt) REFERENCES gantt_chart(id) ON DELETE CASCADE
 );
@@ -157,6 +158,23 @@ CREATE TABLE pengawasan_gantt (
 -- Jika tabel pengawasan_gantt sudah ada di environment lama, jalankan migration berikut:
 -- ALTER TABLE pengawasan_gantt
 --   RENAME COLUMN kategori_pekerjaan TO tanggal_pengawasan;
+
+-- Migration safety untuk environment lama yang belum memiliki relasi PIC pengawasan.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'pengawasan_gantt'
+          AND column_name = 'id_pic_pengawasan'
+    ) THEN
+        ALTER TABLE pengawasan_gantt
+        ADD COLUMN id_pic_pengawasan INT;
+    END IF;
+
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_pengawasan_gantt_id_pic_pengawasan ON pengawasan_gantt(id_pic_pengawasan);
 
 -- 8a) PENGAWASAN (detail pekerjaan pengawasan)
 CREATE TABLE IF NOT EXISTS pengawasan (
@@ -764,3 +782,18 @@ CREATE TABLE IF NOT EXISTS pic_pengawasan (
     CONSTRAINT fk_pic_pengawasan_rab FOREIGN KEY (id_rab) REFERENCES rab(id) ON DELETE CASCADE,
     CONSTRAINT fk_pic_pengawasan_spk FOREIGN KEY (id_spk) REFERENCES pengajuan_spk(id) ON DELETE CASCADE
 );
+
+-- Migration safety: relasikan pengawasan_gantt ke pic_pengawasan setelah tabel pic_pengawasan tersedia.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.table_constraints
+        WHERE constraint_name = 'fk_pengawasan_gantt_pic_pengawasan'
+          AND table_name = 'pengawasan_gantt'
+    ) THEN
+        ALTER TABLE pengawasan_gantt
+        ADD CONSTRAINT fk_pengawasan_gantt_pic_pengawasan
+        FOREIGN KEY (id_pic_pengawasan) REFERENCES pic_pengawasan(id) ON DELETE SET NULL;
+    END IF;
+END $$;

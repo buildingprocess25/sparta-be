@@ -38,6 +38,7 @@ export type DayGanttRow = {
 export type PengawasanGanttRow = {
     id: number;
     id_gantt: number;
+    id_pic_pengawasan: number | null;
     tanggal_pengawasan: string;
 };
 
@@ -368,7 +369,7 @@ export const ganttRepository = {
 
         // Pengawasan
         const pengawasanRes = await pool.query<PengawasanGanttRow>(
-            `SELECT id, id_gantt, tanggal_pengawasan
+            `SELECT id, id_gantt, id_pic_pengawasan, tanggal_pengawasan
              FROM pengawasan_gantt
              WHERE id_gantt = $1
              ORDER BY id ASC`,
@@ -698,15 +699,16 @@ export const ganttRepository = {
     /** Tambah pengawasan (single/bulk) */
     async addPengawasan(
         ganttId: string,
-        tanggalPengawasanList: string[]
+        tanggalPengawasanList: string[],
+        idPicPengawasan?: number
     ): Promise<{ inserted: number; ids: number[] }> {
         const ids: number[] = [];
 
         for (const tanggalPengawasan of tanggalPengawasanList) {
             const result = await pool.query<{ id: number }>(
-                `INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan)
-                 VALUES ($1, $2) RETURNING id`,
-                [ganttId, tanggalPengawasan]
+                `INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan, id_pic_pengawasan)
+                 VALUES ($1, $2, $3) RETURNING id`,
+                [ganttId, tanggalPengawasan, idPicPengawasan ?? null]
             );
             ids.push(result.rows[0].id);
         }
@@ -823,7 +825,7 @@ export const ganttRepository = {
 
         // 7. Pengawasan
         const pengawasanRes = await pool.query<PengawasanGanttRow>(
-            `SELECT id, id_gantt, tanggal_pengawasan
+            `SELECT id, id_gantt, id_pic_pengawasan, tanggal_pengawasan
              FROM pengawasan_gantt
              WHERE id_gantt = $1
              ORDER BY id ASC`,

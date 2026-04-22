@@ -4,7 +4,7 @@ Base URL (Node.js): `/api/gantt`
 Base URL (Python): `/api/gantt-sql`
 
 > **Catatan:** Modul ini menggunakan PostgreSQL sebagai penyimpanan data (sebelumnya Google Spreadsheet).  
-> Tabel yang digunakan: `gantt_chart`, `kategori_pekerjaan_gantt`, `day_gantt_chart`, `pengawasan_gantt`, `dependency_gantt`, `toko`.
+> Tabel yang digunakan: `gantt_chart`, `kategori_pekerjaan_gantt`, `day_gantt_chart`, `pengawasan_gantt`, `dependency_gantt`, `pic_pengawasan`, `toko`.
 
 ---
 
@@ -308,8 +308,18 @@ GET /api/gantt/3?id_toko=5
       }
     ],
     "pengawasan": [
-      { "id": 1, "id_gantt": 1, "tanggal_pengawasan": "14/04/2026" },
-      { "id": 2, "id_gantt": 1, "tanggal_pengawasan": "22/04/2026" }
+      {
+        "id": 1,
+        "id_gantt": 1,
+        "id_pic_pengawasan": 9,
+        "tanggal_pengawasan": "14/04/2026"
+      },
+      {
+        "id": 2,
+        "id_gantt": 1,
+        "id_pic_pengawasan": 9,
+        "tanggal_pengawasan": "22/04/2026"
+      }
     ],
     "dependencies": [
       {
@@ -732,6 +742,7 @@ Tambah atau hapus pengawasan pada Gantt Chart.
 
 - Untuk insert tunggal, kirim `tanggal_pengawasan` berupa string.
 - Untuk bulk insert, kirim `tanggal_pengawasan` berupa array string.
+- Jika frontend kirim `pic_pengawasan`, backend akan membuat data PIC terlebih dahulu, lalu memakai `id` hasil insert ke `pengawasan_gantt.id_pic_pengawasan`.
 - Untuk menghapus, kirim `remove_tanggal_pengawasan`.
 
 ### Path Parameter
@@ -744,7 +755,16 @@ Tambah atau hapus pengawasan pada Gantt Chart.
 
 ```json
 {
-  "tanggal_pengawasan": "14/04/2026"
+  "tanggal_pengawasan": "14/04/2026",
+  "pic_pengawasan": {
+    "nomor_ulok": "7AZ1-0001-0001",
+    "id_rab": 12,
+    "id_spk": 5,
+    "kategori_lokasi": "BOBOKAN",
+    "durasi": "5 hari",
+    "tanggal_mulai_spk": "01/04/2026",
+    "plc_building_support": "Bangunan A"
+  }
 }
 ```
 
@@ -762,7 +782,12 @@ Tambah atau hapus pengawasan pada Gantt Chart.
 {
   "status": "success",
   "message": "Pengawasan berhasil ditambahkan",
-  "data": { "action": "added", "inserted": 3, "ids": [5, 6, 7] }
+  "data": {
+    "action": "added",
+    "inserted": 3,
+    "ids": [5, 6, 7],
+    "id_pic_pengawasan": 9
+  }
 }
 ```
 
@@ -786,11 +811,19 @@ Tambah atau hapus pengawasan pada Gantt Chart.
 
 ### Validasi
 
-| Field                       | Aturan                                                                        |
-| --------------------------- | ----------------------------------------------------------------------------- |
-| `tanggal_pengawasan`        | Opsional, string min 1 atau array string min 1 — untuk menambah (single/bulk) |
-| `remove_tanggal_pengawasan` | Opsional, string min 1 — untuk menghapus                                      |
-|                             | Salah satu dari dua field di atas **wajib** diisi                             |
+| Field                                 | Aturan                                                                        |
+| ------------------------------------- | ----------------------------------------------------------------------------- |
+| `tanggal_pengawasan`                  | Opsional, string min 1 atau array string min 1 — untuk menambah (single/bulk) |
+| `pic_pengawasan`                      | Opsional, object create PIC pengawasan (diproses sebelum insert pengawasan)   |
+| `pic_pengawasan.nomor_ulok`           | Wajib jika `pic_pengawasan` dikirim, string min 1                             |
+| `pic_pengawasan.id_rab`               | Wajib jika `pic_pengawasan` dikirim, integer > 0                              |
+| `pic_pengawasan.id_spk`               | Wajib jika `pic_pengawasan` dikirim, integer > 0                              |
+| `pic_pengawasan.kategori_lokasi`      | Wajib jika `pic_pengawasan` dikirim, string min 1                             |
+| `pic_pengawasan.durasi`               | Wajib jika `pic_pengawasan` dikirim, string min 1                             |
+| `pic_pengawasan.tanggal_mulai_spk`    | Wajib jika `pic_pengawasan` dikirim, string min 1                             |
+| `pic_pengawasan.plc_building_support` | Wajib jika `pic_pengawasan` dikirim, string min 1                             |
+| `remove_tanggal_pengawasan`           | Opsional, string min 1 — untuk menghapus                                      |
+|                                       | Salah satu dari dua field di atas **wajib** diisi                             |
 
 ### Error
 

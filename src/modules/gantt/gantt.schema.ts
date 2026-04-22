@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { createPicPengawasanSchema } from "../pic-pengawasan/pic-pengawasan.schema";
 
 // --- Sub-schemas ---
 
@@ -149,9 +150,14 @@ export const managePengawasanSchema = z.object({
         z.string().min(1),
         z.array(z.string().min(1)).min(1)
     ]).optional(),
+    pic_pengawasan: createPicPengawasanSchema.optional(),
     remove_tanggal_pengawasan: z.string().min(1).optional()
 }).refine(
-    (data: { tanggal_pengawasan?: string | string[]; remove_tanggal_pengawasan?: string }) =>
+    (data: {
+        tanggal_pengawasan?: string | string[];
+        pic_pengawasan?: z.infer<typeof createPicPengawasanSchema>;
+        remove_tanggal_pengawasan?: string;
+    }) =>
         data.tanggal_pengawasan || data.remove_tanggal_pengawasan,
     { message: "Field 'tanggal_pengawasan' atau 'remove_tanggal_pengawasan' wajib diisi" }
 );

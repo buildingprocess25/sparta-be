@@ -1,5 +1,6 @@
 import { AppError } from "../../common/app-error";
 import { tokoRepository } from "../toko/toko.repository";
+import { picPengawasanService } from "../pic-pengawasan/pic-pengawasan.service";
 import { GANTT_STATUS } from "./gantt.constants";
 import { ganttRepository } from "./gantt.repository";
 import type {
@@ -322,11 +323,18 @@ export const ganttService = {
                 ? payload.tanggal_pengawasan
                 : [payload.tanggal_pengawasan];
 
-            const result = await ganttRepository.addPengawasan(id, tanggalList);
+            let idPicPengawasan: number | undefined;
+            if (payload.pic_pengawasan) {
+                const pic = await picPengawasanService.create(payload.pic_pengawasan);
+                idPicPengawasan = pic.id;
+            }
+
+            const result = await ganttRepository.addPengawasan(id, tanggalList, idPicPengawasan);
             return {
                 action: "added" as const,
                 inserted: result.inserted,
-                ids: result.ids
+                ids: result.ids,
+                id_pic_pengawasan: idPicPengawasan ?? null
             };
         }
 
