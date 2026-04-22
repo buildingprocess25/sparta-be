@@ -2,6 +2,8 @@ import { AppError } from "../../common/app-error";
 import { GoogleProvider } from "../../common/google";
 import { renderHtmlTemplate, renderPdfFromHtml, resolveTemplatePath } from "../../common/html-pdf";
 import { env } from "../../config/env";
+import fs from "fs";
+import path from "path";
 import { pengawasanRepository, type PengawasanRow } from "./pengawasan.repository";
 import type {
     BulkUpdatePengawasanItemInput,
@@ -157,6 +159,29 @@ const formatJakartaTimestamp = (): string =>
         hour12: false
     }).format(new Date());
 
+const staticAssetPath = (filenameCandidates: string[]): string => {
+    const candidates = filenameCandidates.flatMap((filename) => [
+        path.resolve(__dirname, "../../image", filename),
+        path.resolve(__dirname, "../../../src/image", filename),
+    ]);
+
+    for (const assetPath of candidates) {
+        if (fs.existsSync(assetPath)) {
+            const ext = path.extname(assetPath).toLowerCase();
+            const mimeType = ext === ".png"
+                ? "image/png"
+                : ext === ".jpg" || ext === ".jpeg"
+                    ? "image/jpeg"
+                    : "application/octet-stream";
+
+            const base64 = fs.readFileSync(assetPath).toString("base64");
+            return `data:${mimeType};base64,${base64}`;
+        }
+    }
+
+    return "";
+};
+
 /**
  * Generate PDF laporan pengawasan untuk suatu id_pengawasan_gantt,
  * upload ke Google Drive, lalu upsert link-nya ke tabel berkas_pengawasan.
@@ -181,16 +206,20 @@ const generateAndUploadPengawasanPdf = async (
             else if (item.status === "terlambat") countTerlambat++;
         }
 
+        const picPengawasan = await pengawasanRepository.findPicPengawasanByPengawasanGanttId(idPengawasanGantt);
+
         // 3. Render HTML dari template
         const templatePath = await resolveTemplatePath("pengawasan_report.njk");
         const html = await renderHtmlTemplate(templatePath, {
             id_gantt: idGantt,
+            pic_pengawasan_nama: picPengawasan?.plc_building_support ?? null,
             tanggal_pengawasan: tanggalPengawasan,
             items,
             count_progress: countProgress,
             count_selesai: countSelesai,
             count_terlambat: countTerlambat,
-            generated_at: formatJakartaTimestamp()
+            generated_at: formatJakartaTimestamp(),
+            logo_watermark: staticAssetPath(["building-logo.png", "Building-Logo.png"])
         });
 
         // 4. Render PDF dari HTML
