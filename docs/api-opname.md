@@ -169,6 +169,46 @@ Catatan alur setelah reject:
 | `id_rab_item`     | `number` | Filter berdasarkan rab_item     |
 | `status`          | `string` | Filter status item opname       |
 
+### Response
+
+Jika query memakai `id_toko`, response akan menyertakan objek `toko` (diambil dari tabel `toko`) pada level root.
+
+```json
+{
+  "status": "success",
+  "toko": {
+    "id": 56,
+    "nomor_ulok": "ULOK-001",
+    "lingkup_pekerjaan": "Renovasi",
+    "nama_toko": "Toko Contoh",
+    "kode_toko": "TK-056",
+    "proyek": "Project A",
+    "cabang": "Bandung",
+    "alamat": "Jl. Contoh No. 1",
+    "nama_kontraktor": "PT Contoh"
+  },
+  "data": [
+    {
+      "id": 50,
+      "id_toko": 56,
+      "id_opname_final": 3,
+      "id_rab_item": 475,
+      "status": "pending",
+      "volume_akhir": 4,
+      "selisih_volume": 1,
+      "total_selisih": 165500,
+      "total_harga_opname": 0,
+      "desain": "Sesuai",
+      "kualitas": "Tidak Baik",
+      "spesifikasi": "Tidak Sesuai",
+      "foto": null,
+      "catatan": null,
+      "created_at": "2026-04-22T09:14:28.627Z"
+    }
+  ]
+}
+```
+
 ---
 
 ## 4. Detail Opname Item

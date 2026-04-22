@@ -122,9 +122,9 @@ export const createBulkOpname = asyncHandler(async (req: Request, res: Response)
 
 export const listOpname = asyncHandler(async (req: Request, res: Response) => {
     const query = listOpnameQuerySchema.parse(req.query);
-    const data = await opnameService.list(query);
+    const { toko, items } = await opnameService.list(query);
 
-    res.json({ status: "success", data });
+    res.json({ status: "success", toko, data: items });
 });
 
 export const getOpnameById = asyncHandler(async (req: Request, res: Response) => {

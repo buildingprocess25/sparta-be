@@ -229,11 +229,12 @@ Mengambil daftar semua pengajuan RAB. Mendukung filter via query string.
 
 ### Query Parameters
 
-| Parameter    | Tipe   | Deskripsi                               |
-| ------------ | ------ | --------------------------------------- |
-| `status`     | string | Filter berdasarkan status (exact match) |
-| `nomor_ulok` | string | Filter berdasarkan nomor ULOK           |
-| `cabang`     | string | Filter berdasarkan cabang toko          |
+| Parameter       | Tipe   | Deskripsi                               |
+| --------------- | ------ | --------------------------------------- |
+| `status`        | string | Filter berdasarkan status (exact match) |
+| `nomor_ulok`    | string | Filter berdasarkan nomor ULOK           |
+| `cabang`        | string | Filter berdasarkan cabang toko          |
+| `email_pembuat` | string | Filter berdasarkan email pembuat RAB    |
 
 ### Contoh Request
 
@@ -241,6 +242,8 @@ Mengambil daftar semua pengajuan RAB. Mendukung filter via query string.
 GET /api/rab?status=Menunggu Persetujuan Koordinator
 GET /api/rab?nomor_ulok=7AZ1-0001-0001
 GET /api/rab?cabang=CIKOKOL
+GET /api/rab?email_pembuat=cvcahayagemilangberkahabadi@gmail.com
+GET /api/rab?cabang=CIKOKOL&email_pembuat=cvcahayagemilangberkahabadi@gmail.com
 GET /api/rab?status=Menunggu Persetujuan Koordinator&cabang=CIKOKOL
 GET /api/rab
 ```

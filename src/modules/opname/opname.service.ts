@@ -1,7 +1,7 @@
 import { AppError } from "../../common/app-error";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
-import { opnameRepository, type OpnameRow } from "./opname.repository";
+import { opnameRepository, type OpnameRow, type TokoSummaryRow } from "./opname.repository";
 import type {
     CreateBulkOpnameItemData,
     CreateBulkOpnameItemInput,
@@ -270,8 +270,13 @@ export const opnameService = {
         }
     },
 
-    async list(query: ListOpnameQueryInput) {
-        return opnameRepository.findAll(query);
+    async list(query: ListOpnameQueryInput): Promise<{ toko: TokoSummaryRow | null; items: OpnameRow[] }> {
+        const items = await opnameRepository.findAll(query);
+        const toko = typeof query.id_toko === "number"
+            ? await opnameRepository.findTokoById(query.id_toko)
+            : null;
+
+        return { toko, items };
     },
 
     async getById(id: string) {

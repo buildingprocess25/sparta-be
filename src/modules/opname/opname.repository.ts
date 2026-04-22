@@ -43,6 +43,18 @@ export type OpnameFinalHeaderRow = {
     created_at: string;
 };
 
+export type TokoSummaryRow = {
+    id: number;
+    nomor_ulok: string | null;
+    lingkup_pekerjaan: string | null;
+    nama_toko: string | null;
+    kode_toko: string | null;
+    proyek: string | null;
+    cabang: string | null;
+    alamat: string | null;
+    nama_kontraktor: string | null;
+};
+
 const returningColumns = `
     id,
     id_toko,
@@ -397,6 +409,28 @@ export const opnameRepository = {
         );
 
         return result.rows;
+    },
+
+    async findTokoById(id: number): Promise<TokoSummaryRow | null> {
+        const result = await pool.query<TokoSummaryRow>(
+            `
+            SELECT
+                id,
+                nomor_ulok,
+                lingkup_pekerjaan,
+                nama_toko,
+                kode_toko,
+                proyek,
+                cabang,
+                alamat,
+                nama_kontraktor
+            FROM toko
+            WHERE id = $1
+            `,
+            [id]
+        );
+
+        return result.rows[0] ?? null;
     },
 
     async updateById(id: string, input: UpdateOpnameInput): Promise<OpnameRow | null> {
