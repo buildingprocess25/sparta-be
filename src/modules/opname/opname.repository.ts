@@ -229,7 +229,7 @@ export const opnameRepository = {
                             desain = $9,
                             kualitas = $10,
                             spesifikasi = $11,
-                            foto = $12,
+                            foto = COALESCE($12, foto),
                             catatan = $13
                         WHERE id = $14
                         RETURNING ${returningColumns}
@@ -270,7 +270,7 @@ export const opnameRepository = {
                                                 desain = $7,
                                                 kualitas = $8,
                                                 spesifikasi = $9,
-                                                foto = $10,
+                                                foto = COALESCE($10, foto),
                                                 catatan = $11
                     WHERE id = (
                         SELECT id
