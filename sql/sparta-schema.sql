@@ -188,6 +188,14 @@ ALTER TABLE pengawasan
     ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'progress',
     ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT timezone('Asia/Jakarta', now());
 
+-- Sinkronkan tipe kolom pada environment lama (kolom sudah ada tapi masih VARCHAR(255)).
+ALTER TABLE pengawasan
+    ALTER COLUMN kategori_pekerjaan TYPE VARCHAR(255),
+    ALTER COLUMN jenis_pekerjaan TYPE VARCHAR(255),
+    ALTER COLUMN catatan TYPE VARCHAR(500),
+    ALTER COLUMN dokumentasi TYPE VARCHAR(500),
+    ALTER COLUMN status TYPE VARCHAR(50);
+
 ALTER TABLE pengawasan
     ALTER COLUMN status SET DEFAULT 'progress';
 
@@ -260,6 +268,10 @@ CREATE TABLE IF NOT EXISTS berkas_pengawasan (
 );
 
 CREATE INDEX IF NOT EXISTS idx_berkas_pengawasan_id_pengawasan_gantt ON berkas_pengawasan(id_pengawasan_gantt);
+
+-- Sinkronkan tipe kolom pada environment lama (mis. link_pdf_pengawasan masih VARCHAR(255)).
+ALTER TABLE berkas_pengawasan
+    ALTER COLUMN link_pdf_pengawasan TYPE VARCHAR(500);
 
 -- Migration safety untuk environment yang tabelnya sudah ada tetapi belum lengkap.
 DO $$
