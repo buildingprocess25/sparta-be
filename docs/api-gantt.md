@@ -743,6 +743,7 @@ Tambah atau hapus pengawasan pada Gantt Chart.
 - Untuk insert tunggal, kirim `tanggal_pengawasan` berupa string.
 - Untuk bulk insert, kirim `tanggal_pengawasan` berupa array string.
 - Jika frontend kirim `pic_pengawasan`, backend akan membuat data PIC terlebih dahulu, lalu memakai `id` hasil insert ke `pengawasan_gantt.id_pic_pengawasan`.
+- Pada bulk insert + `pic_pengawasan`, semua baris `tanggal_pengawasan` dalam request tersebut akan memakai `id_pic_pengawasan` yang sama.
 - Untuk menghapus, kirim `remove_tanggal_pengawasan`.
 
 ### Path Parameter
@@ -772,11 +773,20 @@ Tambah atau hapus pengawasan pada Gantt Chart.
 
 ```json
 {
-  "tanggal_pengawasan": ["14/04/2026", "15/04/2026", "16/04/2026"]
+  "tanggal_pengawasan": ["14/04/2026", "15/04/2026", "16/04/2026"],
+  "pic_pengawasan": {
+    "nomor_ulok": "7AZ1-0001-0001",
+    "id_rab": 12,
+    "id_spk": 5,
+    "kategori_lokasi": "BOBOKAN",
+    "durasi": "5 hari",
+    "tanggal_mulai_spk": "01/04/2026",
+    "plc_building_support": "Bangunan A"
+  }
 }
 ```
 
-### Insert — Response — 201 Created
+### Insert/Bulk Insert — Response — 201 Created
 
 ```json
 {
@@ -790,6 +800,8 @@ Tambah atau hapus pengawasan pada Gantt Chart.
   }
 }
 ```
+
+`id_pic_pengawasan` bernilai `null` jika field `pic_pengawasan` tidak dikirim.
 
 ### Remove — Request Body
 
