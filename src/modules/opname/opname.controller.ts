@@ -132,6 +132,14 @@ export const getOpnameById = asyncHandler(async (req: Request, res: Response) =>
     res.json({ status: "success", data });
 });
 
+export const downloadOpnameFoto = asyncHandler(async (req: Request, res: Response) => {
+    const result = await opnameService.getFotoDownloadPayload(req.params.id);
+
+    res.setHeader("Content-Type", result.contentType);
+    res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);
+    res.send(result.fileBuffer);
+});
+
 export const updateOpname = asyncHandler(async (req: Request, res: Response) => {
     const payload = updateOpnameSchema.parse(req.body);
     const uploadedFiles = req.files as UploadedFilesMap | undefined;

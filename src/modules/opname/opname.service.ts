@@ -76,6 +76,58 @@ const resolveFileExtension = (file: UploadedFotoOpnameFile): string => {
     return ".bin";
 };
 
+const extractDriveFileId = (value: string): string | null => {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    const byIdParam = /[?&]id=([^&]+)/.exec(trimmed);
+    if (byIdParam?.[1]) return byIdParam[1];
+
+    const byPath = /\/d\/([^/]+)/.exec(trimmed);
+    if (byPath?.[1]) return byPath[1];
+
+    return null;
+};
+
+const normalizeDriveDownloadLink = (value?: string | null): string | undefined => {
+    const trimmed = (value ?? "").trim();
+    if (!trimmed) return undefined;
+
+    const fileId = extractDriveFileId(trimmed);
+    if (!fileId) return trimmed;
+
+    return `https://drive.google.com/uc?export=download&id=${fileId}`;
+};
+
+const inferFileExtension = (mimeType?: string | null): string => {
+    const value = (mimeType ?? "").toLowerCase();
+    if (value === "application/pdf") return ".pdf";
+    if (value === "image/png") return ".png";
+    if (value === "image/jpeg") return ".jpg";
+    if (value === "image/webp") return ".webp";
+    if (value === "image/svg+xml") return ".svg";
+    return "";
+};
+
+const buildOpnameFotoDownloadPath = (
+    opnameItemId: number | string,
+    rawLink?: string | null,
+): string | null => {
+    const trimmed = (rawLink ?? "").trim();
+    if (!trimmed) return null;
+
+    return `/api/opname/${opnameItemId}/foto`;
+};
+
+const normalizeOpnameFotoLink = <T extends { id: number | string; foto: string | null }>(
+    opnameItem: T,
+): T => {
+    return {
+        ...opnameItem,
+        foto: buildOpnameFotoDownloadPath(opnameItem.id, opnameItem.foto),
+    };
+};
+
 const uploadFotoOpnameToDrive = async (
     idToko: number,
     file: UploadedFotoOpnameFile
@@ -125,7 +177,8 @@ export const opnameService = {
                 ? { ...input, foto: fotoLink }
                 : input;
 
-            return await opnameRepository.create(payload);
+            const created = await opnameRepository.create(payload);
+            return normalizeOpnameFotoLink(created);
         } catch (error) {
             return mapPgError(error);
         }
@@ -166,7 +219,7 @@ export const opnameService = {
                         id_toko: created.opnameFinal.id_toko,
                         status_opname_final: created.opnameFinal.status_opname_final
                     },
-                    items: created.items
+                    items: created.items.map((item) => normalizeOpnameFotoLink(item))
                 };
             }
 
@@ -219,7 +272,7 @@ export const opnameService = {
                         id_toko: created.opnameFinal.id_toko,
                         status_opname_final: created.opnameFinal.status_opname_final
                     },
-                    items: created.items
+                    items: created.items.map((item) => normalizeOpnameFotoLink(item))
                 };
             }
 
@@ -263,7 +316,7 @@ export const opnameService = {
                     id_toko: created.opnameFinal.id_toko,
                     status_opname_final: created.opnameFinal.status_opname_final
                 },
-                items: created.items
+                items: created.items.map((item) => normalizeOpnameFotoLink(item))
             };
         } catch (error) {
             return mapPgError(error);
@@ -276,7 +329,10 @@ export const opnameService = {
             ? await opnameRepository.findTokoById(query.id_toko)
             : null;
 
-        return { toko, items };
+        return {
+            toko,
+            items: items.map((item) => normalizeOpnameFotoLink(item))
+        };
     },
 
     async getById(id: string) {
@@ -285,7 +341,7 @@ export const opnameService = {
             throw new AppError("Data opname tidak ditemukan", 404);
         }
 
-        return data;
+        return normalizeOpnameFotoLink(data);
     },
 
     async update(
@@ -312,7 +368,7 @@ export const opnameService = {
                 throw new AppError("Data opname tidak ditemukan", 404);
             }
 
-            return data;
+            return normalizeOpnameFotoLink(data);
         } catch (error) {
             if (error instanceof AppError) {
                 throw error;
@@ -320,6 +376,60 @@ export const opnameService = {
 
             return mapPgError(error);
         }
+    },
+
+    async getFotoDownloadPayload(id: string) {
+        const data = await opnameRepository.findById(id);
+        if (!data) {
+            throw new AppError("Data opname tidak ditemukan", 404);
+        }
+
+        const rawLink = data.foto?.trim();
+        if (!rawLink) {
+            throw new AppError("Foto opname tidak tersedia", 404);
+        }
+
+        const fileId = extractDriveFileId(rawLink);
+        const gp = GoogleProvider.instance;
+
+        let fileBuffer: Buffer | null = null;
+        let contentType: string | null = null;
+        let filename: string | null = null;
+
+        if (fileId && gp.spartaDrive) {
+            fileBuffer = await gp.getFileBufferById(gp.spartaDrive, fileId);
+
+            try {
+                const meta = await gp.spartaDrive.files.get({ fileId, fields: "name,mimeType" });
+                filename = meta.data.name ?? null;
+                contentType = meta.data.mimeType ?? null;
+            } catch {
+                // best effort metadata only
+            }
+        }
+
+        if (!fileBuffer) {
+            const fallbackUrl = normalizeDriveDownloadLink(rawLink) ?? rawLink;
+            const response = await fetch(fallbackUrl);
+            if (!response.ok) {
+                throw new AppError("Gagal mengambil file foto opname", 502);
+            }
+            fileBuffer = Buffer.from(await response.arrayBuffer());
+            contentType = response.headers.get("content-type") || contentType;
+        }
+
+        if (!fileBuffer.length) {
+            throw new AppError("File foto opname kosong", 502);
+        }
+
+        const ext = inferFileExtension(contentType);
+        const resolvedFilename = filename || `OPNAME_FOTO_${data.id_toko}_${data.id}${ext}`;
+
+        return {
+            filename: resolvedFilename,
+            contentType: contentType || "application/octet-stream",
+            fileBuffer,
+        };
     },
 
     async remove(id: string) {

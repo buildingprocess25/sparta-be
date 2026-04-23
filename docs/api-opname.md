@@ -12,8 +12,9 @@ Base URL: `/api/opname`
 | 2   | `POST`   | `/api/opname/bulk` | Bulk upsert opname item + upsert header |
 | 3   | `GET`    | `/api/opname`      | List data opname item (+ filter)        |
 | 4   | `GET`    | `/api/opname/:id`  | Detail data opname item berdasarkan ID  |
-| 5   | `PUT`    | `/api/opname/:id`  | Update data opname item                 |
-| 6   | `DELETE` | `/api/opname/:id`  | Hapus data opname item                  |
+| 5   | `GET`    | `/api/opname/:id/foto` | Download file foto opname item      |
+| 6   | `PUT`    | `/api/opname/:id`  | Update data opname item                 |
+| 7   | `DELETE` | `/api/opname/:id`  | Hapus data opname item                  |
 
 ---
 
@@ -63,7 +64,7 @@ Base URL: `/api/opname`
 ### Upload Foto (multipart/form-data)
 
 - field file: `file_foto_opname`
-- behavior: file diupload ke Google Drive dan link disimpan ke `foto`
+- behavior: file diupload ke Google Drive; pada response API field `foto` akan berisi endpoint download internal (`/api/opname/:id/foto`)
 
 ---
 
@@ -153,6 +154,7 @@ Catatan alur setelah reject:
   - 1 file -> dipakai semua item
   - jumlah file = jumlah item -> map per index
   - sebagian item saja -> gunakan `file_foto_opname_indexes`
+- catatan response: jika item punya foto, field `foto` berisi endpoint download internal (`/api/opname/:id/foto`)
 
 ---
 
@@ -217,7 +219,17 @@ Jika query memakai `id_toko`, response akan menyertakan objek `toko` (diambil da
 
 ---
 
-## 5. Update Opname Item
+## 5. Download Foto Opname Item
+
+**`GET /api/opname/:id/foto`**
+
+Endpoint ini mengunduh file foto opname item berdasarkan link Google Drive yang tersimpan pada item tersebut.
+
+Response: binary file (`Content-Disposition: attachment`)
+
+---
+
+## 6. Update Opname Item
 
 **`PUT /api/opname/:id`**
 
@@ -229,7 +241,7 @@ Upload revisi foto:
 
 ---
 
-## 6. Delete Opname Item
+## 7. Delete Opname Item
 
 **`DELETE /api/opname/:id`**
 

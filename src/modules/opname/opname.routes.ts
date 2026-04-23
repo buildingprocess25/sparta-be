@@ -3,6 +3,7 @@ import multer from "multer";
 import {
     createBulkOpname,
     createOpname,
+    downloadOpnameFoto,
     deleteOpname,
     getOpnameById,
     listOpname,
@@ -33,6 +34,7 @@ opnameRouter.post(
 );
 opnameRouter.get("/", listOpname);
 opnameRouter.get("/:id", getOpnameById);
+opnameRouter.get("/:id/foto", downloadOpnameFoto);
 opnameRouter.put(
     "/:id",
     opnameUpload.fields([
