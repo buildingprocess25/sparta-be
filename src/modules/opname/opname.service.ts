@@ -52,6 +52,15 @@ const mapPgError = (error: unknown): never => {
     throw error;
 };
 
+const parseOpnameId = (id: string): number => {
+    const parsedId = Number(id);
+    if (!Number.isInteger(parsedId) || parsedId <= 0) {
+        throw new AppError("Parameter id harus berupa integer positif", 400);
+    }
+
+    return parsedId;
+};
+
 const sanitizeFilenamePart = (value: string | undefined, fallback: string): string => {
     const normalized = (value ?? "").trim().replace(/[^a-zA-Z0-9_-]+/g, "_");
     return normalized || fallback;
@@ -336,7 +345,8 @@ export const opnameService = {
     },
 
     async getById(id: string) {
-        const data = await opnameRepository.findById(id);
+        const parsedId = parseOpnameId(id);
+        const data = await opnameRepository.findById(String(parsedId));
         if (!data) {
             throw new AppError("Data opname tidak ditemukan", 404);
         }
@@ -350,7 +360,8 @@ export const opnameService = {
         uploadedFotoOpname?: UploadedFotoOpnameFile
     ): Promise<OpnameRow> {
         try {
-            const existing = await opnameRepository.findById(id);
+            const parsedId = parseOpnameId(id);
+            const existing = await opnameRepository.findById(String(parsedId));
             if (!existing) {
                 throw new AppError("Data opname tidak ditemukan", 404);
             }
@@ -363,7 +374,7 @@ export const opnameService = {
                 ? { ...input, foto: fotoLink }
                 : input;
 
-            const data = await opnameRepository.updateById(id, payload);
+            const data = await opnameRepository.updateById(String(parsedId), payload);
             if (!data) {
                 throw new AppError("Data opname tidak ditemukan", 404);
             }
@@ -379,7 +390,8 @@ export const opnameService = {
     },
 
     async getFotoDownloadPayload(id: string) {
-        const data = await opnameRepository.findById(id);
+        const parsedId = parseOpnameId(id);
+        const data = await opnameRepository.findById(String(parsedId));
         if (!data) {
             throw new AppError("Data opname tidak ditemukan", 404);
         }
@@ -433,11 +445,12 @@ export const opnameService = {
     },
 
     async remove(id: string) {
-        const deleted = await opnameRepository.deleteById(id);
+        const parsedId = parseOpnameId(id);
+        const deleted = await opnameRepository.deleteById(String(parsedId));
         if (!deleted) {
             throw new AppError("Data opname tidak ditemukan", 404);
         }
 
-        return { id: Number(id), deleted: true };
+        return { id: parsedId, deleted: true };
     }
 };
