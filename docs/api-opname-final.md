@@ -95,7 +95,7 @@ Mengembalikan:
 Catatan relasi item:
 
 - Field `id_rab_item` tetap dikirim untuk referensi id relasi.
-- Detail relasi `rab_item` sudah diparse ke object `rab_item` di setiap item.
+- Detail relasi `rab_item` sudah diparse ke object `rab_item` di setiap item, termasuk semua kolom penting dari tabel `rab_item`.
 - Untuk backward compatibility, field flatten (`kategori_pekerjaan`, `jenis_pekerjaan`, `satuan`, `volume_rab`, `total_harga_rab`) tetap tersedia.
 
 ### Response — 200 OK
@@ -154,11 +154,17 @@ Catatan relasi item:
         "total_harga_rab": 105000,
         "rab_item": {
           "id": 488,
+          "id_rab": 33,
           "kategori_pekerjaan": "PEKERJAAN ATAP",
           "jenis_pekerjaan": "Waterproofing dak beton merk Sikatop 107 dak diatas km / wc",
           "satuan": "M2",
           "volume": 2,
-          "total_harga": 105000
+          "harga_material": 35000,
+          "harga_upah": 17500,
+          "total_material": 70000,
+          "total_upah": 35000,
+          "total_harga": 105000,
+          "catatan": null
         }
       }
     ]

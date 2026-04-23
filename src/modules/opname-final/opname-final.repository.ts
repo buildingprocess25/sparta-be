@@ -51,15 +51,29 @@ export type OpnameFinalItemRow = {
     total_harga_rab: number | null;
     rab_item: {
         id: number;
+        id_rab: number | null;
         kategori_pekerjaan: string | null;
         jenis_pekerjaan: string | null;
         satuan: string | null;
         volume: number | null;
+        harga_material: number | null;
+        harga_upah: number | null;
+        total_material: number | null;
+        total_upah: number | null;
         total_harga: number | null;
+        catatan: string | null;
     };
 };
 
-type OpnameFinalItemQueryRow = Omit<OpnameFinalItemRow, "rab_item">;
+type OpnameFinalItemQueryRow = Omit<OpnameFinalItemRow, "rab_item"> & {
+    rab_item_id: number | null;
+    rab_item_id_rab: number | null;
+    rab_item_harga_material: number | null;
+    rab_item_harga_upah: number | null;
+    rab_item_total_material: number | null;
+    rab_item_total_upah: number | null;
+    rab_item_catatan: string | null;
+};
 
 export type OpnameFinalDetail = {
     opname_final: OpnameFinalRow;
@@ -188,11 +202,18 @@ export const opnameFinalRepository = {
                 oi.foto,
                 oi.catatan,
                 oi.created_at,
+                ri.id AS rab_item_id,
+                ri.id_rab AS rab_item_id_rab,
                 ri.kategori_pekerjaan,
                 ri.jenis_pekerjaan,
                 ri.satuan,
                 ri.volume AS volume_rab,
-                ri.total_harga AS total_harga_rab
+                ri.harga_material AS rab_item_harga_material,
+                ri.harga_upah AS rab_item_harga_upah,
+                ri.total_material AS rab_item_total_material,
+                ri.total_upah AS rab_item_total_upah,
+                ri.total_harga AS total_harga_rab,
+                ri.catatan AS rab_item_catatan
             FROM opname_item oi
             LEFT JOIN rab_item ri ON ri.id = oi.id_rab_item
             WHERE oi.id_opname_final = $1
@@ -204,12 +225,18 @@ export const opnameFinalRepository = {
         const items: OpnameFinalItemRow[] = itemsResult.rows.map((item) => ({
             ...item,
             rab_item: {
-                id: item.id_rab_item,
+                id: item.rab_item_id ?? item.id_rab_item,
+                id_rab: item.rab_item_id_rab,
                 kategori_pekerjaan: item.kategori_pekerjaan,
                 jenis_pekerjaan: item.jenis_pekerjaan,
                 satuan: item.satuan,
                 volume: item.volume_rab,
-                total_harga: item.total_harga_rab
+                harga_material: item.rab_item_harga_material,
+                harga_upah: item.rab_item_harga_upah,
+                total_material: item.rab_item_total_material,
+                total_upah: item.rab_item_total_upah,
+                total_harga: item.total_harga_rab,
+                catatan: item.rab_item_catatan
             }
         }));
 
