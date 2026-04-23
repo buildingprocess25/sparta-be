@@ -92,6 +92,80 @@ Mengembalikan:
 - Data `toko`
 - Daftar item dari `opname_item` (join `rab_item`)
 
+Catatan relasi item:
+
+- Field `id_rab_item` tetap dikirim untuk referensi id relasi.
+- Detail relasi `rab_item` sudah diparse ke object `rab_item` di setiap item.
+- Untuk backward compatibility, field flatten (`kategori_pekerjaan`, `jenis_pekerjaan`, `satuan`, `volume_rab`, `total_harga_rab`) tetap tersedia.
+
+### Response — 200 OK
+
+```json
+{
+  "status": "success",
+  "data": {
+    "opname_final": {
+      "id": 5,
+      "id_toko": 56,
+      "status_opname_final": "Menunggu Persetujuan Koordinator",
+      "link_pdf_opname": null,
+      "email_pembuat": "user@example.com",
+      "pemberi_persetujuan_direktur": null,
+      "waktu_persetujuan_direktur": null,
+      "pemberi_persetujuan_koordinator": null,
+      "waktu_persetujuan_koordinator": null,
+      "pemberi_persetujuan_manager": null,
+      "waktu_persetujuan_manager": null,
+      "alasan_penolakan": null,
+      "grand_total_opname": "91907500",
+      "grand_total_rab": "93783500",
+      "created_at": "2026-04-22T15:34:10.386Z"
+    },
+    "toko": {
+      "id": 56,
+      "nomor_ulok": "KZ01-2603-5050",
+      "nama_toko": "Phase1",
+      "proyek": "Reguler",
+      "cabang": "CIKOKOL",
+      "alamat": "Here.",
+      "lingkup_pekerjaan": "SIPIL"
+    },
+    "items": [
+      {
+        "id": 84,
+        "id_toko": 56,
+        "id_opname_final": 5,
+        "id_rab_item": 488,
+        "status": "pending",
+        "volume_akhir": 3,
+        "selisih_volume": 1,
+        "total_selisih": 52500,
+        "total_harga_opname": 157500,
+        "desain": null,
+        "kualitas": null,
+        "spesifikasi": null,
+        "foto": "https://drive.google.com/file/d/xxxx/view",
+        "catatan": null,
+        "created_at": "2026-04-22T15:34:10.386Z",
+        "kategori_pekerjaan": "PEKERJAAN ATAP",
+        "jenis_pekerjaan": "Waterproofing dak beton merk Sikatop 107 dak diatas km / wc",
+        "satuan": "M2",
+        "volume_rab": 2,
+        "total_harga_rab": 105000,
+        "rab_item": {
+          "id": 488,
+          "kategori_pekerjaan": "PEKERJAAN ATAP",
+          "jenis_pekerjaan": "Waterproofing dak beton merk Sikatop 107 dak diatas km / wc",
+          "satuan": "M2",
+          "volume": 2,
+          "total_harga": 105000
+        }
+      }
+    ]
+  }
+}
+```
+
 ---
 
 ## 3. Kunci Opname Final

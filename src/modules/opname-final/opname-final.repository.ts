@@ -49,7 +49,17 @@ export type OpnameFinalItemRow = {
     satuan: string | null;
     volume_rab: number | null;
     total_harga_rab: number | null;
+    rab_item: {
+        id: number;
+        kategori_pekerjaan: string | null;
+        jenis_pekerjaan: string | null;
+        satuan: string | null;
+        volume: number | null;
+        total_harga: number | null;
+    };
 };
+
+type OpnameFinalItemQueryRow = Omit<OpnameFinalItemRow, "rab_item">;
 
 export type OpnameFinalDetail = {
     opname_final: OpnameFinalRow;
@@ -160,7 +170,7 @@ export const opnameFinalRepository = {
 
         const header = headerResult.rows[0];
 
-        const itemsResult = await pool.query<OpnameFinalItemRow>(
+        const itemsResult = await pool.query<OpnameFinalItemQueryRow>(
             `
             SELECT
                 oi.id,
@@ -191,6 +201,18 @@ export const opnameFinalRepository = {
             [id]
         );
 
+        const items: OpnameFinalItemRow[] = itemsResult.rows.map((item) => ({
+            ...item,
+            rab_item: {
+                id: item.id_rab_item,
+                kategori_pekerjaan: item.kategori_pekerjaan,
+                jenis_pekerjaan: item.jenis_pekerjaan,
+                satuan: item.satuan,
+                volume: item.volume_rab,
+                total_harga: item.total_harga_rab
+            }
+        }));
+
         return {
             opname_final: {
                 id: header.id,
@@ -218,7 +240,7 @@ export const opnameFinalRepository = {
                 alamat: header.alamat,
                 lingkup_pekerjaan: header.lingkup_pekerjaan
             },
-            items: itemsResult.rows
+            items
         };
     },
 
