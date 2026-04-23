@@ -21,6 +21,7 @@ Base URL: `/api/final_opname`
 
 - `id` (PK)
 - `id_toko` (FK -> `toko.id`)
+- `aksi` (varchar, `active` | `terkunci`, default `active`)
 - `status_opname_final` (varchar)
 - `link_pdf_opname` (varchar)
 - `email_pembuat` (varchar)
@@ -73,12 +74,13 @@ Perilaku tambahan saat reject:
 
 ### Query Parameters (opsional)
 
-| Parameter    | Tipe     | Deskripsi                     |
-| ------------ | -------- | ----------------------------- |
-| `status`     | `string` | Filter status opname_final    |
-| `id_toko`    | `number` | Filter berdasarkan toko       |
-| `nomor_ulok` | `string` | Filter berdasarkan nomor ULOK |
-| `cabang`     | `string` | Filter berdasarkan cabang     |
+| Parameter    | Tipe     | Deskripsi                         |
+| ------------ | -------- | --------------------------------- |
+| `status`     | `string` | Filter status opname_final        |
+| `aksi`       | `string` | Filter aksi (`active`/`terkunci`) |
+| `id_toko`    | `number` | Filter berdasarkan toko           |
+| `nomor_ulok` | `string` | Filter berdasarkan nomor ULOK     |
+| `cabang`     | `string` | Filter berdasarkan cabang         |
 
 ---
 
@@ -107,6 +109,7 @@ Catatan relasi item:
     "opname_final": {
       "id": 5,
       "id_toko": 56,
+      "aksi": "terkunci",
       "status_opname_final": "Menunggu Persetujuan Koordinator",
       "link_pdf_opname": null,
       "email_pembuat": "user@example.com",
@@ -183,9 +186,10 @@ Fungsi endpoint ini:
 1. Cari data `opname_final` berdasarkan `:id`
 2. Replace seluruh item `opname_item` pada `id_opname_final` tersebut
 3. Update header `id_toko`, `email_pembuat`, `grand_total_opname`, `grand_total_rab`
-4. Set status langsung ke `Menunggu Persetujuan Koordinator`
-5. Generate PDF terbaru dan upload ke Google Drive
-6. Simpan link PDF ke kolom `link_pdf_opname`
+4. Set `aksi` menjadi `terkunci`
+5. Set status langsung ke `Menunggu Persetujuan Koordinator`
+6. Generate PDF terbaru dan upload ke Google Drive
+7. Simpan link PDF ke kolom `link_pdf_opname`
 
 ### Request Body
 
@@ -193,6 +197,7 @@ Fungsi endpoint ini:
 {
   "id_toko": 12,
   "email_pembuat": "user@example.com",
+  "aksi": "terkunci",
   "grand_total_opname": "12500000",
   "grand_total_rab": "13000000",
   "opname_item": [
@@ -221,6 +226,7 @@ Fungsi endpoint ini:
   "data": {
     "id": 17,
     "id_toko": 12,
+    "aksi": "terkunci",
     "status_opname_final": "Menunggu Persetujuan Koordinator",
     "item_count": 1,
     "link_pdf_opname": "https://drive.google.com/file/d/xxxx/view"

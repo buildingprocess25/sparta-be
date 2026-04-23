@@ -310,6 +310,7 @@ END $$;
 CREATE TABLE IF NOT EXISTS opname_final (
     id SERIAL PRIMARY KEY,
     id_toko INT NOT NULL,
+    aksi VARCHAR(20) NOT NULL DEFAULT 'active',
     status_opname_final VARCHAR(255) NOT NULL DEFAULT 'Menunggu Persetujuan Koordinator',
     link_pdf_opname VARCHAR(500),
     email_pembuat VARCHAR(255),
@@ -328,10 +329,23 @@ CREATE TABLE IF NOT EXISTS opname_final (
 
 CREATE INDEX IF NOT EXISTS idx_opname_final_id_toko ON opname_final(id_toko);
 CREATE INDEX IF NOT EXISTS idx_opname_final_status ON opname_final(status_opname_final);
+CREATE INDEX IF NOT EXISTS idx_opname_final_aksi ON opname_final(aksi);
 
 -- Migration safety: pastikan default status mengikuti alur approval terbaru.
 ALTER TABLE opname_final
     ALTER COLUMN status_opname_final SET DEFAULT 'Menunggu Persetujuan Koordinator';
+
+-- Migration safety: pastikan kolom aksi tersedia dan bernilai valid.
+ALTER TABLE opname_final
+    ADD COLUMN IF NOT EXISTS aksi VARCHAR(20);
+
+UPDATE opname_final
+SET aksi = 'active'
+WHERE aksi IS NULL OR aksi NOT IN ('active', 'terkunci');
+
+ALTER TABLE opname_final
+    ALTER COLUMN aksi SET DEFAULT 'active',
+    ALTER COLUMN aksi SET NOT NULL;
 
 -- 8c) OPNAME_ITEM (rename dari tabel opname lama)
 DO $$

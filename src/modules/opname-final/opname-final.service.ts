@@ -153,6 +153,10 @@ export const opnameFinalService = {
             throw new AppError("Data opname_final tidak ditemukan", 404);
         }
 
+        if ((detail.opname_final.aksi || "").toLowerCase() !== "terkunci") {
+            throw new AppError("Opname final belum dikunci. Approval hanya bisa dilakukan saat aksi = terkunci", 409);
+        }
+
         const currentStatus = detail.opname_final.status_opname_final;
         const newStatus = resolveStatusTransition(currentStatus, action);
 
@@ -199,6 +203,7 @@ export const opnameFinalService = {
             return {
                 id: Number(id),
                 id_toko: payload.id_toko,
+                aksi: payload.aksi ?? "terkunci",
                 status_opname_final: OPNAME_FINAL_STATUS.WAITING_FOR_COORDINATOR,
                 item_count: result.item_count,
                 link_pdf_opname: linkPdf

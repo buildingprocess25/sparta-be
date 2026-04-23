@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const opnameFinalListQuerySchema = z.object({
     status: z.string().trim().min(1).optional(),
+    aksi: z.enum(["active", "terkunci"]).optional(),
     id_toko: z.coerce.number().int().positive().optional(),
     nomor_ulok: z.string().trim().min(1).optional(),
     cabang: z.string().trim().min(1).optional()
@@ -24,6 +25,7 @@ export const lockOpnameFinalItemSchema = z.object({
 export const lockOpnameFinalSchema = z.object({
     id_toko: z.coerce.number().int().positive(),
     email_pembuat: z.string().email(),
+    aksi: z.enum(["active", "terkunci"]).optional().default("terkunci"),
     grand_total_opname: z.union([z.string().trim().min(1), z.coerce.number()]).transform((value) => String(value)),
     grand_total_rab: z.union([z.string().trim().min(1), z.coerce.number()]).transform((value) => String(value)),
     opname_item: z.array(lockOpnameFinalItemSchema).min(1)

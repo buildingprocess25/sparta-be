@@ -6,6 +6,7 @@ import type { LockOpnameFinalInput, OpnameFinalListQueryInput } from "./opname-f
 export type OpnameFinalRow = {
     id: number;
     id_toko: number;
+    aksi: "active" | "terkunci" | string;
     status_opname_final: OpnameFinalStatus;
     link_pdf_opname: string | null;
     email_pembuat: string | null;
@@ -92,6 +93,7 @@ export type OpnameFinalDetail = {
 const OPNAME_FINAL_COLUMNS = `
     ofn.id,
     ofn.id_toko,
+    ofn.aksi,
     ofn.status_opname_final,
     ofn.link_pdf_opname,
     ofn.email_pembuat,
@@ -117,6 +119,11 @@ export const opnameFinalRepository = {
         if (filter.status) {
             values.push(filter.status);
             conditions.push(`ofn.status_opname_final = $${values.length}`);
+        }
+
+        if (filter.aksi) {
+            values.push(filter.aksi);
+            conditions.push(`ofn.aksi = $${values.length}`);
         }
 
         if (typeof filter.id_toko !== "undefined") {
@@ -244,6 +251,7 @@ export const opnameFinalRepository = {
             opname_final: {
                 id: header.id,
                 id_toko: header.id_toko,
+                aksi: header.aksi,
                 status_opname_final: header.status_opname_final,
                 link_pdf_opname: header.link_pdf_opname,
                 email_pembuat: header.email_pembuat,
@@ -422,9 +430,10 @@ export const opnameFinalRepository = {
                 UPDATE opname_final
                 SET id_toko = $1,
                     email_pembuat = $2,
-                    grand_total_opname = $3,
-                    grand_total_rab = $4,
-                    status_opname_final = $5,
+                    aksi = $3,
+                    grand_total_opname = $4,
+                    grand_total_rab = $5,
+                    status_opname_final = $6,
                     alasan_penolakan = NULL,
                     pemberi_persetujuan_direktur = NULL,
                     waktu_persetujuan_direktur = NULL,
@@ -432,11 +441,12 @@ export const opnameFinalRepository = {
                     waktu_persetujuan_koordinator = NULL,
                     pemberi_persetujuan_manager = NULL,
                     waktu_persetujuan_manager = NULL
-                WHERE id = $6
+                WHERE id = $7
                 `,
                 [
                     payload.id_toko,
                     payload.email_pembuat,
+                    payload.aksi ?? "terkunci",
                     payload.grand_total_opname,
                     payload.grand_total_rab,
                     "Menunggu Persetujuan Koordinator",

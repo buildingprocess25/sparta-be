@@ -6,15 +6,15 @@ Base URL: `/api/opname`
 
 ## Daftar Endpoint
 
-| #   | Method   | Path               | Deskripsi                               |
-| --- | -------- | ------------------ | --------------------------------------- |
-| 1   | `POST`   | `/api/opname`      | Buat data opname item (single)          |
-| 2   | `POST`   | `/api/opname/bulk` | Bulk upsert opname item + upsert header |
-| 3   | `GET`    | `/api/opname`      | List data opname item (+ filter)        |
-| 4   | `GET`    | `/api/opname/:id`  | Detail data opname item berdasarkan ID  |
-| 5   | `GET`    | `/api/opname/:id/foto` | Download file foto opname item      |
-| 6   | `PUT`    | `/api/opname/:id`  | Update data opname item                 |
-| 7   | `DELETE` | `/api/opname/:id`  | Hapus data opname item                  |
+| #   | Method   | Path                   | Deskripsi                               |
+| --- | -------- | ---------------------- | --------------------------------------- |
+| 1   | `POST`   | `/api/opname`          | Buat data opname item (single)          |
+| 2   | `POST`   | `/api/opname/bulk`     | Bulk upsert opname item + upsert header |
+| 3   | `GET`    | `/api/opname`          | List data opname item (+ filter)        |
+| 4   | `GET`    | `/api/opname/:id`      | Detail data opname item berdasarkan ID  |
+| 5   | `GET`    | `/api/opname/:id/foto` | Download file foto opname item          |
+| 6   | `PUT`    | `/api/opname/:id`      | Update data opname item                 |
+| 7   | `DELETE` | `/api/opname/:id`      | Hapus data opname item                  |
 
 ---
 
@@ -77,7 +77,8 @@ Endpoint ini mengikuti flow:
 1. Cek `opname_final` berdasarkan `id_toko`
 2. Jika sudah ada: update header (`email_pembuat`, `grand_total_opname`, `grand_total_rab`)
 3. Jika belum ada: insert header baru di `opname_final`
-4. Untuk setiap item di `items`:
+4. Set kolom `opname_final.aksi` menjadi `active` (default saat bulk create/upsert item)
+5. Untuk setiap item di `items`:
    - jika kirim `id`: update berdasarkan `id`
    - jika `id` tidak ada, sistem cari item berdasarkan `id_toko` + `id_rab_item`, lalu update jika ketemu
    - jika tidak ketemu juga, sistem insert item baru
@@ -129,6 +130,7 @@ Catatan alur setelah reject:
     "opname_final": {
       "id": 17,
       "id_toko": 12,
+      "aksi": "active",
       "status_opname_final": "Menunggu Persetujuan Koordinator"
     },
     "items": [

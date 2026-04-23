@@ -203,7 +203,7 @@ export const opnameService = {
         },
         uploadedFotoOpnameFiles: UploadedFotoOpnameFile[] = [],
         uploadedFotoOpnameIndexes?: number[]
-    ): Promise<{ opname_final: { id: number; id_toko: number; status_opname_final: string }; items: OpnameRow[] }> {
+    ): Promise<{ opname_final: { id: number; id_toko: number; aksi: string; status_opname_final: string }; items: OpnameRow[] }> {
         try {
             const {
                 id_toko: idToko,
@@ -226,6 +226,7 @@ export const opnameService = {
                     opname_final: {
                         id: created.opnameFinal.id,
                         id_toko: created.opnameFinal.id_toko,
+                        aksi: created.opnameFinal.aksi,
                         status_opname_final: created.opnameFinal.status_opname_final
                     },
                     items: created.items.map((item) => normalizeOpnameFotoLink(item))
@@ -279,6 +280,7 @@ export const opnameService = {
                     opname_final: {
                         id: created.opnameFinal.id,
                         id_toko: created.opnameFinal.id_toko,
+                        aksi: created.opnameFinal.aksi,
                         status_opname_final: created.opnameFinal.status_opname_final
                     },
                     items: created.items.map((item) => normalizeOpnameFotoLink(item))
@@ -323,6 +325,7 @@ export const opnameService = {
                 opname_final: {
                     id: created.opnameFinal.id,
                     id_toko: created.opnameFinal.id_toko,
+                    aksi: created.opnameFinal.aksi,
                     status_opname_final: created.opnameFinal.status_opname_final
                 },
                 items: created.items.map((item) => normalizeOpnameFotoLink(item))

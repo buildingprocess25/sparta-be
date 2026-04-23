@@ -28,6 +28,7 @@ export type OpnameRow = {
 export type OpnameFinalHeaderRow = {
     id: number;
     id_toko: number;
+    aksi: "active" | "terkunci" | string;
     status_opname_final: string;
     link_pdf_opname: string | null;
     email_pembuat: string | null;
@@ -76,6 +77,7 @@ const returningColumns = `
 const opnameFinalColumns = `
     id,
     id_toko,
+    aksi,
     status_opname_final,
     link_pdf_opname,
     email_pembuat,
@@ -164,9 +166,10 @@ export const opnameRepository = {
                     `
                     UPDATE opname_final
                     SET email_pembuat = $1,
-                        grand_total_opname = $2,
-                        grand_total_rab = $3,
-                        status_opname_final = $4,
+                        aksi = $2,
+                        grand_total_opname = $3,
+                        grand_total_rab = $4,
+                        status_opname_final = $5,
                         alasan_penolakan = NULL,
                         pemberi_persetujuan_direktur = NULL,
                         waktu_persetujuan_direktur = NULL,
@@ -174,10 +177,11 @@ export const opnameRepository = {
                         waktu_persetujuan_koordinator = NULL,
                         pemberi_persetujuan_manager = NULL,
                         waktu_persetujuan_manager = NULL
-                    WHERE id = $5
+                    WHERE id = $6
                     `,
                     [
                         payload.email_pembuat,
+                        "active",
                         payload.grand_total_opname,
                         payload.grand_total_rab,
                         "Menunggu Persetujuan Koordinator",
@@ -190,16 +194,18 @@ export const opnameRepository = {
                     INSERT INTO opname_final (
                         id_toko,
                         email_pembuat,
+                        aksi,
                         grand_total_opname,
                         grand_total_rab,
                         status_opname_final
                     )
-                    VALUES ($1, $2, $3, $4, $5)
+                    VALUES ($1, $2, $3, $4, $5, $6)
                     RETURNING ${opnameFinalColumns}
                     `,
                     [
                         payload.id_toko,
                         payload.email_pembuat,
+                        "active",
                         payload.grand_total_opname,
                         payload.grand_total_rab,
                         "Menunggu Persetujuan Koordinator"
