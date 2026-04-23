@@ -28,7 +28,7 @@ opnameRouter.post(
 opnameRouter.post(
     "/bulk",
     opnameUpload.fields([
-        { name: "file_foto_opname", maxCount: 50 }
+        { name: "file_foto_opname", maxCount: 300 }
     ]),
     createBulkOpname
 );

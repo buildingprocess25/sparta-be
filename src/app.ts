@@ -1,5 +1,6 @@
 import cors from "cors";
 import express from "express";
+import multer from "multer";
 import { ZodError } from "zod";
 import { env } from "./config/env";
 import { AppError } from "./common/app-error";
@@ -56,6 +57,27 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
             status: "error",
             message: "Validasi request gagal",
             issues: error.issues
+        });
+    }
+
+    if (error instanceof multer.MulterError) {
+        if (error.code === "LIMIT_FILE_SIZE") {
+            return res.status(400).json({
+                status: "error",
+                message: "Ukuran file melebihi batas maksimal 10MB per file"
+            });
+        }
+
+        if (error.code === "LIMIT_UNEXPECTED_FILE") {
+            return res.status(400).json({
+                status: "error",
+                message: `Field file tidak valid atau jumlah file melebihi batas untuk field: ${error.field || "unknown"}`
+            });
+        }
+
+        return res.status(400).json({
+            status: "error",
+            message: `Upload file gagal (${error.code})`
         });
     }
 
