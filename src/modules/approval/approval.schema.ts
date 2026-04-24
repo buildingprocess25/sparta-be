@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const jabatanSchema = z.enum(["KOORDINATOR", "MANAGER", "DIREKTUR"]);
+const jabatanSchema = z.enum(["KOORDINATOR", "MANAGER", "DIREKTUR", "KONTRAKTOR"]);
 const tindakanSchema = z.enum(["APPROVE", "REJECT"]);
 
 export const approvalActionSchema = z

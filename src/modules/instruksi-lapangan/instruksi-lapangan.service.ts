@@ -1,8 +1,9 @@
-import { v4 as uuidv4 } from "uuid";
+import crypto from "crypto";
 import fs from "fs/promises";
 import path from "path";
 import { AppError } from "../../common/app-error";
-import { storeFileToDrive } from "../document/document.service";
+import { env } from "../../config/env";
+import { GoogleProvider } from "../../common/google";
 import type { ApprovalActionInput } from "../approval/approval.schema";
 import type { ListInstruksiLapanganQuery, SubmitInstruksiLapanganInput } from "./instruksi-lapangan.schema";
 import { instruksiLapanganRepository } from "./instruksi-lapangan.repository";
@@ -14,7 +15,7 @@ import {
 
 const saveUploadToTemp = async (file: { originalname: string; buffer: Buffer }): Promise<string> => {
     const ext = path.extname(file.originalname);
-    const filename = `${uuidv4()}${ext}`;
+    const filename = `${crypto.randomUUID()}${ext}`;
     const tmpPath = path.join(process.cwd(), "tmp", filename);
     
     await fs.mkdir(path.dirname(tmpPath), { recursive: true });
@@ -22,6 +23,38 @@ const saveUploadToTemp = async (file: { originalname: string; buffer: Buffer }):
     
     return tmpPath;
 };
+
+const extractDriveFileId = (value: string): string | null => {
+    const match = value.match(/id=([^&]+)/) || value.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    return match ? match[1] : null;
+};
+
+const normalizeDriveDownloadLink = (value?: string | null): string | undefined => {
+    if (!value) return undefined;
+    const trimmed = value.trim();
+    if (trimmed.startsWith("http") && trimmed.includes("drive.google.com")) {
+        const fileId = extractDriveFileId(trimmed);
+        if (fileId) return `https://drive.google.com/uc?export=view&id=${fileId}`;
+    }
+    return trimmed;
+};
+
+async function uploadPdfToDrive(buffer: Buffer, filename: string): Promise<string> {
+    const gp = GoogleProvider.instance;
+    const drive = gp.spartaDrive;
+    if (!drive) throw new AppError("Google Drive (Sparta) belum terkonfigurasi", 500);
+
+    const result = await gp.uploadFile(
+        env.PDF_STORAGE_FOLDER_ID,
+        filename,
+        "application/pdf",
+        buffer,
+        2,
+        drive,
+    );
+    if (!result.webViewLink) throw new AppError("Upload gagal, tidak ada link", 500);
+    return normalizeDriveDownloadLink(result.webViewLink) ?? result.webViewLink;
+}
 
 export const instruksiLapanganService = {
     async submit(
@@ -106,9 +139,9 @@ export const instruksiLapanganService = {
         const pdfFilename = `Instruksi_Lapangan_${data.toko.nomor_ulok}_${Date.now()}`;
 
         const [linkGabungan, linkNonSbo, linkRekap] = await Promise.all([
-            storeFileToDrive(`${pdfFilename}_Gabungan.pdf`, mergedBuffer, "application/pdf"),
-            storeFileToDrive(`${pdfFilename}_NonSBO.pdf`, reportBuffer, "application/pdf"),
-            storeFileToDrive(`${pdfFilename}_Rekapitulasi.pdf`, recapBuffer, "application/pdf")
+            uploadPdfToDrive(mergedBuffer, `${pdfFilename}_Gabungan.pdf`),
+            uploadPdfToDrive(reportBuffer, `${pdfFilename}_NonSBO.pdf`),
+            uploadPdfToDrive(recapBuffer, `${pdfFilename}_Rekapitulasi.pdf`)
         ]);
 
         const total = items.reduce((acc, item) => acc + Number(item.total_harga || 0), 0);
@@ -208,7 +241,7 @@ export const instruksiLapanganService = {
 
         const currentStatus = data.instruksiLapangan.status;
 
-        if (action.action === "APPROVE") {
+        if (action.tindakan === "APPROVE") {
             if (currentStatus === "Menunggu Persetujuan Koordinator") {
                 await instruksiLapanganRepository.updateApproval(
                     id,
@@ -233,7 +266,7 @@ export const instruksiLapanganService = {
             } else {
                 throw new AppError(`Status tidak dapat di-approve dari state saat ini: ${currentStatus}`, 400);
             }
-        } else if (action.action === "REJECT") {
+        } else if (action.tindakan === "REJECT") {
             const role = currentStatus === "Menunggu Persetujuan Koordinator" ? "koordinator"
                 : currentStatus === "Menunggu Persetujuan Manager" ? "manager"
                 : "kontraktor";
@@ -243,7 +276,7 @@ export const instruksiLapanganService = {
                 "Ditolak",
                 role,
                 action.approver_email,
-                action.reason
+                action.alasan_penolakan ?? undefined
             );
         } else {
             throw new AppError("Action tidak valid", 400);

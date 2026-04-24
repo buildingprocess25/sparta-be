@@ -1,4 +1,4 @@
-import { pool } from "../../db";
+import { pool } from "../../db/pool";
 import type { InstruksiLapanganItemInput, SubmitInstruksiLapanganInput } from "./instruksi-lapangan.schema";
 
 export interface InstruksiLapanganRow {
