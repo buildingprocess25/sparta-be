@@ -131,14 +131,6 @@ export const buildInstruksiLapanganPdfBuffer = async (input: BuildInstruksiLapan
             Cabang: input.toko.cabang ?? "",
             Alamat: input.toko.alamat ?? "",
             LingkupPekerjaan: input.toko.lingkup_pekerjaan ?? "",
-            DurasiPekerjaan: "-",
-            KategoriLokasi: "-",
-            LuasAreaParkir: "0",
-            LuasAreaSales: "0",
-            LuasGudang: "0",
-            LuasBangunan: "0",
-            LuasAreaTerbuka: "0",
-            LuasTerbangun: "0",
         },
         grouped_items_list: buildGroupedItems(input.items),
         grand_total: rupiah(total),
@@ -157,6 +149,10 @@ export const buildInstruksiLapanganPdfBuffer = async (input: BuildInstruksiLapan
         manager_approval_details: approvalDetails(
             input.instruksiLapangan.pemberi_persetujuan_manager,
             input.instruksiLapangan.waktu_persetujuan_manager,
+        ),
+        contractor_approval_details: approvalDetails(
+            input.instruksiLapangan.pemberi_persetujuan_kontraktor,
+            input.instruksiLapangan.waktu_persetujuan_kontraktor,
         ),
     });
 
@@ -197,8 +193,6 @@ export const buildInstruksiLapanganRecapPdfBuffer = async (input: BuildInstruksi
             Cabang: input.toko.cabang ?? "",
             Alamat: input.toko.alamat ?? "",
             LingkupPekerjaan: input.toko.lingkup_pekerjaan ?? "",
-            DurasiPekerjaan: "-",
-            KategoriLokasi: "-",
         },
         category_totals_list,
         grand_total_formatted: rupiah(grandTotal),
