@@ -1,5 +1,5 @@
 import { pool } from "../../db/pool";
-import type { CreateTokoInput, ListTokoQueryInput } from "./toko.schema";
+import type { CreateTokoInput, ListTokoQueryInput, GetTokoDetailQueryInput } from "./toko.schema";
 
 export type TokoRow = {
     id: number;
@@ -53,6 +53,36 @@ export const tokoRepository = {
         const result = await pool.query<TokoRow>(
             `SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor FROM toko WHERE id = $1`,
             [id]
+        );
+
+        return result.rows[0] ?? null;
+    },
+
+    async findDetail(query: GetTokoDetailQueryInput): Promise<TokoRow | null> {
+        const filters: string[] = [];
+        const values: any[] = [];
+
+        if (query.id) {
+            values.push(query.id);
+            filters.push(`id = $${values.length}`);
+        }
+        if (query.nomor_ulok) {
+            values.push(query.nomor_ulok);
+            filters.push(`nomor_ulok = $${values.length}`);
+        }
+        if (query.lingkup) {
+            values.push(query.lingkup);
+            filters.push(`LOWER(lingkup_pekerjaan) = LOWER($${values.length})`);
+        }
+
+        if (filters.length === 0) return null;
+
+        const result = await pool.query<TokoRow>(
+            `SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor 
+             FROM toko 
+             WHERE ${filters.join(" AND ")}
+             LIMIT 1`,
+            values
         );
 
         return result.rows[0] ?? null;

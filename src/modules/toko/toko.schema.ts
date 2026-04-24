@@ -23,3 +23,14 @@ export const loginUserCabangSchema = z.object({
 });
 
 export type LoginUserCabangInput = z.infer<typeof loginUserCabangSchema>;
+
+export const getTokoDetailQuerySchema = z.object({
+    id: z.coerce.number().positive().optional(),
+    nomor_ulok: z.string().trim().min(1).optional(),
+    lingkup: z.string().trim().min(1).optional()
+}).refine(data => data.id || data.nomor_ulok, {
+    message: "Harus memberikan minimal id atau nomor_ulok",
+    path: ["id", "nomor_ulok"]
+});
+
+export type GetTokoDetailQueryInput = z.infer<typeof getTokoDetailQuerySchema>;

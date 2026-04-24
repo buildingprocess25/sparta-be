@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { asyncHandler } from "../../common/async-handler";
 import { GoogleProvider } from "../../common/google";
-import { createTokoSchema, listTokoQuerySchema, loginUserCabangSchema } from "./toko.schema";
+import { createTokoSchema, listTokoQuerySchema, loginUserCabangSchema, getTokoDetailQuerySchema } from "./toko.schema";
 import { tokoService } from "./toko.service";
 
 export const createToko = asyncHandler(async (req: Request, res: Response) => {
@@ -13,6 +13,12 @@ export const createToko = asyncHandler(async (req: Request, res: Response) => {
 
 export const getTokoByNomorUlok = asyncHandler(async (req: Request, res: Response) => {
     const data = await tokoService.getByNomorUlok(req.params.nomorUlok);
+    res.json({ status: "success", data });
+});
+
+export const getTokoDetail = asyncHandler(async (req: Request, res: Response) => {
+    const query = getTokoDetailQuerySchema.parse(req.query);
+    const data = await tokoService.getDetail(query);
     res.json({ status: "success", data });
 });
 

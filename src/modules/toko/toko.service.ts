@@ -1,6 +1,6 @@
 import { AppError } from "../../common/app-error";
 import { tokoRepository } from "./toko.repository";
-import type { CreateTokoInput, ListTokoQueryInput, LoginUserCabangInput } from "./toko.schema";
+import type { CreateTokoInput, ListTokoQueryInput, LoginUserCabangInput, GetTokoDetailQueryInput } from "./toko.schema";
 
 export const tokoService = {
     async create(input: CreateTokoInput) {
@@ -13,6 +13,14 @@ export const tokoService = {
             throw new AppError("Data toko tidak ditemukan", 404);
         }
 
+        return toko;
+    },
+
+    async getDetail(query: GetTokoDetailQueryInput) {
+        const toko = await tokoRepository.findDetail(query);
+        if (!toko) {
+            throw new AppError("Data toko tidak ditemukan", 404);
+        }
         return toko;
     },
 
