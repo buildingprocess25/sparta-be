@@ -38,7 +38,7 @@ const formatDateTimeIndonesia = (value?: string | null): string => {
 const approvalDetails = (nameOrEmail?: string | null, approvedAt?: string | null): string => {
     const identity = (nameOrEmail ?? "").trim();
     if (!identity) {
-        return "<div class=\\"approval-details\\"><strong>( _________________ )</strong></div>";
+        return "<div class='approval-details'><strong>( _________________ )</strong></div>";
     }
     return `<div class="approval-details"><strong>( ${identity} )</strong><br>Disetujui pada: ${formatDateTimeIndonesia(approvedAt)}</div>`;
 };
