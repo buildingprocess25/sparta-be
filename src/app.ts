@@ -17,6 +17,7 @@ import { pengawasanRouter } from "./modules/pengawasan/pengawasan.routes";
 import { opnameRouter } from "./modules/opname/opname.routes";
 import { opnameFinalRouter } from "./modules/opname-final/opname-final.routes";
 import { userCabangRouter } from "./modules/user-cabang/user-cabang.routes";
+import { instruksiLapanganRouter } from "./modules/instruksi-lapangan/instruksi-lapangan.routes";
 import { getKontraktor, loginUserCabang } from "./modules/toko/toko.controller";
 
 
@@ -48,6 +49,7 @@ app.use("/api/pengawasan", pengawasanRouter);
 app.use("/api/opname", opnameRouter);
 app.use("/api/final_opname", opnameFinalRouter);
 app.use("/api/user_cabang", userCabangRouter);
+app.use("/api/instruksi-lapangan", instruksiLapanganRouter);
 app.use("/", priceRabRouter);
 app.use("/api", priceRabRouter);
 

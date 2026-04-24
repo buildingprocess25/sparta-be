@@ -811,3 +811,47 @@ BEGIN
         FOREIGN KEY (id_pic_pengawasan) REFERENCES pic_pengawasan(id) ON DELETE SET NULL;
     END IF;
 END $$;
+
+-- 14) INSTRUKSI_LAPANGAN
+CREATE TABLE IF NOT EXISTS instruksi_lapangan (
+    id SERIAL PRIMARY KEY,
+    id_toko INT NOT NULL,
+    status VARCHAR(255),
+    link_pdf_gabungan VARCHAR(500),
+    link_pdf_non_sbo VARCHAR(500),
+    link_pdf_rekapitulasi VARCHAR(500),
+    link_lampiran VARCHAR(500),
+    email_pembuat VARCHAR(255),
+    pemberi_persetujuan_koordinator VARCHAR(255),
+    waktu_persetujuan_koordinator TIMESTAMP,
+    pemberi_persetujuan_manager VARCHAR(255),
+    waktu_persetujuan_manager TIMESTAMP,
+    pemberi_persetujuan_kontraktor VARCHAR(255),
+    waktu_persetujuan_kontraktor TIMESTAMP,
+    alasan_penolakan TEXT,
+    grand_total VARCHAR(255),
+    grand_total_non_sbo VARCHAR(255),
+    grand_total_final VARCHAR(255),
+    created_at TIMESTAMP NOT NULL DEFAULT timezone('Asia/Jakarta', now()),
+    CONSTRAINT fk_instruksi_lapangan_toko FOREIGN KEY (id_toko) REFERENCES toko(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_instruksi_lapangan_id_toko ON instruksi_lapangan(id_toko);
+
+-- 15) INSTRUKSI_LAPANGAN_ITEM
+CREATE TABLE IF NOT EXISTS instruksi_lapangan_item (
+    id SERIAL PRIMARY KEY,
+    id_instruksi_lapangan INT NOT NULL,
+    kategori_pekerjaan VARCHAR(255),
+    jenis_pekerjaan VARCHAR(255),
+    satuan VARCHAR(50),
+    volume INTEGER,
+    harga_material INTEGER,
+    harga_upah INTEGER,
+    total_material INTEGER,
+    total_upah INTEGER,
+    total_harga INTEGER,
+    CONSTRAINT fk_instruksi_lapangan_item_header FOREIGN KEY (id_instruksi_lapangan) REFERENCES instruksi_lapangan(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_instruksi_lapangan_item_header ON instruksi_lapangan_item(id_instruksi_lapangan);
