@@ -29,15 +29,7 @@ const extractDriveFileId = (value: string): string | null => {
     return match ? match[1] : null;
 };
 
-const normalizeDriveDownloadLink = (value?: string | null): string | undefined => {
-    if (!value) return undefined;
-    const trimmed = value.trim();
-    if (trimmed.startsWith("http") && trimmed.includes("drive.google.com")) {
-        const fileId = extractDriveFileId(trimmed);
-        if (fileId) return `https://drive.google.com/uc?export=view&id=${fileId}`;
-    }
-    return trimmed;
-};
+
 
 async function uploadPdfToDrive(buffer: Buffer, filename: string): Promise<string> {
     const gp = GoogleProvider.instance;
@@ -52,8 +44,7 @@ async function uploadPdfToDrive(buffer: Buffer, filename: string): Promise<strin
         2,
         drive,
     );
-    if (!result.webViewLink) throw new AppError("Upload gagal, tidak ada link", 500);
-    return normalizeDriveDownloadLink(result.webViewLink) ?? result.webViewLink;
+    return result.webViewLink ?? `https://drive.google.com/file/d/${result.id}/view`;
 }
 
 export const instruksiLapanganService = {
