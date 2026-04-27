@@ -26,6 +26,13 @@ export const submitRabSchema = z.object({
     durasi_pekerjaan: z.string().min(1),
     logo: z.string().optional(),
     rev_logo: z.string().optional(),
+    is_revisi: z
+        .union([
+            z.boolean(),
+            z.enum(["true", "false"]).transform((value) => value === "true")
+        ])
+        .optional(),
+    id_rab_revisi: z.coerce.number().int().positive().optional(),
     kategori_lokasi: z.string().optional(),
     no_polis: z.string().optional(),
     berlaku_polis: z.string().optional(),

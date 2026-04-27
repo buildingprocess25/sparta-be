@@ -79,6 +79,14 @@ export type TokoStableFields = {
     nama_kontraktor: string | null;
 };
 
+export type RabMinimalRow = {
+    id: number;
+    id_toko: number;
+    status: RabStatus;
+    logo: string | null;
+    file_asuransi: string | null;
+};
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -192,6 +200,29 @@ export const rabRepository = {
             [tokoId, ACTIVE_RAB_STATUSES]
         );
         return result.rows[0]?.exists ?? false;
+    },
+
+    async existsAnyByTokoId(tokoId: number): Promise<boolean> {
+        const result = await pool.query<{ exists: boolean }>(
+            `SELECT EXISTS(
+                SELECT 1 FROM rab
+                WHERE id_toko = $1
+            )`,
+            [tokoId]
+        );
+        return result.rows[0]?.exists ?? false;
+    },
+
+    async findMinimalById(rabId: number): Promise<RabMinimalRow | null> {
+        const result = await pool.query<RabMinimalRow>(
+            `SELECT id, id_toko, status, logo, file_asuransi
+             FROM rab
+             WHERE id = $1
+             LIMIT 1`,
+            [rabId]
+        );
+
+        return result.rows[0] ?? null;
     },
 
     async replaceRejectedWithDetails(
@@ -359,31 +390,60 @@ export const rabRepository = {
         detail_items: DetailItemInput[];
     }): Promise<RabRow & { toko_id: number }> {
         return withTransaction(async (client) => {
-            // 1. Upsert toko – insert atau update jika nomor_ulok sudah ada
-            const tokoRes = await client.query<{ id: number }>(
-                `INSERT INTO toko (
-                    nomor_ulok, lingkup_pekerjaan, nama_toko,
-                    proyek, cabang, alamat, nama_kontraktor
-                ) VALUES ($1,$2,$3,$4,$5,$6,$7)
-                ON CONFLICT (nomor_ulok) DO UPDATE SET
-                    lingkup_pekerjaan = COALESCE(EXCLUDED.lingkup_pekerjaan, toko.lingkup_pekerjaan),
-                    nama_toko = COALESCE(EXCLUDED.nama_toko, toko.nama_toko),
-                    proyek = COALESCE(EXCLUDED.proyek, toko.proyek),
-                    cabang = COALESCE(EXCLUDED.cabang, toko.cabang),
-                    alamat = COALESCE(EXCLUDED.alamat, toko.alamat),
-                    nama_kontraktor = COALESCE(EXCLUDED.nama_kontraktor, toko.nama_kontraktor)
-                RETURNING id`,
-                [
-                    payload.nomor_ulok,
-                    payload.lingkup_pekerjaan ?? null,
-                    payload.nama_toko ?? null,
-                    payload.proyek ?? null,
-                    payload.cabang ?? null,
-                    payload.alamat ?? null,
-                    payload.nama_kontraktor ?? null
-                ]
+            // 1. Ambil toko by nomor_ulok+lingkup. Jika tidak ada, insert baru.
+            const existingTokoRes = await client.query<{ id: number }>(
+                `SELECT id
+                 FROM toko
+                 WHERE nomor_ulok = $1
+                   AND LOWER(COALESCE(lingkup_pekerjaan, '')) = LOWER(COALESCE($2, ''))
+                 ORDER BY id DESC
+                 LIMIT 1
+                 FOR UPDATE`,
+                [payload.nomor_ulok, payload.lingkup_pekerjaan ?? null]
             );
-            const tokoId = tokoRes.rows[0].id;
+
+            let tokoId: number;
+
+            if ((existingTokoRes.rowCount ?? 0) > 0) {
+                tokoId = existingTokoRes.rows[0].id;
+
+                await client.query(
+                    `UPDATE toko
+                     SET nama_toko = COALESCE($1, nama_toko),
+                         proyek = COALESCE($2, proyek),
+                         cabang = COALESCE($3, cabang),
+                         alamat = COALESCE($4, alamat),
+                         nama_kontraktor = COALESCE($5, nama_kontraktor)
+                     WHERE id = $6`,
+                    [
+                        payload.nama_toko ?? null,
+                        payload.proyek ?? null,
+                        payload.cabang ?? null,
+                        payload.alamat ?? null,
+                        payload.nama_kontraktor ?? null,
+                        tokoId
+                    ]
+                );
+            } else {
+                const tokoInsertRes = await client.query<{ id: number }>(
+                    `INSERT INTO toko (
+                        nomor_ulok, lingkup_pekerjaan, nama_toko,
+                        proyek, cabang, alamat, nama_kontraktor
+                    ) VALUES ($1,$2,$3,$4,$5,$6,$7)
+                    RETURNING id`,
+                    [
+                        payload.nomor_ulok,
+                        payload.lingkup_pekerjaan ?? null,
+                        payload.nama_toko ?? null,
+                        payload.proyek ?? null,
+                        payload.cabang ?? null,
+                        payload.alamat ?? null,
+                        payload.nama_kontraktor ?? null
+                    ]
+                );
+                tokoId = tokoInsertRes.rows[0].id;
+            }
+
             const logoToPersist = toPersistedAssetLink(payload.logo);
             const insuranceToPersist = toPersistedAssetLink(payload.file_asuransi);
 

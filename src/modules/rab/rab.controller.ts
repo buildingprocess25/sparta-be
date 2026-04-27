@@ -21,6 +21,12 @@ export const submitRab = asyncHandler(async (req: Request, res: Response) => {
         file_asuransi: typeof req.body.file_asuransi === "string" ? req.body.file_asuransi : undefined,
         rev_logo: typeof req.body.rev_logo === "string" ? req.body.rev_logo : undefined,
         rev_file_asuransi: typeof req.body.rev_file_asuransi === "string" ? req.body.rev_file_asuransi : undefined,
+        is_revisi: typeof req.body.is_revisi === "string"
+            ? req.body.is_revisi
+            : req.body.is_revisi,
+        id_rab_revisi: typeof req.body.id_rab_revisi === "string"
+            ? req.body.id_rab_revisi
+            : req.body.id_rab_revisi,
     };
 
     // Debug: log raw body toko fields yang diterima dari frontend

@@ -23,27 +23,67 @@ export type UserCabangRow = {
 
 export const tokoRepository = {
     async create(input: CreateTokoInput): Promise<TokoRow> {
-        const result = await pool.query<TokoRow>(
-            `
-      INSERT INTO toko (nomor_ulok, nama_toko, kode_toko, cabang, alamat)
-      VALUES ($1, $2, $3, $4, $5)
-      ON CONFLICT (nomor_ulok) DO UPDATE
-        SET nama_toko = EXCLUDED.nama_toko,
-            kode_toko = EXCLUDED.kode_toko,
-            cabang = EXCLUDED.cabang,
-            alamat = EXCLUDED.alamat
-      RETURNING id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor
-      `,
+        const existing = await pool.query<TokoRow>(
+            `SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor
+             FROM toko
+             WHERE nomor_ulok = $1
+             ORDER BY id DESC
+             LIMIT 1`,
+            [input.nomor_ulok]
+        );
+
+        if ((existing.rowCount ?? 0) > 0) {
+            const updated = await pool.query<TokoRow>(
+                `UPDATE toko
+                 SET nama_toko = $1,
+                     kode_toko = $2,
+                     cabang = $3,
+                     alamat = $4
+                 WHERE id = $5
+                 RETURNING id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor`,
+                [
+                    input.nama_toko,
+                    input.kode_toko,
+                    input.cabang,
+                    input.alamat,
+                    existing.rows[0].id
+                ]
+            );
+            return updated.rows[0];
+        }
+
+        const inserted = await pool.query<TokoRow>(
+            `INSERT INTO toko (nomor_ulok, nama_toko, kode_toko, cabang, alamat)
+             VALUES ($1, $2, $3, $4, $5)
+             RETURNING id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor`,
             [input.nomor_ulok, input.nama_toko, input.kode_toko, input.cabang, input.alamat]
         );
 
-        return result.rows[0];
+        return inserted.rows[0];
     },
 
     async findByNomorUlok(nomorUlok: string): Promise<TokoRow | null> {
         const result = await pool.query<TokoRow>(
-            `SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor FROM toko WHERE nomor_ulok = $1`,
+            `SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor
+             FROM toko
+             WHERE nomor_ulok = $1
+             ORDER BY id DESC
+             LIMIT 1`,
             [nomorUlok]
+        );
+
+        return result.rows[0] ?? null;
+    },
+
+    async findByNomorUlokAndLingkup(nomorUlok: string, lingkupPekerjaan?: string | null): Promise<TokoRow | null> {
+        const result = await pool.query<TokoRow>(
+            `SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor
+             FROM toko
+             WHERE nomor_ulok = $1
+               AND LOWER(COALESCE(lingkup_pekerjaan, '')) = LOWER(COALESCE($2, ''))
+             ORDER BY id DESC
+             LIMIT 1`,
+            [nomorUlok, lingkupPekerjaan ?? null]
         );
 
         return result.rows[0] ?? null;

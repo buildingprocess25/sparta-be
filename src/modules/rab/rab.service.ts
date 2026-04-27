@@ -486,37 +486,49 @@ async function regenerateRabPdfs(
 
 export const rabService = {
     async submit(payload: SubmitRabInput, uploadedFiles: SubmitUploadedFiles = {}) {
-        // 1. Cek apakah ini submit baru atau resubmit dari data yang ditolak
+        // 1. Tentukan mode submit: create baru atau revisi explicit dari frontend
         let rejectedRabToReplaceId: number | null = null;
         let rejectedRabExistingLogo: string | null = null;
         let rejectedRabExistingInsurance: string | null = null;
-        const existingToko = await tokoRepository.findByNomorUlok(payload.nomor_ulok);
-        if (existingToko) {
-            const latestRab = await rabRepository.findLatestByTokoId(existingToko.id);
+        const isRevisionSubmit = payload.is_revisi === true;
+        const existingTokoByCombination = await tokoRepository.findByNomorUlokAndLingkup(
+            payload.nomor_ulok,
+            payload.lingkup_pekerjaan
+        );
 
-            if (latestRab && REJECTED_RAB_STATUSES.includes(latestRab.status)) {
-                rejectedRabToReplaceId = latestRab.id;
-                rejectedRabExistingLogo = latestRab.logo;
-                rejectedRabExistingInsurance = latestRab.file_asuransi;
-            } else {
-                const isDuplicate = await rabRepository.existsActiveByTokoId(existingToko.id);
-                if (isDuplicate) {
-                    throw new AppError(
-                        `RAB aktif untuk ULOK ${payload.nomor_ulok} sudah ada`,
-                        409
-                    );
-                }
+        if (isRevisionSubmit) {
+            if (!payload.id_rab_revisi) {
+                throw new AppError("Revisi RAB wajib mengirim id_rab_revisi", 400);
             }
-        }
 
-        // Validasi lingkup saat resubmit agar tidak salah menimpa data ULOK yang berbeda scope pekerjaan.
-        if (existingToko && rejectedRabToReplaceId !== null) {
-            const currentLingkup = (existingToko.lingkup_pekerjaan ?? "").trim().toLowerCase();
-            const incomingLingkup = (payload.lingkup_pekerjaan ?? "").trim().toLowerCase();
+            const targetRab = await rabRepository.findMinimalById(payload.id_rab_revisi);
+            if (!targetRab) {
+                throw new AppError("Data RAB revisi tidak ditemukan", 404);
+            }
 
-            if (currentLingkup && incomingLingkup && currentLingkup !== incomingLingkup) {
+            if (!REJECTED_RAB_STATUSES.includes(targetRab.status)) {
+                throw new AppError("RAB yang dipilih bukan status ditolak/revisi", 409);
+            }
+
+            if (!existingTokoByCombination) {
                 throw new AppError(
-                    `Lingkup pekerjaan untuk ULOK ${payload.nomor_ulok} tidak sesuai dengan data reject sebelumnya`,
+                    `Data toko untuk kombinasi ULOK ${payload.nomor_ulok} dan lingkup ${payload.lingkup_pekerjaan ?? "-"} tidak ditemukan`,
+                    404
+                );
+            }
+
+            if (targetRab.id_toko !== existingTokoByCombination.id) {
+                throw new AppError("id_rab_revisi tidak cocok dengan toko/lingkup yang dipilih", 409);
+            }
+
+            rejectedRabToReplaceId = targetRab.id;
+            rejectedRabExistingLogo = targetRab.logo;
+            rejectedRabExistingInsurance = targetRab.file_asuransi;
+        } else if (existingTokoByCombination) {
+            const alreadyExists = await rabRepository.existsAnyByTokoId(existingTokoByCombination.id);
+            if (alreadyExists) {
+                throw new AppError(
+                    `RAB untuk kombinasi ULOK ${payload.nomor_ulok} dan lingkup ${payload.lingkup_pekerjaan ?? "-"} sudah ada`,
                     409
                 );
             }

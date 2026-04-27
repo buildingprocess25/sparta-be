@@ -5,15 +5,20 @@
 -- 1) TOKO
 CREATE TABLE toko (
     id SERIAL PRIMARY KEY,
-    nomor_ulok VARCHAR(255) UNIQUE,
+    nomor_ulok VARCHAR(255),
     lingkup_pekerjaan VARCHAR(255),
     nama_toko VARCHAR(255),
     kode_toko VARCHAR(255),
     proyek VARCHAR(255),
     cabang VARCHAR(255),
     alamat VARCHAR(255),
-    nama_kontraktor VARCHAR(255)
+    nama_kontraktor VARCHAR(255),
+    CONSTRAINT uq_toko_nomor_ulok_lingkup UNIQUE (nomor_ulok, lingkup_pekerjaan)
 );
+
+-- Jika tabel toko sudah terlanjur ada di environment lama, jalankan migration berikut:
+-- ALTER TABLE toko DROP CONSTRAINT IF EXISTS toko_nomor_ulok_key;
+-- ALTER TABLE toko ADD CONSTRAINT uq_toko_nomor_ulok_lingkup UNIQUE (nomor_ulok, lingkup_pekerjaan);
 
 -- 2) RAB
 CREATE TABLE rab (

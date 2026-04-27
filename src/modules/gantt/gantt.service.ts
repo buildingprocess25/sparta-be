@@ -72,7 +72,10 @@ const normalizeUpdatePengawasan = (
 export const ganttService = {
     async submit(payload: SubmitGanttInput) {
         // 1. Jika sudah ada gantt aktif untuk ULOK ini, lakukan replace data (bukan create baru)
-        const existingToko = await tokoRepository.findByNomorUlok(payload.nomor_ulok);
+        const existingToko = await tokoRepository.findByNomorUlokAndLingkup(
+            payload.nomor_ulok,
+            payload.lingkup_pekerjaan
+        );
         if (existingToko) {
             const activeGantt = await ganttRepository.findLatestActiveByTokoId(existingToko.id);
             if (activeGantt) {

@@ -253,31 +253,62 @@ export const ganttRepository = {
         dependencies?: DependencyItemInput[];
     }): Promise<GanttRow & { toko_id: number }> {
         return withTransaction(async (client) => {
-            // 1. Upsert toko
-            const tokoRes = await client.query<{ id: number }>(
-                `INSERT INTO toko (
-                    nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko,
-                    proyek, cabang, alamat, nama_kontraktor
-                ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-                ON CONFLICT (nomor_ulok) DO UPDATE SET
-                    lingkup_pekerjaan = COALESCE(EXCLUDED.lingkup_pekerjaan, toko.lingkup_pekerjaan),
-                    nama_toko = COALESCE(EXCLUDED.nama_toko, toko.nama_toko),
-                    kode_toko = COALESCE(EXCLUDED.kode_toko, toko.kode_toko),
-                    proyek = COALESCE(EXCLUDED.proyek, toko.proyek),
-                    cabang = COALESCE(EXCLUDED.cabang, toko.cabang)
-                RETURNING id`,
-                [
-                    payload.nomor_ulok,
-                    payload.lingkup_pekerjaan ?? null,
-                    payload.nama_toko ?? null,
-                    payload.kode_toko ?? null,
-                    payload.proyek ?? null,
-                    payload.cabang ?? null,
-                    payload.alamat ?? null,
-                    payload.nama_kontraktor ?? null
-                ]
+            // 1. Upsert toko by kombinasi nomor_ulok + lingkup_pekerjaan
+            const existingTokoRes = await client.query<{ id: number }>(
+                `SELECT id
+                 FROM toko
+                 WHERE nomor_ulok = $1
+                   AND LOWER(COALESCE(lingkup_pekerjaan, '')) = LOWER(COALESCE($2, ''))
+                 ORDER BY id DESC
+                 LIMIT 1
+                 FOR UPDATE`,
+                [payload.nomor_ulok, payload.lingkup_pekerjaan ?? null]
             );
-            const tokoId = tokoRes.rows[0].id;
+
+            let tokoId: number;
+            if ((existingTokoRes.rowCount ?? 0) > 0) {
+                tokoId = existingTokoRes.rows[0].id;
+
+                await client.query(
+                    `UPDATE toko
+                     SET nama_toko = COALESCE($1, nama_toko),
+                         kode_toko = COALESCE($2, kode_toko),
+                         proyek = COALESCE($3, proyek),
+                         cabang = COALESCE($4, cabang),
+                         alamat = COALESCE($5, alamat),
+                         nama_kontraktor = COALESCE($6, nama_kontraktor)
+                     WHERE id = $7`,
+                    [
+                        payload.nama_toko ?? null,
+                        payload.kode_toko ?? null,
+                        payload.proyek ?? null,
+                        payload.cabang ?? null,
+                        payload.alamat ?? null,
+                        payload.nama_kontraktor ?? null,
+                        tokoId
+                    ]
+                );
+            } else {
+                const insertedTokoRes = await client.query<{ id: number }>(
+                    `INSERT INTO toko (
+                        nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko,
+                        proyek, cabang, alamat, nama_kontraktor
+                    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+                    RETURNING id`,
+                    [
+                        payload.nomor_ulok,
+                        payload.lingkup_pekerjaan ?? null,
+                        payload.nama_toko ?? null,
+                        payload.kode_toko ?? null,
+                        payload.proyek ?? null,
+                        payload.cabang ?? null,
+                        payload.alamat ?? null,
+                        payload.nama_kontraktor ?? null
+                    ]
+                );
+
+                tokoId = insertedTokoRes.rows[0].id;
+            }
 
             // 2. Insert gantt_chart header
             const ganttRes = await client.query<GanttRow>(
