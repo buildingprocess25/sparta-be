@@ -117,4 +117,24 @@ BEGIN
     END IF;
 END $$;
 
+-- 4) Sinkronkan sequence primary key toko.id
+--    Mencegah error: duplicate key value violates unique constraint "toko_pkey"
+--    saat sequence tertinggal setelah import/manual migration.
+DO $$
+DECLARE
+    max_id bigint;
+    seq_name text;
+BEGIN
+    SELECT COALESCE(MAX(id), 0) INTO max_id FROM public.toko;
+    seq_name := pg_get_serial_sequence('public.toko', 'id');
+
+    IF seq_name IS NOT NULL THEN
+        IF max_id = 0 THEN
+            EXECUTE format('SELECT setval(%L, 1, false)', seq_name);
+        ELSE
+            EXECUTE format('SELECT setval(%L, %s, true)', seq_name, max_id);
+        END IF;
+    END IF;
+END $$;
+
 COMMIT;
