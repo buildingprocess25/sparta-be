@@ -865,3 +865,14 @@ CREATE TABLE IF NOT EXISTS instruksi_lapangan_item (
 );
 
 CREATE INDEX IF NOT EXISTS idx_instruksi_lapangan_item_header ON instruksi_lapangan_item(id_instruksi_lapangan);
+
+-- 16) BERKAS_SERAH_TERIMA
+CREATE TABLE IF NOT EXISTS berkas_serah_terima (
+    id SERIAL PRIMARY KEY,
+    id_toko INT NOT NULL,
+    link_pdf VARCHAR(500),
+    created_at TIMESTAMP NOT NULL DEFAULT timezone('Asia/Jakarta', now()),
+    CONSTRAINT fk_berkas_serah_terima_toko FOREIGN KEY (id_toko) REFERENCES toko(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_berkas_serah_terima_id_toko ON berkas_serah_terima(id_toko);
