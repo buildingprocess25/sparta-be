@@ -716,6 +716,10 @@ export const rabService = {
                 action.alasan_penolakan ?? "",
                 action.approver_email
             );
+
+            // Safety net: restore toko fields AFTER the transaction commits,
+            // in case a deferred trigger or other side-effect corrupted them.
+            await rabRepository.restoreTokoStableFieldsByRabId(id, tokoStableFields);
         } else {
             await rabRepository.updateApproval(id, newStatus, action);
         }

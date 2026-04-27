@@ -117,24 +117,45 @@ BEGIN
     END IF;
 END $$;
 
--- 4) Sinkronkan sequence primary key toko.id
---    Mencegah error: duplicate key value violates unique constraint "toko_pkey"
---    saat sequence tertinggal setelah import/manual migration.
+-- 4) Sinkronkan semua sequence serial/identity di schema public.
+--    Mencegah error duplicate pkey ketika sequence tertinggal setelah import/manual migration.
 DO $$
 DECLARE
+    seq_record record;
     max_id bigint;
-    seq_name text;
+    full_seq_name text;
 BEGIN
-    SELECT COALESCE(MAX(id), 0) INTO max_id FROM public.toko;
-    seq_name := pg_get_serial_sequence('public.toko', 'id');
+    FOR seq_record IN
+        SELECT
+            table_ns.nspname AS table_schema,
+            table_rel.relname AS table_name,
+            attr.attname AS column_name,
+            seq_ns.nspname AS sequence_schema,
+            seq_rel.relname AS sequence_name
+        FROM pg_class seq_rel
+        JOIN pg_namespace seq_ns ON seq_ns.oid = seq_rel.relnamespace
+        JOIN pg_depend dep ON dep.objid = seq_rel.oid AND dep.deptype = 'a'
+        JOIN pg_class table_rel ON table_rel.oid = dep.refobjid
+        JOIN pg_namespace table_ns ON table_ns.oid = table_rel.relnamespace
+        JOIN pg_attribute attr ON attr.attrelid = table_rel.oid AND attr.attnum = dep.refobjsubid
+        WHERE seq_rel.relkind = 'S'
+          AND table_ns.nspname = 'public'
+    LOOP
+        EXECUTE format(
+            'SELECT COALESCE(MAX(%I), 0) FROM %I.%I',
+            seq_record.column_name,
+            seq_record.table_schema,
+            seq_record.table_name
+        ) INTO max_id;
 
-    IF seq_name IS NOT NULL THEN
+        full_seq_name := format('%I.%I', seq_record.sequence_schema, seq_record.sequence_name);
+
         IF max_id = 0 THEN
-            EXECUTE format('SELECT setval(%L, 1, false)', seq_name);
+            EXECUTE format('SELECT setval(%L, 1, false)', full_seq_name);
         ELSE
-            EXECUTE format('SELECT setval(%L, %s, true)', seq_name, max_id);
+            EXECUTE format('SELECT setval(%L, %s, true)', full_seq_name, max_id);
         END IF;
-    END IF;
+    END LOOP;
 END $$;
 
 COMMIT;

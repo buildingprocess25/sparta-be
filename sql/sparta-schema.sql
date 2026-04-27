@@ -40,6 +40,7 @@ CREATE TABLE rab (
     pemberi_persetujuan_manager VARCHAR(255),
     waktu_persetujuan_manager TIMESTAMP,
     alasan_penolakan VARCHAR(255),
+    waktu_penolakan TIMESTAMP,
     ditolak_oleh VARCHAR(255),
     durasi_pekerjaan VARCHAR(255),
     kategori_lokasi VARCHAR(255),
@@ -67,6 +68,7 @@ CREATE TABLE rab (
 --   ADD COLUMN IF NOT EXISTS berlaku_polis VARCHAR(255),
 --   ADD COLUMN IF NOT EXISTS file_asuransi VARCHAR(500),
 --   ADD COLUMN IF NOT EXISTS ditolak_oleh VARCHAR(255),
+--   ADD COLUMN IF NOT EXISTS waktu_penolakan TIMESTAMP,
 --   ALTER COLUMN created_at TYPE TIMESTAMP USING created_at::timestamp,
 --   ALTER COLUMN waktu_persetujuan_koordinator TYPE TIMESTAMP
 --       USING CASE
@@ -83,6 +85,9 @@ CREATE TABLE rab (
 --           WHEN waktu_persetujuan_direktur IS NULL OR waktu_persetujuan_direktur = '' THEN NULL
 --           ELSE (waktu_persetujuan_direktur::timestamptz AT TIME ZONE 'Asia/Jakarta')
 --       END;
+
+-- Migration safety: tambah kolom waktu_penolakan jika belum ada.
+ALTER TABLE rab ADD COLUMN IF NOT EXISTS waktu_penolakan TIMESTAMP;
 
 -- 3) RAB_ITEM
 CREATE TABLE rab_item (

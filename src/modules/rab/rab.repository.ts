@@ -724,6 +724,7 @@ export const rabRepository = {
 
             const tokoBefore = tokoBeforeRes.rows[0];
 
+            // --- Step 1: Update ONLY rab table (status + rejection details) ---
             await client.query(
                 `UPDATE rab
                  SET status = $1,
@@ -734,6 +735,7 @@ export const rabRepository = {
                 [newStatus, alasanPenolakan, ditolakOleh, rabId]
             );
 
+            // --- Step 2: Activate latest gantt_chart for this toko ---
             await client.query(
                 `UPDATE gantt_chart
                  SET status = 'active'
@@ -747,7 +749,7 @@ export const rabRepository = {
                 [tokoId]
             );
 
-            // Hard-guard: pulihkan kolom toko yang wajib stabil setelah reject.
+            // --- Step 3: Hard-guard — restore toko stable fields ---
             await client.query(
                 `UPDATE toko
                  SET kode_toko = $1,
@@ -762,6 +764,7 @@ export const rabRepository = {
                 ]
             );
 
+            // --- Step 4: Verify toko wasn't corrupted by triggers ---
             const tokoAfterRes = await client.query<{
                 kode_toko: string | null;
                 alamat: string | null;
@@ -775,6 +778,10 @@ export const rabRepository = {
 
             const tokoAfter = tokoAfterRes.rows[0];
             if (JSON.stringify(tokoBefore) !== JSON.stringify(tokoAfter)) {
+                console.error(
+                    `[rejectRAB] Guard violation! toko id=${tokoId} was modified during reject.`,
+                    { tokoBefore, tokoAfter, rabId, newStatus }
+                );
                 throw new Error("Guard violation: reject RAB tidak boleh mengubah data toko");
             }
         });
