@@ -7,6 +7,15 @@ import type {
     UpdateOpnameInput
 } from "./opname.schema";
 
+/**
+ * Sanitize foto value: if it's an API proxy path (e.g. /api/opname/123/foto),
+ * return null so the DB COALESCE keeps the existing Drive link.
+ */
+const sanitizeFotoValue = (foto: string | null | undefined): string | null => {
+    if (!foto) return null;
+    if (/^\/api\/opname\/\d+\/foto$/.test(foto)) return null;
+    return foto;
+};
 export type OpnameRow = {
     id: number;
     id_toko: number;
@@ -127,7 +136,7 @@ export const opnameRepository = {
                 input.desain ?? null,
                 input.kualitas ?? null,
                 input.spesifikasi ?? null,
-                input.foto ?? null,
+                sanitizeFotoValue(input.foto),
                 input.catatan ?? null
             ]
         );
@@ -252,7 +261,7 @@ export const opnameRepository = {
                             item.desain ?? null,
                             item.kualitas ?? null,
                             item.spesifikasi ?? null,
-                            item.foto ?? null,
+                            sanitizeFotoValue(item.foto),
                             item.catatan ?? null,
                             item.id
                         ]
@@ -298,7 +307,7 @@ export const opnameRepository = {
                         item.desain ?? null,
                         item.kualitas ?? null,
                         item.spesifikasi ?? null,
-                        item.foto ?? null,
+                        sanitizeFotoValue(item.foto),
                         item.catatan ?? null,
                         itemTokoId,
                         item.id_rab_item
@@ -342,7 +351,7 @@ export const opnameRepository = {
                         item.desain ?? null,
                         item.kualitas ?? null,
                         item.spesifikasi ?? null,
-                        item.foto ?? null,
+                        sanitizeFotoValue(item.foto),
                         item.catatan ?? null
                     ]
                 );
@@ -499,8 +508,11 @@ export const opnameRepository = {
         }
 
         if (typeof input.foto !== "undefined") {
-            values.push(input.foto);
-            setClauses.push(`foto = $${values.length}`);
+            const sanitized = sanitizeFotoValue(input.foto);
+            if (sanitized !== null) {
+                values.push(sanitized);
+                setClauses.push(`foto = $${values.length}`);
+            }
         }
 
         if (typeof input.catatan !== "undefined") {
