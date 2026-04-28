@@ -314,12 +314,8 @@ export const generateSphPdf = async (
     const finalTotal = recap.finalTotal;
 
     const referenceDate = input.rab.waktu_persetujuan_direktur || input.rab.created_at;
-    const tenderDate = input.rab.waktu_persetujuan_direktur
-        ? formatDateIndonesia(input.rab.waktu_persetujuan_direktur)
-        : "Menunggu disetujui Direktur";
-    const tenderDayDate = input.rab.waktu_persetujuan_direktur
-        ? formatDayDateIndonesia(input.rab.waktu_persetujuan_direktur)
-        : "Menunggu disetujui Direktur";
+    const tenderDate = formatDateIndonesia(referenceDate);
+    const tenderDayDate = formatDayDateIndonesia(referenceDate);
     const tanggalSurat = formatDateIndonesia(referenceDate);
 
     const html = await renderHtmlTemplate(templatePath, {
@@ -330,7 +326,7 @@ export const generateSphPdf = async (
         cabang: input.toko.cabang || "",
         nama_toko: input.toko.nama_toko || "", 
         alamat_toko: input.toko.alamat || "",
-        alamat_cabang: input.alamat_cabang || "Alfa Tower, 19th Floor, Jalan Jalur Sutera Barat Kav. 9, Alam Sutera, Kota Tangerang, Banten 15143",
+        alamat_cabang: input.alamat_cabang ?? "",
         grand_total: rupiah(finalTotal),
         grand_total_terbilang: terbilang(finalTotal),
         tanggal_surat: tenderDate,
@@ -343,6 +339,8 @@ export const generateSphPdf = async (
             || input.rab.pemberi_persetujuan_direktur
             || "__________________",
         direktur_approval_time: formatApprovalDateTimeIndonesia(input.rab.waktu_persetujuan_direktur),
+        no_polis: input.rab.no_polis ?? "",
+        berlaku_polis: input.rab.berlaku_polis ?? "",
         fallback_logo: input.logoOverride || input.rab.logo || staticAssetPath("Building-Logo.png"),
         watermark_logo_path: staticAssetPath("Building-Logo.png")
     });

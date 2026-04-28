@@ -115,8 +115,6 @@ export const ganttService = {
             kode_toko: payload.kode_toko,
             proyek: payload.proyek,
             cabang: payload.cabang,
-            alamat: payload.alamat,
-            nama_kontraktor: payload.nama_kontraktor,
             // gantt fields
             email_pembuat: payload.email_pembuat,
             status: GANTT_STATUS.ACTIVE,

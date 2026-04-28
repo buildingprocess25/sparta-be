@@ -192,8 +192,6 @@ export const ganttRepository = {
             kode_toko?: string | null;
             proyek?: string | null;
             cabang?: string | null;
-            alamat?: string | null;
-            nama_kontraktor?: string | null;
         }
     ): Promise<void> {
         await pool.query(
@@ -202,18 +200,14 @@ export const ganttRepository = {
                  nama_toko = COALESCE($2, nama_toko),
                  kode_toko = COALESCE($3, kode_toko),
                  proyek = COALESCE($4, proyek),
-                 cabang = COALESCE($5, cabang),
-                 alamat = COALESCE($6, alamat),
-                 nama_kontraktor = COALESCE($7, nama_kontraktor)
-             WHERE id = $8`,
+                 cabang = COALESCE($5, cabang)
+             WHERE id = $6`,
             [
                 payload.lingkup_pekerjaan ?? null,
                 payload.nama_toko ?? null,
                 payload.kode_toko ?? null,
                 payload.proyek ?? null,
                 payload.cabang ?? null,
-                payload.alamat ?? null,
-                payload.nama_kontraktor ?? null,
                 tokoId
             ]
         );
@@ -241,8 +235,6 @@ export const ganttRepository = {
         kode_toko?: string | null;
         proyek?: string | null;
         cabang?: string | null;
-        alamat?: string | null;
-        nama_kontraktor?: string | null;
         // gantt
         email_pembuat: string;
         status: GanttStatus;
@@ -274,17 +266,13 @@ export const ganttRepository = {
                      SET nama_toko = COALESCE($1, nama_toko),
                          kode_toko = COALESCE($2, kode_toko),
                          proyek = COALESCE($3, proyek),
-                         cabang = COALESCE($4, cabang),
-                         alamat = COALESCE($5, alamat),
-                         nama_kontraktor = COALESCE($6, nama_kontraktor)
-                     WHERE id = $7`,
+                         cabang = COALESCE($4, cabang)
+                     WHERE id = $5`,
                     [
                         payload.nama_toko ?? null,
                         payload.kode_toko ?? null,
                         payload.proyek ?? null,
                         payload.cabang ?? null,
-                        payload.alamat ?? null,
-                        payload.nama_kontraktor ?? null,
                         tokoId
                     ]
                 );
@@ -292,8 +280,8 @@ export const ganttRepository = {
                 const insertedTokoRes = await client.query<{ id: number }>(
                     `INSERT INTO toko (
                         nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko,
-                        proyek, cabang, alamat, nama_kontraktor
-                    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+                        proyek, cabang
+                    ) VALUES ($1,$2,$3,$4,$5,$6)
                     RETURNING id`,
                     [
                         payload.nomor_ulok,
@@ -301,9 +289,7 @@ export const ganttRepository = {
                         payload.nama_toko ?? null,
                         payload.kode_toko ?? null,
                         payload.proyek ?? null,
-                        payload.cabang ?? null,
-                        payload.alamat ?? null,
-                        payload.nama_kontraktor ?? null
+                        payload.cabang ?? null
                     ]
                 );
 
