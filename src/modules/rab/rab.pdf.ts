@@ -8,6 +8,7 @@ type BuildRabPdfInput = {
     rab: RabRow;
     items: RabItemRow[];
     toko: TokoJoinRow;
+    alamat_cabang?: string | null;
 };
 
 const rupiah = (value: number): string => {
@@ -329,6 +330,7 @@ export const generateSphPdf = async (
         cabang: input.toko.cabang || "",
         nama_toko: input.toko.nama_toko || "", 
         alamat_toko: input.toko.alamat || "",
+        alamat_cabang: input.alamat_cabang || "Alfa Tower, 19th Floor, Jalan Jalur Sutera Barat Kav. 9, Alam Sutera, Kota Tangerang, Banten 15143",
         grand_total: rupiah(finalTotal),
         grand_total_terbilang: terbilang(finalTotal),
         tanggal_surat: tenderDate,

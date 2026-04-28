@@ -21,6 +21,11 @@ export type UserCabangRow = {
     nama_pt: string;
 };
 
+export type AlamatCabangRow = {
+    cabang: string;
+    alamat: string;
+};
+
 export const tokoRepository = {
     async create(input: CreateTokoInput): Promise<TokoRow> {
         const existing = await pool.query<TokoRow>(
@@ -222,6 +227,23 @@ export const tokoRepository = {
       LIMIT 1
       `,
             [emailSat, cabang]
+        );
+
+        return result.rows[0] ?? null;
+    },
+
+    async findAlamatCabangByCabang(cabang: string): Promise<AlamatCabangRow | null> {
+        const trimmed = cabang.trim();
+        if (!trimmed) return null;
+
+        const result = await pool.query<AlamatCabangRow>(
+            `
+      SELECT cabang, alamat
+      FROM alamat_cabang
+      WHERE LOWER(cabang) = LOWER($1)
+      LIMIT 1
+      `,
+            [trimmed]
         );
 
         return result.rows[0] ?? null;

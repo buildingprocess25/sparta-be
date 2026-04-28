@@ -409,7 +409,8 @@ async function uploadPdfToDrive(buffer: Buffer, filename: string): Promise<strin
 
 async function regenerateRabPdfs(
     rabId: string,
-    filenameParts: { proyek?: string | null; nomorUlok?: string | null }
+    filenameParts: { proyek?: string | null; nomorUlok?: string | null },
+    alamatCabangOverride?: string | null
 ): Promise<{
     link_pdf_gabungan: string;
     link_pdf_non_sbo: string;
@@ -422,6 +423,12 @@ async function regenerateRabPdfs(
     const fullData = await rabRepository.findById(rabId);
     if (!fullData) return null;
     fullData.rab.no_sph = noSph;
+
+    const cabangKey = fullData.toko.cabang ?? "";
+    const alamatCabangRow = alamatCabangOverride
+        ? { alamat: alamatCabangOverride, cabang: cabangKey }
+        : await tokoRepository.findAlamatCabangByCabang(cabangKey);
+    const alamatCabang = alamatCabangRow?.alamat ?? null;
 
     const proyek = filenameParts.proyek ?? fullData.toko.proyek ?? "N/A";
     const nomorUlok = filenameParts.nomorUlok ?? fullData.toko.nomor_ulok ?? "UNKNOWN";
@@ -446,7 +453,8 @@ async function regenerateRabPdfs(
         rab: fullData.rab,
         items: fullData.items,
         toko: fullData.toko,
-        logoOverride: logoDataUri
+        logoOverride: logoDataUri,
+        alamat_cabang: alamatCabang
     });
     pdfBuffersToMerge.push(pdfSph);
 
@@ -665,7 +673,7 @@ export const rabService = {
             const links = await regenerateRabPdfs(String(rab.id), {
                 proyek: payload.proyek,
                 nomorUlok: payload.nomor_ulok
-            });
+            }, payload.alamat_cabang ?? null);
 
             if (links) {
                 await rabRepository.updatePdfLinks(String(rab.id), links);

@@ -56,6 +56,7 @@ Aturan fallback saat resubmit reject:
   "proyek": "Renovasi",
   "cabang": "JAKARTA",
   "alamat": "Jl. Sudirman No 1",
+  "alamat_cabang": "Alfa Tower, 19th Floor, Jalan Jalur Sutera Barat Kav. 9, Alam Sutera, Kota Tangerang, Banten 15143",
   "nama_kontraktor": "PT Kontraktor ABC",
   "lingkup_pekerjaan": "SIPIL",
   "email_pembuat": "user@example.com",
@@ -103,6 +104,7 @@ Gunakan `multipart/form-data` dengan field berikut:
 
 - Semua field teks sama seperti JSON request
 - `detail_items` dikirim sebagai JSON string
+- `alamat_cabang` opsional, alamat cabang/office untuk kebutuhan SPH
 - `file_asuransi` dikirim sebagai file (pdf/jpg/png/dll) untuk submit normal
 - `rev_logo` opsional sebagai file baru untuk mengganti `logo` saat resubmit reject
 - `rev_file_asuransi` opsional sebagai file baru untuk mengganti `file_asuransi` saat resubmit reject
@@ -140,6 +142,7 @@ curl -X POST http://localhost:3000/api/rab/submit \
 | `proyek`                            | toko     | Opsional                                                          |
 | `cabang`                            | toko     | Opsional                                                          |
 | `alamat`                            | toko     | Opsional                                                          |
+| `alamat_cabang`                     | -        | Opsional, string (boleh null)                                     |
 | `nama_kontraktor`                   | toko     | Opsional                                                          |
 | `lingkup_pekerjaan`                 | toko     | Opsional                                                          |
 | `email_pembuat`                     | rab      | **Wajib**, format email valid                                     |

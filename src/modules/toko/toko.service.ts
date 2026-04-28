@@ -44,11 +44,13 @@ export const tokoService = {
             throw new AppError("password salah", 401);
         }
 
+        const alamatCabangRow = await tokoRepository.findAlamatCabangByCabang(matchedUser.cabang);
+        const alamat_cabang = alamatCabangRow?.alamat ?? null;
         const jabatanList = Array.from(new Set(registeredUsers.map((user) => user.jabatan)));
         if (jabatanList.length > 1) {
-            return { ...matchedUser, jabatan: jabatanList };
+            return { ...matchedUser, jabatan: jabatanList, alamat_cabang };
         }
 
-        return matchedUser;
+        return { ...matchedUser, alamat_cabang };
     }
 };

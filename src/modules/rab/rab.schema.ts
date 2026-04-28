@@ -44,6 +44,7 @@ export const submitRabSchema = z.object({
     luas_area_parkir: z.string().optional(),
     luas_area_sales: z.string().optional(),
     luas_gudang: z.string().optional(),
+    alamat_cabang: z.string().nullable().optional(),
 
     // --- field rab_item ---
     detail_items: z.array(detailItemSchema).min(1)
