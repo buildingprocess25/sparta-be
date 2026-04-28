@@ -3,6 +3,7 @@ import type { CreatePicPengawasanInput, ListPicPengawasanQueryInput } from "./pi
 
 export type PicPengawasanRow = {
     id: number;
+    id_toko: number;
     nomor_ulok: string;
     id_rab: number;
     id_spk: number;
@@ -18,6 +19,7 @@ export const picPengawasanRepository = {
         const result = await pool.query<PicPengawasanRow>(
             `
       INSERT INTO pic_pengawasan (
+                id_toko,
         nomor_ulok,
         id_rab,
         id_spk,
@@ -26,10 +28,11 @@ export const picPengawasanRepository = {
         tanggal_mulai_spk,
         plc_building_support
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING id, nomor_ulok, id_rab, id_spk, kategori_lokasi, durasi, tanggal_mulai_spk, plc_building_support, created_at
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING id, id_toko, nomor_ulok, id_rab, id_spk, kategori_lokasi, durasi, tanggal_mulai_spk, plc_building_support, created_at
       `,
             [
+                                input.id_toko,
                 input.nomor_ulok,
                 input.id_rab,
                 input.id_spk,
@@ -46,7 +49,7 @@ export const picPengawasanRepository = {
     async findById(id: string): Promise<PicPengawasanRow | null> {
         const result = await pool.query<PicPengawasanRow>(
             `
-      SELECT id, nomor_ulok, id_rab, id_spk, kategori_lokasi, durasi, tanggal_mulai_spk, plc_building_support, created_at
+    SELECT id, id_toko, nomor_ulok, id_rab, id_spk, kategori_lokasi, durasi, tanggal_mulai_spk, plc_building_support, created_at
       FROM pic_pengawasan
       WHERE id = $1
       `,
@@ -59,6 +62,11 @@ export const picPengawasanRepository = {
     async findAll(query: ListPicPengawasanQueryInput): Promise<PicPengawasanRow[]> {
         const filters: string[] = [];
         const values: Array<string | number> = [];
+
+        if (typeof query.id_toko !== "undefined") {
+            values.push(query.id_toko);
+            filters.push(`id_toko = $${values.length}`);
+        }
 
         if (query.nomor_ulok) {
             values.push(query.nomor_ulok);
@@ -78,7 +86,7 @@ export const picPengawasanRepository = {
         const whereClause = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
         const result = await pool.query<PicPengawasanRow>(
             `
-      SELECT id, nomor_ulok, id_rab, id_spk, kategori_lokasi, durasi, tanggal_mulai_spk, plc_building_support, created_at
+    SELECT id, id_toko, nomor_ulok, id_rab, id_spk, kategori_lokasi, durasi, tanggal_mulai_spk, plc_building_support, created_at
       FROM pic_pengawasan
       ${whereClause}
       ORDER BY id DESC

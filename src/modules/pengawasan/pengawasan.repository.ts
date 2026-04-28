@@ -325,7 +325,8 @@ export const pengawasanRepository = {
             `
             SELECT pic.plc_building_support
             FROM pengawasan_gantt pg
-            LEFT JOIN pic_pengawasan pic ON pic.id = pg.id_pic_pengawasan
+            LEFT JOIN gantt_chart gc ON gc.id = pg.id_gantt
+            LEFT JOIN pic_pengawasan pic ON pic.id_toko = gc.id_toko
             WHERE pg.id = $1
             LIMIT 1
             `,

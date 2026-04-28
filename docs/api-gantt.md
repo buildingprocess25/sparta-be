@@ -758,6 +758,7 @@ Tambah atau hapus pengawasan pada Gantt Chart.
 {
   "tanggal_pengawasan": "14/04/2026",
   "pic_pengawasan": {
+    "id_toko": 5,
     "nomor_ulok": "7AZ1-0001-0001",
     "id_rab": 12,
     "id_spk": 5,
@@ -775,6 +776,7 @@ Tambah atau hapus pengawasan pada Gantt Chart.
 {
   "tanggal_pengawasan": ["14/04/2026", "15/04/2026", "16/04/2026"],
   "pic_pengawasan": {
+    "id_toko": 5,
     "nomor_ulok": "7AZ1-0001-0001",
     "id_rab": 12,
     "id_spk": 5,
@@ -827,6 +829,7 @@ Tambah atau hapus pengawasan pada Gantt Chart.
 | ------------------------------------- | ----------------------------------------------------------------------------- |
 | `tanggal_pengawasan`                  | Opsional, string min 1 atau array string min 1 — untuk menambah (single/bulk) |
 | `pic_pengawasan`                      | Opsional, object create PIC pengawasan (diproses sebelum insert pengawasan)   |
+| `pic_pengawasan.id_toko`              | Wajib jika `pic_pengawasan` dikirim, integer > 0                              |
 | `pic_pengawasan.nomor_ulok`           | Wajib jika `pic_pengawasan` dikirim, string min 1                             |
 | `pic_pengawasan.id_rab`               | Wajib jika `pic_pengawasan` dikirim, integer > 0                              |
 | `pic_pengawasan.id_spk`               | Wajib jika `pic_pengawasan` dikirim, integer > 0                              |

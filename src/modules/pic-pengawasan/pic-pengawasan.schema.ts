@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const createPicPengawasanSchema = z.object({
+    id_toko: z.coerce.number().int().positive(),
     nomor_ulok: z.string().trim().min(1),
     id_rab: z.coerce.number().int().positive(),
     id_spk: z.coerce.number().int().positive(),
@@ -11,6 +12,7 @@ export const createPicPengawasanSchema = z.object({
 });
 
 export const listPicPengawasanQuerySchema = z.object({
+    id_toko: z.coerce.number().int().positive().optional(),
     nomor_ulok: z.string().trim().min(1).optional(),
     id_rab: z.coerce.number().int().positive().optional(),
     id_spk: z.coerce.number().int().positive().optional()

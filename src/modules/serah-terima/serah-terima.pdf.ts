@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import { renderHtmlTemplate, renderPdfFromHtml, resolveTemplatePath } from "../../common/html-pdf";
 import type { SerahTerimaDetail } from "./serah-terima.repository";
 
@@ -22,6 +24,32 @@ const formatDateIndonesia = (value?: string | null): string => {
     return `${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
 };
 
+const staticAssetPath = (filename: string): string => {
+    const candidates = [
+        // Works for dev and build: src/modules/serah-terima -> src/image, dist/modules/serah-terima -> dist/image
+        path.resolve(__dirname, "../../image", filename),
+        // Build mode (dist): dist/modules/serah-terima -> src/image
+        path.resolve(__dirname, "../../../src/image", filename),
+        // Legacy fallback
+        path.resolve(__dirname, "../../../../server/static", filename),
+    ];
+
+    for (const assetPath of candidates) {
+        if (fs.existsSync(assetPath)) {
+            const ext = path.extname(assetPath).toLowerCase();
+            const mimeType = ext === ".png"
+                ? "image/png"
+                : ext === ".jpg" || ext === ".jpeg"
+                    ? "image/jpeg"
+                    : "application/octet-stream";
+            const base64 = fs.readFileSync(assetPath).toString("base64");
+            return `data:${mimeType};base64,${base64}`;
+        }
+    }
+
+    return "";
+};
+
 export const buildSerahTerimaPdfBuffer = async (detail: SerahTerimaDetail): Promise<Buffer> => {
     const templatePath = await resolveTemplatePath("serah_terima_report.njk");
 
@@ -42,6 +70,7 @@ export const buildSerahTerimaPdfBuffer = async (detail: SerahTerimaDetail): Prom
         grand_total_rab_formatted: rupiah(grandTotalRab),
         selisih_total_formatted: rupiah(grandTotalOpname - grandTotalRab),
         created_at_formatted: formatDateIndonesia(detail.opname_final.created_at),
+        watermark_logo_path: staticAssetPath("Building-Logo.png"),
     });
 
     return renderPdfFromHtml(html);

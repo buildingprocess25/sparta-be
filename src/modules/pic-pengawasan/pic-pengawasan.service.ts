@@ -27,6 +27,10 @@ export const picPengawasanService = {
             }
 
             if (pgError.code === "23503") {
+                if (pgError.constraint === "fk_pic_pengawasan_toko_id") {
+                    throw new AppError("id_toko tidak ditemukan di tabel toko", 404);
+                }
+
                 if (pgError.constraint === "fk_pic_pengawasan_toko_ulok") {
                     throw new AppError("nomor_ulok tidak ditemukan di tabel toko", 404);
                 }

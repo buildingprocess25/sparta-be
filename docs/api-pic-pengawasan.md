@@ -18,6 +18,7 @@ Base URL: `/api/pic_pengawasan`
 
 Relasi 1:1 yang diterapkan:
 
+- `id_toko` -> `toko.id` (UNIQUE + FK)
 - `nomor_ulok` -> `toko.nomor_ulok` (UNIQUE + FK)
 - `id_rab` -> `rab.id` (UNIQUE + FK)
 - `id_spk` -> `pengajuan_spk.id` (UNIQUE + FK)
@@ -34,6 +35,7 @@ Artinya satu data di tabel `toko`, `rab`, dan `pengajuan_spk` hanya bisa dipakai
 
 ```json
 {
+  "id_toko": 5,
   "nomor_ulok": "7AZ1-0001-0001",
   "id_rab": 12,
   "id_spk": 8,
@@ -48,6 +50,7 @@ Artinya satu data di tabel `toko`, `rab`, dan `pengajuan_spk` hanya bisa dipakai
 
 | Field                  | Aturan              |
 | ---------------------- | ------------------- |
+| `id_toko`              | wajib, integer > 0  |
 | `nomor_ulok`           | wajib, string min 1 |
 | `id_rab`               | wajib, integer > 0  |
 | `id_spk`               | wajib, integer > 0  |
@@ -64,6 +67,7 @@ Artinya satu data di tabel `toko`, `rab`, dan `pengajuan_spk` hanya bisa dipakai
   "message": "Data pic_pengawasan berhasil disimpan",
   "data": {
     "id": 1,
+    "id_toko": 5,
     "nomor_ulok": "7AZ1-0001-0001",
     "id_rab": 12,
     "id_spk": 8,
@@ -94,11 +98,12 @@ Mengambil daftar data PIC Pengawasan.
 
 ### Query Parameters (opsional)
 
-| Parameter    | Tipe     | Deskripsi                 |
-| ------------ | -------- | ------------------------- |
-| `nomor_ulok` | `string` | Filter berdasarkan ULOK   |
-| `id_rab`     | `number` | Filter berdasarkan ID RAB |
-| `id_spk`     | `number` | Filter berdasarkan ID SPK |
+| Parameter    | Tipe     | Deskripsi                  |
+| ------------ | -------- | -------------------------- |
+| `id_toko`    | `number` | Filter berdasarkan ID Toko |
+| `nomor_ulok` | `string` | Filter berdasarkan ULOK    |
+| `id_rab`     | `number` | Filter berdasarkan ID RAB  |
+| `id_spk`     | `number` | Filter berdasarkan ID SPK  |
 
 ### Response — 200 OK
 
@@ -108,6 +113,7 @@ Mengambil daftar data PIC Pengawasan.
   "data": [
     {
       "id": 1,
+      "id_toko": 5,
       "nomor_ulok": "7AZ1-0001-0001",
       "id_rab": 12,
       "id_spk": 8,
@@ -136,6 +142,7 @@ Mengambil detail satu data PIC Pengawasan berdasarkan ID.
   "status": "success",
   "data": {
     "id": 1,
+    "id_toko": 5,
     "nomor_ulok": "7AZ1-0001-0001",
     "id_rab": 12,
     "id_spk": 8,

@@ -13,12 +13,29 @@
       font-size: 11px;
       color: #1f2937;
       margin: 0;
+      position: relative;
+    }
+
+    .watermark {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      width: 240px;
+      transform: translate(-50%, -50%);
+      opacity: 0.08;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
     }
 
     .header {
       text-align: center;
       margin-bottom: 16px;
-      border-bottom: 3px double #1f4e78;
+      border-bottom: 3px double #e30613;
       padding-bottom: 10px;
     }
 
@@ -28,7 +45,7 @@
       font-weight: 700;
       letter-spacing: 0.5px;
       text-transform: uppercase;
-      color: #1f4e78;
+      color: #e30613;
     }
 
     .subtitle {
@@ -59,9 +76,9 @@
       font-size: 13px;
       font-weight: 700;
       margin: 14px 0 6px;
-      color: #1f4e78;
+      color: #e30613;
       text-transform: uppercase;
-      border-bottom: 1px solid #1f4e78;
+      border-bottom: 1px solid #e30613;
       padding-bottom: 4px;
     }
 
@@ -80,7 +97,7 @@
     }
 
     .items th {
-      background: #1f4e78;
+      background: #e30613;
       color: #ffffff;
       font-weight: 600;
       text-transform: uppercase;
@@ -112,37 +129,6 @@
       font-weight: 600;
     }
 
-    .signature-section {
-      margin-top: 30px;
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    .signature-section td {
-      width: 50%;
-      text-align: center;
-      vertical-align: top;
-      padding: 10px 20px;
-    }
-
-    .signature-section .sign-label {
-      font-weight: 600;
-      font-size: 11px;
-      margin-bottom: 50px;
-    }
-
-    .signature-section .sign-line {
-      border-top: 1px solid #333;
-      display: inline-block;
-      width: 200px;
-      margin-top: 60px;
-    }
-
-    .signature-section .sign-name {
-      font-size: 11px;
-      margin-top: 4px;
-    }
-
     .footer {
       margin-top: 16px;
       font-size: 10px;
@@ -152,6 +138,11 @@
   </style>
 </head>
 <body>
+  {% if watermark_logo_path %}
+  <img src="{{ watermark_logo_path }}" class="watermark" alt="watermark" />
+  {% endif %}
+
+  <div class="content">
   <div class="header">
     <h1 class="title">Berita Acara Serah Terima</h1>
     <p class="subtitle">Berdasarkan Data Opname Final</p>
@@ -186,12 +177,6 @@
       <td class="label">Lingkup Pekerjaan</td>
       <td>{{ toko.lingkup_pekerjaan or '-' }}</td>
     </tr>
-    <tr>
-      <td class="label">Status Opname Final</td>
-      <td>{{ opname_final.status_opname_final }}</td>
-      <td class="label">Email Pembuat</td>
-      <td>{{ opname_final.email_pembuat or '-' }}</td>
-    </tr>
   </table>
 
   <div class="section-title">Daftar Pekerjaan</div>
@@ -202,13 +187,9 @@
         <th style="width:28px">No</th>
         <th>Kategori</th>
         <th>Jenis Pekerjaan</th>
-        <th class="center" style="width:50px">Satuan</th>
-        <th class="center" style="width:55px">Vol RAB</th>
-        <th class="center" style="width:55px">Vol Akhir</th>
-        <th class="center" style="width:55px">Selisih</th>
-        <th class="num" style="width:80px">Total RAB</th>
-        <th class="num" style="width:80px">Total Opname</th>
-        <th style="width:65px">Status</th>
+        <th class="center" style="width:90px">Desain</th>
+        <th class="center" style="width:90px">Kualitas</th>
+        <th class="center" style="width:90px">Spesifikasi</th>
       </tr>
     </thead>
     <tbody>
@@ -217,18 +198,14 @@
         <td class="center">{{ loop.index }}</td>
         <td>{{ item.kategori_pekerjaan or '-' }}</td>
         <td>{{ item.jenis_pekerjaan or '-' }}</td>
-        <td class="center">{{ item.satuan or '-' }}</td>
-        <td class="center">{{ item.volume_rab or 0 }}</td>
-        <td class="center">{{ item.volume_akhir }}</td>
-        <td class="center">{{ item.selisih_volume }}</td>
-        <td class="num">{{ item.total_harga_rab_formatted }}</td>
-        <td class="num">{{ item.total_harga_opname_formatted }}</td>
-        <td>{{ item.status }}</td>
+        <td class="center">{{ item.desain or '-' }}</td>
+        <td class="center">{{ item.kualitas or '-' }}</td>
+        <td class="center">{{ item.spesifikasi or '-' }}</td>
       </tr>
       {% endfor %}
       {% if items.length === 0 %}
       <tr>
-        <td colspan="10" class="center">Belum ada item opname.</td>
+        <td colspan="6" class="center">Belum ada item opname.</td>
       </tr>
       {% endif %}
     </tbody>
@@ -249,23 +226,9 @@
     </tr>
   </table>
 
-  <table class="signature-section">
-    <tr>
-      <td>
-        <div class="sign-label">Pihak Pertama<br/>(Pemilik Pekerjaan)</div>
-        <div class="sign-line"></div>
-        <div class="sign-name">Nama: ____________________</div>
-      </td>
-      <td>
-        <div class="sign-label">Pihak Kedua<br/>(Kontraktor)</div>
-        <div class="sign-line"></div>
-        <div class="sign-name">Nama: {{ toko.nama_kontraktor or '____________________' }}</div>
-      </td>
-    </tr>
-  </table>
-
   <div class="footer">
     Digenerate otomatis oleh sistem SPARTA pada {{ generated_at }}
+  </div>
   </div>
 </body>
 </html>
