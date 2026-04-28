@@ -160,6 +160,50 @@ const normalizeDriveDownloadLink = (value?: string | null): string | undefined =
     return driveDownloadLink(fileId);
 };
 
+const isPdfBuffer = (buffer: Buffer): boolean => {
+    if (!buffer || buffer.length < 4) return false;
+    return buffer.subarray(0, 4).toString() === "%PDF";
+};
+
+const fetchFileBufferByLink = async (
+    rawLink: string,
+): Promise<{ buffer: Buffer; mimeType?: string } | null> => {
+    const trimmed = rawLink.trim();
+    if (!trimmed) return null;
+
+    const fileId = extractDriveFileId(trimmed);
+    const gp = GoogleProvider.instance;
+
+    if (fileId && gp.spartaDrive) {
+        const buffer = await gp.getFileBufferById(gp.spartaDrive, fileId);
+        if (buffer && buffer.length) {
+            let mimeType: string | undefined;
+            try {
+                const meta = await gp.spartaDrive.files.get({ fileId, fields: "mimeType" });
+                mimeType = meta.data.mimeType ?? undefined;
+            } catch {
+                // Best-effort metadata only.
+            }
+
+            return { buffer, mimeType };
+        }
+    }
+
+    const downloadUrl = fileId
+        ? driveDownloadLink(fileId)
+        : normalizeDriveDownloadLink(trimmed) ?? trimmed;
+    const response = await fetch(downloadUrl);
+    if (!response.ok) return null;
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (!buffer.length) return null;
+
+    return {
+        buffer,
+        mimeType: response.headers.get("content-type") ?? undefined,
+    };
+};
+
 const isRabAssetProxyPath = (value?: string | null): boolean => {
     const trimmed = (value ?? "").trim();
     if (!trimmed) return false;
@@ -464,6 +508,22 @@ async function regenerateRabPdfs(
     );
 
     pdfBuffersToMerge.push(pdfRecap, pdfNonSbo);
+
+    const insuranceLink = fullData.rab.file_asuransi?.trim();
+    if (insuranceLink) {
+        try {
+            const insuranceFile = await fetchFileBufferByLink(insuranceLink);
+            if (insuranceFile?.buffer?.length) {
+                const isPdf = (insuranceFile.mimeType ?? "").toLowerCase() === "application/pdf"
+                    || isPdfBuffer(insuranceFile.buffer);
+                if (isPdf) {
+                    pdfBuffersToMerge.push(insuranceFile.buffer);
+                }
+            }
+        } catch (err) {
+            console.error("Warning: Gagal mengambil file asuransi untuk merge PDF:", err);
+        }
+    }
 
     const pdfMerged = await mergePdfBuffers(pdfBuffersToMerge);
 
