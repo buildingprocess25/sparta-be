@@ -50,6 +50,27 @@ const staticAssetPath = (filename: string): string => {
     return "";
 };
 
+const groupItemsByCategory = (items: SerahTerimaDetail["items"]) => {
+    const groups: Array<{ category: string; items: SerahTerimaDetail["items"] }> = [];
+    const indexByCategory = new Map<string, number>();
+
+    for (const item of items) {
+        const category = (item.kategori_pekerjaan ?? "").trim() || "Lainnya";
+        const key = category.toLowerCase();
+        const existingIndex = indexByCategory.get(key);
+
+        if (existingIndex === undefined) {
+            indexByCategory.set(key, groups.length);
+            groups.push({ category, items: [item] });
+            continue;
+        }
+
+        groups[existingIndex].items.push(item);
+    }
+
+    return groups;
+};
+
 export const buildSerahTerimaPdfBuffer = async (detail: SerahTerimaDetail): Promise<Buffer> => {
     const templatePath = await resolveTemplatePath("serah_terima_report.njk");
 
@@ -65,6 +86,15 @@ export const buildSerahTerimaPdfBuffer = async (detail: SerahTerimaDetail): Prom
             total_selisih_formatted: rupiah(item.total_selisih),
             total_harga_rab_formatted: rupiah(toNumber(item.total_harga_rab)),
             total_harga_opname_formatted: rupiah(item.total_harga_opname),
+        })),
+        grouped_items_list: groupItemsByCategory(detail.items).map((group) => ({
+            category: group.category,
+            items: group.items.map((item) => ({
+                ...item,
+                total_selisih_formatted: rupiah(item.total_selisih),
+                total_harga_rab_formatted: rupiah(toNumber(item.total_harga_rab)),
+                total_harga_opname_formatted: rupiah(item.total_harga_opname),
+            })),
         })),
         grand_total_opname_formatted: rupiah(grandTotalOpname),
         grand_total_rab_formatted: rupiah(grandTotalRab),

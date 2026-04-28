@@ -2,6 +2,7 @@ import { AppError } from "../../common/app-error";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
 import type { ApprovalActionInput } from "../approval/approval.schema";
+import { instruksiLapanganRepository } from "../instruksi-lapangan/instruksi-lapangan.repository";
 import { buildOpnameFinalPdfBuffer } from "./opname-final.pdf";
 import { OPNAME_FINAL_STATUS, type OpnameFinalStatus } from "./opname-final.constants";
 import { opnameFinalRepository } from "./opname-final.repository";
@@ -119,13 +120,23 @@ const uploadPdfToDrive = async (buffer: Buffer, filename: string): Promise<strin
     return result.webViewLink ?? `https://drive.google.com/file/d/${result.id}/view`;
 };
 
+const loadInstruksiLapanganItems = async (idToko: number) => {
+    const latestInstruksi = await instruksiLapanganRepository.getLatestByTokoId(idToko);
+    if (!latestInstruksi) {
+        return [];
+    }
+
+    return instruksiLapanganRepository.getItems(latestInstruksi.id);
+};
+
 const regeneratePdfAndUpload = async (opnameFinalId: string): Promise<string> => {
     const detail = await opnameFinalRepository.findById(opnameFinalId);
     if (!detail) {
         throw new AppError("Data opname_final tidak ditemukan", 404);
     }
 
-    const pdfBuffer = await buildOpnameFinalPdfBuffer(detail);
+    const instruksiLapanganItems = await loadInstruksiLapanganItems(detail.toko.id);
+    const pdfBuffer = await buildOpnameFinalPdfBuffer(detail, instruksiLapanganItems);
     const proyek = sanitizeFilenamePart(detail.toko.proyek ?? undefined, "PROYEK");
     const nomorUlok = sanitizeFilenamePart(detail.toko.nomor_ulok ?? undefined, "ULOK");
     const filename = `OPNAME_FINAL_${proyek}_${nomorUlok}_${detail.opname_final.id}.pdf`;
@@ -180,7 +191,8 @@ export const opnameFinalService = {
             throw new AppError("Data opname_final tidak ditemukan", 404);
         }
 
-        const pdfBuffer = await buildOpnameFinalPdfBuffer(detail);
+        const instruksiLapanganItems = await loadInstruksiLapanganItems(detail.toko.id);
+        const pdfBuffer = await buildOpnameFinalPdfBuffer(detail, instruksiLapanganItems);
         const proyek = sanitizeFilenamePart(detail.toko.proyek ?? undefined, "PROYEK");
         const nomorUlok = sanitizeFilenamePart(detail.toko.nomor_ulok ?? undefined, "ULOK");
 

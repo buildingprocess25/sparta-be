@@ -13,6 +13,18 @@
       font-size: 11px;
       color: #1f2937;
       margin: 0;
+      position: relative;
+    }
+
+    .watermark {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      width: 320px;
+      transform: translate(-50%, -50%);
+      opacity: 0.08;
+      z-index: 0;
+      pointer-events: none;
     }
 
     .header {
@@ -104,9 +116,33 @@
       color: #6b7280;
       text-align: right;
     }
+
+    .section-title {
+      margin: 0 0 6px;
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .category-header {
+      font-size: 12px;
+      font-weight: 700;
+      margin-top: 14px;
+      padding: 6px 0 4px;
+      border-bottom: 1px solid #aeb4bc;
+      text-transform: uppercase;
+    }
+
+    .page-break {
+      page-break-before: always;
+    }
   </style>
 </head>
 <body>
+  {% if watermark_logo_path %}
+  <img src="{{ watermark_logo_path }}" class="watermark" alt="watermark" />
+  {% endif %}
   <div class="header">
     <h1 class="title">Laporan Opname Final</h1>
     <p class="subtitle">Status: {{ opname_final.status_opname_final }}</p>
@@ -114,10 +150,10 @@
 
   <table class="meta">
     <tr>
-      <td class="label">ID Opname Final</td>
-      <td>{{ opname_final.id }}</td>
       <td class="label">Tanggal Dokumen</td>
       <td>{{ created_at_formatted }}</td>
+      <td class="label">Email Pembuat</td>
+      <td>{{ opname_final.email_pembuat or '-' }}</td>
     </tr>
     <tr>
       <td class="label">Nomor ULOK</td>
@@ -131,51 +167,48 @@
       <td class="label">Cabang</td>
       <td>{{ toko.cabang or '-' }}</td>
     </tr>
-    <tr>
-      <td class="label">Email Pembuat</td>
-      <td>{{ opname_final.email_pembuat or '-' }}</td>
-      <td class="label">Alasan Penolakan</td>
-      <td>{{ opname_final.alasan_penolakan or '-' }}</td>
-    </tr>
   </table>
 
+  {% for group in grouped_items_list %}
+  <div class="category-header">{{ loop.index }}. {{ group.category }}</div>
   <table class="items">
     <thead>
       <tr>
         <th style="width:28px">No</th>
-        <th>Kategori</th>
         <th>Jenis Pekerjaan</th>
+        <th class="center" style="width:60px">Satuan</th>
         <th class="center" style="width:65px">Volume RAB</th>
         <th class="center" style="width:65px">Volume Akhir</th>
         <th class="center" style="width:65px">Selisih Vol</th>
         <th class="num" style="width:85px">Total RAB</th>
-        <th class="num" style="width:85px">Total Opname</th>
-        <th style="width:80px">Status</th>
+        <th class="num" style="width:85px">Total Selisih</th>
         <th>Catatan</th>
       </tr>
     </thead>
     <tbody>
-      {% for item in items %}
+      {% for item in group.items %}
       <tr>
         <td class="center">{{ loop.index }}</td>
-        <td>{{ item.kategori_pekerjaan or '-' }}</td>
-        <td>{{ item.jenis_pekerjaan or '-' }}</td>
-        <td class="center">{{ item.volume_rab or 0 }}</td>
+        <td>{{ item.jenis_pekerjaan }}</td>
+        <td class="center">{{ item.satuan }}</td>
+        <td class="center">{{ item.volume_rab }}</td>
         <td class="center">{{ item.volume_akhir }}</td>
         <td class="center">{{ item.selisih_volume }}</td>
         <td class="num">{{ item.total_harga_rab_formatted }}</td>
         <td class="num">{{ item.total_selisih_formatted }}</td>
-        <td>{{ item.status }}</td>
         <td>{{ item.catatan or '-' }}</td>
       </tr>
       {% endfor %}
-      {% if items.length === 0 %}
-      <tr>
-        <td colspan="10" class="center">Belum ada item opname.</td>
-      </tr>
-      {% endif %}
     </tbody>
   </table>
+  {% endfor %}
+  {% if grouped_items_list.length === 0 %}
+  <table class="items">
+    <tr>
+      <td class="center">Belum ada item opname.</td>
+    </tr>
+  </table>
+  {% endif %}
 
   <table class="summary">
     <tr>
@@ -191,6 +224,138 @@
       <td class="num">{{ selisih_total_formatted }}</td>
     </tr>
   </table>
+
+  <div class="page-break"></div>
+  <p class="section-title">Daftar Instruksi Lapangan</p>
+
+  {% for group in instruksi_lapangan_groups %}
+  <div class="category-header">{{ loop.index }}. {{ group.category }}</div>
+  <table class="items">
+    <thead>
+      <tr>
+        <th style="width:28px">No</th>
+        <th>Jenis Pekerjaan</th>
+        <th class="center" style="width:60px">Satuan</th>
+        <th class="center" style="width:60px">Volume</th>
+        <th class="num" style="width:75px">Harga Material</th>
+        <th class="num" style="width:75px">Harga Upah</th>
+        <th class="num" style="width:80px">Total Material</th>
+        <th class="num" style="width:80px">Total Upah</th>
+        <th class="num" style="width:90px">Total Harga</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in group.items %}
+      <tr>
+        <td class="center">{{ loop.index }}</td>
+        <td>{{ item.jenis_pekerjaan }}</td>
+        <td class="center">{{ item.satuan }}</td>
+        <td class="center">{{ item.volume }}</td>
+        <td class="num">{{ item.harga_material_formatted }}</td>
+        <td class="num">{{ item.harga_upah_formatted }}</td>
+        <td class="num">{{ item.total_material_formatted }}</td>
+        <td class="num">{{ item.total_upah_formatted }}</td>
+        <td class="num">{{ item.total_harga_formatted }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endfor %}
+  {% if instruksi_lapangan_groups.length === 0 %}
+  <table class="items">
+    <tr>
+      <td class="center">Belum ada item instruksi lapangan.</td>
+    </tr>
+  </table>
+  {% endif %}
+
+  <div class="page-break"></div>
+  <p class="section-title">Kerja Tambah</p>
+
+  {% for group in kerja_tambah_groups %}
+  <div class="category-header">{{ loop.index }}. {{ group.category }}</div>
+  <table class="items">
+    <thead>
+      <tr>
+        <th style="width:28px">No</th>
+        <th>Jenis Pekerjaan</th>
+        <th class="center" style="width:60px">Satuan</th>
+        <th class="center" style="width:65px">Volume RAB</th>
+        <th class="center" style="width:65px">Volume Akhir</th>
+        <th class="center" style="width:65px">Selisih Vol</th>
+        <th class="num" style="width:85px">Total RAB</th>
+        <th class="num" style="width:85px">Total Selisih</th>
+        <th>Catatan</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in group.items %}
+      <tr>
+        <td class="center">{{ loop.index }}</td>
+        <td>{{ item.jenis_pekerjaan }}</td>
+        <td class="center">{{ item.satuan }}</td>
+        <td class="center">{{ item.volume_rab }}</td>
+        <td class="center">{{ item.volume_akhir }}</td>
+        <td class="center">{{ item.selisih_volume }}</td>
+        <td class="num">{{ item.total_harga_rab_formatted }}</td>
+        <td class="num">{{ item.total_selisih_formatted }}</td>
+        <td>{{ item.catatan or '-' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endfor %}
+  {% if kerja_tambah_groups.length === 0 %}
+  <table class="items">
+    <tr>
+      <td class="center">Belum ada item kerja tambah.</td>
+    </tr>
+  </table>
+  {% endif %}
+
+  <div class="page-break"></div>
+  <p class="section-title">Kerja Kurang</p>
+
+  {% for group in kerja_kurang_groups %}
+  <div class="category-header">{{ loop.index }}. {{ group.category }}</div>
+  <table class="items">
+    <thead>
+      <tr>
+        <th style="width:28px">No</th>
+        <th>Jenis Pekerjaan</th>
+        <th class="center" style="width:60px">Satuan</th>
+        <th class="center" style="width:65px">Volume RAB</th>
+        <th class="center" style="width:65px">Volume Akhir</th>
+        <th class="center" style="width:65px">Selisih Vol</th>
+        <th class="num" style="width:85px">Total RAB</th>
+        <th class="num" style="width:85px">Total Selisih</th>
+        <th>Catatan</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in group.items %}
+      <tr>
+        <td class="center">{{ loop.index }}</td>
+        <td>{{ item.jenis_pekerjaan }}</td>
+        <td class="center">{{ item.satuan }}</td>
+        <td class="center">{{ item.volume_rab }}</td>
+        <td class="center">{{ item.volume_akhir }}</td>
+        <td class="center">{{ item.selisih_volume }}</td>
+        <td class="num">{{ item.total_harga_rab_formatted }}</td>
+        <td class="num">{{ item.total_selisih_formatted }}</td>
+        <td>{{ item.catatan or '-' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endfor %}
+  {% if kerja_kurang_groups.length === 0 %}
+  <table class="items">
+    <tr>
+      <td class="center">Belum ada item kerja kurang.</td>
+    </tr>
+  </table>
+  {% endif %}
 
   <div class="footer">
     Digenerate otomatis oleh sistem SPARTA pada {{ generated_at }}

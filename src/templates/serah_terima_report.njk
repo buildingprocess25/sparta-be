@@ -82,6 +82,16 @@
       padding-bottom: 4px;
     }
 
+    .category-header {
+      font-size: 12px;
+      font-weight: 700;
+      margin-top: 12px;
+      padding: 6px 0 4px;
+      border-bottom: 1px solid #e30613;
+      text-transform: uppercase;
+      color: #b91c1c;
+    }
+
     .items {
       width: 100%;
       border-collapse: collapse;
@@ -145,15 +155,14 @@
   <div class="content">
   <div class="header">
     <h1 class="title">Berita Acara Serah Terima</h1>
-    <p class="subtitle">Berdasarkan Data Opname Final</p>
   </div>
 
   <table class="meta">
     <tr>
       <td class="label">Nomor ULOK</td>
       <td>{{ toko.nomor_ulok or '-' }}</td>
-      <td class="label">Tanggal Dokumen</td>
-      <td>{{ generated_at }}</td>
+      <td class="label">Tanggal Serah Terima</td>
+      <td>{{ created_at_formatted }}</td>
     </tr>
     <tr>
       <td class="label">Nama Toko</td>
@@ -181,50 +190,46 @@
 
   <div class="section-title">Daftar Pekerjaan</div>
 
+  {% for group in grouped_items_list %}
+  <div class="category-header">{{ loop.index }}. {{ group.category }}</div>
   <table class="items">
     <thead>
       <tr>
         <th style="width:28px">No</th>
-        <th>Kategori</th>
         <th>Jenis Pekerjaan</th>
         <th class="center" style="width:90px">Desain</th>
         <th class="center" style="width:90px">Kualitas</th>
         <th class="center" style="width:90px">Spesifikasi</th>
+        <th class="center" style="width:90px">Dokumentasi</th>
       </tr>
     </thead>
     <tbody>
-      {% for item in items %}
+      {% for item in group.items %}
       <tr>
         <td class="center">{{ loop.index }}</td>
-        <td>{{ item.kategori_pekerjaan or '-' }}</td>
         <td>{{ item.jenis_pekerjaan or '-' }}</td>
         <td class="center">{{ item.desain or '-' }}</td>
         <td class="center">{{ item.kualitas or '-' }}</td>
         <td class="center">{{ item.spesifikasi or '-' }}</td>
+        <td class="center">
+          {% if item.foto %}
+          <a href="{{ item.foto }}" target="_blank" rel="noopener">Lihat Foto</a>
+          {% else %}
+          -
+          {% endif %}
+        </td>
       </tr>
       {% endfor %}
-      {% if items.length === 0 %}
-      <tr>
-        <td colspan="6" class="center">Belum ada item opname.</td>
-      </tr>
-      {% endif %}
     </tbody>
   </table>
-
-  <table class="summary">
+  {% endfor %}
+  {% if grouped_items_list.length === 0 %}
+  <table class="items">
     <tr>
-      <td class="label">Grand Total RAB</td>
-      <td class="num">{{ grand_total_rab_formatted }}</td>
-    </tr>
-    <tr>
-      <td class="label">Grand Total Opname</td>
-      <td class="num">{{ grand_total_opname_formatted }}</td>
-    </tr>
-    <tr>
-      <td class="label">Selisih Total</td>
-      <td class="num">{{ selisih_total_formatted }}</td>
+      <td colspan="6" class="center">Belum ada item opname.</td>
     </tr>
   </table>
+  {% endif %}
 
   <div class="footer">
     Digenerate otomatis oleh sistem SPARTA pada {{ generated_at }}

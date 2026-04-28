@@ -15,6 +15,7 @@
             color: #000;
             font-size: 12px;
             line-height: 1.5;
+            position: relative;
         }
 
         .header,
@@ -22,6 +23,7 @@
             position: fixed;
             left: 0;
             right: 0;
+            z-index: 2;
         }
 
         .header {
@@ -180,10 +182,29 @@
             height: 60px;
             min-height: 60px;
         }
+
+        .watermark {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: 260px;
+            transform: translate(-50%, -50%);
+            opacity: 0.08;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .page-content {
+            position: relative;
+            z-index: 1;
+        }
     </style>
 </head>
 
 <body>
+    {% if watermark_logo_path %}
+    <img src="{{ watermark_logo_path }}" class="watermark" alt="watermark">
+    {% endif %}
     <div class="header">
         <img src="{{ logo_path }}" alt="Logo" class="logo">
     </div>

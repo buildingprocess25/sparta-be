@@ -91,6 +91,7 @@ export const buildSpkPdfBuffer = async (input: BuildSpkPdfInput): Promise<Buffer
 
     const html = await renderHtmlTemplate(templatePath, {
         logo_path: logoPath,
+        watermark_logo_path: staticAssetPath("Building-Logo.png"),
         spk_location: input.tokoCabang,
         spk_date: today,
         spk_number: p.nomor_spk || "____/PROPNDEV-____/____/____",
