@@ -54,7 +54,8 @@ export const rabListQuerySchema = z.object({
     status: z.string().optional(),
     nomor_ulok: z.string().optional(),
     cabang: z.string().optional(),
-    email_pembuat: z.string().optional()
+    email_pembuat: z.string().optional(),
+    id_toko: z.coerce.number().int().positive().optional()
 });
 
 export type SubmitRabInput = z.infer<typeof submitRabSchema>;
