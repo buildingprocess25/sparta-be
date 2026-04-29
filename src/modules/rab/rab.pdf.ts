@@ -11,8 +11,9 @@ type BuildRabPdfInput = {
     alamat_cabang?: string | null;
 };
 
-const rupiah = (value: number): string => {
-    return new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(Number(value) || 0);
+const rupiah = (value: number | string | null | undefined): string => {
+    const numeric = Number(value ?? 0);
+    return new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(Number.isFinite(numeric) ? numeric : 0);
 };
 
 const monthNames = [
