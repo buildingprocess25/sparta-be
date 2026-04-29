@@ -52,12 +52,12 @@ export type RabItemRow = {
     kategori_pekerjaan: string;
     jenis_pekerjaan: string;
     satuan: string;
-    volume: number;
-    harga_material: number;
-    harga_upah: number;
-    total_material: number;
-    total_upah: number;
-    total_harga: number;
+    volume: string;
+    harga_material: string;
+    harga_upah: string;
+    total_material: string;
+    total_upah: string;
+    total_harga: string;
     catatan: string | null;
 };
 
@@ -135,12 +135,12 @@ const insertRabItems = async (
                 item.kategori_pekerjaan,
                 item.jenis_pekerjaan,
                 item.satuan,
-                item.volume,
-                item.harga_material,
-                item.harga_upah,
-                totalMaterial,
-                totalUpah,
-                totalHarga,
+                String(item.volume),
+                String(item.harga_material),
+                String(item.harga_upah),
+                String(totalMaterial),
+                String(totalUpah),
+                String(totalHarga),
                 catatan
             );
         }

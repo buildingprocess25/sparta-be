@@ -96,12 +96,12 @@ CREATE TABLE rab_item (
     kategori_pekerjaan VARCHAR(255),
     jenis_pekerjaan VARCHAR(255),
     satuan VARCHAR(50),
-    volume INTEGER,
-    harga_material INTEGER,
-    harga_upah INTEGER,
-    total_material INTEGER,
-    total_upah INTEGER,
-    total_harga INTEGER,
+    volume VARCHAR(50),
+    harga_material VARCHAR(50),
+    harga_upah VARCHAR(50),
+    total_material VARCHAR(50),
+    total_upah VARCHAR(50),
+    total_harga VARCHAR(50),
     catatan VARCHAR(255),
     CONSTRAINT fk_rab FOREIGN KEY (id_rab) REFERENCES rab(id) ON DELETE CASCADE
 );
