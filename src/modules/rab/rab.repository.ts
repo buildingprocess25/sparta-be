@@ -109,6 +109,13 @@ const toIntegerString = (value: number): string => {
     return Math.round(value).toString();
 };
 
+/** Konversi angka ke string tanpa membulatkan desimal (untuk volume dll). */
+const toNumericString = (value: number): string => {
+    if (!Number.isFinite(value)) return "0";
+    // Buang trailing zero yang tidak perlu (mis. "2.50" → "2.5", "3.00" → "3")
+    return parseFloat(value.toFixed(4)).toString();
+};
+
 const insertRabItems = async (
     client: PoolClient,
     rabId: number,
@@ -140,7 +147,7 @@ const insertRabItems = async (
                 item.kategori_pekerjaan,
                 item.jenis_pekerjaan,
                 item.satuan,
-                toIntegerString(item.volume),
+                toNumericString(item.volume),
                 toIntegerString(item.harga_material),
                 toIntegerString(item.harga_upah),
                 toIntegerString(totalMaterial),
