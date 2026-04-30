@@ -25,6 +25,14 @@ interface SubmitUploadedFiles {
 // Helpers
 // ---------------------------------------------------------------------------
 
+const logRab = (stage: string, message: string, meta?: Record<string, unknown>): void => {
+    if (meta) {
+        console.log(`[RAB][${stage}] ${message}`, meta);
+        return;
+    }
+    console.log(`[RAB][${stage}] ${message}`);
+};
+
 const roundCurrency = (value: number): number => {
     if (!Number.isFinite(value)) return 0;
     return Math.round(value);
@@ -493,11 +501,15 @@ async function regenerateRabPdfs(
     link_pdf_rekapitulasi: string;
     link_pdf_sph?: string;
 } | null> {
+    logRab("PDF", "Mulai regenerate PDF", { rabId });
     // Pastikan nomor SPH tersedia sejak awal submit dan tetap konsisten untuk regenerate berikutnya.
     const noSph = await rabRepository.ensureSphNumber(rabId);
 
     const fullData = await rabRepository.findById(rabId);
-    if (!fullData) return null;
+    if (!fullData) {
+        logRab("PDF", "Data RAB tidak ditemukan saat regenerate", { rabId });
+        return null;
+    }
     fullData.rab.no_sph = noSph;
 
     const cabangKey = fullData.toko.cabang ?? "";
@@ -514,12 +526,14 @@ async function regenerateRabPdfs(
         items: fullData.items,
         toko: fullData.toko
     });
+    logRab("PDF", "PDF non SBO selesai dibuat", { rabId });
 
     const pdfRecap = await buildRecapPdfBuffer({
         rab: fullData.rab,
         items: fullData.items,
         toko: fullData.toko
     });
+    logRab("PDF", "PDF rekap selesai dibuat", { rabId });
 
     const pdfBuffersToMerge: Buffer[] = [];
     let linkSph: string | undefined;
@@ -533,11 +547,13 @@ async function regenerateRabPdfs(
         alamat_cabang: alamatCabang
     });
     pdfBuffersToMerge.push(pdfSph);
+    logRab("PDF", "PDF SPH selesai dibuat", { rabId });
 
     linkSph = await uploadPdfToDrive(
         pdfSph,
         `SPH_${proyek}_${nomorUlok}.pdf`
     );
+    logRab("PDF", "PDF SPH diupload", { rabId, linkSph });
 
     pdfBuffersToMerge.push(pdfRecap, pdfNonSbo);
 
@@ -550,6 +566,7 @@ async function regenerateRabPdfs(
                     || isPdfBuffer(insuranceFile.buffer);
                 if (isPdf) {
                     pdfBuffersToMerge.push(insuranceFile.buffer);
+                    logRab("PDF", "File asuransi PDF ditambahkan ke merge", { rabId });
                 }
             }
         } catch (err) {
@@ -571,6 +588,12 @@ async function regenerateRabPdfs(
         pdfMerged,
         `RAB_GABUNGAN_${proyek}_${nomorUlok}.pdf`
     );
+    logRab("PDF", "PDF hasil generate selesai diupload", {
+        rabId,
+        linkMerged,
+        linkNonSbo,
+        linkRecap
+    });
 
     return {
         link_pdf_gabungan: linkMerged,
@@ -586,6 +609,11 @@ async function regenerateRabPdfs(
 
 export const rabService = {
     async submit(payload: SubmitRabInput, uploadedFiles: SubmitUploadedFiles = {}) {
+        logRab("SUBMIT", "Mulai submit RAB", {
+            nomor_ulok: payload.nomor_ulok,
+            lingkup_pekerjaan: payload.lingkup_pekerjaan,
+            is_revisi: payload.is_revisi === true,
+        });
         // 1. Tentukan mode submit: create baru atau revisi explicit dari frontend
         let rejectedRabToReplaceId: number | null = null;
         let rejectedRabExistingLogo: string | null = null;
@@ -636,6 +664,11 @@ export const rabService = {
 
         // 2. Hitung totals
         const totals = computeTotals(payload.detail_items);
+        logRab("SUBMIT", "Totals dihitung", {
+            grand_total: totals.grandTotal,
+            grand_total_non_sbo: totals.totalNonSbo,
+            grand_total_final: totals.finalGrandTotal,
+        });
 
         // 3. Simpan ke DB (upsert toko + insert rab + insert rab_item dalam 1 transaksi)
         const logoInput = (payload.logo ?? "").trim();
@@ -662,6 +695,7 @@ export const rabService = {
                 if (uploadedLink) {
                     logoLink = uploadedLink;
                 }
+                logRab("SUBMIT", "Logo diupload", { logoLink });
             } catch (err) {
                 console.error("Warning: Gagal upload logo RAB ke Drive:", err);
             }
@@ -683,6 +717,7 @@ export const rabService = {
             if (revLogoLink) {
                 logoLink = revLogoLink;
             }
+            logRab("SUBMIT", "Rev logo diupload", { logoLink });
         }
 
         if (isRejectedResubmit && uploadedFiles.revLogoFile) {
@@ -691,6 +726,7 @@ export const rabService = {
                 payload.nomor_ulok,
                 payload.proyek
             );
+            logRab("SUBMIT", "Rev logo file diupload", { logoLink });
         }
 
         let insuranceLink = rejectedRabToReplaceId !== null
@@ -707,6 +743,7 @@ export const rabService = {
                 payload.nomor_ulok,
                 payload.proyek
             );
+            logRab("SUBMIT", "File asuransi diupload", { insuranceLink });
         }
 
         if (isRejectedResubmit && hasRevFileAsuransiInput) {
@@ -715,6 +752,7 @@ export const rabService = {
                 payload.nomor_ulok,
                 payload.proyek
             );
+            logRab("SUBMIT", "Rev file asuransi diupload", { insuranceLink });
         }
 
         if (isRejectedResubmit && uploadedFiles.revInsuranceFile) {
@@ -723,6 +761,7 @@ export const rabService = {
                 payload.nomor_ulok,
                 payload.proyek
             );
+            logRab("SUBMIT", "Rev file asuransi (file) diupload", { insuranceLink });
         }
 
         const submitPayload = {
@@ -759,6 +798,7 @@ export const rabService = {
         const rab = rejectedRabToReplaceId !== null
             ? await rabRepository.replaceRejectedWithDetails(rejectedRabToReplaceId, submitPayload)
             : await rabRepository.createWithDetails(submitPayload);
+        logRab("SUBMIT", "RAB tersimpan di database", { rabId: rab.id });
 
         // 4. Generate & upload 3 PDF ke Drive (sama seperti server Python)
         try {
@@ -772,6 +812,12 @@ export const rabService = {
                 rab.link_pdf_gabungan = links.link_pdf_gabungan;
                 rab.link_pdf_non_sbo = links.link_pdf_non_sbo;
                 rab.link_pdf_rekapitulasi = links.link_pdf_rekapitulasi;
+                logRab("SUBMIT", "Link PDF tersimpan", {
+                    rabId: rab.id,
+                    link_pdf_gabungan: links.link_pdf_gabungan,
+                    link_pdf_non_sbo: links.link_pdf_non_sbo,
+                    link_pdf_rekapitulasi: links.link_pdf_rekapitulasi,
+                });
             }
         } catch (err) {
             console.error("Warning: Gagal upload PDF ke Drive:", err);
@@ -797,6 +843,12 @@ export const rabService = {
     },
 
     async handleApproval(id: string, action: ApprovalActionInput) {
+        logRab("APPROVAL", "Mulai proses approval", {
+            rabId: id,
+            tindakan: action.tindakan,
+            jabatan: action.jabatan,
+            approver_email: action.approver_email,
+        });
         const data = await rabRepository.findById(id);
         if (!data) {
             throw new AppError("Pengajuan RAB tidak ditemukan", 404);
@@ -816,12 +868,14 @@ export const rabService = {
                 action.alasan_penolakan ?? "",
                 action.approver_email
             );
+            logRab("APPROVAL", "RAB ditolak", { rabId: id, newStatus });
 
             // Safety net: restore toko fields AFTER the transaction commits,
             // in case a deferred trigger or other side-effect corrupted them.
             await rabRepository.restoreTokoStableFieldsByRabId(id, tokoStableFields);
         } else {
             await rabRepository.updateApproval(id, newStatus, action);
+            logRab("APPROVAL", "RAB diapprove", { rabId: id, newStatus });
         }
 
         if (action.tindakan === "APPROVE") {
@@ -842,6 +896,13 @@ export const rabService = {
                     if (links.link_pdf_sph) {
                         await rabRepository.updateSphPdfLink(id, links.link_pdf_sph);
                     }
+                    logRab("APPROVAL", "Link PDF diupdate setelah approval", {
+                        rabId: id,
+                        link_pdf_gabungan: links.link_pdf_gabungan,
+                        link_pdf_non_sbo: links.link_pdf_non_sbo,
+                        link_pdf_rekapitulasi: links.link_pdf_rekapitulasi,
+                        link_pdf_sph: links.link_pdf_sph,
+                    });
                 }
             } catch (err) {
                 console.error("Warning: Gagal regenerate PDF RAB setelah approval:", err);
@@ -858,6 +919,7 @@ export const rabService = {
     },
 
     async getPdfDownloadPayload(id: string) {
+        logRab("DOWNLOAD", "Request PDF gabungan", { rabId: id });
         const data = await rabRepository.findById(id);
         if (!data) {
             throw new AppError("Pengajuan RAB tidak ditemukan", 404);
@@ -876,6 +938,7 @@ export const rabService = {
         if (fileId && gp.spartaDrive) {
             const pdfBuffer = await gp.getFileBufferById(gp.spartaDrive, fileId);
             if (pdfBuffer) {
+                logRab("DOWNLOAD", "PDF gabungan diambil dari Drive", { rabId: id });
                 return { filename, pdfBuffer };
             }
         }
@@ -893,11 +956,13 @@ export const rabService = {
         if (!pdfBuffer.length) {
             throw new AppError("File PDF gabungan kosong", 502);
         }
+        logRab("DOWNLOAD", "PDF gabungan diambil via HTTP", { rabId: id });
 
         return { filename, pdfBuffer };
     },
 
     async getAssetDownloadPayload(id: string, assetField: "logo" | "file_asuransi") {
+        logRab("DOWNLOAD", "Request asset", { rabId: id, assetField });
         const data = await rabRepository.findById(id);
         if (!data) {
             throw new AppError("Pengajuan RAB tidak ditemukan", 404);
@@ -941,6 +1006,7 @@ export const rabService = {
         if (!fileBuffer.length) {
             throw new AppError("File kosong", 502);
         }
+        logRab("DOWNLOAD", "Asset berhasil diambil", { rabId: id, assetField });
 
         const defaultPrefix = assetField === "logo" ? "RAB_LOGO" : "RAB_ASURANSI";
         const ext = inferFileExtension(contentType);
@@ -964,6 +1030,7 @@ export const rabService = {
      */
     async updateRabStatus(input: UpdateRabStatusInput) {
         const { id_toko, id_rab, status } = input;
+        logRab("STATUS", "Mulai update status RAB", { id_rab, id_toko, status });
 
         // Validasi: RAB harus ada
         const rabData = await rabRepository.findById(String(id_rab));
@@ -1022,6 +1089,12 @@ export const rabService = {
             status as RabStatus,
             emailPenolak
         );
+        logRab("STATUS", "Update status RAB selesai", {
+            id_rab,
+            id_toko,
+            status,
+            ditolak_oleh: emailPenolak
+        });
 
         return {
             id_rab,

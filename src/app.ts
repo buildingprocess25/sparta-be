@@ -1,4 +1,5 @@
 import cors from "cors";
+import crypto from "crypto";
 import express from "express";
 import multer from "multer";
 import { ZodError } from "zod";
@@ -32,6 +33,77 @@ const corsOrigins = env.CORS_ORIGINS === "*"
 app.use(cors({ origin: corsOrigins }));
 app.use(express.json({ limit: "50mb" }));
 
+app.use((req, res, next) => {
+    const redactKeys = new Set([
+        "password",
+        "passwd",
+        "token",
+        "access_token",
+        "refresh_token",
+        "authorization",
+        "auth",
+        "secret",
+        "api_key",
+    ]);
+
+    const sanitizeValue = (value: unknown, depth = 0): unknown => {
+        if (depth > 2) return "[depth]";
+        if (value === null || value === undefined) return value;
+        if (Buffer.isBuffer(value)) return `[buffer ${value.length}]`;
+        if (typeof value === "string") {
+            return value.length > 200 ? `${value.slice(0, 200)}...` : value;
+        }
+        if (typeof value === "number" || typeof value === "boolean") return value;
+        if (Array.isArray(value)) {
+            const trimmed = value.slice(0, 5).map((item) => sanitizeValue(item, depth + 1));
+            return value.length > 5 ? [...trimmed, "[+more]"] : trimmed;
+        }
+        if (typeof value === "object") {
+            const result: Record<string, unknown> = {};
+            for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+                if (redactKeys.has(key.toLowerCase())) {
+                    result[key] = "[redacted]";
+                } else {
+                    result[key] = sanitizeValue(raw, depth + 1);
+                }
+            }
+            return result;
+        }
+        return String(value);
+    };
+
+    const requestId = crypto.randomUUID();
+    res.locals.requestId = requestId;
+
+    const startAt = Date.now();
+    const method = req.method;
+    const path = req.originalUrl;
+    const ip = req.ip;
+    const userAgent = req.get("user-agent") || "-";
+    const contentLength = req.get("content-length") || "-";
+
+    const payloadLog = {
+        ip,
+        user_agent: userAgent,
+        content_length: contentLength,
+        params: sanitizeValue(req.params),
+        query: sanitizeValue(req.query),
+        body: sanitizeValue(req.body)
+    };
+
+    console.log(`[REQ][${requestId}] ${method} ${path}`, payloadLog);
+
+    res.on("finish", () => {
+        const durationMs = Date.now() - startAt;
+        console.log(`[RES][${requestId}] ${method} ${path}`, {
+            status: res.statusCode,
+            duration_ms: durationMs
+        });
+    });
+
+    next();
+});
+
 app.get("/health", (_req, res) => {
     res.json({ ok: true, service: "sparta-api" });
 });
@@ -56,6 +128,7 @@ app.use("/", priceRabRouter);
 app.use("/api", priceRabRouter);
 
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    const requestId = res.locals.requestId as string | undefined;
     if (error instanceof ZodError) {
         return res.status(422).json({
             status: "error",
@@ -92,7 +165,10 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
         });
     }
 
-    console.error("Unhandled error:", error);
+    console.error("Unhandled error:", {
+        request_id: requestId ?? "-",
+        error
+    });
     return res.status(500).json({
         status: "error",
         message: "Terjadi kesalahan internal server"
