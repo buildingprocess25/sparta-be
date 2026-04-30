@@ -29,6 +29,28 @@ const uploadPdfToDrive = async (buffer: Buffer, filename: string): Promise<strin
 };
 
 export const serahTerimaService = {
+    async list(idToko?: number) {
+        const rows = await serahTerimaRepository.listBerkasSerahTerima(idToko);
+
+        return rows.map((row) => ({
+            id: row.id,
+            id_toko: row.id_toko,
+            link_pdf: row.link_pdf,
+            created_at: row.created_at,
+            toko: {
+                id: row.id_toko,
+                nomor_ulok: row.nomor_ulok,
+                lingkup_pekerjaan: row.lingkup_pekerjaan,
+                nama_toko: row.nama_toko,
+                kode_toko: row.kode_toko,
+                proyek: row.proyek,
+                cabang: row.cabang,
+                alamat: row.alamat,
+                nama_kontraktor: row.nama_kontraktor,
+            },
+        }));
+    },
+
     async createPdfSerahTerima(idToko: number) {
         // 1. Cari data toko
         const toko = await serahTerimaRepository.findTokoById(idToko);
@@ -66,6 +88,7 @@ export const serahTerimaService = {
             opname_final_id: opnameFinal.id,
             item_count: items.length,
             created_at: berkas.created_at,
+            toko,
         };
     },
 };

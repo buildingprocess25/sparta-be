@@ -7,6 +7,17 @@ export type BerkasSerahTerimaRow = {
     created_at: string;
 };
 
+export type BerkasSerahTerimaWithTokoRow = BerkasSerahTerimaRow & {
+    nomor_ulok: string | null;
+    lingkup_pekerjaan: string | null;
+    nama_toko: string | null;
+    kode_toko: string | null;
+    proyek: string | null;
+    cabang: string | null;
+    alamat: string | null;
+    nama_kontraktor: string | null;
+};
+
 export type OpnameFinalRow = {
     id: number;
     id_toko: number;
@@ -170,6 +181,40 @@ export const serahTerimaRepository = {
         );
 
         return result.rows[0] ?? null;
+    },
+
+    async listBerkasSerahTerima(idToko?: number): Promise<BerkasSerahTerimaWithTokoRow[]> {
+        const values: Array<number> = [];
+        const whereClause = typeof idToko === "number" ? "WHERE bst.id_toko = $1" : "";
+
+        if (typeof idToko === "number") {
+            values.push(idToko);
+        }
+
+        const result = await pool.query<BerkasSerahTerimaWithTokoRow>(
+            `
+            SELECT
+                bst.id,
+                bst.id_toko,
+                bst.link_pdf,
+                bst.created_at,
+                t.nomor_ulok,
+                t.lingkup_pekerjaan,
+                t.nama_toko,
+                t.kode_toko,
+                t.proyek,
+                t.cabang,
+                t.alamat,
+                t.nama_kontraktor
+            FROM berkas_serah_terima bst
+            JOIN toko t ON t.id = bst.id_toko
+            ${whereClause}
+            ORDER BY bst.created_at DESC, bst.id DESC
+            `,
+            values
+        );
+
+        return result.rows;
     },
 
     async upsertBerkasSerahTerima(idToko: number, linkPdf: string): Promise<BerkasSerahTerimaRow> {

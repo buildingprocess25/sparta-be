@@ -6,9 +6,10 @@ Base URL: `/api`
 
 ## Daftar Endpoint
 
-| #   | Method | Path                             | Deskripsi                                        |
-| --- | ------ | -------------------------------- | ------------------------------------------------ |
-| 1   | `POST` | `/api/create_pdf_serah_terima`   | Generate PDF serah terima dan simpan ke Drive     |
+| #   | Method | Path                           | Deskripsi                                      |
+| --- | ------ | ------------------------------ | ---------------------------------------------- |
+| 1   | `POST` | `/api/create_pdf_serah_terima` | Generate PDF serah terima dan simpan ke Drive  |
+| 2   | `GET`  | `/api/berkas_serah_terima`     | List semua berkas serah terima (+ filter toko) |
 
 ---
 
@@ -44,9 +45,9 @@ Base URL: `/api`
 }
 ```
 
-| Field     | Tipe     | Wajib | Deskripsi              |
-| --------- | -------- | ----- | ---------------------- |
-| `id_toko` | `number` | ✅    | ID toko (integer > 0)  |
+| Field     | Tipe     | Wajib | Deskripsi             |
+| --------- | -------- | ----- | --------------------- |
+| `id_toko` | `number` | ✅    | ID toko (integer > 0) |
 
 ### Response — 200 OK
 
@@ -60,21 +61,33 @@ Base URL: `/api`
     "link_pdf": "https://drive.google.com/file/d/xxxx/view",
     "opname_final_id": 5,
     "item_count": 12,
-    "created_at": "2026-04-27T10:00:00.000Z"
+    "created_at": "2026-04-27T10:00:00.000Z",
+    "toko": {
+      "id": 56,
+      "nomor_ulok": "KZ01-2603-5050",
+      "lingkup_pekerjaan": "SIPIL",
+      "nama_toko": "Phase1",
+      "kode_toko": "T-001",
+      "proyek": "Reguler",
+      "cabang": "CIKOKOL",
+      "alamat": "Here.",
+      "nama_kontraktor": "Kontraktor A"
+    }
   }
 }
 ```
 
 ### Response Fields
 
-| Field              | Tipe     | Deskripsi                                    |
-| ------------------ | -------- | -------------------------------------------- |
-| `id`               | `number` | ID record berkas_serah_terima                |
-| `id_toko`          | `number` | ID toko yang diminta                         |
-| `link_pdf`         | `string` | Link Google Drive PDF yang dihasilkan        |
-| `opname_final_id`  | `number` | ID opname_final yang digunakan sebagai sumber|
-| `item_count`       | `number` | Jumlah item opname yang masuk ke PDF         |
-| `created_at`       | `string` | Timestamp pembuatan record                   |
+| Field             | Tipe     | Deskripsi                                     |
+| ----------------- | -------- | --------------------------------------------- |
+| `id`              | `number` | ID record berkas_serah_terima                 |
+| `id_toko`         | `number` | ID toko yang diminta                          |
+| `link_pdf`        | `string` | Link Google Drive PDF yang dihasilkan         |
+| `opname_final_id` | `number` | ID opname_final yang digunakan sebagai sumber |
+| `item_count`      | `number` | Jumlah item opname yang masuk ke PDF          |
+| `created_at`      | `string` | Timestamp pembuatan record                    |
+| `toko`            | `object` | Informasi toko terkait                        |
 
 ---
 
@@ -98,6 +111,43 @@ PDF yang dihasilkan berisi:
 
 ---
 
+## 2. List Berkas Serah Terima
+
+**`GET /api/berkas_serah_terima`**
+
+### Query Parameters (opsional)
+
+| Parameter | Tipe     | Deskripsi               |
+| --------- | -------- | ----------------------- |
+| `id_toko` | `number` | Filter berdasarkan toko |
+
+### Response — 200 OK
+
+```json
+{
+  "status": "success",
+  "data": [
+    {
+      "id": 1,
+      "id_toko": 56,
+      "link_pdf": "https://drive.google.com/file/d/xxxx/view",
+      "created_at": "2026-04-27T10:00:00.000Z",
+      "toko": {
+        "id": 56,
+        "nomor_ulok": "KZ01-2603-5050",
+        "lingkup_pekerjaan": "SIPIL",
+        "nama_toko": "Phase1",
+        "kode_toko": "T-001",
+        "proyek": "Reguler",
+        "cabang": "CIKOKOL",
+        "alamat": "Here.",
+        "nama_kontraktor": "Kontraktor A"
+      }
+    }
+  ]
+}
+```
+
 ## Perilaku Upsert
 
 - Jika belum ada record `berkas_serah_terima` untuk `id_toko` yang diberikan, akan dibuat record baru.
@@ -110,6 +160,6 @@ PDF yang dihasilkan berisi:
 | Code | Kondisi                                                    |
 | ---- | ---------------------------------------------------------- |
 | 404  | Data toko tidak ditemukan                                  |
-| 404  | Data opname_final tidak ditemukan untuk toko yang dimaksud  |
+| 404  | Data opname_final tidak ditemukan untuk toko yang dimaksud |
 | 422  | Validasi request body gagal (id_toko tidak valid)          |
 | 500  | Google Drive belum terkonfigurasi                          |
