@@ -14,7 +14,8 @@ Base URL: `/api/rab`
 | 4   | `GET`  | `/api/rab/:id/pdf`           | Download PDF RAB           |
 | 5   | `GET`  | `/api/rab/:id/logo`          | Download file logo RAB     |
 | 6   | `GET`  | `/api/rab/:id/file-asuransi` | Download file asuransi RAB |
-| 7   | `POST` | `/api/rab/:id/approval`      | Approve / Reject RAB       |
+| 7   | `POST` | `/api/rab/:id/approval`      | Approve / Reject RAB                         |
+| 8   | `PUT`  | `/api/rab/update-status`     | Update Status RAB (Ditolak Otomatis)         |
 
 ---
 
@@ -629,6 +630,69 @@ Flow ini berjalan dalam transaksi dengan guard: jika ada perubahan data `toko` (
 | 409  | Status saat ini tidak valid untuk tindakan tersebut |
 | 500  | Guard violation: terdeteksi perubahan data toko     |
 | 422  | Validasi gagal (misal: reject tanpa alasan)         |
+
+---
+
+## 8. Update Status RAB (Ditolak Otomatis)
+
+**`PUT /api/rab/update-status`**
+
+Memperbarui status RAB menjadi salah satu status penolakan. Endpoint ini secara otomatis mencari email penolak dari tabel `user_cabang` berdasarkan cabang toko dan jabatan yang sesuai.
+
+### Request Body
+
+```json
+{
+  "id_toko": 5,
+  "id_rab": 1,
+  "status": "Ditolak oleh Direktur"
+}
+```
+
+### Validasi
+
+| Field     | Aturan                                                                                                    |
+| --------- | --------------------------------------------------------------------------------------------------------- |
+| `id_toko` | **Wajib**, ID toko yang valid dan harus cocok dengan RAB                                                  |
+| `id_rab`  | **Wajib**, ID pengajuan RAB yang valid                                                                    |
+| `status`  | **Wajib**, salah satu status penolakan: `Ditolak oleh Direktur`, `Ditolak oleh Koordinator`, `Ditolak oleh Manajer` |
+
+### Perilaku Sistem
+
+1.  **Resolusi Email Penolak**:
+    -   Jika status `Ditolak oleh Direktur` → mencari user di `user_cabang` dengan jabatan `DIREKTUR` pada cabang yang sama dengan toko.
+    -   Jika status `Ditolak oleh Koordinator` → mencari user di `user_cabang` dengan jabatan `KOORDINATOR` pada cabang yang sama dengan toko.
+    -   Jika status `Ditolak oleh Manajer` → mencari user di `user_cabang` dengan jabatan `MANAGER` pada cabang yang sama dengan toko.
+2.  **Update Database**:
+    -   Mengupdate kolom `status`, `ditolak_oleh` (dengan email yang ditemukan), dan `waktu_penolakan` pada tabel `rab`.
+    -   Mengaktifkan kembali `gantt_chart` terbaru untuk toko tersebut (`status = 'active'`).
+3.  **Guard**: Melindungi data toko agar tidak berubah selama proses update (transaksional).
+
+### Response — 200 OK
+
+```json
+{
+  "status": "success",
+  "message": "Status RAB berhasil diperbarui",
+  "data": {
+    "id_rab": 1,
+    "id_toko": 5,
+    "old_status": "Disetujui",
+    "new_status": "Ditolak oleh Direktur",
+    "ditolak_oleh": "direktur.cabang@alfamart.com",
+    "jabatan_penolak": "DIREKTUR"
+  }
+}
+```
+
+### Error Responses
+
+| Code | Kondisi                                                                     |
+| ---- | --------------------------------------------------------------------------- |
+| 400  | Status yang dikirim bukan status penolakan yang valid                       |
+| 404  | RAB tidak ditemukan, atau data user dengan jabatan tersebut tidak ditemukan |
+| 409  | `id_toko` tidak cocok dengan data RAB                                       |
+| 500  | Terjadi kesalahan internal atau guard violation                             |
 
 ---
 

@@ -137,7 +137,7 @@
             vertical-align: top;
         }
 
-        .signatures.batam-two-cols .signature-box {
+        .signatures.two-cols .signature-box {
             width: 50%;
         }
 
@@ -259,7 +259,15 @@
     </table>
     <div style="clear:both;"></div>
 
-    <div class="signatures{% if is_batam_branch %} batam-two-cols{% endif %}">
+    {# ============================================================
+       TANDA TANGAN - 3 layout berdasarkan cabang:
+       - BATAM/BINTAN : 2 kolom (Dibuat + Koordinator), tanpa Manajer
+       - MANADO       : 2 kolom (Dibuat + Manajer), tanpa Koordinator
+       - Default      : 3 kolom (Dibuat + Koordinator + Manajer)
+       ============================================================ #}
+    {% if is_batam_branch %}
+    {# BATAM: tidak ada manajer, langsung ke koordinator #}
+    <div class="signatures two-cols">
         <div class="signature-box">
             <p>Dibuat</p>
             <div class="signature-content">
@@ -269,14 +277,25 @@
             <p>KONTRAKTOR</p>
         </div>
         <div class="signature-box">
-            <p>{% if is_batam_branch %}Menyetujui{% else %}Mengetahui{% endif %}</p>
+            <p>Menyetujui</p>
             <div class="signature-content">
                 {{ coordinator_approval_details | safe }}
                 <div class="signature-line"></div>
             </div>
             <p>BRANCH BUILDING COORDINATOR</p>
         </div>
-        {% if not is_batam_branch %}
+    </div>
+    {% elif is_manado_branch %}
+    {# MANADO: tidak ada koordinator, langsung ke manajer #}
+    <div class="signatures two-cols">
+        <div class="signature-box">
+            <p>Dibuat</p>
+            <div class="signature-content">
+                {{ creator_details | safe }}
+                <div class="signature-line"></div>
+            </div>
+            <p>KONTRAKTOR</p>
+        </div>
         <div class="signature-box">
             <p>Menyetujui</p>
             <div class="signature-content">
@@ -285,7 +304,35 @@
             </div>
             <p>BRANCH BUILDING &amp; MAINTENANCE MANAGER</p>
         </div>
-        {% endif %}
     </div>
+    {% else %}
+    {# Default: 3 kolom (Dibuat + Koordinator + Manajer) #}
+    <div class="signatures">
+        <div class="signature-box">
+            <p>Dibuat</p>
+            <div class="signature-content">
+                {{ creator_details | safe }}
+                <div class="signature-line"></div>
+            </div>
+            <p>KONTRAKTOR</p>
+        </div>
+        <div class="signature-box">
+            <p>Mengetahui</p>
+            <div class="signature-content">
+                {{ coordinator_approval_details | safe }}
+                <div class="signature-line"></div>
+            </div>
+            <p>BRANCH BUILDING COORDINATOR</p>
+        </div>
+        <div class="signature-box">
+            <p>Menyetujui</p>
+            <div class="signature-content">
+                {{ manager_approval_details | safe }}
+                <div class="signature-line"></div>
+            </div>
+            <p>BRANCH BUILDING &amp; MAINTENANCE MANAGER</p>
+        </div>
+    </div>
+    {% endif %}
 </body>
 </html>

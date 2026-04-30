@@ -20,6 +20,11 @@ CREATE TABLE toko (
 -- ALTER TABLE toko DROP CONSTRAINT IF EXISTS toko_nomor_ulok_key;
 -- ALTER TABLE toko ADD CONSTRAINT uq_toko_nomor_ulok_lingkup UNIQUE (nomor_ulok, lingkup_pekerjaan);
 
+-- Migration safety: sinkronkan sequence SERIAL agar tidak bentrok dengan data yang sudah ada.
+-- Ini mencegah error "duplicate key value violates unique constraint toko_pkey"
+-- yang terjadi jika data pernah di-import/restore dengan ID manual.
+SELECT setval('toko_id_seq', GREATEST((SELECT COALESCE(MAX(id), 0) FROM toko) + 1, 1), false);
+
 -- 2) RAB
 CREATE TABLE rab (
     id SERIAL PRIMARY KEY,

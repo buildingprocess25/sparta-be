@@ -896,5 +896,112 @@ export const rabRepository = {
                AND t.id = r.id_toko`,
             [fields.kode_toko, fields.alamat, fields.nama_kontraktor, rabId]
         );
+    },
+
+    /**
+     * Update status RAB menjadi Ditolak.
+     * - Update kolom status, alasan_penolakan, ditolak_oleh, waktu_penolakan
+     * - Aktifkan gantt_chart terbaru milik toko terkait (status → 'active')
+     * - Lindungi kolom toko agar tidak berubah oleh side-effect trigger
+     */
+    async updateRabStatusWithRejection(
+        rabId: number,
+        tokoId: number,
+        newStatus: RabStatus,
+        ditolakOleh: string
+    ): Promise<void> {
+        await withTransaction(async (client) => {
+            // Lock RAB row
+            const rabRes = await client.query<{ id_toko: number }>(
+                `SELECT id_toko
+                 FROM rab
+                 WHERE id = $1
+                 FOR UPDATE`,
+                [rabId]
+            );
+
+            if ((rabRes.rowCount ?? 0) === 0) {
+                throw new Error(`RAB dengan id ${rabId} tidak ditemukan`);
+            }
+
+            // Lock & snapshot toko stable fields
+            const tokoBeforeRes = await client.query<{
+                kode_toko: string | null;
+                alamat: string | null;
+                nama_kontraktor: string | null;
+            }>(
+                `SELECT kode_toko, alamat, nama_kontraktor
+                 FROM toko
+                 WHERE id = $1
+                 FOR UPDATE`,
+                [tokoId]
+            );
+
+            if ((tokoBeforeRes.rowCount ?? 0) === 0) {
+                throw new Error(`Toko dengan id ${tokoId} tidak ditemukan`);
+            }
+
+            const tokoBefore = tokoBeforeRes.rows[0];
+
+            // Step 1: Update RAB status + rejection metadata
+            await client.query(
+                `UPDATE rab
+                 SET status = $1,
+                     ditolak_oleh = $2,
+                     waktu_penolakan = timezone('Asia/Jakarta', now())
+                 WHERE id = $3`,
+                [newStatus, ditolakOleh, rabId]
+            );
+
+            // Step 2: Activate latest gantt_chart for this toko
+            await client.query(
+                `UPDATE gantt_chart
+                 SET status = 'active'
+                 WHERE id = (
+                    SELECT id
+                    FROM gantt_chart
+                    WHERE id_toko = $1
+                    ORDER BY id DESC
+                    LIMIT 1
+                 )`,
+                [tokoId]
+            );
+
+            // Step 3: Hard-guard — restore toko stable fields
+            await client.query(
+                `UPDATE toko
+                 SET kode_toko = $1,
+                     alamat = $2,
+                     nama_kontraktor = $3
+                 WHERE id = $4`,
+                [
+                    tokoBefore.kode_toko,
+                    tokoBefore.alamat,
+                    tokoBefore.nama_kontraktor,
+                    tokoId
+                ]
+            );
+
+            // Step 4: Verify toko wasn't corrupted by triggers
+            const tokoAfterRes = await client.query<{
+                kode_toko: string | null;
+                alamat: string | null;
+                nama_kontraktor: string | null;
+            }>(
+                `SELECT kode_toko, alamat, nama_kontraktor
+                 FROM toko
+                 WHERE id = $1`,
+                [tokoId]
+            );
+
+            const tokoAfter = tokoAfterRes.rows[0];
+            if (JSON.stringify(tokoBefore) !== JSON.stringify(tokoAfter)) {
+                console.error(
+                    `[updateRabStatusWithRejection] Guard violation! toko id=${tokoId} was modified.`,
+                    { tokoBefore, tokoAfter, rabId, newStatus }
+                );
+                throw new Error("Guard violation: update RAB tidak boleh mengubah data toko");
+            }
+        });
     }
 };

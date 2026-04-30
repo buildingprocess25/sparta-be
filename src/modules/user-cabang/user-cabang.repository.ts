@@ -138,6 +138,26 @@ export const userCabangRepository = {
         return result.rows[0] ?? null;
     },
 
+	/**
+	 * Cari user berdasarkan cabang dan jabatan.
+	 * Mengembalikan satu user pertama yang ditemukan (ORDER BY email_sat ASC LIMIT 1).
+	 */
+	async findByCabangAndJabatan(cabang: string, jabatan: string): Promise<UserCabangRow | null> {
+		const result = await pool.query<UserCabangRow>(
+			`
+      SELECT cabang, nama_lengkap, jabatan, email_sat, nama_pt
+      FROM user_cabang
+      WHERE LOWER(cabang) = LOWER($1)
+        AND LOWER(jabatan) = LOWER($2)
+      ORDER BY email_sat ASC
+      LIMIT 1
+      `,
+			[cabang, jabatan]
+		);
+
+		return result.rows[0] ?? null;
+	},
+
         async deleteByKey(cabang: string, emailSat: string): Promise<UserCabangRow | null> {
         const result = await pool.query<UserCabangRow>(
             `

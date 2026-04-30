@@ -8,6 +8,7 @@ import {
 	handleRabApproval,
 	listRab,
 	submitRab,
+	updateRabStatus,
 } from "./rab.controller";
 
 const rabRouter = Router();
@@ -33,5 +34,6 @@ rabRouter.get("/:id/pdf", downloadRabPdf);
 rabRouter.get("/:id/logo", downloadRabLogo);
 rabRouter.get("/:id/file-asuransi", downloadRabInsuranceFile);
 rabRouter.post("/:id/approval", handleRabApproval);
+rabRouter.put("/update-status", updateRabStatus);
 
 export { rabRouter };

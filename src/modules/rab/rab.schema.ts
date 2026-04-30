@@ -58,6 +58,13 @@ export const rabListQuerySchema = z.object({
     id_toko: z.coerce.number().int().positive().optional()
 });
 
+export const updateRabStatusSchema = z.object({
+    id_toko: z.coerce.number().int().positive(),
+    id_rab: z.coerce.number().int().positive(),
+    status: z.string().min(1)
+});
+
 export type SubmitRabInput = z.infer<typeof submitRabSchema>;
 export type DetailItemInput = z.infer<typeof detailItemSchema>;
 export type RabListQuery = z.infer<typeof rabListQuerySchema>;
+export type UpdateRabStatusInput = z.infer<typeof updateRabStatusSchema>;

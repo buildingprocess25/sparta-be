@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { AppError } from "../../common/app-error";
 import { asyncHandler } from "../../common/async-handler";
 import { approvalActionSchema } from "../approval/approval.schema";
-import { rabListQuerySchema, submitRabSchema } from "./rab.schema";
+import { rabListQuerySchema, submitRabSchema, updateRabStatusSchema } from "./rab.schema";
 import { rabService } from "./rab.service";
 
 export const submitRab = asyncHandler(async (req: Request, res: Response) => {
@@ -127,6 +127,17 @@ export const handleRabApproval = asyncHandler(async (req: Request, res: Response
     res.json({
         status: "success",
         message: "Approval berhasil diproses",
+        data: result
+    });
+});
+
+export const updateRabStatus = asyncHandler(async (req: Request, res: Response) => {
+    const input = updateRabStatusSchema.parse(req.body);
+    const result = await rabService.updateRabStatus(input);
+
+    res.json({
+        status: "success",
+        message: "Status RAB berhasil diperbarui",
         data: result
     });
 });

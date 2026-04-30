@@ -2,11 +2,12 @@ import { AppError } from "../../common/app-error";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
 import { tokoRepository } from "../toko/toko.repository";
+import { userCabangRepository } from "../user-cabang/user-cabang.repository";
 import type { ApprovalActionInput } from "../approval/approval.schema";
 import { RAB_STATUS, REJECTED_RAB_STATUSES, type RabStatus } from "./rab.constants";
 import { buildRabPdfBuffer, buildRecapPdfBuffer, mergePdfBuffers, generateSphPdf } from "./rab.pdf";
 import { rabRepository } from "./rab.repository";
-import type { DetailItemInput, RabListQuery, SubmitRabInput } from "./rab.schema";
+import type { DetailItemInput, RabListQuery, SubmitRabInput, UpdateRabStatusInput } from "./rab.schema";
 
 interface UploadedFile {
     originalname: string;
@@ -52,15 +53,38 @@ const computeTotals = (detailItems: DetailItemInput[]) => {
     };
 };
 
+// ---------------------------------------------------------------------------
+// Branch detection helpers
+// ---------------------------------------------------------------------------
+
+/** MANADO: tidak ada koordinator, langsung Direktur → Manajer */
+const isManadoBranch = (cabang?: string | null): boolean => {
+    const normalized = String(cabang ?? "").trim().toUpperCase();
+    return normalized === "MANADO";
+};
+
+/** BATAM/BINTAN: tidak ada manajer, langsung Direktur → Koordinator */
+const isBatamBranch = (cabang?: string | null): boolean => {
+    const normalized = String(cabang ?? "").trim().toUpperCase();
+    return normalized === "BATAM" || normalized === "BINTAN";
+};
+
 const resolveStatusTransition = (
     currentStatus: RabStatus,
-    action: ApprovalActionInput
+    action: ApprovalActionInput,
+    cabang?: string | null
 ): RabStatus => {
+    const manado = isManadoBranch(cabang);
+    const batam = isBatamBranch(cabang);
+
     if (action.tindakan === "APPROVE") {
         if (action.jabatan === "DIREKTUR") {
             if (currentStatus !== RAB_STATUS.WAITING_FOR_DIREKTUR) {
                 throw new AppError(`Status saat ini "${currentStatus}" tidak valid untuk approval direktur`, 409);
             }
+            // MANADO: skip koordinator → langsung ke manajer
+            if (manado) return RAB_STATUS.WAITING_FOR_MANAGER;
+            // Default & BATAM: ke koordinator
             return RAB_STATUS.WAITING_FOR_COORDINATOR;
         }
 
@@ -68,6 +92,9 @@ const resolveStatusTransition = (
             if (currentStatus !== RAB_STATUS.WAITING_FOR_COORDINATOR) {
                 throw new AppError(`Status saat ini "${currentStatus}" tidak valid untuk approval koordinator`, 409);
             }
+            // BATAM: tidak ada manajer → langsung approved
+            if (batam) return RAB_STATUS.APPROVED;
+            // Default: ke manajer
             return RAB_STATUS.WAITING_FOR_MANAGER;
         }
 
@@ -781,7 +808,7 @@ export const rabService = {
             nama_kontraktor: data.toko.nama_kontraktor,
         };
 
-        const newStatus = resolveStatusTransition(data.rab.status, action);
+        const newStatus = resolveStatusTransition(data.rab.status, action, data.toko.cabang);
         if (action.tindakan === "REJECT") {
             await rabRepository.rejectRabAndActivateLatestGanttGuarded(
                 id,
@@ -924,5 +951,86 @@ export const rabService = {
             contentType: contentType || "application/octet-stream",
             fileBuffer,
         };
+    },
+
+    /**
+     * Update status RAB berdasarkan id_rab.
+     * Ketika status adalah "Ditolak" (salah satu status rejected):
+     *  - Cari user di user_cabang berdasarkan cabang toko + jabatan yang sesuai
+     *    (DIREKTUR / KOORDINATOR / MANAGER) → ambil emailnya
+     *  - Insert email tersebut ke kolom ditolak_oleh di RAB
+     *  - Set waktu_penolakan = sekarang
+     *  - Update gantt_chart status → 'active' berdasarkan id_toko
+     */
+    async updateRabStatus(input: UpdateRabStatusInput) {
+        const { id_toko, id_rab, status } = input;
+
+        // Validasi: RAB harus ada
+        const rabData = await rabRepository.findById(String(id_rab));
+        if (!rabData) {
+            throw new AppError("Pengajuan RAB tidak ditemukan", 404);
+        }
+
+        // Validasi: id_toko harus cocok
+        if (rabData.rab.id_toko !== id_toko) {
+            throw new AppError("id_toko tidak cocok dengan RAB yang dipilih", 409);
+        }
+
+        // Tentukan apakah status termasuk penolakan
+        const isRejection = REJECTED_RAB_STATUSES.includes(status as RabStatus);
+
+        if (!isRejection) {
+            throw new AppError(
+                `Status "${status}" bukan status penolakan yang valid. Gunakan endpoint approval untuk approve.`,
+                400
+            );
+        }
+
+        // Tentukan jabatan penolak berdasarkan status yang dikirim
+        let jabatanPenolak: string;
+        if (status === RAB_STATUS.REJECTED_BY_DIREKTUR) {
+            jabatanPenolak = "DIREKTUR";
+        } else if (status === RAB_STATUS.REJECTED_BY_COORDINATOR) {
+            jabatanPenolak = "KOORDINATOR";
+        } else if (status === RAB_STATUS.REJECTED_BY_MANAGER) {
+            jabatanPenolak = "MANAGER";
+        } else {
+            throw new AppError(`Status penolakan "${status}" tidak dikenali`, 400);
+        }
+
+        // Ambil cabang dari toko
+        const cabang = rabData.toko.cabang;
+        if (!cabang) {
+            throw new AppError("Data cabang toko tidak ditemukan", 404);
+        }
+
+        // Cari user di user_cabang berdasarkan cabang + jabatan
+        const userPenolak = await userCabangRepository.findByCabangAndJabatan(cabang, jabatanPenolak);
+        if (!userPenolak) {
+            throw new AppError(
+                `User dengan jabatan "${jabatanPenolak}" untuk cabang "${cabang}" tidak ditemukan di data user cabang`,
+                404
+            );
+        }
+
+        const emailPenolak = userPenolak.email_sat;
+
+        // Update RAB status + ditolak_oleh + waktu_penolakan + gantt → active
+        await rabRepository.updateRabStatusWithRejection(
+            id_rab,
+            id_toko,
+            status as RabStatus,
+            emailPenolak
+        );
+
+        return {
+            id_rab,
+            id_toko,
+            old_status: rabData.rab.status,
+            new_status: status,
+            ditolak_oleh: emailPenolak,
+            jabatan_penolak: jabatanPenolak
+        };
     }
 };
+
