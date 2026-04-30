@@ -24,12 +24,17 @@ interface SubmitUploadedFiles {
 // Helpers
 // ---------------------------------------------------------------------------
 
+const roundCurrency = (value: number): number => {
+    if (!Number.isFinite(value)) return 0;
+    return Math.round(value);
+};
+
 const computeTotals = (detailItems: DetailItemInput[]) => {
     let grandTotal = 0;
     let totalNonSbo = 0;
 
     for (const item of detailItems) {
-        const totalItem = item.volume * (item.harga_material + item.harga_upah);
+        const totalItem = roundCurrency(item.volume * (item.harga_material + item.harga_upah));
         grandTotal += totalItem;
 
         if (item.kategori_pekerjaan.trim().toUpperCase() !== "PEKERJAAN SBO") {
@@ -38,7 +43,7 @@ const computeTotals = (detailItems: DetailItemInput[]) => {
     }
 
     const roundedDown = Math.floor(grandTotal / 10000) * 10000;
-    const finalGrandTotal = roundedDown + roundedDown * 0.11;
+    const finalGrandTotal = roundCurrency(roundedDown + roundedDown * 0.11);
 
     return {
         grandTotal,

@@ -104,6 +104,11 @@ const RAB_COLUMNS = `
     r.grand_total, r.grand_total_non_sbo, r.grand_total_final, r.created_at
 `;
 
+const toIntegerString = (value: number): string => {
+    if (!Number.isFinite(value)) return "0";
+    return Math.round(value).toString();
+};
+
 const insertRabItems = async (
     client: PoolClient,
     rabId: number,
@@ -135,12 +140,12 @@ const insertRabItems = async (
                 item.kategori_pekerjaan,
                 item.jenis_pekerjaan,
                 item.satuan,
-                String(item.volume),
-                String(item.harga_material),
-                String(item.harga_upah),
-                String(totalMaterial),
-                String(totalUpah),
-                String(totalHarga),
+                toIntegerString(item.volume),
+                toIntegerString(item.harga_material),
+                toIntegerString(item.harga_upah),
+                toIntegerString(totalMaterial),
+                toIntegerString(totalUpah),
+                toIntegerString(totalHarga),
                 catatan
             );
         }
