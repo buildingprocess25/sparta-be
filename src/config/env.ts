@@ -34,6 +34,11 @@ const envSchema = z.object({
     PUPPETEER_EXECUTABLE_PATH: z.string().optional(),
     PUPPETEER_CACHE_DIR: z.string().optional(),
     PUPPETEER_NAVIGATION_TIMEOUT_MS: z.coerce.number().int().positive().default(120000),
+
+    // Postgres pool
+    PG_KEEP_ALIVE: z.coerce.boolean().default(true),
+    PG_CONN_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
+    PG_IDLE_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
 });
 
 const parsed = envSchema.safeParse(process.env);

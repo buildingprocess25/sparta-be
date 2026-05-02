@@ -5,7 +5,14 @@ export const pool = new Pool({
     connectionString: env.DATABASE_URL,
     ssl: {
         rejectUnauthorized: false
-    }
+    },
+    keepAlive: env.PG_KEEP_ALIVE,
+    connectionTimeoutMillis: env.PG_CONN_TIMEOUT_MS,
+    idleTimeoutMillis: env.PG_IDLE_TIMEOUT_MS
+});
+
+pool.on("error", (error) => {
+    console.error("Postgres pool error:", error);
 });
 
 export const withTransaction = async <T>(
