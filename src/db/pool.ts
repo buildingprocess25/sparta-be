@@ -6,6 +6,7 @@ export const pool = new Pool({
     ssl: {
         rejectUnauthorized: false
     },
+    max: env.PG_POOL_MAX,
     keepAlive: env.PG_KEEP_ALIVE,
     connectionTimeoutMillis: env.PG_CONN_TIMEOUT_MS,
     idleTimeoutMillis: env.PG_IDLE_TIMEOUT_MS

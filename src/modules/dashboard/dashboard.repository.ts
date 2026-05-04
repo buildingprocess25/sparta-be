@@ -682,6 +682,9 @@ export const dashboardRepository = {
     },
 
     async findAllDashboard(query: DashboardAllQueryInput): Promise<DashboardData[]> {
+        const client = await pool.connect();
+
+        try {
         const filters: string[] = [];
         const values: Array<string | number> = [];
 
@@ -694,7 +697,7 @@ export const dashboardRepository = {
         }
 
         const whereClause = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
-        const tokoResult = await pool.query<DashboardTokoRow>(
+        const tokoResult = await client.query<DashboardTokoRow>(
             `
             SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor
             FROM toko
@@ -710,7 +713,7 @@ export const dashboardRepository = {
 
         const tokoIds = tokoResult.rows.map((row) => row.id);
 
-        const rabResult = await pool.query<DashboardRabRow>(
+        const rabResult = await client.query<DashboardRabRow>(
             `
             SELECT id, id_toko, no_sph, status, nama_pt, link_pdf_gabungan, link_pdf_non_sbo, link_pdf_rekapitulasi,
                    link_pdf_sph, logo, email_pembuat, pemberi_persetujuan_direktur, waktu_persetujuan_direktur,
@@ -727,7 +730,7 @@ export const dashboardRepository = {
         );
 
         const rabIds = rabResult.rows.map((row) => row.id);
-        const rabItemResult = await pool.query<DashboardRabItemRow>(
+        const rabItemResult = await client.query<DashboardRabItemRow>(
             `
             SELECT id, id_rab, kategori_pekerjaan, jenis_pekerjaan, satuan, volume, harga_material, harga_upah,
                    total_material, total_upah, total_harga, catatan
@@ -738,7 +741,7 @@ export const dashboardRepository = {
             [toArrayParam(rabIds)]
         );
 
-        const ganttResult = await pool.query<DashboardGanttRow>(
+        const ganttResult = await client.query<DashboardGanttRow>(
             `
             SELECT id, id_toko, status, email_pembuat, timestamp
             FROM gantt_chart
@@ -757,7 +760,7 @@ export const dashboardRepository = {
             pengawasanResult,
             dependencyResult
         ] = await Promise.all([
-            pool.query<DashboardKategoriGanttRow>(
+            client.query<DashboardKategoriGanttRow>(
                 `
                 SELECT id, id_gantt, kategori_pekerjaan
                 FROM kategori_pekerjaan_gantt
@@ -766,7 +769,7 @@ export const dashboardRepository = {
                 `,
                 [toArrayParam(ganttIds)]
             ),
-            pool.query<DashboardDayGanttRow>(
+            client.query<DashboardDayGanttRow>(
                 `
                 SELECT id, id_gantt, id_kategori_pekerjaan_gantt, h_awal, h_akhir, keterlambatan, kecepatan
                 FROM day_gantt_chart
@@ -775,7 +778,7 @@ export const dashboardRepository = {
                 `,
                 [toArrayParam(ganttIds)]
             ),
-            pool.query<DashboardPengawasanGanttRow>(
+            client.query<DashboardPengawasanGanttRow>(
                 `
                 SELECT id, id_gantt, id_pic_pengawasan, tanggal_pengawasan
                 FROM pengawasan_gantt
@@ -784,7 +787,7 @@ export const dashboardRepository = {
                 `,
                 [toArrayParam(ganttIds)]
             ),
-            pool.query<DashboardPengawasanRow>(
+            client.query<DashboardPengawasanRow>(
                 `
                 SELECT id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan,
                        dokumentasi, status, created_at
@@ -794,7 +797,7 @@ export const dashboardRepository = {
                 `,
                 [toArrayParam(ganttIds)]
             ),
-            pool.query<DashboardDependencyGanttRow>(
+            client.query<DashboardDependencyGanttRow>(
                 `
                 SELECT id, id_gantt, id_kategori, id_kategori_terikat
                 FROM dependency_gantt
@@ -806,7 +809,7 @@ export const dashboardRepository = {
         ]);
 
         const pengawasanGanttIds = pengawasanGanttResult.rows.map((row) => row.id);
-        const berkasPengawasanResult = await pool.query<DashboardBerkasPengawasanRow>(
+        const berkasPengawasanResult = await client.query<DashboardBerkasPengawasanRow>(
             `
             SELECT id, id_pengawasan_gantt, link_pdf_pengawasan, created_at
             FROM berkas_pengawasan
@@ -816,7 +819,7 @@ export const dashboardRepository = {
             [toArrayParam(pengawasanGanttIds)]
         );
 
-        const spkResult = await pool.query<DashboardSpkRow>(
+        const spkResult = await client.query<DashboardSpkRow>(
             `
             SELECT p.id,
                    COALESCE(p.id_toko, t.id) AS id_toko,
@@ -853,7 +856,7 @@ export const dashboardRepository = {
         const spkIds = spkResult.rows.map((row) => row.id);
 
         const [spkLogResult, pertambahanResult] = await Promise.all([
-            pool.query<DashboardSpkApprovalLogRow>(
+            client.query<DashboardSpkApprovalLogRow>(
                 `
                 SELECT id, pengajuan_spk_id, approver_email, tindakan, alasan_penolakan, waktu_tindakan
                 FROM spk_approval_log
@@ -862,7 +865,7 @@ export const dashboardRepository = {
                 `,
                 [toArrayParam(spkIds)]
             ),
-            pool.query<DashboardPertambahanSpkRow>(
+            client.query<DashboardPertambahanSpkRow>(
                 `
                 SELECT id, id_spk, pertambahan_hari, tanggal_spk_akhir, tanggal_spk_akhir_setelah_perpanjangan,
                        alasan_perpanjangan, dibuat_oleh, status_persetujuan, disetujui_oleh, waktu_persetujuan,
@@ -875,7 +878,7 @@ export const dashboardRepository = {
             )
         ]);
 
-        const picResult = await pool.query<DashboardPicPengawasanRow>(
+        const picResult = await client.query<DashboardPicPengawasanRow>(
             `
             SELECT p.id,
                    COALESCE(p.id_toko, t.id) AS id_toko,
@@ -894,7 +897,7 @@ export const dashboardRepository = {
             [toArrayParam(tokoIds)]
         );
 
-        const instruksiResult = await pool.query<DashboardInstruksiLapanganRow>(
+        const instruksiResult = await client.query<DashboardInstruksiLapanganRow>(
             `
             SELECT id, id_toko, status, link_pdf_gabungan, link_pdf_non_sbo, link_pdf_rekapitulasi, link_lampiran,
                    email_pembuat, pemberi_persetujuan_koordinator, waktu_persetujuan_koordinator,
@@ -909,7 +912,7 @@ export const dashboardRepository = {
         );
 
         const instruksiIds = instruksiResult.rows.map((row) => row.id);
-        const instruksiItemResult = await pool.query<DashboardInstruksiLapanganItemRow>(
+        const instruksiItemResult = await client.query<DashboardInstruksiLapanganItemRow>(
             `
             SELECT id, id_instruksi_lapangan, kategori_pekerjaan, jenis_pekerjaan, satuan, volume,
                    harga_material, harga_upah, total_material, total_upah, total_harga
@@ -920,7 +923,7 @@ export const dashboardRepository = {
             [toArrayParam(instruksiIds)]
         );
 
-        const opnameFinalResult = await pool.query<DashboardOpnameFinalRow>(
+        const opnameFinalResult = await client.query<DashboardOpnameFinalRow>(
             `
             SELECT id, id_toko, aksi, status_opname_final, link_pdf_opname, email_pembuat,
                    pemberi_persetujuan_direktur, waktu_persetujuan_direktur, pemberi_persetujuan_koordinator,
@@ -934,7 +937,7 @@ export const dashboardRepository = {
         );
 
         const opnameFinalIds = opnameFinalResult.rows.map((row) => row.id);
-        const opnameItemResult = await pool.query<DashboardOpnameItemRow>(
+        const opnameItemResult = await client.query<DashboardOpnameItemRow>(
             `
             SELECT id, id_toko, id_opname_final, id_rab_item, status, volume_akhir, selisih_volume,
                    total_selisih, total_harga_opname, desain, kualitas, spesifikasi, foto, catatan, created_at
@@ -945,7 +948,7 @@ export const dashboardRepository = {
             [toArrayParam(opnameFinalIds)]
         );
 
-        const berkasSerahTerimaResult = await pool.query<DashboardBerkasSerahTerimaRow>(
+        const berkasSerahTerimaResult = await client.query<DashboardBerkasSerahTerimaRow>(
             `
             SELECT id, id_toko, link_pdf, created_at
             FROM berkas_serah_terima
@@ -1094,5 +1097,8 @@ export const dashboardRepository = {
             opname_final: opnameFinalByTokoId.get(toko.id) ?? [],
             berkas_serah_terima: berkasSerahByTokoId.get(toko.id) ?? []
         }));
+        } finally {
+            client.release();
+        }
     }
 };
