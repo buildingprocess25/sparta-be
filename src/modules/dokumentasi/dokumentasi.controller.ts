@@ -1,74 +1,106 @@
 import type { Request, Response } from "express";
 import { asyncHandler } from "../../common/async-handler";
 import {
-    loginDokumentasiSchema,
-    spkDataSchema,
-    saveTempSchema,
-    getTempSchema,
-    cekStatusSchema,
-    saveTokoSchema,
-    sendPdfEmailSchema,
-    validateQuerySchema,
+    dokumentasiBangunanCreateSchema,
+    dokumentasiBangunanIdParamSchema,
+    dokumentasiBangunanItemIdParamSchema,
+    dokumentasiBangunanListQuerySchema,
+    dokumentasiBangunanUpdateSchema
 } from "./dokumentasi.schema";
-import * as dokumentasiService from "./dokumentasi.service";
+import { dokumentasiBangunanService, type UploadedDokumentasiFile } from "./dokumentasi.service";
 
-export const loginDokumentasi = asyncHandler(async (req: Request, res: Response) => {
-    const payload = loginDokumentasiSchema.parse(req.body);
-    const result = await dokumentasiService.loginDokumentasi(payload);
-    res.json(result);
+const getUploadedFiles = (req: Request): UploadedDokumentasiFile[] => {
+    const files = req.files as UploadedDokumentasiFile[] | undefined;
+    if (!files) return [];
+    return files;
+};
+
+export const createDokumentasiBangunan = asyncHandler(async (req: Request, res: Response) => {
+    const payload = dokumentasiBangunanCreateSchema.parse(req.body);
+    const files = getUploadedFiles(req);
+    const result = await dokumentasiBangunanService.create(payload, files);
+
+    res.json({
+        status: "success",
+        message: "Dokumentasi bangunan berhasil dibuat",
+        data: result
+    });
 });
 
-export const spkData = asyncHandler(async (req: Request, res: Response) => {
-    const payload = spkDataSchema.parse(req.body);
-    const result = await dokumentasiService.spkData(payload);
-    res.json(result);
+export const listDokumentasiBangunan = asyncHandler(async (req: Request, res: Response) => {
+    const query = dokumentasiBangunanListQuerySchema.parse(req.query);
+    const data = await dokumentasiBangunanService.list(query);
+
+    res.json({
+        status: "success",
+        data
+    });
 });
 
-export const viewPhoto = asyncHandler(async (req: Request, res: Response) => {
-    const fileId = req.params.fileId;
-    const result = await dokumentasiService.viewPhoto(fileId);
-    if (!result) {
-        res.status(404).send("Not Found");
-        return;
-    }
-    res.setHeader("Content-Type", "image/jpeg");
-    res.send(result);
+export const getDokumentasiBangunanDetail = asyncHandler(async (req: Request, res: Response) => {
+    const params = dokumentasiBangunanIdParamSchema.parse(req.params);
+    const data = await dokumentasiBangunanService.getDetail(params.id);
+
+    res.json({
+        status: "success",
+        data
+    });
 });
 
-export const saveTemp = asyncHandler(async (req: Request, res: Response) => {
-    const payload = saveTempSchema.parse(req.body);
-    const result = await dokumentasiService.saveTemp(payload);
-    res.json(result);
+export const updateDokumentasiBangunan = asyncHandler(async (req: Request, res: Response) => {
+    const params = dokumentasiBangunanIdParamSchema.parse(req.params);
+    const payload = dokumentasiBangunanUpdateSchema.parse(req.body);
+    const files = getUploadedFiles(req);
+    const data = await dokumentasiBangunanService.update(params.id, payload, files);
+
+    res.json({
+        status: "success",
+        message: "Dokumentasi bangunan berhasil diperbarui",
+        data
+    });
 });
 
-export const getTemp = asyncHandler(async (req: Request, res: Response) => {
-    const payload = getTempSchema.parse(req.body);
-    const result = await dokumentasiService.getTemp(payload);
-    res.json(result);
+export const deleteDokumentasiBangunan = asyncHandler(async (req: Request, res: Response) => {
+    const params = dokumentasiBangunanIdParamSchema.parse(req.params);
+    const data = await dokumentasiBangunanService.delete(params.id);
+
+    res.json({
+        status: "success",
+        message: "Dokumentasi bangunan berhasil dihapus",
+        data
+    });
 });
 
-export const cekStatus = asyncHandler(async (req: Request, res: Response) => {
-    const payload = cekStatusSchema.parse(req.body);
-    const result = await dokumentasiService.cekStatus(payload);
-    res.json(result);
+export const addDokumentasiBangunanItems = asyncHandler(async (req: Request, res: Response) => {
+    const params = dokumentasiBangunanIdParamSchema.parse(req.params);
+    const files = getUploadedFiles(req);
+    const data = await dokumentasiBangunanService.addItems(params.id, files);
+
+    res.json({
+        status: "success",
+        message: "Foto dokumentasi berhasil ditambahkan",
+        data
+    });
 });
 
-export const saveToko = asyncHandler(async (req: Request, res: Response) => {
-    const payload = saveTokoSchema.parse(req.body);
-    const result = await dokumentasiService.saveToko(payload);
-    res.json(result);
+export const deleteDokumentasiBangunanItem = asyncHandler(async (req: Request, res: Response) => {
+    const params = dokumentasiBangunanItemIdParamSchema.parse(req.params);
+    const data = await dokumentasiBangunanService.deleteItem(params.itemId);
+
+    res.json({
+        status: "success",
+        message: "Item dokumentasi berhasil dihapus",
+        data
+    });
 });
 
-export const sendPdfEmail = asyncHandler(async (req: Request, res: Response) => {
-    const payload = sendPdfEmailSchema.parse(req.body);
-    const baseUrl = `${req.protocol}://${req.get("host")}`;
-    const result = await dokumentasiService.sendPdfEmail(payload, baseUrl);
-    res.json(result);
-});
+export const createDokumentasiBangunanPdf = asyncHandler(async (req: Request, res: Response) => {
+    const params = dokumentasiBangunanIdParamSchema.parse(req.params);
+    const data = await dokumentasiBangunanService.createPdf(params.id);
 
-export const validateDokumentasi = asyncHandler(async (req: Request, res: Response) => {
-    const payload = validateQuerySchema.parse(req.query);
-    const result = await dokumentasiService.validateDokumentasi(payload);
-    res.status(result.statusCode).setHeader("Content-Type", "text/html; charset=utf-8");
-    res.send(result.html);
+    res.json({
+        status: "success",
+        message: "PDF dokumentasi berhasil dibuat",
+        data
+    });
 });

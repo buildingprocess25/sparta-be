@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    @page {
+      size: A4;
+      margin: 16mm 12mm;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 11px;
+      color: #1f2937;
+      margin: 0;
+      position: relative;
+    }
+
+    .watermark {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      width: 260px;
+      transform: translate(-50%, -50%);
+      opacity: 0.08;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 12px;
+      border-bottom: 2px solid #0f172a;
+      padding-bottom: 8px;
+    }
+
+    .title {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .subtitle {
+      margin: 4px 0 0;
+      color: #475569;
+      font-size: 12px;
+    }
+
+    .meta {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 12px;
+    }
+
+    .meta td {
+      border: 1px solid #c7cbd1;
+      padding: 6px 8px;
+      vertical-align: top;
+    }
+
+    .meta .label {
+      width: 170px;
+      font-weight: 600;
+      background: #f8fafc;
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 700;
+      margin: 10px 0 6px;
+      text-transform: uppercase;
+      border-bottom: 1px solid #0f172a;
+      padding-bottom: 4px;
+    }
+
+    .photo-page {
+      page-break-inside: avoid;
+    }
+
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      grid-auto-rows: 145px;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .photo-card {
+      border: 1px solid #cbd5f5;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #f1f5f9;
+      position: relative;
+    }
+
+    .photo-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .photo-caption {
+      position: absolute;
+      right: 6px;
+      bottom: 6px;
+      background: rgba(15, 23, 42, 0.75);
+      color: #ffffff;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 10px;
+    }
+
+    .page-break {
+      page-break-after: always;
+    }
+
+    .footer {
+      margin-top: 12px;
+      font-size: 10px;
+      color: #64748b;
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+  {% if watermark_logo_path %}
+  <img src="{{ watermark_logo_path }}" class="watermark" alt="watermark" />
+  {% endif %}
+
+  <div class="content">
+    <div class="header">
+      <h1 class="title">Dokumentasi Bangunan</h1>
+      <div class="subtitle">Generated: {{ generated_at }}</div>
+    </div>
+
+    <table class="meta">
+      <tr>
+        <td class="label">Nomor ULOK</td>
+        <td>{{ dokumentasi.nomor_ulok or '-' }}</td>
+        <td class="label">Tanggal Go</td>
+        <td>{{ tanggal_go_formatted }}</td>
+      </tr>
+      <tr>
+        <td class="label">Nama Toko</td>
+        <td>{{ dokumentasi.nama_toko or '-' }}</td>
+        <td class="label">Kode Toko</td>
+        <td>{{ dokumentasi.kode_toko or '-' }}</td>
+      </tr>
+      <tr>
+        <td class="label">Cabang</td>
+        <td>{{ dokumentasi.cabang or '-' }}</td>
+        <td class="label">Tanggal Serah Terima</td>
+        <td>{{ tanggal_serah_terima_formatted }}</td>
+      </tr>
+      <tr>
+        <td class="label">Tanggal Ambil Foto</td>
+        <td>{{ tanggal_ambil_foto_formatted }}</td>
+        <td class="label">PIC Dokumentasi</td>
+        <td>{{ dokumentasi.pic_dokumentasi or '-' }}</td>
+      </tr>
+      <tr>
+        <td class="label">SPK Awal</td>
+        <td>{{ dokumentasi.spk_awal or '-' }}</td>
+        <td class="label">SPK Akhir</td>
+        <td>{{ dokumentasi.spk_akhir or '-' }}</td>
+      </tr>
+      <tr>
+        <td class="label">Kontraktor Sipil</td>
+        <td>{{ dokumentasi.kontraktor_sipil or '-' }}</td>
+        <td class="label">Kontraktor ME</td>
+        <td>{{ dokumentasi.kontraktor_me or '-' }}</td>
+      </tr>
+      <tr>
+        <td class="label">Email Pengirim</td>
+        <td>{{ dokumentasi.email_pengirim or '-' }}</td>
+        <td class="label">Status Validasi</td>
+        <td>{{ dokumentasi.status_validasi or '-' }}</td>
+      </tr>
+      <tr>
+        <td class="label">Alasan Revisi</td>
+        <td colspan="3">{{ dokumentasi.alasan_revisi or '-' }}</td>
+      </tr>
+    </table>
+
+    <div class="section-title">Kolase Foto</div>
+
+    {% if photo_pages.length == 0 %}
+      <div>Tidak ada foto dokumentasi.</div>
+    {% endif %}
+
+    {% for page in photo_pages %}
+    <div class="photo-page">
+      <div class="photo-grid">
+        {% for photo in page %}
+        <div class="photo-card">
+          <img src="{{ photo.link_foto }}" alt="foto" />
+          <div class="photo-caption">Foto {{ photo.index }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% if not loop.last %}
+    <div class="page-break"></div>
+    {% endif %}
+    {% endfor %}
+
+    <div class="footer">Dokumentasi Bangunan - {{ dokumentasi.kode_toko or '-' }}</div>
+  </div>
+</body>
+</html>

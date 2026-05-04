@@ -1,85 +1,55 @@
 import { z } from "zod";
 
-const stringOrNumber = z.union([z.string(), z.number()]);
-
-export const loginDokumentasiSchema = z.object({
-    username: z.string(),
-    password: z.string(),
+export const dokumentasiBangunanCreateSchema = z.object({
+    nomor_ulok: z.string().trim().min(1),
+    nama_toko: z.string().trim().min(1),
+    kode_toko: z.string().trim().min(1),
+    cabang: z.string().trim().optional().default(""),
+    tanggal_go: z.string().trim().optional().default(""),
+    tanggal_serah_terima: z.string().trim().optional().default(""),
+    tanggal_ambil_foto: z.string().trim().optional().default(""),
+    spk_awal: z.string().trim().optional().default(""),
+    spk_akhir: z.string().trim().optional().default(""),
+    kontraktor_sipil: z.string().trim().optional().default(""),
+    kontraktor_me: z.string().trim().optional().default(""),
+    email_pengirim: z.string().trim().optional().default(""),
+    status_validasi: z.string().trim().optional().default(""),
+    alasan_revisi: z.string().trim().optional().default(""),
+    pic_dokumentasi: z.string().trim().optional().default("")
 });
-export type LoginDokumentasiInput = z.infer<typeof loginDokumentasiSchema>;
 
-export const spkDataSchema = z.object({
-    cabang: z.string().optional().default(""),
+export const dokumentasiBangunanUpdateSchema = z.object({
+    nomor_ulok: z.string().trim().min(1).optional(),
+    nama_toko: z.string().trim().min(1).optional(),
+    kode_toko: z.string().trim().min(1).optional(),
+    cabang: z.string().trim().optional(),
+    tanggal_go: z.string().trim().optional(),
+    tanggal_serah_terima: z.string().trim().optional(),
+    tanggal_ambil_foto: z.string().trim().optional(),
+    spk_awal: z.string().trim().optional(),
+    spk_akhir: z.string().trim().optional(),
+    kontraktor_sipil: z.string().trim().optional(),
+    kontraktor_me: z.string().trim().optional(),
+    email_pengirim: z.string().trim().optional(),
+    status_validasi: z.string().trim().optional(),
+    alasan_revisi: z.string().trim().optional(),
+    pic_dokumentasi: z.string().trim().optional()
 });
-export type SpkDataInput = z.infer<typeof spkDataSchema>;
 
-export const saveTempSchema = z.object({
-    nomorUlok: z.string().min(1),
-    namaToko: z.string().optional().default(""),
-    kodeToko: z.string().optional().default(""),
-    cabang: z.string().optional().default(""),
-    tanggalGo: z.string().optional().default(""),
-    tanggalSt: z.string().optional().default(""),
-    tanggalAmbilFoto: z.string().optional().default(""),
-    spkAwal: z.string().optional().default(""),
-    spkAkhir: z.string().optional().default(""),
-    kontraktorSipil: z.string().optional().default(""),
-    kontraktorMe: z.string().optional().default(""),
-    emailPengirim: z.string().optional().default(""),
-    photoId: stringOrNumber.optional(),
-    photoBase64: z.string().optional(),
-    photoNote: z.string().optional().default(""),
+export const dokumentasiBangunanListQuerySchema = z.object({
+    cabang: z.string().trim().optional(),
+    kode_toko: z.string().trim().optional(),
+    nomor_ulok: z.string().trim().optional()
 });
-export type SaveTempInput = z.infer<typeof saveTempSchema>;
 
-export const getTempSchema = z.object({
-    nomorUlok: z.string().min(1),
+export const dokumentasiBangunanIdParamSchema = z.object({
+    id: z.coerce.number().int().positive()
 });
-export type GetTempInput = z.infer<typeof getTempSchema>;
 
-export const cekStatusSchema = z.object({
-    nomorUlok: z.string().min(1),
+export const dokumentasiBangunanItemIdParamSchema = z.object({
+    itemId: z.coerce.number().int().positive()
 });
-export type CekStatusInput = z.infer<typeof cekStatusSchema>;
 
-export const saveTokoSchema = z.object({
-    nomorUlok: z.string().min(1),
-    namaToko: z.string().optional().default(""),
-    kodeToko: z.string().optional().default(""),
-    cabang: z.string().optional().default(""),
-    tanggalGo: z.string().optional().default(""),
-    tanggalSt: z.string().optional().default(""),
-    tanggalAmbilFoto: z.string().optional().default(""),
-    spkAwal: z.string().optional().default(""),
-    spkAkhir: z.string().optional().default(""),
-    kontraktorSipil: z.string().optional().default(""),
-    kontraktorMe: z.string().optional().default(""),
-    emailPengirim: z.string().optional().default(""),
-    pdfBase64: z.string().optional(),
-    photoUrls: z.array(z.string()).optional().default([]),
-    photosBase64: z.array(z.string()).optional().default([]),
-    statusValidasi: z.string().optional().default("MENUNGGU VALIDASI"),
-    validator: z.string().optional().default(""),
-    waktuValidasi: z.string().optional().default(""),
-    catatanRevisi: z.string().optional().default(""),
-    deleteTemp: z.boolean().optional().default(false),
-});
-export type SaveTokoInput = z.infer<typeof saveTokoSchema>;
-
-export const sendPdfEmailSchema = z.object({
-    nomorUlok: z.string().min(1),
-    cabang: z.string().min(1),
-    namaToko: z.string().optional().default(""),
-    pdfUrl: z.string().optional().default(""),
-    pdfBase64: z.string().optional(),
-    emailPengirim: z.string().optional().default(""),
-});
-export type SendPdfEmailInput = z.infer<typeof sendPdfEmailSchema>;
-
-export const validateQuerySchema = z.object({
-    ulok: z.string().optional().default(""),
-    status: z.string().optional().default(""),
-    catatan: z.string().optional().default(""),
-    validator: z.string().optional().default("Email Validator"),
-});
-export type ValidateQueryInput = z.infer<typeof validateQuerySchema>;
+export type DokumentasiBangunanCreateInput = z.infer<typeof dokumentasiBangunanCreateSchema>;
+export type DokumentasiBangunanUpdateInput = z.infer<typeof dokumentasiBangunanUpdateSchema>;
+export type DokumentasiBangunanListQueryInput = z.infer<typeof dokumentasiBangunanListQuerySchema>;
