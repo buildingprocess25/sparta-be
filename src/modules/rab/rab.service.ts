@@ -1058,9 +1058,9 @@ export const rabService = {
         if (status === RAB_STATUS.REJECTED_BY_DIREKTUR) {
             jabatanPenolak = "DIREKTUR";
         } else if (status === RAB_STATUS.REJECTED_BY_COORDINATOR) {
-            jabatanPenolak = "KOORDINATOR";
+            jabatanPenolak = "BRANCH BUILDING COORDINATOR";
         } else if (status === RAB_STATUS.REJECTED_BY_MANAGER) {
-            jabatanPenolak = "MANAGER";
+            jabatanPenolak = "BRANCH BUILDING & MAINTENANCE MANAGER";
         } else {
             throw new AppError(`Status penolakan "${status}" tidak dikenali`, 400);
         }
@@ -1071,8 +1071,23 @@ export const rabService = {
             throw new AppError("Data cabang toko tidak ditemukan", 404);
         }
 
-        // Cari user di user_cabang berdasarkan cabang + jabatan
-        const userPenolak = await userCabangRepository.findByCabangAndJabatan(cabang, jabatanPenolak);
+        // Cari user di user_cabang berdasarkan cabang + jabatan (dengan fallback legacy)
+        const jabatanCandidates = jabatanPenolak === "BRANCH BUILDING COORDINATOR"
+            ? ["BRANCH BUILDING COORDINATOR", "KOORDINATOR"]
+            : jabatanPenolak === "BRANCH BUILDING & MAINTENANCE MANAGER"
+                ? ["BRANCH BUILDING & MAINTENANCE MANAGER", "MANAGER"]
+                : [jabatanPenolak];
+
+        let userPenolak = null;
+        let matchedJabatan = jabatanCandidates[0];
+        for (const candidate of jabatanCandidates) {
+            const found = await userCabangRepository.findByCabangAndJabatan(cabang, candidate);
+            if (found) {
+                userPenolak = found;
+                matchedJabatan = candidate;
+                break;
+            }
+        }
         if (!userPenolak) {
             throw new AppError(
                 `User dengan jabatan "${jabatanPenolak}" untuk cabang "${cabang}" tidak ditemukan di data user cabang`,
@@ -1102,7 +1117,7 @@ export const rabService = {
             old_status: rabData.rab.status,
             new_status: status,
             ditolak_oleh: emailPenolak,
-            jabatan_penolak: jabatanPenolak
+            jabatan_penolak: matchedJabatan
         };
     }
 };
