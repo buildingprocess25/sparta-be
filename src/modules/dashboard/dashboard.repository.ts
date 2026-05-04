@@ -1,5 +1,5 @@
 import { pool } from "../../db/pool";
-import type { DashboardQueryInput } from "./dashboard.schema";
+import type { DashboardAllQueryInput, DashboardQueryInput } from "./dashboard.schema";
 
 export type DashboardTokoRow = {
     id: number;
@@ -289,6 +289,12 @@ export type DashboardData = {
 };
 
 const toArrayParam = (values: number[]) => values.length > 0 ? values : [0];
+
+const pushMapArray = <T>(map: Map<number, T[]>, key: number, value: T) => {
+    const items = map.get(key) ?? [];
+    items.push(value);
+    map.set(key, items);
+};
 
 export const dashboardRepository = {
     async findTokoByQuery(query: DashboardQueryInput): Promise<DashboardTokoRow | null> {
@@ -673,5 +679,390 @@ export const dashboardRepository = {
             opname_final,
             berkas_serah_terima: berkasSerahTerimaResult.rows
         };
+    },
+
+    async findAllDashboard(query: DashboardAllQueryInput): Promise<DashboardData[]> {
+        const filters: string[] = [];
+        const values: Array<string | number> = [];
+
+        if (query.search) {
+            values.push(`%${query.search}%`);
+            const idx = values.length;
+            filters.push(
+                `(nomor_ulok ILIKE $${idx} OR nama_toko ILIKE $${idx} OR kode_toko ILIKE $${idx} OR cabang ILIKE $${idx} OR CAST(id AS TEXT) ILIKE $${idx})`
+            );
+        }
+
+        const whereClause = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
+        const tokoResult = await pool.query<DashboardTokoRow>(
+            `
+            SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor
+            FROM toko
+            ${whereClause}
+            ORDER BY id DESC
+            `,
+            values
+        );
+
+        if (tokoResult.rows.length === 0) {
+            return [];
+        }
+
+        const tokoIds = tokoResult.rows.map((row) => row.id);
+
+        const rabResult = await pool.query<DashboardRabRow>(
+            `
+            SELECT id, id_toko, no_sph, status, nama_pt, link_pdf_gabungan, link_pdf_non_sbo, link_pdf_rekapitulasi,
+                   link_pdf_sph, logo, email_pembuat, pemberi_persetujuan_direktur, waktu_persetujuan_direktur,
+                   pemberi_persetujuan_koordinator, waktu_persetujuan_koordinator, pemberi_persetujuan_manager,
+                   waktu_persetujuan_manager, alasan_penolakan, waktu_penolakan, ditolak_oleh, durasi_pekerjaan,
+                   kategori_lokasi, no_polis, berlaku_polis, file_asuransi, luas_bangunan, luas_terbangun,
+                   luas_area_terbuka, luas_area_parkir, luas_area_sales, luas_gudang, grand_total,
+                   grand_total_non_sbo, grand_total_final, created_at
+            FROM rab
+            WHERE id_toko = ANY($1::int[])
+            ORDER BY created_at DESC, id DESC
+            `,
+            [toArrayParam(tokoIds)]
+        );
+
+        const rabIds = rabResult.rows.map((row) => row.id);
+        const rabItemResult = await pool.query<DashboardRabItemRow>(
+            `
+            SELECT id, id_rab, kategori_pekerjaan, jenis_pekerjaan, satuan, volume, harga_material, harga_upah,
+                   total_material, total_upah, total_harga, catatan
+            FROM rab_item
+            WHERE id_rab = ANY($1::int[])
+            ORDER BY id ASC
+            `,
+            [toArrayParam(rabIds)]
+        );
+
+        const ganttResult = await pool.query<DashboardGanttRow>(
+            `
+            SELECT id, id_toko, status, email_pembuat, timestamp
+            FROM gantt_chart
+            WHERE id_toko = ANY($1::int[])
+            ORDER BY id DESC
+            `,
+            [toArrayParam(tokoIds)]
+        );
+
+        const ganttIds = ganttResult.rows.map((row) => row.id);
+
+        const [
+            kategoriResult,
+            dayResult,
+            pengawasanGanttResult,
+            pengawasanResult,
+            dependencyResult
+        ] = await Promise.all([
+            pool.query<DashboardKategoriGanttRow>(
+                `
+                SELECT id, id_gantt, kategori_pekerjaan
+                FROM kategori_pekerjaan_gantt
+                WHERE id_gantt = ANY($1::int[])
+                ORDER BY id ASC
+                `,
+                [toArrayParam(ganttIds)]
+            ),
+            pool.query<DashboardDayGanttRow>(
+                `
+                SELECT id, id_gantt, id_kategori_pekerjaan_gantt, h_awal, h_akhir, keterlambatan, kecepatan
+                FROM day_gantt_chart
+                WHERE id_gantt = ANY($1::int[])
+                ORDER BY id ASC
+                `,
+                [toArrayParam(ganttIds)]
+            ),
+            pool.query<DashboardPengawasanGanttRow>(
+                `
+                SELECT id, id_gantt, id_pic_pengawasan, tanggal_pengawasan
+                FROM pengawasan_gantt
+                WHERE id_gantt = ANY($1::int[])
+                ORDER BY id ASC
+                `,
+                [toArrayParam(ganttIds)]
+            ),
+            pool.query<DashboardPengawasanRow>(
+                `
+                SELECT id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan,
+                       dokumentasi, status, created_at
+                FROM pengawasan
+                WHERE id_gantt = ANY($1::int[])
+                ORDER BY created_at ASC, id ASC
+                `,
+                [toArrayParam(ganttIds)]
+            ),
+            pool.query<DashboardDependencyGanttRow>(
+                `
+                SELECT id, id_gantt, id_kategori, id_kategori_terikat
+                FROM dependency_gantt
+                WHERE id_gantt = ANY($1::int[])
+                ORDER BY id ASC
+                `,
+                [toArrayParam(ganttIds)]
+            )
+        ]);
+
+        const pengawasanGanttIds = pengawasanGanttResult.rows.map((row) => row.id);
+        const berkasPengawasanResult = await pool.query<DashboardBerkasPengawasanRow>(
+            `
+            SELECT id, id_pengawasan_gantt, link_pdf_pengawasan, created_at
+            FROM berkas_pengawasan
+            WHERE id_pengawasan_gantt = ANY($1::int[])
+            ORDER BY id ASC
+            `,
+            [toArrayParam(pengawasanGanttIds)]
+        );
+
+        const spkResult = await pool.query<DashboardSpkRow>(
+            `
+            SELECT id, id_toko, nomor_ulok, email_pembuat, lingkup_pekerjaan, nama_kontraktor, proyek,
+                   waktu_mulai, durasi, waktu_selesai, grand_total, terbilang, nomor_spk, par,
+                   spk_manual_1, spk_manual_2, status, link_pdf, approver_email, waktu_persetujuan,
+                   alasan_penolakan, created_at
+            FROM pengajuan_spk
+            WHERE id_toko = ANY($1::int[])
+            ORDER BY created_at DESC, id DESC
+            `,
+            [toArrayParam(tokoIds)]
+        );
+
+        const spkIds = spkResult.rows.map((row) => row.id);
+
+        const [spkLogResult, pertambahanResult] = await Promise.all([
+            pool.query<DashboardSpkApprovalLogRow>(
+                `
+                SELECT id, pengajuan_spk_id, approver_email, tindakan, alasan_penolakan, waktu_tindakan
+                FROM spk_approval_log
+                WHERE pengajuan_spk_id = ANY($1::int[])
+                ORDER BY waktu_tindakan DESC, id DESC
+                `,
+                [toArrayParam(spkIds)]
+            ),
+            pool.query<DashboardPertambahanSpkRow>(
+                `
+                SELECT id, id_spk, pertambahan_hari, tanggal_spk_akhir, tanggal_spk_akhir_setelah_perpanjangan,
+                       alasan_perpanjangan, dibuat_oleh, status_persetujuan, disetujui_oleh, waktu_persetujuan,
+                       alasan_penolakan, link_pdf, link_lampiran_pendukung, created_at
+                FROM pertambahan_spk
+                WHERE id_spk = ANY($1::int[])
+                ORDER BY created_at DESC, id DESC
+                `,
+                [toArrayParam(spkIds)]
+            )
+        ]);
+
+        const picResult = await pool.query<DashboardPicPengawasanRow>(
+            `
+            SELECT id, id_toko, nomor_ulok, id_rab, id_spk, kategori_lokasi, durasi, tanggal_mulai_spk,
+                   plc_building_support, created_at
+            FROM pic_pengawasan
+            WHERE id_toko = ANY($1::int[])
+            `,
+            [toArrayParam(tokoIds)]
+        );
+
+        const instruksiResult = await pool.query<DashboardInstruksiLapanganRow>(
+            `
+            SELECT id, id_toko, status, link_pdf_gabungan, link_pdf_non_sbo, link_pdf_rekapitulasi, link_lampiran,
+                   email_pembuat, pemberi_persetujuan_koordinator, waktu_persetujuan_koordinator,
+                   pemberi_persetujuan_manager, waktu_persetujuan_manager, pemberi_persetujuan_kontraktor,
+                   waktu_persetujuan_kontraktor, alasan_penolakan, grand_total, grand_total_non_sbo,
+                   grand_total_final, created_at
+            FROM instruksi_lapangan
+            WHERE id_toko = ANY($1::int[])
+            ORDER BY created_at DESC, id DESC
+            `,
+            [toArrayParam(tokoIds)]
+        );
+
+        const instruksiIds = instruksiResult.rows.map((row) => row.id);
+        const instruksiItemResult = await pool.query<DashboardInstruksiLapanganItemRow>(
+            `
+            SELECT id, id_instruksi_lapangan, kategori_pekerjaan, jenis_pekerjaan, satuan, volume,
+                   harga_material, harga_upah, total_material, total_upah, total_harga
+            FROM instruksi_lapangan_item
+            WHERE id_instruksi_lapangan = ANY($1::int[])
+            ORDER BY id ASC
+            `,
+            [toArrayParam(instruksiIds)]
+        );
+
+        const opnameFinalResult = await pool.query<DashboardOpnameFinalRow>(
+            `
+            SELECT id, id_toko, aksi, status_opname_final, link_pdf_opname, email_pembuat,
+                   pemberi_persetujuan_direktur, waktu_persetujuan_direktur, pemberi_persetujuan_koordinator,
+                   waktu_persetujuan_koordinator, pemberi_persetujuan_manager, waktu_persetujuan_manager,
+                   alasan_penolakan, grand_total_opname, grand_total_rab, created_at
+            FROM opname_final
+            WHERE id_toko = ANY($1::int[])
+            ORDER BY created_at DESC, id DESC
+            `,
+            [toArrayParam(tokoIds)]
+        );
+
+        const opnameFinalIds = opnameFinalResult.rows.map((row) => row.id);
+        const opnameItemResult = await pool.query<DashboardOpnameItemRow>(
+            `
+            SELECT id, id_toko, id_opname_final, id_rab_item, status, volume_akhir, selisih_volume,
+                   total_selisih, total_harga_opname, desain, kualitas, spesifikasi, foto, catatan, created_at
+            FROM opname_item
+            WHERE id_opname_final = ANY($1::int[])
+            ORDER BY id ASC
+            `,
+            [toArrayParam(opnameFinalIds)]
+        );
+
+        const berkasSerahTerimaResult = await pool.query<DashboardBerkasSerahTerimaRow>(
+            `
+            SELECT id, id_toko, link_pdf, created_at
+            FROM berkas_serah_terima
+            WHERE id_toko = ANY($1::int[])
+            ORDER BY created_at DESC, id DESC
+            `,
+            [toArrayParam(tokoIds)]
+        );
+
+        const rabItemsByRabId = new Map<number, DashboardRabItemRow[]>();
+        for (const item of rabItemResult.rows) {
+            pushMapArray(rabItemsByRabId, item.id_rab, item);
+        }
+
+        const rabByTokoId = new Map<number, Array<DashboardRabRow & { items: DashboardRabItemRow[] }>>();
+        for (const row of rabResult.rows) {
+            const items = rabItemsByRabId.get(row.id) ?? [];
+            pushMapArray(rabByTokoId, row.id_toko, { ...row, items });
+        }
+
+        const kategoriByGanttId = new Map<number, DashboardKategoriGanttRow[]>();
+        for (const row of kategoriResult.rows) {
+            pushMapArray(kategoriByGanttId, row.id_gantt, row);
+        }
+
+        const dayByGanttId = new Map<number, DashboardDayGanttRow[]>();
+        for (const row of dayResult.rows) {
+            pushMapArray(dayByGanttId, row.id_gantt, row);
+        }
+
+        const pengawasanGanttByGanttId = new Map<number, DashboardPengawasanGanttRow[]>();
+        for (const row of pengawasanGanttResult.rows) {
+            pushMapArray(pengawasanGanttByGanttId, row.id_gantt, row);
+        }
+
+        const pengawasanByGanttId = new Map<number, DashboardPengawasanRow[]>();
+        for (const row of pengawasanResult.rows) {
+            pushMapArray(pengawasanByGanttId, row.id_gantt, row);
+        }
+
+        const dependencyByGanttId = new Map<number, DashboardDependencyGanttRow[]>();
+        for (const row of dependencyResult.rows) {
+            pushMapArray(dependencyByGanttId, row.id_gantt, row);
+        }
+
+        const berkasByPengawasanGanttId = new Map<number, DashboardBerkasPengawasanRow[]>();
+        for (const row of berkasPengawasanResult.rows) {
+            pushMapArray(berkasByPengawasanGanttId, row.id_pengawasan_gantt, row);
+        }
+
+        const ganttByTokoId = new Map<number, Array<DashboardGanttRow & {
+            kategori_pekerjaan: DashboardKategoriGanttRow[];
+            day_items: DashboardDayGanttRow[];
+            pengawasan_gantt: DashboardPengawasanGanttRow[];
+            pengawasan: DashboardPengawasanRow[];
+            dependencies: DashboardDependencyGanttRow[];
+            berkas_pengawasan: DashboardBerkasPengawasanRow[];
+        }>>();
+
+        for (const row of ganttResult.rows) {
+            const pengawasanGantt = pengawasanGanttByGanttId.get(row.id) ?? [];
+            const berkasPengawasan = pengawasanGantt.flatMap((item) => berkasByPengawasanGanttId.get(item.id) ?? []);
+            const mapped = {
+                ...row,
+                kategori_pekerjaan: kategoriByGanttId.get(row.id) ?? [],
+                day_items: dayByGanttId.get(row.id) ?? [],
+                pengawasan_gantt: pengawasanGantt,
+                pengawasan: pengawasanByGanttId.get(row.id) ?? [],
+                dependencies: dependencyByGanttId.get(row.id) ?? [],
+                berkas_pengawasan: berkasPengawasan
+            };
+            pushMapArray(ganttByTokoId, row.id_toko, mapped);
+        }
+
+        const spkLogsBySpkId = new Map<number, DashboardSpkApprovalLogRow[]>();
+        for (const row of spkLogResult.rows) {
+            pushMapArray(spkLogsBySpkId, row.pengajuan_spk_id, row);
+        }
+
+        const pertambahanBySpkId = new Map<number, DashboardPertambahanSpkRow[]>();
+        for (const row of pertambahanResult.rows) {
+            pushMapArray(pertambahanBySpkId, row.id_spk, row);
+        }
+
+        const spkByTokoId = new Map<number, Array<DashboardSpkRow & {
+            approval_logs: DashboardSpkApprovalLogRow[];
+            pertambahan_spk: DashboardPertambahanSpkRow[];
+        }>>();
+
+        for (const row of spkResult.rows) {
+            const mapped = {
+                ...row,
+                approval_logs: spkLogsBySpkId.get(row.id) ?? [],
+                pertambahan_spk: pertambahanBySpkId.get(row.id) ?? []
+            };
+            pushMapArray(spkByTokoId, row.id_toko, mapped);
+        }
+
+        const picByTokoId = new Map<number, DashboardPicPengawasanRow>();
+        for (const row of picResult.rows) {
+            if (!picByTokoId.has(row.id_toko)) {
+                picByTokoId.set(row.id_toko, row);
+            }
+        }
+
+        const instruksiItemsById = new Map<number, DashboardInstruksiLapanganItemRow[]>();
+        for (const row of instruksiItemResult.rows) {
+            pushMapArray(instruksiItemsById, row.id_instruksi_lapangan, row);
+        }
+
+        const instruksiByTokoId = new Map<number, Array<DashboardInstruksiLapanganRow & { items: DashboardInstruksiLapanganItemRow[] }>>();
+        for (const row of instruksiResult.rows) {
+            const mapped = {
+                ...row,
+                items: instruksiItemsById.get(row.id) ?? []
+            };
+            pushMapArray(instruksiByTokoId, row.id_toko, mapped);
+        }
+
+        const opnameItemsByFinalId = new Map<number, DashboardOpnameItemRow[]>();
+        for (const row of opnameItemResult.rows) {
+            pushMapArray(opnameItemsByFinalId, row.id_opname_final, row);
+        }
+
+        const opnameFinalByTokoId = new Map<number, Array<DashboardOpnameFinalRow & { items: DashboardOpnameItemRow[] }>>();
+        for (const row of opnameFinalResult.rows) {
+            const mapped = {
+                ...row,
+                items: opnameItemsByFinalId.get(row.id) ?? []
+            };
+            pushMapArray(opnameFinalByTokoId, row.id_toko, mapped);
+        }
+
+        const berkasSerahByTokoId = new Map<number, DashboardBerkasSerahTerimaRow[]>();
+        for (const row of berkasSerahTerimaResult.rows) {
+            pushMapArray(berkasSerahByTokoId, row.id_toko, row);
+        }
+
+        return tokoResult.rows.map((toko) => ({
+            toko,
+            rab: rabByTokoId.get(toko.id) ?? [],
+            gantt: ganttByTokoId.get(toko.id) ?? [],
+            spk: spkByTokoId.get(toko.id) ?? [],
+            pic_pengawasan: picByTokoId.get(toko.id) ?? null,
+            instruksi_lapangan: instruksiByTokoId.get(toko.id) ?? [],
+            opname_final: opnameFinalByTokoId.get(toko.id) ?? [],
+            berkas_serah_terima: berkasSerahByTokoId.get(toko.id) ?? []
+        }));
     }
 };

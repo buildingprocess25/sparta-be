@@ -6,13 +6,14 @@ Base URL: /api/dashboard
 
 ## Daftar Endpoint
 
-| #   | Method | Path           | Deskripsi                            |
-| --- | ------ | -------------- | ------------------------------------ |
-| 1   | GET    | /api/dashboard | Dashboard view (toko + semua relasi) |
+| #   | Method | Path               | Deskripsi                                  |
+| --- | ------ | ------------------ | ------------------------------------------ |
+| 1   | GET    | /api/dashboard     | Dashboard view (1 toko + semua relasi)     |
+| 2   | GET    | /api/dashboard/all | Dashboard view (semua toko + semua relasi) |
 
 ---
 
-## 1. Dashboard View
+## 1. Dashboard View (Single)
 
 GET /api/dashboard
 
@@ -149,3 +150,52 @@ GET /api/dashboard?id=10
 | ---- | ------------------------- |
 | 404  | Data toko tidak ditemukan |
 | 422  | Validasi request gagal    |
+
+---
+
+## 2. Dashboard View (All)
+
+GET /api/dashboard/all
+
+Mengambil semua data toko (bisa difilter search) dan seluruh relasi turunannya.
+
+### Query Parameters
+
+| Parameter | Tipe   | Wajib | Deskripsi                                                                    |
+| --------- | ------ | ----- | ---------------------------------------------------------------------------- |
+| search    | string | Tidak | Pencarian pada kolom toko: nomor_ulok, nama_toko, kode_toko, cabang, atau id |
+
+### Contoh Request
+
+GET /api/dashboard/all
+GET /api/dashboard/all?search=alfamart
+
+### Response - 200 OK
+
+```json
+{
+  "status": "success",
+  "data": [
+    {
+      "toko": {
+        "id": 10,
+        "nomor_ulok": "7AZ1-0001-0001",
+        "lingkup_pekerjaan": "SIPIL",
+        "nama_toko": "ALFAMART SUDIRMAN",
+        "kode_toko": "ALF001",
+        "proyek": "RENOVASI",
+        "cabang": "BANDUNG",
+        "alamat": "Jl. Sudirman No 1",
+        "nama_kontraktor": "PT Kontraktor ABC"
+      },
+      "rab": [],
+      "gantt": [],
+      "spk": [],
+      "pic_pengawasan": null,
+      "instruksi_lapangan": [],
+      "opname_final": [],
+      "berkas_serah_terima": []
+    }
+  ]
+}
+```

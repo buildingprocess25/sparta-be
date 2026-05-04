@@ -1,5 +1,5 @@
 import { AppError } from "../../common/app-error";
-import type { DashboardQueryInput } from "./dashboard.schema";
+import type { DashboardAllQueryInput, DashboardQueryInput } from "./dashboard.schema";
 import { dashboardRepository } from "./dashboard.repository";
 
 export const dashboardService = {
@@ -10,5 +10,9 @@ export const dashboardService = {
         }
 
         return dashboardRepository.findDashboardByTokoId(toko.id);
+    },
+
+    async getDashboardAll(query: DashboardAllQueryInput) {
+        return dashboardRepository.findAllDashboard(query);
     }
 };
