@@ -818,13 +818,34 @@ export const dashboardRepository = {
 
         const spkResult = await pool.query<DashboardSpkRow>(
             `
-            SELECT id, id_toko, nomor_ulok, email_pembuat, lingkup_pekerjaan, nama_kontraktor, proyek,
-                   waktu_mulai, durasi, waktu_selesai, grand_total, terbilang, nomor_spk, par,
-                   spk_manual_1, spk_manual_2, status, link_pdf, approver_email, waktu_persetujuan,
-                   alasan_penolakan, created_at
-            FROM pengajuan_spk
-            WHERE id_toko = ANY($1::int[])
-            ORDER BY created_at DESC, id DESC
+            SELECT p.id,
+                   COALESCE(p.id_toko, t.id) AS id_toko,
+                   p.nomor_ulok,
+                   p.email_pembuat,
+                   p.lingkup_pekerjaan,
+                   p.nama_kontraktor,
+                   p.proyek,
+                   p.waktu_mulai,
+                   p.durasi,
+                   p.waktu_selesai,
+                   p.grand_total,
+                   p.terbilang,
+                   p.nomor_spk,
+                   p.par,
+                   p.spk_manual_1,
+                   p.spk_manual_2,
+                   p.status,
+                   p.link_pdf,
+                   p.approver_email,
+                   p.waktu_persetujuan,
+                   p.alasan_penolakan,
+                   p.created_at
+            FROM pengajuan_spk p
+            LEFT JOIN toko t
+              ON t.nomor_ulok = p.nomor_ulok
+             AND LOWER(COALESCE(t.lingkup_pekerjaan, '')) = LOWER(COALESCE(p.lingkup_pekerjaan, ''))
+            WHERE COALESCE(p.id_toko, t.id) = ANY($1::int[])
+            ORDER BY p.created_at DESC, p.id DESC
             `,
             [toArrayParam(tokoIds)]
         );
@@ -856,10 +877,19 @@ export const dashboardRepository = {
 
         const picResult = await pool.query<DashboardPicPengawasanRow>(
             `
-            SELECT id, id_toko, nomor_ulok, id_rab, id_spk, kategori_lokasi, durasi, tanggal_mulai_spk,
-                   plc_building_support, created_at
-            FROM pic_pengawasan
-            WHERE id_toko = ANY($1::int[])
+            SELECT p.id,
+                   COALESCE(p.id_toko, t.id) AS id_toko,
+                   p.nomor_ulok,
+                   p.id_rab,
+                   p.id_spk,
+                   p.kategori_lokasi,
+                   p.durasi,
+                   p.tanggal_mulai_spk,
+                   p.plc_building_support,
+                   p.created_at
+            FROM pic_pengawasan p
+            LEFT JOIN toko t ON t.nomor_ulok = p.nomor_ulok
+            WHERE COALESCE(p.id_toko, t.id) = ANY($1::int[])
             `,
             [toArrayParam(tokoIds)]
         );
