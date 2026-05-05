@@ -16,7 +16,7 @@ const dokumentasiRouter = Router();
 const dokumentasiUpload = multer({
     storage: multer.memoryStorage(),
     limits: {
-        fileSize: 10 * 1024 * 1024
+        fileSize: 15 * 1024 * 1024
     }
 });
 
