@@ -15,6 +15,10 @@ import type {
 } from "./dokumentasi.schema";
 
 export type UploadedDokumentasiFile = Express.Multer.File;
+type DokumentasiItemFile = {
+    file: UploadedDokumentasiFile;
+    itemIndex: number;
+};
 
 const sanitizeFilenamePart = (value: string | undefined, fallback: string): string => {
     const normalized = (value ?? "").trim().replace(/[^a-zA-Z0-9_-]+/g, "_");
@@ -77,7 +81,7 @@ const resolveDokumentasiFolderId = async (row: DokumentasiBangunanRow): Promise<
     return gp.getOrCreateFolder(folderName, root);
 };
 
-const uploadFotoItems = async (
+const uploadFotoItemsBulk = async (
     dokumentasi: DokumentasiBangunanRow,
     files: UploadedDokumentasiFile[]
 ): Promise<DokumentasiBangunanItemRow[]> => {
@@ -109,6 +113,64 @@ const uploadFotoItems = async (
     return dokumentasiBangunanRepository.createItemsBulk(dokumentasi.id, linkResults);
 };
 
+const uploadFotoItemsByIndex = async (
+    dokumentasi: DokumentasiBangunanRow,
+    itemFiles: DokumentasiItemFile[]
+): Promise<DokumentasiBangunanItemRow[]> => {
+    if (itemFiles.length === 0) return [];
+
+    const gp = GoogleProvider.instance;
+    const folderId = await resolveDokumentasiFolderId(dokumentasi);
+    const linkResults: string[] = [];
+    const safeKode = sanitizeFilenamePart(dokumentasi.kode_toko ?? undefined, "TOKO");
+
+    const ordered = [...itemFiles].sort((a, b) => a.itemIndex - b.itemIndex);
+    for (const entry of ordered) {
+        const ext = resolveFileExtension(entry.file);
+        const filename = `FOTO_ITEM_${safeKode}_${dokumentasi.id}_${entry.itemIndex}${ext}`;
+
+        const uploaded = await gp.uploadFile(
+            folderId,
+            filename,
+            entry.file.mimetype || "application/octet-stream",
+            entry.file.buffer
+        );
+
+        const link = resolveDriveLink(uploaded.id, uploaded.webViewLink ?? null);
+        if (link) {
+            linkResults.push(link);
+        }
+    }
+
+    return dokumentasiBangunanRepository.createItemsBulk(dokumentasi.id, linkResults);
+};
+
+const splitItemFiles = (files: UploadedDokumentasiFile[]) => {
+    const itemFiles: DokumentasiItemFile[] = [];
+    const bulkFiles: UploadedDokumentasiFile[] = [];
+    const seenIndexes = new Set<number>();
+    const itemRegex = /^foto_items_(\d+)$/i;
+
+    for (const file of files) {
+        const field = file.fieldname ?? "";
+        const match = itemRegex.exec(field);
+        if (match) {
+            const index = Number(match[1]);
+            if (Number.isFinite(index) && index > 0 && !seenIndexes.has(index)) {
+                itemFiles.push({ file, itemIndex: index });
+                seenIndexes.add(index);
+            }
+            continue;
+        }
+
+        if (field === "foto") {
+            bulkFiles.push(file);
+        }
+    }
+
+    return { itemFiles, bulkFiles };
+};
+
 const uploadPdfToDrive = async (folderId: string, buffer: Buffer, filename: string): Promise<string> => {
     const gp = GoogleProvider.instance;
     const uploaded = await gp.uploadFile(folderId, filename, "application/pdf", buffer);
@@ -118,7 +180,10 @@ const uploadPdfToDrive = async (folderId: string, buffer: Buffer, filename: stri
 export const dokumentasiBangunanService = {
     async create(input: DokumentasiBangunanCreateInput, files: UploadedDokumentasiFile[]) {
         const dokumentasi = await dokumentasiBangunanRepository.create(input);
-        const items = await uploadFotoItems(dokumentasi, files);
+        const { itemFiles, bulkFiles } = splitItemFiles(files);
+        const items = itemFiles.length > 0
+            ? await uploadFotoItemsByIndex(dokumentasi, itemFiles)
+            : await uploadFotoItemsBulk(dokumentasi, bulkFiles.length > 0 ? bulkFiles : files);
 
         const detail = await dokumentasiBangunanRepository.getDetail(dokumentasi.id);
         if (!detail) {
@@ -167,7 +232,7 @@ export const dokumentasiBangunanService = {
             throw new AppError("Dokumentasi bangunan tidak ditemukan", 404);
         }
 
-        const newItems = await uploadFotoItems(updated, files);
+        const newItems = await uploadFotoItemsBulk(updated, files);
 
         return {
             dokumentasi: updated,
@@ -181,7 +246,7 @@ export const dokumentasiBangunanService = {
             throw new AppError("Dokumentasi bangunan tidak ditemukan", 404);
         }
 
-        const items = await uploadFotoItems(dokumentasi, files);
+        const items = await uploadFotoItemsBulk(dokumentasi, files);
         return { dokumentasi, items };
     },
 

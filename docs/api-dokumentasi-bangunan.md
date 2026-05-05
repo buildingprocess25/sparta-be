@@ -62,7 +62,7 @@ Base URL: `/api/dok`
 
 Fields:
 
-- `foto` (file) dapat banyak
+- `foto_items_1`, `foto_items_2`, ... (file) satu file per item
 - data lain dikirim sebagai field text
 
 Contoh fields:
@@ -83,6 +83,8 @@ email_pengirim=user@mail.com
 status_validasi=valid
 alasan_revisi=
 pic_dokumentasi=John Doe
+foto_items_1=<file>
+foto_items_2=<file>
 ```
 
 ### Response — 200 OK

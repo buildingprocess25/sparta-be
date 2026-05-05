@@ -22,7 +22,7 @@ const dokumentasiUpload = multer({
 
 dokumentasiRouter.post(
     "/bangunan",
-    dokumentasiUpload.array("foto", 200),
+    dokumentasiUpload.any(),
     createDokumentasiBangunan
 );
 
