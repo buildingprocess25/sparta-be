@@ -6,16 +6,16 @@ Base URL: `/api/rab`
 
 ## Daftar Endpoint
 
-| #   | Method | Path                         | Deskripsi                  |
-| --- | ------ | ---------------------------- | -------------------------- |
-| 1   | `POST` | `/api/rab/submit`            | Submit pengajuan RAB baru  |
-| 2   | `GET`  | `/api/rab`                   | List semua RAB (+ filter)  |
-| 3   | `GET`  | `/api/rab/:id`               | Detail RAB berdasarkan ID  |
-| 4   | `GET`  | `/api/rab/:id/pdf`           | Download PDF RAB           |
-| 5   | `GET`  | `/api/rab/:id/logo`          | Download file logo RAB     |
-| 6   | `GET`  | `/api/rab/:id/file-asuransi` | Download file asuransi RAB |
-| 7   | `POST` | `/api/rab/:id/approval`      | Approve / Reject RAB                         |
-| 8   | `PUT`  | `/api/rab/update-status`     | Update Status RAB (Ditolak Otomatis)         |
+| #   | Method | Path                         | Deskripsi                            |
+| --- | ------ | ---------------------------- | ------------------------------------ |
+| 1   | `POST` | `/api/rab/submit`            | Submit pengajuan RAB baru            |
+| 2   | `GET`  | `/api/rab`                   | List semua RAB (+ filter)            |
+| 3   | `GET`  | `/api/rab/:id`               | Detail RAB berdasarkan ID            |
+| 4   | `GET`  | `/api/rab/:id/pdf`           | Download PDF RAB                     |
+| 5   | `GET`  | `/api/rab/:id/logo`          | Download file logo RAB               |
+| 6   | `GET`  | `/api/rab/:id/file-asuransi` | Download file asuransi RAB           |
+| 7   | `POST` | `/api/rab/:id/approval`      | Approve / Reject RAB                 |
+| 8   | `PUT`  | `/api/rab/update-status`     | Update Status RAB (Ditolak Otomatis) |
 
 ---
 
@@ -233,13 +233,14 @@ Mengambil daftar semua pengajuan RAB. Mendukung filter via query string.
 
 ### Query Parameters
 
-| Parameter       | Tipe   | Deskripsi                               |
-| --------------- | ------ | --------------------------------------- |
-| `status`        | string | Filter berdasarkan status (exact match) |
-| `nomor_ulok`    | string | Filter berdasarkan nomor ULOK           |
-| `cabang`        | string | Filter berdasarkan cabang toko          |
-| `email_pembuat` | string | Filter berdasarkan email pembuat RAB    |
-| `id_toko`       | number | Filter berdasarkan ID toko              |
+| Parameter       | Tipe   | Deskripsi                                |
+| --------------- | ------ | ---------------------------------------- |
+| `status`        | string | Filter berdasarkan status (exact match)  |
+| `nomor_ulok`    | string | Filter berdasarkan nomor ULOK            |
+| `cabang`        | string | Filter berdasarkan cabang toko           |
+| `nama_pt`       | string | Filter berdasarkan nama PT (exact match) |
+| `email_pembuat` | string | Filter berdasarkan email pembuat RAB     |
+| `id_toko`       | number | Filter berdasarkan ID toko               |
 
 ### Contoh Request
 
@@ -247,10 +248,12 @@ Mengambil daftar semua pengajuan RAB. Mendukung filter via query string.
 GET /api/rab?status=Menunggu Persetujuan Koordinator
 GET /api/rab?nomor_ulok=7AZ1-0001-0001
 GET /api/rab?cabang=CIKOKOL
+GET /api/rab?nama_pt=PT%20Contoh%20Kontraktor
 GET /api/rab?email_pembuat=cvcahayagemilangberkahabadi@gmail.com
 GET /api/rab?id_toko=5
 GET /api/rab?cabang=CIKOKOL&email_pembuat=cvcahayagemilangberkahabadi@gmail.com
 GET /api/rab?status=Menunggu Persetujuan Koordinator&cabang=CIKOKOL
+GET /api/rab?status=Menunggu Persetujuan Koordinator&cabang=CIKOKOL&nama_pt=PT%20Contoh%20Kontraktor
 GET /api/rab
 ```
 
@@ -651,21 +654,21 @@ Memperbarui status RAB menjadi salah satu status penolakan. Endpoint ini secara 
 
 ### Validasi
 
-| Field     | Aturan                                                                                                    |
-| --------- | --------------------------------------------------------------------------------------------------------- |
-| `id_toko` | **Wajib**, ID toko yang valid dan harus cocok dengan RAB                                                  |
-| `id_rab`  | **Wajib**, ID pengajuan RAB yang valid                                                                    |
+| Field     | Aturan                                                                                                              |
+| --------- | ------------------------------------------------------------------------------------------------------------------- |
+| `id_toko` | **Wajib**, ID toko yang valid dan harus cocok dengan RAB                                                            |
+| `id_rab`  | **Wajib**, ID pengajuan RAB yang valid                                                                              |
 | `status`  | **Wajib**, salah satu status penolakan: `Ditolak oleh Direktur`, `Ditolak oleh Koordinator`, `Ditolak oleh Manajer` |
 
 ### Perilaku Sistem
 
 1.  **Resolusi Email Penolak**:
-    -   Jika status `Ditolak oleh Direktur` → mencari user di `user_cabang` dengan jabatan `DIREKTUR` pada cabang yang sama dengan toko.
-    -   Jika status `Ditolak oleh Koordinator` → mencari user di `user_cabang` dengan jabatan `KOORDINATOR` pada cabang yang sama dengan toko.
-    -   Jika status `Ditolak oleh Manajer` → mencari user di `user_cabang` dengan jabatan `MANAGER` pada cabang yang sama dengan toko.
+    - Jika status `Ditolak oleh Direktur` → mencari user di `user_cabang` dengan jabatan `DIREKTUR` pada cabang yang sama dengan toko.
+    - Jika status `Ditolak oleh Koordinator` → mencari user di `user_cabang` dengan jabatan `KOORDINATOR` pada cabang yang sama dengan toko.
+    - Jika status `Ditolak oleh Manajer` → mencari user di `user_cabang` dengan jabatan `MANAGER` pada cabang yang sama dengan toko.
 2.  **Update Database**:
-    -   Mengupdate kolom `status`, `ditolak_oleh` (dengan email yang ditemukan), dan `waktu_penolakan` pada tabel `rab`.
-    -   Mengaktifkan kembali `gantt_chart` terbaru untuk toko tersebut (`status = 'active'`).
+    - Mengupdate kolom `status`, `ditolak_oleh` (dengan email yang ditemukan), dan `waktu_penolakan` pada tabel `rab`.
+    - Mengaktifkan kembali `gantt_chart` terbaru untuk toko tersebut (`status = 'active'`).
 3.  **Guard**: Melindungi data toko agar tidak berubah selama proses update (transaksional).
 
 ### Response — 200 OK

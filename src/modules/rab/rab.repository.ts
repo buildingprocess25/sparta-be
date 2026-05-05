@@ -591,7 +591,7 @@ export const rabRepository = {
     },
 
     /** List RAB dengan filter. Join toko untuk nomor_ulok filter. */
-    async list(filter: { status?: string; nomor_ulok?: string; cabang?: string; email_pembuat?: string; id_toko?: number }): Promise<(RabRow & {
+    async list(filter: { status?: string; nomor_ulok?: string; cabang?: string; nama_pt?: string; email_pembuat?: string; id_toko?: number }): Promise<(RabRow & {
         nomor_ulok: string;
         lingkup_pekerjaan: string | null;
         nama_toko: string | null;
@@ -614,6 +614,11 @@ export const rabRepository = {
         if (filter.cabang) {
             values.push(filter.cabang);
             conditions.push(`t.cabang = $${values.length}`);
+        }
+
+        if (filter.nama_pt) {
+            values.push(filter.nama_pt);
+            conditions.push(`r.nama_pt = $${values.length}`);
         }
 
         if (filter.email_pembuat) {
