@@ -4,7 +4,7 @@ import {
     createUserCabangSchema,
     listUserCabangQuerySchema,
     updateUserCabangSchema,
-    userCabangKeyParamSchema
+    userCabangIdParamSchema
 } from "./user-cabang.schema";
 import { userCabangService } from "./user-cabang.service";
 
@@ -26,17 +26,17 @@ export const listUserCabang = asyncHandler(async (req: Request, res: Response) =
     res.json({ status: "success", data });
 });
 
-export const getUserCabangByKey = asyncHandler(async (req: Request, res: Response) => {
-    const params = userCabangKeyParamSchema.parse(req.params);
-    const data = await userCabangService.getByKey(params.cabang, params.email_sat);
+export const getUserCabangById = asyncHandler(async (req: Request, res: Response) => {
+    const params = userCabangIdParamSchema.parse(req.params);
+    const data = await userCabangService.getById(params.id);
 
     res.json({ status: "success", data });
 });
 
-export const updateUserCabangByKey = asyncHandler(async (req: Request, res: Response) => {
-    const params = userCabangKeyParamSchema.parse(req.params);
+export const updateUserCabangById = asyncHandler(async (req: Request, res: Response) => {
+    const params = userCabangIdParamSchema.parse(req.params);
     const payload = updateUserCabangSchema.parse(req.body);
-    const data = await userCabangService.updateByKey(params.cabang, params.email_sat, payload);
+    const data = await userCabangService.updateById(params.id, payload);
 
     res.json({
         status: "success",
@@ -45,9 +45,9 @@ export const updateUserCabangByKey = asyncHandler(async (req: Request, res: Resp
     });
 });
 
-export const deleteUserCabangByKey = asyncHandler(async (req: Request, res: Response) => {
-    const params = userCabangKeyParamSchema.parse(req.params);
-    const data = await userCabangService.deleteByKey(params.cabang, params.email_sat);
+export const deleteUserCabangById = asyncHandler(async (req: Request, res: Response) => {
+    const params = userCabangIdParamSchema.parse(req.params);
+    const data = await userCabangService.deleteById(params.id);
 
     res.json({
         status: "success",

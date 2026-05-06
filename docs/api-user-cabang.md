@@ -6,13 +6,13 @@ Base URL: /api/user_cabang
 
 ## Daftar Endpoint
 
-| #   | Method | Path                                | Deskripsi                                              |
-| --- | ------ | ----------------------------------- | ------------------------------------------------------ |
-| 1   | POST   | /api/user_cabang                    | Tambah data user cabang                                |
-| 2   | GET    | /api/user_cabang                    | List user cabang (dengan filter opsional)              |
-| 3   | GET    | /api/user_cabang/:cabang/:email_sat | Detail user cabang berdasarkan cabang + email_sat      |
-| 4   | PUT    | /api/user_cabang/:cabang/:email_sat | Update data user cabang berdasarkan cabang + email_sat |
-| 5   | DELETE | /api/user_cabang/:cabang/:email_sat | Hapus data user cabang berdasarkan cabang + email_sat  |
+| #   | Method | Path                 | Deskripsi                                 |
+| --- | ------ | -------------------- | ----------------------------------------- |
+| 1   | POST   | /api/user_cabang     | Tambah data user cabang                   |
+| 2   | GET    | /api/user_cabang     | List user cabang (dengan filter opsional) |
+| 3   | GET    | /api/user_cabang/:id | Detail user cabang berdasarkan id         |
+| 4   | PUT    | /api/user_cabang/:id | Update data user cabang berdasarkan id    |
+| 5   | DELETE | /api/user_cabang/:id | Hapus data user cabang berdasarkan id     |
 
 ---
 
@@ -20,6 +20,7 @@ Base URL: /api/user_cabang
 
 Kolom utama yang dipakai endpoint:
 
+- id (serial, primary key)
 - cabang (varchar, required)
 - nama_lengkap (varchar, nullable)
 - jabatan (varchar, nullable)
@@ -65,6 +66,7 @@ POST /api/user_cabang
   "status": "success",
   "message": "Data user_cabang berhasil disimpan",
   "data": {
+    "id": 12,
     "cabang": "BATAM",
     "nama_lengkap": "Andi Saputra",
     "jabatan": "BRANCH BUILDING COORDINATOR",
@@ -111,6 +113,7 @@ GET /api/user_cabang?email_sat=user.cabang@alfamart.co.id
   "status": "success",
   "data": [
     {
+      "id": 12,
       "cabang": "BATAM",
       "nama_lengkap": "Andi Saputra",
       "jabatan": "BRANCH BUILDING COORDINATOR",
@@ -125,14 +128,13 @@ GET /api/user_cabang?email_sat=user.cabang@alfamart.co.id
 
 ## 3. Detail User Cabang
 
-GET /api/user_cabang/:cabang/:email_sat
+GET /api/user_cabang/:id
 
 ### Path Parameter
 
-| Parameter | Tipe   | Deskripsi                               |
-| --------- | ------ | --------------------------------------- |
-| cabang    | string | Kode/nama cabang (contoh: BATAM)        |
-| email_sat | string | Email SAT user (URL-encoded bila perlu) |
+| Parameter | Tipe | Deskripsi                |
+| --------- | ---- | ------------------------ |
+| id        | int  | ID user cabang (primary) |
 
 ### Response - 200 OK
 
@@ -140,6 +142,7 @@ GET /api/user_cabang/:cabang/:email_sat
 {
   "status": "success",
   "data": {
+    "id": 12,
     "cabang": "BATAM",
     "nama_lengkap": "Andi Saputra",
     "jabatan": "BRANCH BUILDING COORDINATOR",
@@ -160,7 +163,7 @@ GET /api/user_cabang/:cabang/:email_sat
 
 ## 4. Update User Cabang
 
-PUT /api/user_cabang/:cabang/:email_sat
+PUT /api/user_cabang/:id
 
 ### Request Body
 
@@ -190,6 +193,7 @@ Semua field opsional, tetapi minimal satu field harus dikirim.
   "status": "success",
   "message": "Data user_cabang berhasil diperbarui",
   "data": {
+    "id": 12,
     "cabang": "BATAM",
     "nama_lengkap": "Andi Saputra",
     "jabatan": "BRANCH BUILDING & MAINTENANCE MANAGER",
@@ -211,7 +215,7 @@ Semua field opsional, tetapi minimal satu field harus dikirim.
 
 ## 5. Delete User Cabang
 
-DELETE /api/user_cabang/:cabang/:email_sat
+DELETE /api/user_cabang/:id
 
 ### Response - 200 OK
 
@@ -220,6 +224,7 @@ DELETE /api/user_cabang/:cabang/:email_sat
   "status": "success",
   "message": "Data user_cabang berhasil dihapus",
   "data": {
+    "id": 12,
     "cabang": "BATAM",
     "nama_lengkap": "Andi Saputra",
     "jabatan": "BRANCH BUILDING & MAINTENANCE MANAGER",

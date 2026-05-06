@@ -2,6 +2,7 @@ import { pool } from "../../db/pool";
 import type { CreateUserCabangInput, ListUserCabangQueryInput, UpdateUserCabangInput } from "./user-cabang.schema";
 
 export type UserCabangRow = {
+    id: number;
     cabang: string;
     nama_lengkap: string | null;
     jabatan: string | null;
@@ -15,7 +16,7 @@ export const userCabangRepository = {
             `
       INSERT INTO user_cabang (cabang, nama_lengkap, jabatan, email_sat, nama_pt)
       VALUES ($1, $2, $3, $4, $5)
-      RETURNING cabang, nama_lengkap, jabatan, email_sat, nama_pt
+      RETURNING id, cabang, nama_lengkap, jabatan, email_sat, nama_pt
       `,
             [
                 input.cabang,
@@ -29,15 +30,14 @@ export const userCabangRepository = {
         return result.rows[0];
     },
 
-    async findByKey(cabang: string, emailSat: string): Promise<UserCabangRow | null> {
+    async findById(id: number): Promise<UserCabangRow | null> {
         const result = await pool.query<UserCabangRow>(
             `
-      SELECT cabang, nama_lengkap, jabatan, email_sat, nama_pt
+      SELECT id, cabang, nama_lengkap, jabatan, email_sat, nama_pt
       FROM user_cabang
-      WHERE LOWER(cabang) = LOWER($1)
-        AND LOWER(email_sat) = LOWER($2)
+      WHERE id = $1
       `,
-            [cabang, emailSat]
+            [id]
         );
 
         return result.rows[0] ?? null;
@@ -82,7 +82,7 @@ export const userCabangRepository = {
         const whereClause = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
         const result = await pool.query<UserCabangRow>(
             `
-      SELECT cabang, nama_lengkap, jabatan, email_sat, nama_pt
+            SELECT id, cabang, nama_lengkap, jabatan, email_sat, nama_pt
       FROM user_cabang
       ${whereClause}
       ORDER BY cabang ASC, nama_lengkap ASC, email_sat ASC
@@ -93,7 +93,7 @@ export const userCabangRepository = {
         return result.rows;
     },
 
-    async updateByKey(cabang: string, emailSat: string, input: UpdateUserCabangInput): Promise<UserCabangRow | null> {
+    async updateById(id: number, input: UpdateUserCabangInput): Promise<UserCabangRow | null> {
         const setParts: string[] = [];
         const values: Array<string | number | null> = [];
 
@@ -122,15 +122,13 @@ export const userCabangRepository = {
             setParts.push(`nama_pt = $${values.length}`);
         }
 
-                values.push(cabang);
-                values.push(emailSat);
+        values.push(id);
         const result = await pool.query<UserCabangRow>(
             `
       UPDATE user_cabang
       SET ${setParts.join(", ")}
-            WHERE LOWER(cabang) = LOWER($${values.length - 1})
-                AND LOWER(email_sat) = LOWER($${values.length})
-            RETURNING cabang, nama_lengkap, jabatan, email_sat, nama_pt
+            WHERE id = $${values.length}
+            RETURNING id, cabang, nama_lengkap, jabatan, email_sat, nama_pt
       `,
             values
         );
@@ -138,35 +136,34 @@ export const userCabangRepository = {
         return result.rows[0] ?? null;
     },
 
-	/**
-	 * Cari user berdasarkan cabang dan jabatan.
-	 * Mengembalikan satu user pertama yang ditemukan (ORDER BY email_sat ASC LIMIT 1).
-	 */
-	async findByCabangAndJabatan(cabang: string, jabatan: string): Promise<UserCabangRow | null> {
-		const result = await pool.query<UserCabangRow>(
-			`
-      SELECT cabang, nama_lengkap, jabatan, email_sat, nama_pt
+    /**
+     * Cari user berdasarkan cabang dan jabatan.
+     * Mengembalikan satu user pertama yang ditemukan (ORDER BY email_sat ASC LIMIT 1).
+     */
+    async findByCabangAndJabatan(cabang: string, jabatan: string): Promise<UserCabangRow | null> {
+        const result = await pool.query<UserCabangRow>(
+            `
+      SELECT id, cabang, nama_lengkap, jabatan, email_sat, nama_pt
       FROM user_cabang
       WHERE LOWER(cabang) = LOWER($1)
         AND LOWER(jabatan) = LOWER($2)
       ORDER BY email_sat ASC
       LIMIT 1
       `,
-			[cabang, jabatan]
-		);
+            [cabang, jabatan]
+        );
 
-		return result.rows[0] ?? null;
-	},
+        return result.rows[0] ?? null;
+    },
 
-        async deleteByKey(cabang: string, emailSat: string): Promise<UserCabangRow | null> {
+    async deleteById(id: number): Promise<UserCabangRow | null> {
         const result = await pool.query<UserCabangRow>(
             `
       DELETE FROM user_cabang
-            WHERE LOWER(cabang) = LOWER($1)
-                AND LOWER(email_sat) = LOWER($2)
-            RETURNING cabang, nama_lengkap, jabatan, email_sat, nama_pt
+            WHERE id = $1
+            RETURNING id, cabang, nama_lengkap, jabatan, email_sat, nama_pt
       `,
-                        [cabang, emailSat]
+            [id]
         );
 
         return result.rows[0] ?? null;

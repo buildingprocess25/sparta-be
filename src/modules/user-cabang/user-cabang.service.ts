@@ -28,8 +28,8 @@ export const userCabangService = {
         }
     },
 
-    async getByKey(cabang: string, emailSat: string) {
-        const data = await userCabangRepository.findByKey(cabang, emailSat);
+    async getById(id: number) {
+        const data = await userCabangRepository.findById(id);
         if (!data) {
             throw new AppError("Data user_cabang tidak ditemukan", 404);
         }
@@ -41,9 +41,9 @@ export const userCabangService = {
         return userCabangRepository.findAll(query);
     },
 
-    async updateByKey(cabang: string, emailSat: string, input: UpdateUserCabangInput) {
+    async updateById(id: number, input: UpdateUserCabangInput) {
         try {
-            const updated = await userCabangRepository.updateByKey(cabang, emailSat, input);
+            const updated = await userCabangRepository.updateById(id, input);
             if (!updated) {
                 throw new AppError("Data user_cabang tidak ditemukan", 404);
             }
@@ -59,8 +59,8 @@ export const userCabangService = {
         }
     },
 
-    async deleteByKey(cabang: string, emailSat: string) {
-        const deleted = await userCabangRepository.deleteByKey(cabang, emailSat);
+    async deleteById(id: number) {
+        const deleted = await userCabangRepository.deleteById(id);
         if (!deleted) {
             throw new AppError("Data user_cabang tidak ditemukan", 404);
         }
