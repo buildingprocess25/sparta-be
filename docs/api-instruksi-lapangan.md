@@ -147,9 +147,10 @@ Men-download file lampiran original yang diunggah saat submit.
 
 ```json
 {
-  "action": "APPROVE", // atau "REJECT"
   "approver_email": "manager@alfamart.com",
-  "reason": "Opsional, wajib jika REJECT"
+  "jabatan": "MANAGER", // KOORDINATOR | MANAGER | DIREKTUR | KONTRAKTOR
+  "tindakan": "APPROVE", // atau "REJECT"
+  "alasan_penolakan": "Opsional, wajib jika REJECT"
 }
 ```
 
