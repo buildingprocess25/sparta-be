@@ -190,7 +190,32 @@ GET /api/dashboard/all?search=alfamart
       },
       "rab": [],
       "gantt": [],
-      "spk": [],
+      "spk": [
+        {
+          "id": 300,
+          "id_toko": 10,
+          "status": "APPROVED",
+          "approval_logs": [],
+          "pertambahan_spk": [
+            {
+              "id": 700,
+              "id_spk": 300,
+              "pertambahan_hari": "7",
+              "tanggal_spk_akhir": "2026-05-31",
+              "tanggal_spk_akhir_setelah_perpanjangan": "2026-06-07",
+              "alasan_perpanjangan": "Cuaca buruk",
+              "dibuat_oleh": "user@vendor.com",
+              "status_persetujuan": "APPROVED",
+              "disetujui_oleh": "manager@alfamart.com",
+              "waktu_persetujuan": "2026-06-01 10:00:00",
+              "alasan_penolakan": null,
+              "link_pdf": "https://drive.google.com/...",
+              "link_lampiran_pendukung": "https://drive.google.com/...",
+              "created_at": "2026-06-01 09:00:00"
+            }
+          ]
+        }
+      ],
       "pic_pengawasan": null,
       "instruksi_lapangan": [],
       "opname_final": [],
