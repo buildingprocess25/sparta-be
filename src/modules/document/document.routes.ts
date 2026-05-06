@@ -1,21 +1,44 @@
 import { Router } from "express";
+import multer from "multer";
 import {
-    loginDoc,
-    listDocuments,
-    saveDocument,
-    updateDocument,
-    deleteDocument,
-    getDocumentDetail,
+    createPenyimpananDokumen,
+    deletePenyimpananDokumen,
+    getPenyimpananDokumenDetail,
+    listPenyimpananDokumen,
+    updatePenyimpananDokumen
 } from "./document.controller";
 
 const documentRouter = Router();
 
-// Sama persis dg routes di document_api.py
-documentRouter.post("/login", loginDoc);
-documentRouter.get("/list", listDocuments);
-documentRouter.post("/save", saveDocument);
-documentRouter.put("/update/:kodeToko", updateDocument);
-documentRouter.delete("/delete/:kodeToko", deleteDocument);
-documentRouter.get("/detail/:kodeToko", getDocumentDetail);
+const dokumenUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+        fileSize: 50 * 1024 * 1024
+    }
+});
+
+documentRouter.post(
+    "/penyimpanan-dokumen",
+    dokumenUpload.any(),
+    createPenyimpananDokumen
+);
+
+documentRouter.get("/penyimpanan-dokumen", listPenyimpananDokumen);
+
+documentRouter.get(
+    "/penyimpanan-dokumen/:id",
+    getPenyimpananDokumenDetail
+);
+
+documentRouter.put(
+    "/penyimpanan-dokumen/:id",
+    dokumenUpload.any(),
+    updatePenyimpananDokumen
+);
+
+documentRouter.delete(
+    "/penyimpanan-dokumen/:id",
+    deletePenyimpananDokumen
+);
 
 export { documentRouter };

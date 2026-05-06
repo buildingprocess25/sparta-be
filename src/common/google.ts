@@ -301,6 +301,19 @@ export class GoogleProvider {
         return folder.data.id!;
     }
 
+    private async setPublicPermission(drive: drive_v3.Drive, fileId: string | undefined) {
+        if (!fileId) return;
+        try {
+            await drive.permissions.create({
+                fileId,
+                requestBody: { type: "anyone", role: "reader" },
+                fields: "id",
+            });
+        } catch (_) {
+            // ignore
+        }
+    }
+
     /** Sama dg Python upload_file_simple() – driveOverride opsional utk pakai drive lain (misal spartaDrive) */
     async uploadFile(
         folderId: string,
@@ -320,16 +333,7 @@ export class GoogleProvider {
                     fields: "id, webViewLink, thumbnailLink, name, mimeType",
                 });
 
-                // Set permission public (sama dg Python)
-                try {
-                    await drive.permissions.create({
-                        fileId: uploaded.data.id!,
-                        requestBody: { type: "anyone", role: "reader" },
-                        fields: "id",
-                    });
-                } catch (_) {
-                    // ignore, sama dg Python
-                }
+                await this.setPublicPermission(drive, uploaded.data.id ?? undefined);
 
                 await sleep(250);
                 return {
@@ -349,6 +353,48 @@ export class GoogleProvider {
             }
         }
         throw new Error("upload_file_simple: max retries exceeded");
+    }
+
+    /** Resumable upload untuk file besar */
+    async uploadFileResumable(
+        folderId: string,
+        filename: string,
+        mimeType: string,
+        buffer: Buffer,
+        maxRetry = 2,
+        driveOverride?: drive_v3.Drive,
+    ): Promise<{ id?: string; webViewLink?: string; thumbnailLink?: string; name?: string; mimeType?: string }> {
+        const drive = driveOverride ?? this.ensureDocDrive();
+
+        for (let attempt = 0; attempt <= maxRetry; attempt++) {
+            try {
+                const uploaded = await drive.files.create({
+                    requestBody: { name: filename, parents: [folderId] },
+                    media: { mimeType, body: Readable.from(buffer) },
+                    fields: "id, webViewLink, thumbnailLink, name, mimeType",
+                    uploadType: "resumable",
+                });
+
+                await this.setPublicPermission(drive, uploaded.data.id ?? undefined);
+
+                await sleep(250);
+                return {
+                    id: uploaded.data.id ?? undefined,
+                    webViewLink: uploaded.data.webViewLink ?? undefined,
+                    thumbnailLink: uploaded.data.thumbnailLink ?? undefined,
+                    name: uploaded.data.name ?? undefined,
+                    mimeType: uploaded.data.mimeType ?? undefined,
+                };
+            } catch (err: any) {
+                const status = err?.code ?? err?.response?.status;
+                if ([429, 500, 502, 503, 504].includes(status) && attempt < maxRetry) {
+                    await sleep(1200 * (attempt + 1));
+                    continue;
+                }
+                throw err;
+            }
+        }
+        throw new Error("upload_file_resumable: max retries exceeded");
     }
 
     /** Sama dg Python delete_drive_file() */

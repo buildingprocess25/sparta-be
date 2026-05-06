@@ -999,3 +999,20 @@ CREATE TABLE IF NOT EXISTS berkas_serah_terima (
 );
 
 CREATE INDEX IF NOT EXISTS idx_berkas_serah_terima_id_toko ON berkas_serah_terima(id_toko);
+
+-- 17) PENYIMPANAN_DOKUMEN
+CREATE TABLE IF NOT EXISTS penyimpanan_dokumen (
+    id SERIAL PRIMARY KEY,
+    id_toko INT NOT NULL,
+    nama_dokumen VARCHAR(255) NOT NULL,
+    drive_file_id VARCHAR(255),
+    drive_folder_id VARCHAR(255),
+    link_dokumen VARCHAR(500),
+    link_folder VARCHAR(500),
+    created_at TIMESTAMP NOT NULL DEFAULT timezone('Asia/Jakarta', now()),
+    CONSTRAINT fk_penyimpanan_dokumen_toko FOREIGN KEY (id_toko) REFERENCES toko(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_penyimpanan_dokumen_id_toko ON penyimpanan_dokumen(id_toko);
+CREATE INDEX IF NOT EXISTS idx_penyimpanan_dokumen_nama ON penyimpanan_dokumen(nama_dokumen);
+CREATE INDEX IF NOT EXISTS idx_penyimpanan_dokumen_toko_nama ON penyimpanan_dokumen(id_toko, nama_dokumen);

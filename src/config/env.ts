@@ -8,7 +8,7 @@ const envSchema = z.object({
     DATABASE_URL: z.string().min(1, "DATABASE_URL wajib diisi"),
     CORS_ORIGINS: z.string().default("*"),
 
-    // Google credentials – document module
+    // Google credentials – Penyimpanan dokumen
     GOOGLE_TOKEN_PATH: z.string().optional(),
     GOOGLE_DOC_TOKEN_PATH: z.string().optional(),
     SPREADSHEET_ID: z.string().default("1LA1TlhgltT2bqSN3H-LYasq9PtInVlqq98VPru8txoo"),

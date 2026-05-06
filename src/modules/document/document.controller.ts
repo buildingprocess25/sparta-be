@@ -1,47 +1,71 @@
 import type { Request, Response } from "express";
 import { asyncHandler } from "../../common/async-handler";
-import { loginDocSchema, saveDocumentSchema, updateDocumentSchema } from "./document.schema";
-import * as documentService from "./document.service";
+import {
+    penyimpananDokumenCreateSchema,
+    penyimpananDokumenIdParamSchema,
+    penyimpananDokumenListQuerySchema,
+    penyimpananDokumenUpdateSchema
+} from "./document.schema";
+import { penyimpananDokumenService, type UploadedDokumenFile } from "./document.service";
 
-// POST /api/doc/login
-export const loginDoc = asyncHandler(async (req: Request, res: Response) => {
-    const payload = loginDocSchema.parse(req.body);
-    const result = await documentService.loginDoc(payload);
-    res.json(result);
+const getUploadedFiles = (req: Request): UploadedDokumenFile[] => {
+    const files = req.files as UploadedDokumenFile[] | undefined;
+    if (!files) return [];
+    return files;
+};
+
+export const createPenyimpananDokumen = asyncHandler(async (req: Request, res: Response) => {
+    const payload = penyimpananDokumenCreateSchema.parse(req.body);
+    const files = getUploadedFiles(req);
+    const result = await penyimpananDokumenService.create(payload, files);
+
+    res.json({
+        status: "success",
+        message: "Dokumen berhasil disimpan",
+        data: result
+    });
 });
 
-// GET /api/doc/list
-export const listDocuments = asyncHandler(async (req: Request, res: Response) => {
-    const cabang = typeof req.query.cabang === "string" ? req.query.cabang : undefined;
-    const result = await documentService.listDocuments(cabang);
-    res.json(result);
+export const listPenyimpananDokumen = asyncHandler(async (req: Request, res: Response) => {
+    const query = penyimpananDokumenListQuerySchema.parse(req.query);
+    const data = await penyimpananDokumenService.list(query);
+
+    res.json({
+        status: "success",
+        data
+    });
 });
 
-// POST /api/doc/save
-export const saveDocument = asyncHandler(async (req: Request, res: Response) => {
-    const payload = saveDocumentSchema.parse(req.body);
-    const result = await documentService.saveDocument(payload);
-    res.json(result);
+export const getPenyimpananDokumenDetail = asyncHandler(async (req: Request, res: Response) => {
+    const params = penyimpananDokumenIdParamSchema.parse(req.params);
+    const data = await penyimpananDokumenService.getDetail(params.id);
+
+    res.json({
+        status: "success",
+        data
+    });
 });
 
-// PUT /api/doc/update/:kodeToko
-export const updateDocument = asyncHandler(async (req: Request, res: Response) => {
-    const kodeToko = req.params.kodeToko;
-    const payload = updateDocumentSchema.parse(req.body);
-    const result = await documentService.updateDocument(kodeToko, payload);
-    res.json(result);
+export const updatePenyimpananDokumen = asyncHandler(async (req: Request, res: Response) => {
+    const params = penyimpananDokumenIdParamSchema.parse(req.params);
+    const payload = penyimpananDokumenUpdateSchema.parse(req.body);
+    const files = getUploadedFiles(req);
+    const data = await penyimpananDokumenService.update(params.id, payload, files);
+
+    res.json({
+        status: "success",
+        message: "Dokumen berhasil diperbarui",
+        data
+    });
 });
 
-// DELETE /api/doc/delete/:kodeToko
-export const deleteDocument = asyncHandler(async (req: Request, res: Response) => {
-    const kodeToko = req.params.kodeToko;
-    const result = await documentService.deleteDocument(kodeToko);
-    res.json(result);
-});
+export const deletePenyimpananDokumen = asyncHandler(async (req: Request, res: Response) => {
+    const params = penyimpananDokumenIdParamSchema.parse(req.params);
+    const data = await penyimpananDokumenService.delete(params.id);
 
-// GET /api/doc/detail/:kodeToko
-export const getDocumentDetail = asyncHandler(async (req: Request, res: Response) => {
-    const kodeToko = req.params.kodeToko;
-    const result = await documentService.getDocumentDetail(kodeToko);
-    res.json(result);
+    res.json({
+        status: "success",
+        message: "Dokumen berhasil dihapus",
+        data
+    });
 });
