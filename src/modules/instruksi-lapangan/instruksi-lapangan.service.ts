@@ -154,11 +154,11 @@ export const instruksiLapanganService = {
     },
 
     async getById(id: string) {
-        const il = await instruksiLapanganRepository.getById(id);
-        if (!il) throw new AppError("Instruksi Lapangan tidak ditemukan", 404);
+        const data = await instruksiLapanganRepository.getHeaderAndToko(id);
+        if (!data) throw new AppError("Instruksi Lapangan tidak ditemukan", 404);
 
         const items = await instruksiLapanganRepository.getItems(id);
-        return { ...il, items };
+        return { ...data.instruksiLapangan, toko: data.toko, items };
     },
 
     async getPdfDownloadPayload(id: string) {

@@ -10,14 +10,15 @@ Base URL: `/api/instruksi-lapangan`
 
 ### Payload Form Data:
 
-| Field | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `nomor_ulok` | string | Yes | Nomor ULOK toko. |
-| `email_pembuat` | string | Yes | Email pembuat instruksi lapangan. |
-| `lampiran` | file | No | File lampiran PDF/Gambar (maks 10MB). |
-| `detail_items` | string (JSON) | Yes | Array of object yang di-stringify. Detail lihat di bawah. |
+| Field           | Type          | Required | Description                                               |
+| :-------------- | :------------ | :------- | :-------------------------------------------------------- |
+| `nomor_ulok`    | string        | Yes      | Nomor ULOK toko.                                          |
+| `email_pembuat` | string        | Yes      | Email pembuat instruksi lapangan.                         |
+| `lampiran`      | file          | No       | File lampiran PDF/Gambar (maks 10MB).                     |
+| `detail_items`  | string (JSON) | Yes      | Array of object yang di-stringify. Detail lihat di bawah. |
 
 #### Format `detail_items` (JSON String):
+
 ```json
 [
   {
@@ -32,6 +33,7 @@ Base URL: `/api/instruksi-lapangan`
 ```
 
 ### Response Sukses (201 Created):
+
 ```json
 {
   "status": "success",
@@ -54,12 +56,15 @@ Base URL: `/api/instruksi-lapangan`
 **Method**: `GET`
 
 ### Query Params:
+
 - `status` (string, opsional)
 - `nomor_ulok` (string, opsional)
 - `cabang` (string, opsional)
 - `email_pembuat` (string, opsional)
+- `id_toko` (number, opsional)
 
 ### Response:
+
 ```json
 {
   "status": "success",
@@ -84,6 +89,7 @@ Base URL: `/api/instruksi-lapangan`
 **Method**: `GET`
 
 ### Response:
+
 ```json
 {
   "status": "success",
@@ -91,6 +97,15 @@ Base URL: `/api/instruksi-lapangan`
     "id": 1,
     "id_toko": 123,
     "status": "Menunggu Persetujuan Koordinator",
+    "toko": {
+      "id": 123,
+      "nomor_ulok": "12345",
+      "nama_toko": "Toko A",
+      "kode_toko": "TKO-001",
+      "cabang": "Jakarta",
+      "alamat": "Jl. Contoh No. 1",
+      "nama_kontraktor": "PT Contoh"
+    },
     "items": [
       {
         "id": 1,
@@ -129,6 +144,7 @@ Men-download file lampiran original yang diunggah saat submit.
 **Content-Type**: `application/json`
 
 ### Payload:
+
 ```json
 {
   "action": "APPROVE", // atau "REJECT"
@@ -138,9 +154,11 @@ Men-download file lampiran original yang diunggah saat submit.
 ```
 
 ### Flow Status:
+
 `Menunggu Persetujuan Koordinator` -> `Menunggu Persetujuan Manager` -> `Menunggu Persetujuan Kontraktor` -> `Disetujui`
 
 ### Response:
+
 ```json
 {
   "status": "success",

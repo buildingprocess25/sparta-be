@@ -280,7 +280,7 @@ export const instruksiLapanganRepository = {
         await pool.query(query, params);
     },
 
-    async findMany(query: { status?: string; nomor_ulok?: string; cabang?: string; email_pembuat?: string }) {
+    async findMany(query: { status?: string; nomor_ulok?: string; cabang?: string; email_pembuat?: string; id_toko?: number }) {
         const conditions: string[] = [];
         const params: any[] = [];
         let index = 1;
@@ -307,6 +307,10 @@ export const instruksiLapanganRepository = {
         if (query.email_pembuat) {
             conditions.push(`il.email_pembuat ILIKE $${index++}`);
             params.push(`%${query.email_pembuat}%`);
+        }
+        if (query.id_toko) {
+            conditions.push(`il.id_toko = $${index++}`);
+            params.push(query.id_toko);
         }
 
         if (conditions.length > 0) {
