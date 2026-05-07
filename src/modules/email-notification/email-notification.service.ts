@@ -8,7 +8,7 @@ import type { SendEmailNotificationInput } from "./email-notification.schema";
 const TEMPLATE_MAP: Record<string, { template: string; subject: string }> = {
     "send-notification-spk": {
         template: "send-notification-spk.njk",
-        subject: "Notifikasi SPK"
+        subject: "SPARTA Building - Notifikasi ApprovalSPK"
     }
 };
 
