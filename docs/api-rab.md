@@ -6,16 +6,18 @@ Base URL: `/api/rab`
 
 ## Daftar Endpoint
 
-| #   | Method | Path                         | Deskripsi                            |
-| --- | ------ | ---------------------------- | ------------------------------------ |
-| 1   | `POST` | `/api/rab/submit`            | Submit pengajuan RAB baru            |
-| 2   | `GET`  | `/api/rab`                   | List semua RAB (+ filter)            |
-| 3   | `GET`  | `/api/rab/:id`               | Detail RAB berdasarkan ID            |
-| 4   | `GET`  | `/api/rab/:id/pdf`           | Download PDF RAB                     |
-| 5   | `GET`  | `/api/rab/:id/logo`          | Download file logo RAB               |
-| 6   | `GET`  | `/api/rab/:id/file-asuransi` | Download file asuransi RAB           |
-| 7   | `POST` | `/api/rab/:id/approval`      | Approve / Reject RAB                 |
-| 8   | `PUT`  | `/api/rab/update-status`     | Update Status RAB (Ditolak Otomatis) |
+| #   | Method   | Path                         | Deskripsi                            |
+| --- | -------- | ---------------------------- | ------------------------------------ |
+| 1   | `POST`   | `/api/rab/submit`            | Submit pengajuan RAB baru            |
+| 2   | `GET`    | `/api/rab`                   | List semua RAB (+ filter)            |
+| 3   | `GET`    | `/api/rab/:id`               | Detail RAB berdasarkan ID            |
+| 4   | `GET`    | `/api/rab/:id/pdf`           | Download PDF RAB                     |
+| 5   | `GET`    | `/api/rab/:id/logo`          | Download file logo RAB               |
+| 6   | `GET`    | `/api/rab/:id/file-asuransi` | Download file asuransi RAB           |
+| 7   | `POST`   | `/api/rab/:id/approval`      | Approve / Reject RAB                 |
+| 8   | `PUT`    | `/api/rab/update-status`     | Update Status RAB (Ditolak Otomatis) |
+| 9   | `PUT`    | `/api/rab/:id/items`         | Bulk update item RAB                 |
+| 10  | `DELETE` | `/api/rab/:id/items`         | Hapus item RAB (by item_ids)         |
 
 ---
 
@@ -696,6 +698,153 @@ Memperbarui status RAB menjadi salah satu status penolakan. Endpoint ini secara 
 | 404  | RAB tidak ditemukan, atau data user dengan jabatan tersebut tidak ditemukan |
 | 409  | `id_toko` tidak cocok dengan data RAB                                       |
 | 500  | Terjadi kesalahan internal atau guard violation                             |
+
+---
+
+## 9. Bulk Update RAB Items
+
+**`PUT /api/rab/:id/items`**
+
+Memperbarui item RAB secara bulk berdasarkan `id` item pada RAB yang dipilih. Endpoint ini akan:
+
+- Memvalidasi seluruh item berada pada RAB yang sama
+- Menghitung ulang grand total (Non-SBO, pembulatan ke 10.000, + PPN 11%)
+- Regenerate ulang PDF (gabungan, non-SBO, rekapitulasi, dan SPH)
+
+### Path Parameter
+
+| Parameter | Tipe   | Deskripsi        |
+| --------- | ------ | ---------------- |
+| `id`      | number | ID pengajuan RAB |
+
+### Request Body
+
+```json
+{
+  "items": [
+    {
+      "id": 10,
+      "kategori_pekerjaan": "PEKERJAAN PERSIAPAN",
+      "jenis_pekerjaan": "Pembersihan Lokasi",
+      "satuan": "m2",
+      "volume": 120,
+      "harga_material": 50000,
+      "harga_upah": 30000,
+      "catatan": "Update volume"
+    }
+  ]
+}
+```
+
+### Validasi
+
+| Field                        | Aturan                            |
+| ---------------------------- | --------------------------------- |
+| `items`                      | **Wajib**, array minimal 1 item   |
+| `items[].id`                 | **Wajib**, ID item RAB yang valid |
+| `items[].kategori_pekerjaan` | **Wajib**                         |
+| `items[].jenis_pekerjaan`    | **Wajib**                         |
+| `items[].satuan`             | **Wajib**                         |
+| `items[].volume`             | **Wajib**, angka >= 0             |
+| `items[].harga_material`     | **Wajib**, angka >= 0             |
+| `items[].harga_upah`         | **Wajib**, angka >= 0             |
+| `items[].catatan`            | Opsional                          |
+
+### Response — 200 OK
+
+```json
+{
+  "status": "success",
+  "message": "1 RAB item berhasil diperbarui",
+  "data": {
+    "id_rab": 1,
+    "updated_items": [
+      {
+        "id": 10,
+        "id_rab": 1,
+        "kategori_pekerjaan": "PEKERJAAN PERSIAPAN",
+        "jenis_pekerjaan": "Pembersihan Lokasi",
+        "satuan": "m2",
+        "volume": "120",
+        "harga_material": "50000",
+        "harga_upah": "30000",
+        "total_material": "6000000",
+        "total_upah": "3600000",
+        "total_harga": "9600000",
+        "catatan": "Update volume"
+      }
+    ],
+    "totals": {
+      "grandTotal": 9600000,
+      "totalNonSbo": 9600000,
+      "finalGrandTotal": 10656000
+    }
+  }
+}
+```
+
+### Error Responses
+
+| Code | Kondisi                                           |
+| ---- | ------------------------------------------------- |
+| 400  | `id_rab` tidak valid, atau ada `id` item duplikat |
+| 404  | RAB tidak ditemukan, atau item tidak ditemukan    |
+
+---
+
+## 10. Delete RAB Items
+
+**`DELETE /api/rab/:id/items`**
+
+Menghapus item RAB berdasarkan `item_ids`. Endpoint ini akan menghitung ulang total dan regenerate ulang PDF.
+
+### Path Parameter
+
+| Parameter | Tipe   | Deskripsi        |
+| --------- | ------ | ---------------- |
+| `id`      | number | ID pengajuan RAB |
+
+### Request Body
+
+```json
+{
+  "item_ids": [10, 11]
+}
+```
+
+### Validasi
+
+| Field        | Aturan                                     |
+| ------------ | ------------------------------------------ |
+| `item_ids`   | **Wajib**, array minimal 1 item            |
+| `item_ids[]` | **Wajib**, ID item RAB yang valid          |
+| -            | Minimal harus tersisa 1 item setelah hapus |
+
+### Response — 200 OK
+
+```json
+{
+  "status": "success",
+  "message": "2 RAB item berhasil dihapus",
+  "data": {
+    "id_rab": 1,
+    "deleted_count": 2,
+    "remaining_items": 3,
+    "totals": {
+      "grandTotal": 12000000,
+      "totalNonSbo": 9000000,
+      "finalGrandTotal": 13320000
+    }
+  }
+}
+```
+
+### Error Responses
+
+| Code | Kondisi                                            |
+| ---- | -------------------------------------------------- |
+| 400  | `item_ids` duplikat atau akan menghapus semua item |
+| 404  | RAB tidak ditemukan, atau item tidak ditemukan     |
 
 ---
 

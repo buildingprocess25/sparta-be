@@ -105,6 +105,20 @@ const RAB_COLUMNS = `
 `;
 
 const toIntegerString = (value: number): string => {
+const mapUpdatedRabItemRow = (row: RabItemRow): RabItemRow => ({
+    id: row.id,
+    id_rab: row.id_rab,
+    kategori_pekerjaan: row.kategori_pekerjaan,
+    jenis_pekerjaan: row.jenis_pekerjaan,
+    satuan: row.satuan,
+    volume: row.volume,
+    harga_material: row.harga_material,
+    harga_upah: row.harga_upah,
+    total_material: row.total_material,
+    total_upah: row.total_upah,
+    total_harga: row.total_harga,
+    catatan: row.catatan
+});
     if (!Number.isFinite(value)) return "0";
     return Math.round(value).toString();
 };
@@ -590,6 +604,112 @@ export const rabRepository = {
         return { rab, toko, items: items.rows };
     },
 
+    async listItemsByRabId(rabId: number | string): Promise<RabItemRow[]> {
+        const result = await pool.query<RabItemRow>(
+            `SELECT id, id_rab, kategori_pekerjaan, jenis_pekerjaan, satuan,
+                volume, harga_material, harga_upah,
+                total_material, total_upah, total_harga, catatan
+            FROM rab_item
+            WHERE id_rab = $1
+            ORDER BY id ASC`,
+            [rabId]
+        );
+
+        return result.rows;
+    },
+
+    async updateItemsBulk(
+        rabId: number,
+        items: Array<DetailItemInput & { id: number }>
+    ): Promise<RabItemRow[]> {
+        return withTransaction(async (client) => {
+            const rabRes = await client.query<{ id: number }>(
+                `SELECT id FROM rab WHERE id = $1 FOR UPDATE`,
+                [rabId]
+            );
+
+            if ((rabRes.rowCount ?? 0) === 0) {
+                throw new Error(`RAB dengan id ${rabId} tidak ditemukan`);
+            }
+
+            const updatedRows: RabItemRow[] = [];
+
+            for (const item of items) {
+                const totalMaterial = item.volume * item.harga_material;
+                const totalUpah = item.volume * item.harga_upah;
+                const totalHarga = totalMaterial + totalUpah;
+                const catatan = item.catatan?.trim() || null;
+
+                const result = await client.query<RabItemRow>(
+                    `UPDATE rab_item
+                     SET kategori_pekerjaan = $1,
+                         jenis_pekerjaan = $2,
+                         satuan = $3,
+                         volume = $4,
+                         harga_material = $5,
+                         harga_upah = $6,
+                         total_material = $7,
+                         total_upah = $8,
+                         total_harga = $9,
+                         catatan = $10
+                     WHERE id = $11 AND id_rab = $12
+                     RETURNING id, id_rab, kategori_pekerjaan, jenis_pekerjaan, satuan,
+                        volume, harga_material, harga_upah,
+                        total_material, total_upah, total_harga, catatan`,
+                    [
+                        item.kategori_pekerjaan,
+                        item.jenis_pekerjaan,
+                        item.satuan,
+                        toNumericString(item.volume),
+                        toIntegerString(item.harga_material),
+                        toIntegerString(item.harga_upah),
+                        toIntegerString(totalMaterial),
+                        toIntegerString(totalUpah),
+                        toIntegerString(totalHarga),
+                        catatan,
+                        item.id,
+                        rabId
+                    ]
+                );
+
+                if ((result.rowCount ?? 0) === 0) {
+                    throw new Error(`RAB item dengan id ${item.id} tidak ditemukan pada rab ${rabId}`);
+                }
+
+                updatedRows.push(mapUpdatedRabItemRow(result.rows[0]));
+            }
+
+            return updatedRows;
+        });
+    },
+
+    async deleteItemsByIds(rabId: number, itemIds: number[]): Promise<number> {
+        const result = await pool.query(
+            `DELETE FROM rab_item WHERE id_rab = $1 AND id = ANY($2::int[])`,
+            [rabId, itemIds]
+        );
+
+        return result.rowCount ?? 0;
+    },
+
+    async updateRabTotals(
+        rabId: number,
+        totals: { grand_total: string; grand_total_non_sbo: string; grand_total_final: string }
+    ): Promise<void> {
+        await pool.query(
+            `UPDATE rab
+             SET grand_total = $1,
+                 grand_total_non_sbo = $2,
+                 grand_total_final = $3
+             WHERE id = $4`,
+            [
+                totals.grand_total,
+                totals.grand_total_non_sbo,
+                totals.grand_total_final,
+                rabId
+            ]
+        );
+    },
     /** List RAB dengan filter. Join toko untuk nomor_ulok filter. */
     async list(filter: { status?: string; nomor_ulok?: string; cabang?: string; nama_pt?: string; email_pembuat?: string; id_toko?: number }): Promise<(RabRow & {
         nomor_ulok: string;

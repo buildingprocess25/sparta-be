@@ -1,6 +1,7 @@
 import { Router } from "express";
 import multer from "multer";
 import {
+	deleteRabItems,
 	downloadRabInsuranceFile,
 	downloadRabLogo,
 	downloadRabPdf,
@@ -8,6 +9,7 @@ import {
 	handleRabApproval,
 	listRab,
 	submitRab,
+	updateRabItemsBulk,
 	updateRabStatus,
 } from "./rab.controller";
 
@@ -30,6 +32,8 @@ rabRouter.post(
 );
 rabRouter.get("/", listRab);
 rabRouter.get("/:id", getRabById);
+rabRouter.put("/:id/items", updateRabItemsBulk);
+rabRouter.delete("/:id/items", deleteRabItems);
 rabRouter.get("/:id/pdf", downloadRabPdf);
 rabRouter.get("/:id/logo", downloadRabLogo);
 rabRouter.get("/:id/file-asuransi", downloadRabInsuranceFile);

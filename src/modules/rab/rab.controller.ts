@@ -2,7 +2,13 @@ import type { Request, Response } from "express";
 import { AppError } from "../../common/app-error";
 import { asyncHandler } from "../../common/async-handler";
 import { approvalActionSchema } from "../approval/approval.schema";
-import { rabListQuerySchema, submitRabSchema, updateRabStatusSchema } from "./rab.schema";
+import {
+    bulkUpdateRabItemsSchema,
+    deleteRabItemsSchema,
+    rabListQuerySchema,
+    submitRabSchema,
+    updateRabStatusSchema
+} from "./rab.schema";
 import { rabService } from "./rab.service";
 
 export const submitRab = asyncHandler(async (req: Request, res: Response) => {
@@ -139,5 +145,55 @@ export const updateRabStatus = asyncHandler(async (req: Request, res: Response) 
         status: "success",
         message: "Status RAB berhasil diperbarui",
         data: result
+    });
+});
+
+export const updateRabItemsBulk = asyncHandler(async (req: Request, res: Response) => {
+    let parsedItems = req.body.items;
+    if (typeof req.body.items === "string") {
+        try {
+            parsedItems = JSON.parse(req.body.items);
+        } catch {
+            throw new AppError("Format items tidak valid. Untuk multipart/form-data kirim items sebagai JSON string.", 400);
+        }
+    }
+
+    const payloadCandidate = {
+        ...req.body,
+        items: parsedItems
+    };
+    const { items } = bulkUpdateRabItemsSchema.parse(payloadCandidate);
+
+    const data = await rabService.updateRabItemsBulk(req.params.id, items);
+
+    res.json({
+        status: "success",
+        message: `${data.updated_items.length} RAB item berhasil diperbarui`,
+        data
+    });
+});
+
+export const deleteRabItems = asyncHandler(async (req: Request, res: Response) => {
+    let parsedItemIds = req.body.item_ids;
+    if (typeof req.body.item_ids === "string") {
+        try {
+            parsedItemIds = JSON.parse(req.body.item_ids);
+        } catch {
+            throw new AppError("Format item_ids tidak valid. Untuk multipart/form-data kirim item_ids sebagai JSON string.", 400);
+        }
+    }
+
+    const payloadCandidate = {
+        ...req.body,
+        item_ids: parsedItemIds
+    };
+    const { item_ids } = deleteRabItemsSchema.parse(payloadCandidate);
+
+    const data = await rabService.deleteRabItems(req.params.id, { item_ids });
+
+    res.json({
+        status: "success",
+        message: `${data.deleted_count} RAB item berhasil dihapus`,
+        data
     });
 });

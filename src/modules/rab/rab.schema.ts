@@ -65,7 +65,22 @@ export const updateRabStatusSchema = z.object({
     status: z.string().min(1)
 });
 
+export const updateRabItemSchema = detailItemSchema.extend({
+    id: z.coerce.number().int().positive()
+});
+
+export const bulkUpdateRabItemsSchema = z.object({
+    items: z.array(updateRabItemSchema).min(1)
+});
+
+export const deleteRabItemsSchema = z.object({
+    item_ids: z.array(z.coerce.number().int().positive()).min(1)
+});
+
 export type SubmitRabInput = z.infer<typeof submitRabSchema>;
 export type DetailItemInput = z.infer<typeof detailItemSchema>;
 export type RabListQuery = z.infer<typeof rabListQuerySchema>;
 export type UpdateRabStatusInput = z.infer<typeof updateRabStatusSchema>;
+export type UpdateRabItemInput = z.infer<typeof updateRabItemSchema>;
+export type BulkUpdateRabItemsInput = z.infer<typeof bulkUpdateRabItemsSchema>;
+export type DeleteRabItemsInput = z.infer<typeof deleteRabItemsSchema>;

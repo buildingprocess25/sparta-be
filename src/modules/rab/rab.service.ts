@@ -7,7 +7,15 @@ import type { ApprovalActionInput } from "../approval/approval.schema";
 import { RAB_STATUS, REJECTED_RAB_STATUSES, type RabStatus } from "./rab.constants";
 import { buildRabPdfBuffer, buildRecapPdfBuffer, mergePdfBuffers, generateSphPdf } from "./rab.pdf";
 import { rabRepository } from "./rab.repository";
-import type { DetailItemInput, RabListQuery, SubmitRabInput, UpdateRabStatusInput } from "./rab.schema";
+import type { RabItemRow } from "./rab.repository";
+import type {
+    DeleteRabItemsInput,
+    DetailItemInput,
+    RabListQuery,
+    SubmitRabInput,
+    UpdateRabItemInput,
+    UpdateRabStatusInput
+} from "./rab.schema";
 
 interface UploadedFile {
     originalname: string;
@@ -59,6 +67,18 @@ const computeTotals = (detailItems: DetailItemInput[]) => {
         totalNonSbo,
         finalGrandTotal
     };
+};
+
+const normalizeDetailItems = (items: RabItemRow[]): DetailItemInput[] => {
+    return items.map((item) => ({
+        kategori_pekerjaan: item.kategori_pekerjaan,
+        jenis_pekerjaan: item.jenis_pekerjaan,
+        satuan: item.satuan,
+        volume: Number(item.volume) || 0,
+        harga_material: Number(item.harga_material) || 0,
+        harga_upah: Number(item.harga_upah) || 0,
+        catatan: item.catatan ?? undefined
+    }));
 };
 
 // ---------------------------------------------------------------------------
@@ -1118,6 +1138,141 @@ export const rabService = {
             new_status: status,
             ditolak_oleh: emailPenolak,
             jabatan_penolak: matchedJabatan
+        };
+    },
+
+    async updateRabItemsBulk(rabId: string, items: UpdateRabItemInput[]) {
+        const rabIdNumber = Number(rabId);
+        if (!Number.isInteger(rabIdNumber) || rabIdNumber <= 0) {
+            throw new AppError("id_rab tidak valid", 400);
+        }
+
+        const rabData = await rabRepository.findById(String(rabIdNumber));
+        if (!rabData) {
+            throw new AppError("Pengajuan RAB tidak ditemukan", 404);
+        }
+
+        const usedIds = new Set<number>();
+        for (let index = 0; index < items.length; index++) {
+            const item = items[index];
+            if (usedIds.has(item.id)) {
+                throw new AppError(`id duplikat ditemukan pada items[${index}] (id=${item.id})`, 400);
+            }
+            usedIds.add(item.id);
+        }
+
+        const existingItems = await rabRepository.listItemsByRabId(rabIdNumber);
+        const existingIds = new Set(existingItems.map((item) => item.id));
+        for (let index = 0; index < items.length; index++) {
+            const item = items[index];
+            if (!existingIds.has(item.id)) {
+                throw new AppError(`RAB item tidak ditemukan pada items[${index}] (id=${item.id})`, 404);
+            }
+        }
+
+        const updatedItems = await rabRepository.updateItemsBulk(rabIdNumber, items);
+        const refreshedItems = await rabRepository.listItemsByRabId(rabIdNumber);
+        const totals = computeTotals(normalizeDetailItems(refreshedItems));
+
+        await rabRepository.updateRabTotals(rabIdNumber, {
+            grand_total: String(totals.grandTotal),
+            grand_total_non_sbo: String(totals.totalNonSbo),
+            grand_total_final: String(totals.finalGrandTotal)
+        });
+
+        try {
+            const links = await regenerateRabPdfs(String(rabIdNumber), {
+                proyek: rabData.toko.proyek,
+                nomorUlok: rabData.toko.nomor_ulok
+            });
+
+            if (links) {
+                await rabRepository.updatePdfLinks(String(rabIdNumber), {
+                    link_pdf_gabungan: links.link_pdf_gabungan,
+                    link_pdf_non_sbo: links.link_pdf_non_sbo,
+                    link_pdf_rekapitulasi: links.link_pdf_rekapitulasi
+                });
+
+                if (links.link_pdf_sph) {
+                    await rabRepository.updateSphPdfLink(String(rabIdNumber), links.link_pdf_sph);
+                }
+            }
+        } catch (err) {
+            console.error("Warning: Gagal regenerate PDF RAB setelah update items:", err);
+        }
+
+        return {
+            id_rab: rabIdNumber,
+            updated_items: updatedItems,
+            totals
+        };
+    },
+
+    async deleteRabItems(rabId: string, input: DeleteRabItemsInput) {
+        const rabIdNumber = Number(rabId);
+        if (!Number.isInteger(rabIdNumber) || rabIdNumber <= 0) {
+            throw new AppError("id_rab tidak valid", 400);
+        }
+
+        const rabData = await rabRepository.findById(String(rabIdNumber));
+        if (!rabData) {
+            throw new AppError("Pengajuan RAB tidak ditemukan", 404);
+        }
+
+        const requestedIds = input.item_ids;
+        const uniqueIds = Array.from(new Set(requestedIds));
+        if (uniqueIds.length !== requestedIds.length) {
+            throw new AppError("item_ids tidak boleh duplikat", 400);
+        }
+
+        const existingItems = await rabRepository.listItemsByRabId(rabIdNumber);
+        const existingIds = new Set(existingItems.map((item) => item.id));
+        for (const itemId of uniqueIds) {
+            if (!existingIds.has(itemId)) {
+                throw new AppError(`RAB item tidak ditemukan (id=${itemId})`, 404);
+            }
+        }
+
+        if (existingItems.length - uniqueIds.length <= 0) {
+            throw new AppError("Minimal harus tersisa 1 RAB item", 400);
+        }
+
+        const deletedCount = await rabRepository.deleteItemsByIds(rabIdNumber, uniqueIds);
+        const refreshedItems = await rabRepository.listItemsByRabId(rabIdNumber);
+        const totals = computeTotals(normalizeDetailItems(refreshedItems));
+
+        await rabRepository.updateRabTotals(rabIdNumber, {
+            grand_total: String(totals.grandTotal),
+            grand_total_non_sbo: String(totals.totalNonSbo),
+            grand_total_final: String(totals.finalGrandTotal)
+        });
+
+        try {
+            const links = await regenerateRabPdfs(String(rabIdNumber), {
+                proyek: rabData.toko.proyek,
+                nomorUlok: rabData.toko.nomor_ulok
+            });
+
+            if (links) {
+                await rabRepository.updatePdfLinks(String(rabIdNumber), {
+                    link_pdf_gabungan: links.link_pdf_gabungan,
+                    link_pdf_non_sbo: links.link_pdf_non_sbo,
+                    link_pdf_rekapitulasi: links.link_pdf_rekapitulasi
+                });
+
+                if (links.link_pdf_sph) {
+                    await rabRepository.updateSphPdfLink(String(rabIdNumber), links.link_pdf_sph);
+                }
+            }
+        } catch (err) {
+            console.error("Warning: Gagal regenerate PDF RAB setelah delete items:", err);
+        }
+
+        return {
+            id_rab: rabIdNumber,
+            deleted_count: deletedCount,
+            remaining_items: refreshedItems.length,
+            totals
         };
     }
 };
