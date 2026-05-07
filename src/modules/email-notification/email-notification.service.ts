@@ -43,18 +43,19 @@ const getFormalGreeting = () => {
     return "Selamat malam";
 };
 
-const buildRawEmail = (input: { from: string; to: string; subject: string; html: string }) => {
+const buildRawEmail = (input: { from: string; to: string; cc?: string; subject: string; html: string }) => {
     const encodedHtml = Buffer.from(input.html, "utf-8").toString("base64");
     const message = [
         `From: ${input.from}`,
         `To: ${input.to}`,
+        input.cc ? `Cc: ${input.cc}` : "",
         `Subject: ${input.subject}`,
         "MIME-Version: 1.0",
         "Content-Type: text/html; charset=\"UTF-8\"",
         "Content-Transfer-Encoding: base64",
         "",
         encodedHtml
-    ].join("\r\n");
+    ].filter(Boolean).join("\r\n");
 
     return Buffer.from(message, "utf-8")
         .toString("base64")
@@ -78,6 +79,11 @@ export const emailNotificationService = {
             throw new AppError("Branch Manager untuk cabang tersebut tidak ditemukan", 404);
         }
 
+        const ccUser = await userCabangRepository.findByCabangAndJabatan(
+            payload.cabang,
+            "BRANCH BUILDING & MAINTENANCE MANAGER"
+        );
+
         if (!env.EMAIL_USER) {
             throw new AppError("EMAIL_USER belum diset", 500);
         }
@@ -97,9 +103,14 @@ export const emailNotificationService = {
             throw new AppError("Google Gmail belum terkonfigurasi", 500);
         }
 
+        const ccEmail = ccUser?.email_sat && ccUser.email_sat !== targetUser.email_sat
+            ? ccUser.email_sat
+            : undefined;
+
         const raw = buildRawEmail({
             from: env.EMAIL_USER,
             to: targetUser.email_sat,
+            cc: ccEmail,
             subject: templateConfig.subject,
             html
         });
@@ -114,6 +125,7 @@ export const emailNotificationService = {
             cabang: payload.cabang,
             flag: payload.flag,
             to: targetUser.email_sat,
+            cc: ccEmail ?? null,
             subject: templateConfig.subject
         };
     }
