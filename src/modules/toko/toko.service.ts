@@ -1,6 +1,12 @@
 import { AppError } from "../../common/app-error";
 import { tokoRepository } from "./toko.repository";
-import type { CreateTokoInput, ListTokoQueryInput, LoginUserCabangInput, GetTokoDetailQueryInput } from "./toko.schema";
+import type {
+    CreateTokoInput,
+    ListTokoQueryInput,
+    LoginUserCabangInput,
+    GetTokoDetailQueryInput,
+    UpdateTokoByIdBodyInput
+} from "./toko.schema";
 
 export const tokoService = {
     async create(input: CreateTokoInput) {
@@ -21,6 +27,15 @@ export const tokoService = {
         if (!toko) {
             throw new AppError("Data toko tidak ditemukan", 404);
         }
+        return toko;
+    },
+
+    async updateById(id: number, input: UpdateTokoByIdBodyInput) {
+        const toko = await tokoRepository.updateById(id, input);
+        if (!toko) {
+            throw new AppError("Data toko tidak ditemukan", 404);
+        }
+
         return toko;
     },
 

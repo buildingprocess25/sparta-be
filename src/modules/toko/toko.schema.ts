@@ -34,3 +34,19 @@ export const getTokoDetailQuerySchema = z.object({
 });
 
 export type GetTokoDetailQueryInput = z.infer<typeof getTokoDetailQuerySchema>;
+
+export const updateTokoByIdParamSchema = z.object({
+    id: z.coerce.number().positive()
+});
+
+export const updateTokoByIdBodySchema = z.object({
+    nomor_ulok: z.string().min(1).optional(),
+    nama_toko: z.string().min(1).optional(),
+    kode_toko: z.string().min(1).optional(),
+    cabang: z.string().min(1).optional(),
+    alamat: z.string().min(1).optional()
+}).refine((data) => Object.keys(data).length > 0, {
+    message: "Minimal satu field harus diisi"
+});
+
+export type UpdateTokoByIdBodyInput = z.infer<typeof updateTokoByIdBodySchema>;

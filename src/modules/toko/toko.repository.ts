@@ -1,5 +1,5 @@
 import { pool } from "../../db/pool";
-import type { CreateTokoInput, ListTokoQueryInput, GetTokoDetailQueryInput } from "./toko.schema";
+import type { CreateTokoInput, ListTokoQueryInput, GetTokoDetailQueryInput, UpdateTokoByIdBodyInput } from "./toko.schema";
 
 export type TokoRow = {
     id: number;
@@ -127,6 +127,47 @@ export const tokoRepository = {
              FROM toko 
              WHERE ${filters.join(" AND ")}
              LIMIT 1`,
+            values
+        );
+
+        return result.rows[0] ?? null;
+    },
+
+    async updateById(id: number, input: UpdateTokoByIdBodyInput): Promise<TokoRow | null> {
+        const updates: string[] = [];
+        const values: Array<string | number | null> = [];
+
+        if (input.nomor_ulok !== undefined) {
+            values.push(input.nomor_ulok);
+            updates.push(`nomor_ulok = $${values.length}`);
+        }
+        if (input.nama_toko !== undefined) {
+            values.push(input.nama_toko);
+            updates.push(`nama_toko = $${values.length}`);
+        }
+        if (input.kode_toko !== undefined) {
+            values.push(input.kode_toko);
+            updates.push(`kode_toko = $${values.length}`);
+        }
+        if (input.cabang !== undefined) {
+            values.push(input.cabang);
+            updates.push(`cabang = $${values.length}`);
+        }
+        if (input.alamat !== undefined) {
+            values.push(input.alamat);
+            updates.push(`alamat = $${values.length}`);
+        }
+
+        if (updates.length === 0) {
+            return null;
+        }
+
+        values.push(id);
+        const result = await pool.query<TokoRow>(
+            `UPDATE toko
+             SET ${updates.join(", ")}
+             WHERE id = $${values.length}
+             RETURNING id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor`,
             values
         );
 
