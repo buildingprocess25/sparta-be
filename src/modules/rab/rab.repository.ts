@@ -105,6 +105,17 @@ const RAB_COLUMNS = `
 `;
 
 const toIntegerString = (value: number): string => {
+    if (!Number.isFinite(value)) return "0";
+    return Math.round(value).toString();
+};
+
+/** Konversi angka ke string tanpa membulatkan desimal (untuk volume dll). */
+const toNumericString = (value: number): string => {
+    if (!Number.isFinite(value)) return "0";
+    // Buang trailing zero yang tidak perlu (mis. "2.50" → "2.5", "3.00" → "3")
+    return parseFloat(value.toFixed(4)).toString();
+};
+
 const mapUpdatedRabItemRow = (row: RabItemRow): RabItemRow => ({
     id: row.id,
     id_rab: row.id_rab,
@@ -119,16 +130,6 @@ const mapUpdatedRabItemRow = (row: RabItemRow): RabItemRow => ({
     total_harga: row.total_harga,
     catatan: row.catatan
 });
-    if (!Number.isFinite(value)) return "0";
-    return Math.round(value).toString();
-};
-
-/** Konversi angka ke string tanpa membulatkan desimal (untuk volume dll). */
-const toNumericString = (value: number): string => {
-    if (!Number.isFinite(value)) return "0";
-    // Buang trailing zero yang tidak perlu (mis. "2.50" → "2.5", "3.00" → "3")
-    return parseFloat(value.toFixed(4)).toString();
-};
 
 const insertRabItems = async (
     client: PoolClient,
