@@ -30,6 +30,9 @@ const envSchema = z.object({
     // PDF RAB storage – same as Python config.PDF_STORAGE_FOLDER_ID
     PDF_STORAGE_FOLDER_ID: z.string().default("1lvPxOwNILXHmagVfPGkVlNEtfv3U4Emj"),
 
+    // Email sender
+    EMAIL_USER: z.string().optional(),
+
     // Puppeteer / Chrome runtime (useful on Render)
     PUPPETEER_EXECUTABLE_PATH: z.string().optional(),
     PUPPETEER_CACHE_DIR: z.string().optional(),

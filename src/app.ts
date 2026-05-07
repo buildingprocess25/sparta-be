@@ -22,6 +22,7 @@ import { instruksiLapanganRouter } from "./modules/instruksi-lapangan/instruksi-
 import { serahTerimaRouter } from "./modules/serah-terima/serah-terima.routes";
 import { getKontraktor, loginUserCabang } from "./modules/toko/toko.controller";
 import { dashboardRouter } from "./modules/dashboard/dashboard.routes";
+import { emailNotificationRouter } from "./modules/email-notification/email-notification.routes";
 
 
 
@@ -125,6 +126,7 @@ app.use("/api/final_opname", opnameFinalRouter);
 app.use("/api/user_cabang", userCabangRouter);
 app.use("/api/instruksi-lapangan", instruksiLapanganRouter);
 app.use("/api/dashboard", dashboardRouter);
+app.use("/api", emailNotificationRouter);
 app.use("/api", serahTerimaRouter);
 app.use("/", priceRabRouter);
 app.use("/api", priceRabRouter);
