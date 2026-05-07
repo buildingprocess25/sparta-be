@@ -25,6 +25,24 @@ const formatJakartaTimestamp = () => {
     }).format(new Date());
 };
 
+const getJakartaHour = () => {
+    const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Jakarta",
+        hour: "2-digit",
+        hour12: false
+    }).formatToParts(new Date());
+    const hourPart = parts.find((part) => part.type === "hour")?.value ?? "00";
+    return Number(hourPart);
+};
+
+const getFormalGreeting = () => {
+    const hour = getJakartaHour();
+    if (hour >= 4 && hour < 11) return "Selamat pagi";
+    if (hour >= 11 && hour < 15) return "Selamat siang";
+    if (hour >= 15 && hour < 18) return "Selamat sore";
+    return "Selamat malam";
+};
+
 const buildRawEmail = (input: { from: string; to: string; subject: string; html: string }) => {
     const encodedHtml = Buffer.from(input.html, "utf-8").toString("base64");
     const message = [
@@ -68,7 +86,9 @@ export const emailNotificationService = {
         const html = await renderHtmlTemplate(templatePath, {
             cabang: payload.cabang,
             flag: payload.flag,
-            sent_at: formatJakartaTimestamp()
+            sent_at: formatJakartaTimestamp(),
+            greeting: getFormalGreeting(),
+            nama_lengkap: targetUser.nama_lengkap?.trim() || "Branch Manager"
         });
 
         const gp = GoogleProvider.instance;
