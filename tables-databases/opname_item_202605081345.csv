@@ -1,0 +1,36 @@
+"id","id_toko","id_rab_item","status","volume_akhir","selisih_volume","total_selisih","desain","kualitas","spesifikasi","foto","catatan","created_at","id_opname_final","total_harga_opname"
+290,783,2119,pending,4,0,0,Sesuai,Baik,Sesuai,https://drive.google.com/file/d/1HHQRamLXzW1bYEqnsRPbsrBrdpMbD0KQ/view?usp=drivesdk,sudah terpasang dengan baik,2026-04-30 14:59:59.118,8,1060000
+291,1249,22926,pending,1,0,0,Sesuai,Baik,Sesuai,https://drive.google.com/file/d/1j4ayhNGC2sBWszZMxsxkyCdtRznA6Ub6/view?usp=drivesdk,Sudah dibongkar sesuai pekerjaan,2026-05-04 16:23:37.677,9,5000000
+292,1249,22924,pending,1,0,0,Sesuai,Baik,Sesuai,https://drive.google.com/file/d/18HR9evIajgseEEtCIjzqe6lnfFK1cPRA/view?usp=drivesdk,Sudah dibersihkan Area salesnya,2026-05-04 16:24:23.396,9,9000000
+293,936,8210,pending,2,0,0,Sesuai,Baik,Sesuai,https://drive.google.com/file/d/1iOpGafDtZlEPY8FIBy_eJk7fHQPcN0Vv/view?usp=drivesdk,,2026-05-06 10:40:59.922,10,484000
+294,936,8211,pending,30,0,0,Sesuai,Baik,Sesuai,https://drive.google.com/file/d/1sRvWdIjiQ6B1cobUSm72j7E5v8gXuQLh/view?usp=drivesdk,,2026-05-06 10:46:44.090,10,4695000
+295,936,8212,pending,4,0,0,Sesuai,Baik,Sesuai,https://drive.google.com/file/d/11u44D9wlcf0zbJujJrI-rC8LcERctwwb/view?usp=drivesdk,,2026-05-06 10:47:31.711,10,1426800
+296,936,8214,pending,10,3,502500,Sesuai,Baik,Sesuai,https://drive.google.com/file/d/1BN67xtCqN1g4gIhP9Qhxsr6vr3OgWi8F/view?usp=drivesdk,,2026-05-06 10:52:15.065,10,1675000
+297,936,8216,pending,2,0,0,Sesuai,Baik,Sesuai,https://drive.google.com/file/d/10kpyaePorxl6lvajFzdHmhdIOGvYssN7/view?usp=drivesdk,,2026-05-06 10:52:42.387,10,365400
+298,936,8213,pending,8,0,0,Sesuai,Baik,Sesuai,https://drive.google.com/file/d/12e4YtiZQC_IqnflVOSH5blOV1AB8eUXc/view?usp=drivesdk,,2026-05-06 10:53:42.687,10,3362400
+299,936,8215,pending,1,0,0,Sesuai,Baik,Sesuai,https://drive.google.com/file/d/1TltKZW6KUqDhx79S8pcUP5KjH4NYAil0/view?usp=drivesdk,,2026-05-06 10:54:10.940,10,373000
+300,936,8217,pending,2,0,0,Sesuai,Baik,Sesuai,https://drive.google.com/file/d/1zpB5GKwfoD1fnAKVUiuwGTCjw5jMq2Ag/view?usp=drivesdk,,2026-05-06 10:54:49.560,10,520800
+301,936,8218,pending,0,-1,-362400,Tidak Sesuai,Tidak Baik,Tidak Sesuai,https://drive.google.com/file/d/1pWREq0tb3JAhNrCaRPrsLAKVAYOXAcHM/view?usp=drivesdk,,2026-05-06 10:55:16.386,10,0
+302,936,8219,pending,4,1,85600,Sesuai,Baik,Sesuai,https://drive.google.com/file/d/1Czm7P2_Cj3bvTN5HdfSIo6xo63dlq15k/view?usp=drivesdk,,2026-05-06 10:55:43.365,10,342400
+303,936,8220,pending,1,0,0,Sesuai,Baik,Sesuai,https://drive.google.com/file/d/1mWMNcmZ1Q7zLNMF3SSamPlsw3tS4TPh9/view?usp=drivesdk,,2026-05-06 10:56:06.545,10,324800
+304,936,8221,pending,4,1,143000,Sesuai,Baik,Sesuai,https://drive.google.com/file/d/1paodW-CIG7N0Rz5lOW8lUgwxzEeNp8s_/view?usp=drivesdk,,2026-05-06 10:56:42.965,10,572000
+305,936,8222,pending,1,0,0,Sesuai,Baik,Sesuai,https://drive.google.com/file/d/1waGkTT0uK3cC6DBnKPwPccsuEDm7_7az/view?usp=drivesdk,,2026-05-06 10:57:10.887,10,558200
+306,936,8223,pending,1,0,0,Sesuai,Baik,Sesuai,https://drive.google.com/file/d/1wPUmqpksUuoJwXO-getUcJzM6BhoY3HM/view?usp=drivesdk,,2026-05-06 10:57:43.642,10,515000
+307,936,8224,pending,75,12,316800,Sesuai,Baik,Sesuai,https://drive.google.com/file/d/1n-NmOMXATnH-K3f9_rIPwomz916VIXHD/view?usp=drivesdk,,2026-05-06 10:58:06.424,10,1980000
+308,936,8225,pending,9,3,347700,Sesuai,Baik,Sesuai,https://drive.google.com/file/d/1z40Ft9oBqzxaV9KqHUxfVYvd1AT1Muz_/view?usp=drivesdk,,2026-05-06 10:58:51.880,10,1043100
+309,936,8226,pending,8,1,475900,Sesuai,Baik,Sesuai,https://drive.google.com/file/d/1D4AbHVzE6yqmW4MMA9APnACURiycLiox/view?usp=drivesdk,,2026-05-06 10:59:42.765,10,3807200
+310,936,8227,pending,6,0,0,Sesuai,Baik,Sesuai,https://drive.google.com/file/d/1R6p-lFErULWIM3WTL7KQG6X4bdo2krK-/view?usp=drivesdk,,2026-05-06 11:01:07.145,10,3184200
+311,936,8228,pending,4,0,0,Sesuai,Baik,Sesuai,https://drive.google.com/file/d/1n6ojrJIoUMjGpqC1_SgFXLw_Unf2yZBa/view?usp=drivesdk,,2026-05-06 11:01:40.480,10,143600
+312,936,8229,pending,8,2,76800,Sesuai,Baik,Sesuai,https://drive.google.com/file/d/1harmkE7oow8cBW2DzWtC9PqoHhaShP1q/view?usp=drivesdk,,2026-05-06 11:02:00.167,10,307200
+313,936,8230,pending,0,-1,-290900,Tidak Sesuai,Tidak Baik,Tidak Sesuai,https://drive.google.com/file/d/180QH3c_9VqgeK94Wm3YI1xmvZkPLATx4/view?usp=drivesdk,,2026-05-06 11:02:20.792,10,0
+314,936,8231,pending,1,0,0,Sesuai,Baik,Sesuai,https://drive.google.com/file/d/1KvokGk5G31XZCbY0mf5ucQ_vlvnb2S6H/view?usp=drivesdk,,2026-05-06 11:02:55.474,10,20000
+315,936,8233,pending,1,-1,-644800,Sesuai,Baik,Sesuai,https://drive.google.com/file/d/1zonyXtzAb4XvWM_1Itddnht5fGWSHiU7/view?usp=drivesdk,,2026-05-06 11:04:30.909,10,644800
+316,936,8234,pending,3,0,0,Sesuai,Baik,Sesuai,https://drive.google.com/file/d/1RScnLnycCw_suYRTlToZ--lkucvkCuF5/view?usp=drivesdk,,2026-05-06 11:05:11.315,10,279000
+317,936,8235,pending,14,1,36400,Sesuai,Baik,Sesuai,https://drive.google.com/file/d/1OE93ggceNdECUanAnEZd1ZL9RcXUyk1u/view?usp=drivesdk,,2026-05-06 11:07:34.829,10,509600
+318,936,8236,pending,0,-1,-100000,Tidak Sesuai,Tidak Baik,Tidak Sesuai,https://drive.google.com/file/d/1VpngzJ6JexNaU-45vaRyDE-r9WPYOZnD/view?usp=drivesdk,,2026-05-06 11:07:55.329,10,0
+319,921,7071,pending,1,0,0,Sesuai,Baik,Sesuai,https://drive.google.com/file/d/1nwguQB0auBz6dPP7So41qNAC8otkyp7_/view?usp=drivesdk,-,2026-05-07 08:36:46.000,11,3500000
+320,921,7072,pending,1,0,0,Sesuai,Baik,Sesuai,https://drive.google.com/file/d/1jHMWmw-3RoKDg2MqhDsVsCL1xsEcGp2g/view?usp=drivesdk,-,2026-05-07 08:38:22.537,11,2400000
+321,921,7073,pending,1,0,0,Sesuai,Baik,Sesuai,https://drive.google.com/file/d/13wVBBgINA-cKO7UUzWArxV96MHseofGE/view?usp=drivesdk,-,2026-05-07 08:42:51.692,11,1800000
+322,1534,42793,pending,1,0,0,Sesuai,Baik,Sesuai,https://drive.google.com/file/d/1HNXR6b4hXNJHOlo2sYz_nmd8-ny1qI_R/view?usp=drivesdk,"Listrik Sudah Terpasang
+Air Pdam Sudah",2026-05-07 14:53:39.615,12,1250000
+323,1534,42791,pending,1,0,0,Sesuai,Baik,Sesuai,https://drive.google.com/file/d/1HxX6KbKqn06Dt8E5sA9Nv_TXlh_RbPs-/view?usp=drivesdk,,2026-05-07 14:53:39.615,12,2760000

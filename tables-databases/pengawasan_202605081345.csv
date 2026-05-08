@@ -1,0 +1,13 @@
+"id","id_gantt","kategori_pekerjaan","jenis_pekerjaan","status","created_at","catatan","dokumentasi","id_pengawasan_gantt"
+136,81,PEKERJAAN PERSIAPAN,PEMBERSIHAN LOKASI,selesai,2026-05-06 10:39:00.305,-,https://drive.google.com/file/d/1Qn86pebWs5fN1WvXayo21Ql6bTJhEDaZ/view?usp=drivesdk,184
+137,81,PEKERJAAN BOBOKAN / BONGKARAN,BONGKARAN & BUANG PUING BEKAS PEKERJAAN RENOVASI,selesai,2026-05-06 10:39:00.305,-,https://drive.google.com/file/d/1fGHriT8KYnQXBGLmvpdlY_OUj23xHHXi/view?usp=drivesdk,184
+138,120,PEKERJAAN PERSIAPAN,PEMBERSIHAN LOKASI,progress,2026-05-07 14:46:42.478,Proses Pembersihan,https://drive.google.com/file/d/1BG39fWzGMqr9uzFTL5pdGIZ40gw3zJvD/view?usp=drivesdk,188
+139,120,PEKERJAAN PERSIAPAN,PEMBUATAN BEDENG / DIREKSI KEET,selesai,2026-05-07 14:46:42.478,,https://drive.google.com/file/d/1Zk1EAFmj1iY1STcjaZB0sFBTNUBG7ODf/view?usp=drivesdk,188
+140,120,PEKERJAAN PERSIAPAN,PAGAR PROYEK ( SENG + RANGKA ) H : 1.8 M,progress,2026-05-07 14:46:42.478,,https://drive.google.com/file/d/1hcp9QvXGrl8Yl83DLxPGObNBfvy0lhT5/view?usp=drivesdk,188
+141,120,PEKERJAAN PERSIAPAN,LISTRIK + AIR KERJA,selesai,2026-05-07 14:46:42.478,,,188
+142,120,PEKERJAAN BOBOKAN / BONGKARAN,BONGKARAN & BUANG PUING BEKAS PEKERJAAN RENOVASI,progress,2026-05-07 14:46:42.478,,,188
+143,120,PEKERJAAN BOBOKAN / BONGKARAN,TEBANG POHON / KEPRAS POHON** DENGAN IZIN / TANPA IZIN,progress,2026-05-07 14:46:42.478,,,188
+144,118,PEKERJAAN PERSIAPAN,PEMBERSIHAN LOKASI,selesai,2026-05-07 16:20:27.807,Pembersihan lokasi telah selesai dikerjakan,https://drive.google.com/file/d/1pGPXTEANqLV6D8zTioMLXGFo32H54m05/view?usp=drivesdk,204
+145,118,PEKERJAAN PERSIAPAN,PEMBUATAN BEDENG / DIREKSI KEET,selesai,2026-05-07 16:20:27.807,Pembuatan bedeng / direksi keet telah dikerjakan,https://drive.google.com/file/d/1RCyvMqWAll1EBOK9hD1djoEGVeyAEhUv/view?usp=drivesdk,204
+147,118,PEKERJAAN PERSIAPAN,LISTRIK + AIR KERJA,selesai,2026-05-07 16:20:27.807,Listrik + air kerja telah tersedian,https://drive.google.com/file/d/1nvBl-cdd4OfdX-RElaLc3vIrwrTRVu5x/view?usp=drivesdk,204
+146,118,PEKERJAAN PERSIAPAN,PAGAR PROYEK ( SENG + RANGKA ) H : 1.8 M,terlambat,2026-05-07 16:20:27.807,Pembuatan pagar proyek mengalami keterlambatan dikarenakan kendala material/sedang pemesanan,,204
