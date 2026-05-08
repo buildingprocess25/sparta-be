@@ -56,14 +56,16 @@ const buildRawEmail = (input: { from: string; to: string; cc?: string; subject: 
     const message = [
         `From: ${input.from}`,
         `To: ${input.to}`,
-        input.cc ? `Cc: ${input.cc}` : "",
+        input.cc ? `Cc: ${input.cc}` : null,
         `Subject: ${input.subject}`,
         "MIME-Version: 1.0",
         "Content-Type: text/html; charset=\"UTF-8\"",
         "Content-Transfer-Encoding: base64",
         "",
         encodedHtml
-    ].filter(Boolean).join("\r\n");
+    ]
+        .filter((line) => line !== null)
+        .join("\r\n");
 
     return Buffer.from(message, "utf-8")
         .toString("base64")
