@@ -43,8 +43,16 @@ const getFormalGreeting = () => {
     return "Selamat malam";
 };
 
+const wrapBase64 = (value: string, lineLength = 76) => {
+    const chunks: string[] = [];
+    for (let index = 0; index < value.length; index += lineLength) {
+        chunks.push(value.slice(index, index + lineLength));
+    }
+    return chunks.join("\r\n");
+};
+
 const buildRawEmail = (input: { from: string; to: string; cc?: string; subject: string; html: string }) => {
-    const encodedHtml = Buffer.from(input.html, "utf-8").toString("base64");
+    const encodedHtml = wrapBase64(Buffer.from(input.html, "utf-8").toString("base64"));
     const message = [
         `From: ${input.from}`,
         `To: ${input.to}`,
