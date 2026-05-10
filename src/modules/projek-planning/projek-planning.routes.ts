@@ -22,8 +22,8 @@ const fpdUpload = multer({
 const projekPlanningRouter = Router();
 
 // ── Coordinator ──────────────────────────────────────────────
-projekPlanningRouter.post("/submit", fpdUpload.single("file_fpd"), submitProjekPlanning);
-projekPlanningRouter.post("/:id/resubmit", fpdUpload.single("file_fpd"), resubmitProjekPlanning);
+projekPlanningRouter.post("/submit", submitProjekPlanning);
+projekPlanningRouter.post("/:id/resubmit", resubmitProjekPlanning);
 projekPlanningRouter.post("/:id/upload-rab", fpdUpload.fields([{ name: "file_rab" }, { name: "file_gambar_kerja" }]), handleUploadRab);
 
 // ── Query ─────────────────────────────────────────────────────
