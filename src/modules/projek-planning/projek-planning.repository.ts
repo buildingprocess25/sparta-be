@@ -28,13 +28,53 @@ export type ProjekPlanningRow = {
     jenis_proyek: string | null;
     estimasi_biaya: string | null;
     keterangan: string | null;
+
+    // Identitas Pengajuan
+    nama_pengaju: string | null;
+    nama_lokasi: string | null;
+
+    // Jenis Pengajuan Design
+    jenis_pengajuan: string | null;
+    jenis_pengajuan_lainnya: string | null;
+
+    // Fasilitas
+    fasilitas_air_bersih: boolean;
+    fasilitas_air_bersih_keterangan: string | null;
+    fasilitas_drain: boolean;
+    fasilitas_drain_keterangan: string | null;
+    fasilitas_ac: boolean;
+    fasilitas_ac_keterangan: string | null;
+    fasilitas_lainnya: string | null;
+    fasilitas_lainnya_keterangan: string | null;
+
+    // Ketentuan
+    ketentuan_1: string | null;
+    ketentuan_2: string | null;
+    ketentuan_3: string | null;
+    ketentuan_4: string | null;
+    ketentuan_5: string | null;
+
+    // Catatan Design
+    catatan_design_1: string | null;
+    catatan_design_2: string | null;
+    catatan_design_3: string | null;
+    catatan_design_4: string | null;
+    catatan_design_5: string | null;
+
+    // Links
     link_fpd: string | null;
     link_rab: string | null;
     link_gambar_kerja: string | null;
     link_desain_3d: string | null;
     link_fpd_approved: string | null;
+    link_gambar_rab_sipil: string | null;
+    link_gambar_rab_me: string | null;
+
+    // Status & flags
     status: PpStatus;
     butuh_desain_3d: boolean;
+
+    // Approval fields
     bm_approver_email: string | null;
     bm_waktu_persetujuan: string | null;
     bm_alasan_penolakan: string | null;
@@ -47,6 +87,7 @@ export type ProjekPlanningRow = {
     pp2_approver_email: string | null;
     pp2_waktu_persetujuan: string | null;
     pp2_alasan_penolakan: string | null;
+
     created_at: string;
     updated_at: string;
 };
@@ -72,7 +113,16 @@ const PP_COLUMNS = `
     id, id_toko, nomor_ulok, email_pembuat,
     nama_toko, kode_toko, cabang, proyek, lingkup_pekerjaan,
     jenis_proyek, estimasi_biaya, keterangan,
+    nama_pengaju, nama_lokasi,
+    jenis_pengajuan, jenis_pengajuan_lainnya,
+    fasilitas_air_bersih, fasilitas_air_bersih_keterangan,
+    fasilitas_drain, fasilitas_drain_keterangan,
+    fasilitas_ac, fasilitas_ac_keterangan,
+    fasilitas_lainnya, fasilitas_lainnya_keterangan,
+    ketentuan_1, ketentuan_2, ketentuan_3, ketentuan_4, ketentuan_5,
+    catatan_design_1, catatan_design_2, catatan_design_3, catatan_design_4, catatan_design_5,
     link_fpd, link_rab, link_gambar_kerja, link_desain_3d, link_fpd_approved,
+    link_gambar_rab_sipil, link_gambar_rab_me,
     status, butuh_desain_3d,
     bm_approver_email, bm_waktu_persetujuan, bm_alasan_penolakan,
     pp1_approver_email, pp1_waktu_persetujuan, pp1_alasan_penolakan,
@@ -209,13 +259,31 @@ export const projekPlanningRepository = {
                 id_toko, nomor_ulok, email_pembuat,
                 nama_toko, kode_toko, cabang, proyek, lingkup_pekerjaan,
                 jenis_proyek, estimasi_biaya, keterangan, link_fpd,
+                nama_pengaju, nama_lokasi,
+                jenis_pengajuan, jenis_pengajuan_lainnya,
+                fasilitas_air_bersih, fasilitas_air_bersih_keterangan,
+                fasilitas_drain, fasilitas_drain_keterangan,
+                fasilitas_ac, fasilitas_ac_keterangan,
+                fasilitas_lainnya, fasilitas_lainnya_keterangan,
+                ketentuan_1, ketentuan_2, ketentuan_3, ketentuan_4, ketentuan_5,
+                catatan_design_1, catatan_design_2, catatan_design_3, catatan_design_4, catatan_design_5,
+                link_gambar_rab_sipil, link_gambar_rab_me,
                 status, butuh_desain_3d,
                 created_at, updated_at
             ) VALUES (
                 $1, $2, $3,
                 $4, $5, $6, $7, $8,
                 $9, $10, $11, $12,
-                $13, FALSE,
+                $13, $14,
+                $15, $16,
+                $17, $18,
+                $19, $20,
+                $21, $22,
+                $23, $24,
+                $25, $26, $27, $28, $29,
+                $30, $31, $32, $33, $34,
+                $35, $36,
+                $37, FALSE,
                 NOW(), NOW()
             )
             RETURNING ${PP_COLUMNS}`,
@@ -232,6 +300,30 @@ export const projekPlanningRepository = {
                 payload.estimasi_biaya ?? null,
                 payload.keterangan ?? null,
                 payload.link_fpd ?? null,
+                payload.nama_pengaju,
+                payload.nama_lokasi,
+                payload.jenis_pengajuan,
+                payload.jenis_pengajuan_lainnya ?? null,
+                payload.fasilitas_air_bersih ?? false,
+                payload.fasilitas_air_bersih_keterangan ?? null,
+                payload.fasilitas_drain ?? false,
+                payload.fasilitas_drain_keterangan ?? null,
+                payload.fasilitas_ac ?? false,
+                payload.fasilitas_ac_keterangan ?? null,
+                payload.fasilitas_lainnya ?? null,
+                payload.fasilitas_lainnya_keterangan ?? null,
+                payload.ketentuan_1 ?? null,
+                payload.ketentuan_2 ?? null,
+                payload.ketentuan_3 ?? null,
+                payload.ketentuan_4 ?? null,
+                payload.ketentuan_5 ?? null,
+                payload.catatan_design_1 ?? null,
+                payload.catatan_design_2 ?? null,
+                payload.catatan_design_3 ?? null,
+                payload.catatan_design_4 ?? null,
+                payload.catatan_design_5 ?? null,
+                payload.link_gambar_rab_sipil ?? null,
+                payload.link_gambar_rab_me ?? null,
                 payload.status,
             ]
         );
@@ -261,7 +353,31 @@ export const projekPlanningRepository = {
                  kode_toko = $8,
                  cabang = $9,
                  proyek = $10,
-                 status = $11,
+                 nama_pengaju = $11,
+                 nama_lokasi = $12,
+                 jenis_pengajuan = $13,
+                 jenis_pengajuan_lainnya = $14,
+                 fasilitas_air_bersih = $15,
+                 fasilitas_air_bersih_keterangan = $16,
+                 fasilitas_drain = $17,
+                 fasilitas_drain_keterangan = $18,
+                 fasilitas_ac = $19,
+                 fasilitas_ac_keterangan = $20,
+                 fasilitas_lainnya = $21,
+                 fasilitas_lainnya_keterangan = $22,
+                 ketentuan_1 = $23,
+                 ketentuan_2 = $24,
+                 ketentuan_3 = $25,
+                 ketentuan_4 = $26,
+                 ketentuan_5 = $27,
+                 catatan_design_1 = $28,
+                 catatan_design_2 = $29,
+                 catatan_design_3 = $30,
+                 catatan_design_4 = $31,
+                 catatan_design_5 = $32,
+                 link_gambar_rab_sipil = $33,
+                 link_gambar_rab_me = $34,
+                 status = $35,
                  butuh_desain_3d = FALSE,
                  bm_approver_email = NULL,
                  bm_waktu_persetujuan = NULL,
@@ -276,7 +392,7 @@ export const projekPlanningRepository = {
                  pp2_waktu_persetujuan = NULL,
                  pp2_alasan_penolakan = NULL,
                  updated_at = NOW()
-             WHERE id = $12
+             WHERE id = $36
              RETURNING ${PP_COLUMNS}`,
             [
                 payload.email_pembuat,
@@ -289,6 +405,30 @@ export const projekPlanningRepository = {
                 payload.kode_toko,
                 payload.cabang,
                 payload.proyek,
+                payload.nama_pengaju,
+                payload.nama_lokasi,
+                payload.jenis_pengajuan,
+                payload.jenis_pengajuan_lainnya ?? null,
+                payload.fasilitas_air_bersih ?? false,
+                payload.fasilitas_air_bersih_keterangan ?? null,
+                payload.fasilitas_drain ?? false,
+                payload.fasilitas_drain_keterangan ?? null,
+                payload.fasilitas_ac ?? false,
+                payload.fasilitas_ac_keterangan ?? null,
+                payload.fasilitas_lainnya ?? null,
+                payload.fasilitas_lainnya_keterangan ?? null,
+                payload.ketentuan_1 ?? null,
+                payload.ketentuan_2 ?? null,
+                payload.ketentuan_3 ?? null,
+                payload.ketentuan_4 ?? null,
+                payload.ketentuan_5 ?? null,
+                payload.catatan_design_1 ?? null,
+                payload.catatan_design_2 ?? null,
+                payload.catatan_design_3 ?? null,
+                payload.catatan_design_4 ?? null,
+                payload.catatan_design_5 ?? null,
+                payload.link_gambar_rab_sipil ?? null,
+                payload.link_gambar_rab_me ?? null,
                 payload.status,
                 id,
             ]

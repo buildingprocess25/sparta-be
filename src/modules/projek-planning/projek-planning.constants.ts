@@ -61,12 +61,25 @@ export type PpAksi = (typeof PP_AKSI)[keyof typeof PP_AKSI];
 
 export const PP_STATUS_LABEL: Record<PpStatus, string> = {
     DRAFT: "Draft - Menunggu Pengajuan",
-    WAITING_BM_APPROVAL: "Menunggu Persetujuan BM Manager",
-    WAITING_PP_APPROVAL_1: "Menunggu Persetujuan PP Specialist (Tahap 1)",
+    WAITING_BM_APPROVAL: "Menunggu Persetujuan B&M Manager",
+    WAITING_PP_APPROVAL_1: "Menunggu Persetujuan PP (Tahap 1)",
     PP_DESIGN_3D_REQUIRED: "Menunggu Upload Desain 3D oleh PP",
-    WAITING_RAB_UPLOAD: "Menunggu Upload RAB & Gambar Kerja",
+    WAITING_RAB_UPLOAD: "Menunggu Upload RAB & Gambar Kerja oleh Cabang",
     WAITING_PP_MANAGER_APPROVAL: "Menunggu Persetujuan PP Manager",
-    WAITING_PP_APPROVAL_2: "Menunggu Persetujuan PP Specialist (Tahap 2)",
+    WAITING_PP_APPROVAL_2: "Menunggu Persetujuan PP (Final)",
     COMPLETED: "Selesai - FPD Telah Disetujui",
     REJECTED: "Ditolak",
 };
+
+// ============================================================
+// JENIS PENGAJUAN DESIGN
+// ============================================================
+
+export const JENIS_PENGAJUAN = [
+    "DRIVE THRU",
+    "BEAN SPOT",
+    "FASADE",
+    "LAINNYA",
+] as const;
+
+export type JenisPengajuan = (typeof JENIS_PENGAJUAN)[number];
