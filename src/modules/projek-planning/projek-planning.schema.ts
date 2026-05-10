@@ -155,7 +155,7 @@ export type PpApproval1Input = z.infer<typeof ppApproval1Schema>;
 
 export const upload3dSchema = z.object({
     uploader_email: z.string().email(),
-    link_desain_3d: z.string().min(1, "Link desain 3D wajib diisi"),
+    link_desain_3d: z.string().optional(),
     keterangan: z.string().optional(),
 });
 
@@ -165,22 +165,12 @@ export type Upload3dInput = z.infer<typeof upload3dSchema>;
 // UPLOAD RAB & GAMBAR KERJA (oleh Coordinator/Cabang)
 // ============================================================
 
-export const uploadRabSchema = z
-    .object({
-        uploader_email: z.string().email(),
-        link_rab: z.string().optional(),
-        link_gambar_kerja: z.string().optional(),
-        keterangan: z.string().optional(),
-    })
-    .superRefine((val, ctx) => {
-        if (!val.link_rab?.trim() && !val.link_gambar_kerja?.trim()) {
-            ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: "Minimal link_rab atau link_gambar_kerja harus diisi",
-                path: ["link_rab"],
-            });
-        }
-    });
+export const uploadRabSchema = z.object({
+    uploader_email: z.string().email(),
+    link_rab: z.string().optional(),
+    link_gambar_kerja: z.string().optional(),
+    keterangan: z.string().optional(),
+});
 
 export type UploadRabInput = z.infer<typeof uploadRabSchema>;
 
