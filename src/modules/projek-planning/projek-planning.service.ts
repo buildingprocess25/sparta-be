@@ -71,7 +71,7 @@ export const projekPlanningService = {
             kode_toko: toko.kode_toko ?? null,
             cabang: toko.cabang ?? null,
             proyek: toko.proyek ?? null,
-            link_fpd: fpdLink ?? null,
+            link_fpd: fpdLink ?? undefined,
             status: PP_STATUS.WAITING_BM_APPROVAL,
         });
 
@@ -134,7 +134,7 @@ export const projekPlanningService = {
             kode_toko: toko.kode_toko ?? null,
             cabang: toko.cabang ?? null,
             proyek: toko.proyek ?? null,
-            link_fpd: fpdLink ?? projek.link_fpd,
+            link_fpd: fpdLink ?? projek.link_fpd ?? undefined,
             status: PP_STATUS.WAITING_BM_APPROVAL,
         });
 
