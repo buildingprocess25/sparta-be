@@ -18,8 +18,8 @@ Base URL: `/api/projek-planning`
 | 6   | `POST` | `/api/projek-planning/:id/pp-approval-1` | Approve/Reject oleh PP Specialist (Tahap 1)    |
 | 7   | `POST` | `/api/projek-planning/:id/upload-3d`   | Upload desain 3D oleh PP Specialist              |
 | 8   | `POST` | `/api/projek-planning/:id/upload-rab`  | Upload RAB & Gambar Kerja oleh Coordinator       |
-| 9   | `POST` | `/api/projek-planning/:id/pp-manager-approval` | Approve/Reject oleh PP Manager          |
-| 10  | `POST` | `/api/projek-planning/:id/pp-approval-2` | Approve/Reject oleh PP Specialist (Final)      |
+| 9   | `POST` | `/api/projek-planning/:id/pp-approval-2` | Approve/Reject oleh PP Specialist (Setelah RAB) |
+| 10  | `POST` | `/api/projek-planning/:id/pp-manager-approval` | Approve/Reject oleh PP Manager (Final)          |
 | 11  | `GET`  | `/api/projek-planning/:id/logs`        | Ambil audit trail                                |
 
 ---
@@ -33,8 +33,8 @@ Base URL: `/api/projek-planning`
 | `WAITING_PP_APPROVAL_1`       | Menunggu persetujuan PP Specialist (Tahap 1)     |
 | `PP_DESIGN_3D_REQUIRED`       | PP perlu upload desain 3D                        |
 | `WAITING_RAB_UPLOAD`          | Cabang perlu upload RAB & Gambar Kerja           |
-| `WAITING_PP_MANAGER_APPROVAL` | Menunggu persetujuan PP Manager                  |
-| `WAITING_PP_APPROVAL_2`       | Menunggu persetujuan final PP Specialist         |
+| `WAITING_PP_APPROVAL_2`       | Menunggu persetujuan PP Specialist (Setelah RAB) |
+| `WAITING_PP_MANAGER_APPROVAL` | Menunggu persetujuan final PP Manager            |
 | `COMPLETED`                   | Selesai — FPD disetujui dan dikirim ke Cabang    |
 
 Status aktif (tidak bisa submit baru untuk toko yang sama):
