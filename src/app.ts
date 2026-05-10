@@ -139,7 +139,8 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
         return res.status(422).json({
             status: "error",
             message: "Validasi request gagal",
-            issues: error.issues
+            issues: error.issues,
+            debug_body: _req.body,
         });
     }
 
