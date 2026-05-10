@@ -292,7 +292,7 @@ export const projekPlanningService = {
             );
         }
 
-        const newStatus = PP_STATUS.WAITING_PP_MANAGER_APPROVAL;
+        const newStatus = PP_STATUS.WAITING_PP_APPROVAL_2;
 
         const { projek: updated } = await projekPlanningRepository.updateStatusWithLog(
             id,
@@ -302,7 +302,7 @@ export const projekPlanningService = {
                 aksi: PP_AKSI.UPLOAD_RAB,
                 status_sebelum: projek.status,
                 status_sesudah: newStatus,
-                keterangan: payload.keterangan ?? "RAB & Gambar Kerja berhasil diupload, menunggu approval PP Manager",
+                keterangan: payload.keterangan ?? "RAB & Gambar Kerja berhasil diupload, menunggu approval PP Specialist",
             },
             (client) => projekPlanningRepository.updateRabUpload(id, newStatus, payload, client)
         );
@@ -317,52 +317,7 @@ export const projekPlanningService = {
     },
 
     // ============================================================
-    // PP MANAGER APPROVAL
-    // ============================================================
-
-    async ppManagerApproval(id: number, action: ApprovalInput) {
-        const data = await projekPlanningRepository.findById(id);
-        if (!data) throw new AppError("Project planning tidak ditemukan", 404);
-
-        const { projek } = data;
-        if (projek.status !== PP_STATUS.WAITING_PP_MANAGER_APPROVAL) {
-            throw new AppError(
-                `Aksi tidak valid. Status saat ini: ${PP_STATUS_LABEL[projek.status]}`,
-                409
-            );
-        }
-
-        const isApprove = action.tindakan === "APPROVE";
-        const newStatus = isApprove ? PP_STATUS.WAITING_PP_APPROVAL_2 : PP_STATUS.DRAFT;
-
-        const { projek: updated } = await projekPlanningRepository.updateStatusWithLog(
-            id,
-            {
-                actor_email: action.approver_email,
-                role: PP_ROLE.PP_MANAGER,
-                aksi: isApprove ? PP_AKSI.APPROVE : PP_AKSI.REJECT,
-                status_sebelum: projek.status,
-                status_sesudah: newStatus,
-                alasan_penolakan: action.alasan_penolakan ?? null,
-                keterangan: isApprove
-                    ? "Disetujui oleh PP Manager, menunggu approval final PP Specialist"
-                    : `Ditolak oleh PP Manager: ${action.alasan_penolakan}. Dikembalikan ke Coordinator dari awal`,
-            },
-            isApprove
-                ? (client) => projekPlanningRepository.updateStatusAndPpManagerApproval(id, newStatus, action, client)
-                : (client) => projekPlanningRepository.resetToDraft(id, client)
-        );
-
-        return {
-            id,
-            old_status: projek.status,
-            new_status: updated.status,
-            tindakan: action.tindakan,
-        };
-    },
-
-    // ============================================================
-    // PP APPROVAL STAGE 2 / FINAL (PP Specialist)
+    // PP APPROVAL STAGE 2 (PP Specialist, setelah RAB)
     // ============================================================
 
     async ppApproval2(id: number, action: ApprovalInput) {
@@ -378,24 +333,69 @@ export const projekPlanningService = {
         }
 
         const isApprove = action.tindakan === "APPROVE";
-        const newStatus = isApprove ? PP_STATUS.COMPLETED : PP_STATUS.DRAFT;
+        const newStatus = isApprove ? PP_STATUS.WAITING_PP_MANAGER_APPROVAL : PP_STATUS.DRAFT;
 
         const { projek: updated } = await projekPlanningRepository.updateStatusWithLog(
             id,
             {
                 actor_email: action.approver_email,
                 role: PP_ROLE.PP_SPECIALIST,
-                aksi: isApprove ? PP_AKSI.COMPLETE : PP_AKSI.REJECT,
+                aksi: isApprove ? PP_AKSI.APPROVE : PP_AKSI.REJECT,
                 status_sebelum: projek.status,
                 status_sesudah: newStatus,
                 alasan_penolakan: action.alasan_penolakan ?? null,
                 keterangan: isApprove
-                    ? "Disetujui final oleh PP Specialist. FPD dikirim ke Cabang. Project planning SELESAI."
+                    ? "Disetujui oleh PP Specialist, menunggu approval final PP Manager"
                     : `Ditolak oleh PP Specialist (Tahap 2): ${action.alasan_penolakan}. Dikembalikan ke Coordinator dari awal`,
             },
             isApprove
                 ? (client) => projekPlanningRepository.updateStatusAndPp2Approval(id, newStatus, action, client)
                 : (client) => projekPlanningRepository.resetToDraft(id, client)
+        );
+
+        return {
+            id,
+            old_status: projek.status,
+            new_status: updated.status,
+            tindakan: action.tindakan,
+        };
+    },
+
+    // ============================================================
+    // PP MANAGER APPROVAL (Tahap Final)
+    // ============================================================
+
+    async ppManagerApproval(id: number, action: ApprovalInput) {
+        const data = await projekPlanningRepository.findById(id);
+        if (!data) throw new AppError("Project planning tidak ditemukan", 404);
+
+        const { projek } = data;
+        if (projek.status !== PP_STATUS.WAITING_PP_MANAGER_APPROVAL) {
+            throw new AppError(
+                `Aksi tidak valid. Status saat ini: ${PP_STATUS_LABEL[projek.status]}`,
+                409
+            );
+        }
+
+        const isApprove = action.tindakan === "APPROVE";
+        const newStatus = isApprove ? PP_STATUS.COMPLETED : PP_STATUS.WAITING_RAB_UPLOAD;
+
+        const { projek: updated } = await projekPlanningRepository.updateStatusWithLog(
+            id,
+            {
+                actor_email: action.approver_email,
+                role: PP_ROLE.PP_MANAGER,
+                aksi: isApprove ? PP_AKSI.COMPLETE : PP_AKSI.REJECT,
+                status_sebelum: projek.status,
+                status_sesudah: newStatus,
+                alasan_penolakan: action.alasan_penolakan ?? null,
+                keterangan: isApprove
+                    ? "Disetujui final oleh PP Manager. FPD dikirim ke Cabang. Project planning SELESAI."
+                    : `Ditolak oleh PP Manager: ${action.alasan_penolakan}. Dikembalikan ke Cabang untuk Upload ulang RAB & Gambar Kerja`,
+            },
+            isApprove
+                ? (client) => projekPlanningRepository.updateStatusAndPpManagerApproval(id, newStatus, action, client)
+                : (client) => projekPlanningRepository.resetToRabUpload(id, client)
         );
 
         return {

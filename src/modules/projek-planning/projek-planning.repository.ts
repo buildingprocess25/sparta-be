@@ -468,6 +468,31 @@ export const projekPlanningRepository = {
     },
 
     // ----------------------------------------------------------
+    // RESET ke RAB UPLOAD (saat ditolak oleh PP Manager)
+    // ----------------------------------------------------------
+
+    async resetToRabUpload(id: number, client?: PoolClient): Promise<ProjekPlanningRow> {
+        const db = client ?? pool;
+        const result = await db.query<ProjekPlanningRow>(
+            `UPDATE projek_planning
+             SET status = 'WAITING_RAB_UPLOAD',
+                 pp_manager_approver_email = NULL,
+                 pp_manager_waktu_persetujuan = NULL,
+                 pp_manager_alasan_penolakan = NULL,
+                 pp2_approver_email = NULL,
+                 pp2_waktu_persetujuan = NULL,
+                 pp2_alasan_penolakan = NULL,
+                 link_rab = NULL,
+                 link_gambar_kerja = NULL,
+                 updated_at = NOW()
+             WHERE id = $1
+             RETURNING ${PP_COLUMNS}`,
+            [id]
+        );
+        return result.rows[0];
+    },
+
+    // ----------------------------------------------------------
     // UPDATE STATUS + kolom approval spesifik (per tahap — hanya untuk APPROVE)
     // ----------------------------------------------------------
 

@@ -157,36 +157,13 @@ export const handleUploadRab = asyncHandler(async (req: Request, res: Response) 
 
     res.json({
         status: "success",
-        message: "RAB & Gambar Kerja berhasil diupload, menunggu approval PP Manager",
+        message: "RAB & Gambar Kerja berhasil diupload, menunggu approval PP Specialist",
         data: result,
     });
 });
 
 // ============================================================
-// PP MANAGER APPROVAL
-// ============================================================
-
-export const handlePpManagerApproval = asyncHandler(async (req: Request, res: Response) => {
-    const id = parseInt(req.params.id, 10);
-    if (isNaN(id)) {
-        res.status(400).json({ status: "error", message: "ID tidak valid" });
-        return;
-    }
-
-    const action = approvalSchema.parse(req.body);
-    const result = await projekPlanningService.ppManagerApproval(id, action);
-
-    res.json({
-        status: "success",
-        message: action.tindakan === "APPROVE"
-            ? "Disetujui oleh PP Manager, menunggu approval final PP Specialist"
-            : "Ditolak oleh PP Manager, dikembalikan ke Coordinator dari awal",
-        data: result,
-    });
-});
-
-// ============================================================
-// PP APPROVAL STAGE 2 / FINAL (PP Specialist)
+// PP APPROVAL STAGE 2 (PP Specialist, setelah RAB)
 // ============================================================
 
 export const handlePpApproval2 = asyncHandler(async (req: Request, res: Response) => {
@@ -202,8 +179,31 @@ export const handlePpApproval2 = asyncHandler(async (req: Request, res: Response
     res.json({
         status: "success",
         message: action.tindakan === "APPROVE"
-            ? "Project planning selesai! FPD yang telah disetujui dikirim ke Cabang"
+            ? "Disetujui oleh PP Specialist, menunggu approval final PP Manager"
             : "Ditolak oleh PP Specialist, dikembalikan ke Coordinator dari awal",
+        data: result,
+    });
+});
+
+// ============================================================
+// PP MANAGER APPROVAL (Tahap Final)
+// ============================================================
+
+export const handlePpManagerApproval = asyncHandler(async (req: Request, res: Response) => {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+        res.status(400).json({ status: "error", message: "ID tidak valid" });
+        return;
+    }
+
+    const action = approvalSchema.parse(req.body);
+    const result = await projekPlanningService.ppManagerApproval(id, action);
+
+    res.json({
+        status: "success",
+        message: action.tindakan === "APPROVE"
+            ? "Project planning selesai! FPD yang telah disetujui dikirim ke Cabang"
+            : "Ditolak oleh PP Manager, dikembalikan ke Cabang untuk Upload ulang RAB & Gambar Kerja",
         data: result,
     });
 });
