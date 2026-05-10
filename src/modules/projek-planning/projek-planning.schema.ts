@@ -110,7 +110,7 @@ export type ResubmitProjekPlanningInput = z.infer<typeof resubmitProjekPlanningS
 
 export const approvalSchema = z
     .object({
-        approver_email: z.string().email(),
+        approver_email: z.string().trim().email(),
         tindakan: z.enum(["APPROVE", "REJECT"]),
         alasan_penolakan: z.string().optional(),
     })
@@ -132,7 +132,7 @@ export type ApprovalInput = z.infer<typeof approvalSchema>;
 
 export const ppApproval1Schema = z
     .object({
-        approver_email: z.string().email(),
+        approver_email: z.string().trim().email(),
         tindakan: z.enum(["APPROVE", "REJECT"]),
         butuh_desain_3d: z.boolean().optional().default(false),
         alasan_penolakan: z.string().optional(),
