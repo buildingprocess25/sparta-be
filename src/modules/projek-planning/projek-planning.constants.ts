@@ -34,8 +34,8 @@ export const ACTIVE_PP_STATUSES: PpStatus[] = [
 export const PP_ROLE = {
     COORDINATOR: "COORDINATOR",
     BM: "BM",
-    PP_SPECIALIST: "PROJECT PLANNING & DEVELOPMENT SPECIALIST",
-    PP_MANAGER: "PROJECT PLANNING & DEVELOPMENT MANAGER",
+    PP_SPECIALIST: "PP_SPECIALIST",
+    PP_MANAGER: "PP_MANAGER",
 } as const;
 
 export type PpRole = (typeof PP_ROLE)[keyof typeof PP_ROLE];
