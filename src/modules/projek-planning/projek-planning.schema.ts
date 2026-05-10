@@ -12,7 +12,7 @@ export const submitProjekPlanningSchema = z.object({
     jenis_proyek: z.string().optional().or(z.literal("")),
     estimasi_biaya: z.coerce.number().nonnegative().optional(),
     keterangan: z.string().optional(),
-    link_fpd: z.string().url().optional().or(z.literal("")),
+    link_fpd: z.string().optional().or(z.literal("")),
 
     // ── Identitas Pengajuan ──────────────────────────────────
     nama_pengaju: z.string().min(1, "Nama pengaju wajib diisi"),
@@ -63,7 +63,7 @@ export const resubmitProjekPlanningSchema = z.object({
     jenis_proyek: z.string().optional().or(z.literal("")),
     estimasi_biaya: z.coerce.number().nonnegative().optional(),
     keterangan: z.string().optional(),
-    link_fpd: z.string().url().optional().or(z.literal("")),
+    link_fpd: z.string().optional().or(z.literal("")),
 
     // ── Identitas Pengajuan ──────────────────────────────────
     nama_pengaju: z.string().min(1, "Nama pengaju wajib diisi"),
