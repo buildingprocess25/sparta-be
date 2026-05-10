@@ -17,12 +17,12 @@ import { projekPlanningService } from "./projek-planning.service";
 
 export const submitProjekPlanning = asyncHandler(async (req: Request, res: Response) => {
     const payload = submitProjekPlanningSchema.parse(req.body);
-    const data = await projekPlanningService.submit(payload);
+    const result = await projekPlanningService.submit(payload, req.file);
 
     res.status(201).json({
         status: "success",
-        message: "Pengajuan project planning berhasil disimpan, menunggu approval BM Manager",
-        data,
+        message: "Pengajuan FPD berhasil dibuat dan diteruskan ke B&M Manager",
+        data: result,
     });
 });
 
@@ -38,12 +38,12 @@ export const resubmitProjekPlanning = asyncHandler(async (req: Request, res: Res
     }
 
     const payload = resubmitProjekPlanningSchema.parse(req.body);
-    const data = await projekPlanningService.resubmit(id, payload);
+    const result = await projekPlanningService.resubmit(id, payload, req.file);
 
-    res.status(200).json({
+    res.json({
         status: "success",
-        message: "FPD berhasil diajukan ulang, menunggu approval BM Manager",
-        data,
+        message: "Pengajuan FPD berhasil di-resubmit dan diteruskan kembali ke B&M Manager",
+        data: result,
     });
 });
 
@@ -132,11 +132,11 @@ export const handleUpload3d = asyncHandler(async (req: Request, res: Response) =
     }
 
     const payload = upload3dSchema.parse(req.body);
-    const result = await projekPlanningService.upload3d(id, payload);
+    const result = await projekPlanningService.upload3d(id, payload, req.file);
 
     res.json({
         status: "success",
-        message: "Desain 3D berhasil diupload, Cabang dapat mengupload RAB & Gambar Kerja",
+        message: "Desain 3D berhasil diupload, menunggu RAB dari Cabang",
         data: result,
     });
 });
@@ -153,7 +153,8 @@ export const handleUploadRab = asyncHandler(async (req: Request, res: Response) 
     }
 
     const payload = uploadRabSchema.parse(req.body);
-    const result = await projekPlanningService.uploadRab(id, payload);
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+    const result = await projekPlanningService.uploadRab(id, payload, files);
 
     res.json({
         status: "success",

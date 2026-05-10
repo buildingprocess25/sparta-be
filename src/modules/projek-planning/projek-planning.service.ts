@@ -2,6 +2,8 @@ import { AppError } from "../../common/app-error";
 import { tokoRepository } from "../toko/toko.repository";
 import { PP_STATUS, PP_ROLE, PP_AKSI, PP_STATUS_LABEL, type PpStatus } from "./projek-planning.constants";
 import { projekPlanningRepository } from "./projek-planning.repository";
+import { GoogleProvider } from "../../common/google";
+import { env } from "../../config/env";
 import type {
     SubmitProjekPlanningInput,
     ResubmitProjekPlanningInput,
@@ -18,7 +20,7 @@ export const projekPlanningService = {
     // SUBMIT FPD (Coordinator) — record baru
     // ============================================================
 
-    async submit(payload: SubmitProjekPlanningInput) {
+    async submit(payload: SubmitProjekPlanningInput, file?: Express.Multer.File) {
         // 1. Validasi toko
         const toko = await tokoRepository.findById(payload.id_toko);
         if (!toko) {
@@ -46,17 +48,34 @@ export const projekPlanningService = {
             );
         }
 
-        // 4. Buat record baru langsung ke status WAITING_BM_APPROVAL
+        // 4. Upload file to Google Drive if provided
+        let fpdLink = payload.link_fpd;
+        if (file) {
+            try {
+                const uploaded = await GoogleProvider.instance.uploadFile(
+                    env.DOC_DRIVE_ROOT_ID,
+                    file.originalname,
+                    file.mimetype,
+                    file.buffer
+                );
+                if (uploaded.webViewLink) fpdLink = uploaded.webViewLink;
+            } catch (e) {
+                console.error("Gagal upload FPD ke Drive:", e);
+            }
+        }
+
+        // 5. Buat record baru langsung ke status WAITING_BM_APPROVAL
         const created = await projekPlanningRepository.create({
             ...payload,
             nama_toko: toko.nama_toko ?? null,
             kode_toko: toko.kode_toko ?? null,
             cabang: toko.cabang ?? null,
             proyek: toko.proyek ?? null,
+            link_fpd: fpdLink ?? null,
             status: PP_STATUS.WAITING_BM_APPROVAL,
         });
 
-        // 5. Catat log
+        // 6. Catat log
         await projekPlanningRepository.insertLog({
             projek_planning_id: created.id,
             actor_email: payload.email_pembuat,
@@ -74,7 +93,7 @@ export const projekPlanningService = {
     // RESUBMIT FPD (Coordinator) — update record DRAFT yang sudah ada
     // ============================================================
 
-    async resubmit(id: number, payload: ResubmitProjekPlanningInput) {
+    async resubmit(id: number, payload: ResubmitProjekPlanningInput, file?: Express.Multer.File) {
         const data = await projekPlanningRepository.findById(id);
         if (!data) throw new AppError("Project planning tidak ditemukan", 404);
 
@@ -92,6 +111,22 @@ export const projekPlanningService = {
             throw new AppError("Toko tidak ditemukan", 404);
         }
 
+        // Upload file if provided
+        let fpdLink = payload.link_fpd;
+        if (file) {
+            try {
+                const uploaded = await GoogleProvider.instance.uploadFile(
+                    env.DOC_DRIVE_ROOT_ID,
+                    file.originalname,
+                    file.mimetype,
+                    file.buffer
+                );
+                if (uploaded.webViewLink) fpdLink = uploaded.webViewLink;
+            } catch (e) {
+                console.error("Gagal upload FPD ke Drive:", e);
+            }
+        }
+
         // Update record DRAFT → WAITING_BM_APPROVAL
         const updated = await projekPlanningRepository.resubmitDraft(id, {
             ...payload,
@@ -99,6 +134,7 @@ export const projekPlanningService = {
             kode_toko: toko.kode_toko ?? null,
             cabang: toko.cabang ?? null,
             proyek: toko.proyek ?? null,
+            link_fpd: fpdLink ?? projek.link_fpd,
             status: PP_STATUS.WAITING_BM_APPROVAL,
         });
 
@@ -241,7 +277,7 @@ export const projekPlanningService = {
     // UPLOAD DESAIN 3D (PP Specialist)
     // ============================================================
 
-    async upload3d(id: number, payload: Upload3dInput) {
+    async upload3d(id: number, payload: Upload3dInput, file?: Express.Multer.File) {
         const data = await projekPlanningRepository.findById(id);
         if (!data) throw new AppError("Project planning tidak ditemukan", 404);
 
@@ -251,6 +287,22 @@ export const projekPlanningService = {
                 `Upload 3D tidak diperlukan saat ini. Status saat ini: ${PP_STATUS_LABEL[projek.status]}`,
                 409
             );
+        }
+
+        // Upload file to Drive if provided
+        let link3d = payload.link_desain_3d;
+        if (file) {
+            try {
+                const uploaded = await GoogleProvider.instance.uploadFile(
+                    env.DOC_DRIVE_ROOT_ID,
+                    file.originalname,
+                    file.mimetype,
+                    file.buffer
+                );
+                if (uploaded.webViewLink) link3d = uploaded.webViewLink;
+            } catch (e) {
+                console.error("Gagal upload 3D ke Drive:", e);
+            }
         }
 
         const newStatus = PP_STATUS.WAITING_RAB_UPLOAD;
@@ -265,14 +317,14 @@ export const projekPlanningService = {
                 status_sesudah: newStatus,
                 keterangan: payload.keterangan ?? "Desain 3D berhasil diupload, Cabang dapat mengupload RAB & Gambar Kerja",
             },
-            (client) => projekPlanningRepository.updateDesain3d(id, newStatus, payload, client)
+            (client) => projekPlanningRepository.updateDesain3d(id, newStatus, { ...payload, link_desain_3d: link3d }, client)
         );
 
         return {
             id,
             old_status: projek.status,
             new_status: updated.status,
-            link_desain_3d: payload.link_desain_3d,
+            link_desain_3d: link3d,
         };
     },
 
@@ -280,7 +332,7 @@ export const projekPlanningService = {
     // UPLOAD RAB & GAMBAR KERJA (Coordinator/Cabang)
     // ============================================================
 
-    async uploadRab(id: number, payload: UploadRabInput) {
+    async uploadRab(id: number, payload: UploadRabInput, files?: { [fieldname: string]: Express.Multer.File[] }) {
         const data = await projekPlanningRepository.findById(id);
         if (!data) throw new AppError("Project planning tidak ditemukan", 404);
 
@@ -290,6 +342,28 @@ export const projekPlanningService = {
                 `Upload RAB tidak diperlukan saat ini. Status saat ini: ${PP_STATUS_LABEL[projek.status]}`,
                 409
             );
+        }
+
+        // Upload file if provided
+        let linkRab = payload.link_rab;
+        let linkGambar = payload.link_gambar_kerja;
+        
+        if (files) {
+            const fRab = files["file_rab"]?.[0];
+            const fGambar = files["file_gambar_kerja"]?.[0];
+            
+            try {
+                if (fRab) {
+                    const uRab = await GoogleProvider.instance.uploadFile(env.DOC_DRIVE_ROOT_ID, fRab.originalname, fRab.mimetype, fRab.buffer);
+                    if (uRab.webViewLink) linkRab = uRab.webViewLink;
+                }
+                if (fGambar) {
+                    const uGambar = await GoogleProvider.instance.uploadFile(env.DOC_DRIVE_ROOT_ID, fGambar.originalname, fGambar.mimetype, fGambar.buffer);
+                    if (uGambar.webViewLink) linkGambar = uGambar.webViewLink;
+                }
+            } catch (e) {
+                console.error("Gagal upload RAB/Gambar ke Drive:", e);
+            }
         }
 
         const newStatus = PP_STATUS.WAITING_PP_APPROVAL_2;
@@ -304,15 +378,15 @@ export const projekPlanningService = {
                 status_sesudah: newStatus,
                 keterangan: payload.keterangan ?? "RAB & Gambar Kerja berhasil diupload, menunggu approval PP Specialist",
             },
-            (client) => projekPlanningRepository.updateRabUpload(id, newStatus, payload, client)
+            (client) => projekPlanningRepository.updateRabUpload(id, newStatus, { ...payload, link_rab: linkRab, link_gambar_kerja: linkGambar }, client)
         );
 
         return {
             id,
             old_status: projek.status,
             new_status: updated.status,
-            link_rab: payload.link_rab ?? null,
-            link_gambar_kerja: payload.link_gambar_kerja ?? null,
+            link_rab: linkRab ?? null,
+            link_gambar_kerja: linkGambar ?? null,
         };
     },
 
