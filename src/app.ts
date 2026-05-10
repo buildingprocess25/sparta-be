@@ -182,7 +182,7 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
     });
     return res.status(500).json({
         status: "error",
-        message: "Terjadi kesalahan internal server"
+        message: error instanceof Error ? error.message : "Terjadi kesalahan internal server"
     });
 });
 
