@@ -180,7 +180,7 @@ export const handlePpApproval2 = asyncHandler(async (req: Request, res: Response
         status: "success",
         message: action.tindakan === "APPROVE"
             ? "Disetujui oleh PP Specialist, menunggu approval final PP Manager"
-            : "Ditolak oleh PP Specialist, dikembalikan ke Coordinator dari awal",
+            : "Ditolak oleh PP Specialist, dikembalikan ke Cabang untuk Upload ulang RAB & Gambar Kerja",
         data: result,
     });
 });

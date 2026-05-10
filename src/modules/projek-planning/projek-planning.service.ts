@@ -333,7 +333,7 @@ export const projekPlanningService = {
         }
 
         const isApprove = action.tindakan === "APPROVE";
-        const newStatus = isApprove ? PP_STATUS.WAITING_PP_MANAGER_APPROVAL : PP_STATUS.DRAFT;
+        const newStatus = isApprove ? PP_STATUS.WAITING_PP_MANAGER_APPROVAL : PP_STATUS.WAITING_RAB_UPLOAD;
 
         const { projek: updated } = await projekPlanningRepository.updateStatusWithLog(
             id,
@@ -346,11 +346,11 @@ export const projekPlanningService = {
                 alasan_penolakan: action.alasan_penolakan ?? null,
                 keterangan: isApprove
                     ? "Disetujui oleh PP Specialist, menunggu approval final PP Manager"
-                    : `Ditolak oleh PP Specialist (Tahap 2): ${action.alasan_penolakan}. Dikembalikan ke Coordinator dari awal`,
+                    : `Ditolak oleh PP Specialist (Tahap 2): ${action.alasan_penolakan}. Dikembalikan ke Cabang untuk Upload ulang RAB & Gambar Kerja`,
             },
             isApprove
                 ? (client) => projekPlanningRepository.updateStatusAndPp2Approval(id, newStatus, action, client)
-                : (client) => projekPlanningRepository.resetToDraft(id, client)
+                : (client) => projekPlanningRepository.resetToRabUpload(id, client)
         );
 
         return {
