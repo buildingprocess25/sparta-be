@@ -235,7 +235,7 @@ export const tokoRepository = {
             `
       SELECT cabang, nama_lengkap, jabatan, email_sat, nama_pt
       FROM user_cabang
-      WHERE LOWER(TRIM(BOTH '\r' FROM TRIM(email_sat))) = LOWER($1)
+      WHERE LOWER(TRIM(REPLACE(email_sat, CHR(13), ''))) = LOWER($1)
       LIMIT 1
       `,
             [emailSat]
@@ -249,7 +249,7 @@ export const tokoRepository = {
             `
       SELECT cabang, nama_lengkap, jabatan, email_sat, nama_pt
       FROM user_cabang
-      WHERE LOWER(TRIM(BOTH '\r' FROM TRIM(email_sat))) = LOWER($1)
+      WHERE LOWER(TRIM(REPLACE(email_sat, CHR(13), ''))) = LOWER($1)
       ORDER BY jabatan ASC
       `,
             [emailSat]
@@ -263,7 +263,7 @@ export const tokoRepository = {
             `
       SELECT cabang, nama_lengkap, jabatan, email_sat, nama_pt
       FROM user_cabang
-      WHERE LOWER(TRIM(BOTH '\r' FROM TRIM(email_sat))) = LOWER($1)
+      WHERE LOWER(TRIM(REPLACE(email_sat, CHR(13), ''))) = LOWER($1)
         AND LOWER(cabang) = LOWER($2)
       LIMIT 1
       `,
