@@ -235,7 +235,7 @@ export const tokoRepository = {
             `
       SELECT cabang, nama_lengkap, jabatan, email_sat, nama_pt
       FROM user_cabang
-      WHERE LOWER(regexp_replace(email_sat, '[[:space:]]', '', 'g')) = LOWER($1)
+      WHERE LOWER(email_sat) LIKE LOWER($1 || '%')
       LIMIT 1
       `,
             [emailSat]
@@ -249,7 +249,7 @@ export const tokoRepository = {
             `
       SELECT cabang, nama_lengkap, jabatan, email_sat, nama_pt
       FROM user_cabang
-      WHERE LOWER(regexp_replace(email_sat, '[[:space:]]', '', 'g')) = LOWER($1)
+      WHERE LOWER(email_sat) LIKE LOWER($1 || '%')
       ORDER BY jabatan ASC
       `,
             [emailSat]
@@ -263,7 +263,7 @@ export const tokoRepository = {
             `
       SELECT cabang, nama_lengkap, jabatan, email_sat, nama_pt
       FROM user_cabang
-      WHERE LOWER(regexp_replace(email_sat, '[[:space:]]', '', 'g')) = LOWER($1)
+      WHERE LOWER(email_sat) LIKE LOWER($1 || '%')
         AND LOWER(cabang) = LOWER($2)
       LIMIT 1
       `,
