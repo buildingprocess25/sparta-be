@@ -235,7 +235,7 @@ export const tokoRepository = {
             `
       SELECT cabang, nama_lengkap, jabatan, email_sat, nama_pt
       FROM user_cabang
-      WHERE LOWER(email_sat) LIKE '%' || LOWER($1) || '%'
+      WHERE email_sat ILIKE '%' || $1 || '%'
       LIMIT 1
       `,
             [emailSat]

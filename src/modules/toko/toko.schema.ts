@@ -18,7 +18,7 @@ export const listTokoQuerySchema = z.object({
 export type ListTokoQueryInput = z.infer<typeof listTokoQuerySchema>;
 
 export const loginUserCabangSchema = z.object({
-    email_sat: z.string().trim().email(),
+    email_sat: z.string().trim(),
     cabang: z.string().trim().min(1)
 });
 
