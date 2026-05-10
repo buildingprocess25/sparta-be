@@ -35,6 +35,7 @@ const corsOrigins = env.CORS_ORIGINS === "*"
 
 app.use(cors({ origin: corsOrigins }));
 app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 app.use((req, res, next) => {
     const redactKeys = new Set([
@@ -136,11 +137,14 @@ app.use("/api", priceRabRouter);
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     const requestId = res.locals.requestId as string | undefined;
     if (error instanceof ZodError) {
+        console.error("[ZOD_ERROR] req.body:", JSON.stringify(_req.body));
+        console.error("[ZOD_ERROR] Content-Type:", _req.get("content-type"));
         return res.status(422).json({
             status: "error",
             message: "Validasi request gagal",
             issues: error.issues,
             debug_body: _req.body,
+            debug_content_type: _req.get("content-type"),
         });
     }
 
