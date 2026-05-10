@@ -8,8 +8,8 @@ export const submitProjekPlanningSchema = z.object({
     id_toko: z.coerce.number().int().positive(),
     nomor_ulok: z.string().min(1),
     email_pembuat: z.string().email(),
-    lingkup_pekerjaan: z.string().min(1),
-    jenis_proyek: z.string().min(1),
+    lingkup_pekerjaan: z.string().optional().or(z.literal("")),
+    jenis_proyek: z.string().optional().or(z.literal("")),
     estimasi_biaya: z.coerce.number().nonnegative().optional(),
     keterangan: z.string().optional(),
     link_fpd: z.string().url().optional().or(z.literal("")),
@@ -59,8 +59,8 @@ export type SubmitProjekPlanningInput = z.infer<typeof submitProjekPlanningSchem
 
 export const resubmitProjekPlanningSchema = z.object({
     email_pembuat: z.string().email(),
-    lingkup_pekerjaan: z.string().min(1),
-    jenis_proyek: z.string().min(1),
+    lingkup_pekerjaan: z.string().optional().or(z.literal("")),
+    jenis_proyek: z.string().optional().or(z.literal("")),
     estimasi_biaya: z.coerce.number().nonnegative().optional(),
     keterangan: z.string().optional(),
     link_fpd: z.string().url().optional().or(z.literal("")),
