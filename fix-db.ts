@@ -1,0 +1,1 @@
+import 'dotenv/config'; import { pool } from './src/db/pool'; pool.query("UPDATE user_cabang SET email_sat = REPLACE(email_sat, CHR(13), '')").then(res => console.log('Fixed', res.rowCount)).catch(console.error).finally(() => process.exit());

@@ -20,7 +20,7 @@ export const projekPlanningService = {
     // SUBMIT FPD (Coordinator) — record baru
     // ============================================================
 
-    async submit(payload: SubmitProjekPlanningInput, file?: Express.Multer.File) {
+    async submit(payload: SubmitProjekPlanningInput, files?: { [fieldname: string]: Express.Multer.File[] }) {
         // 1. Validasi toko
         const toko = await tokoRepository.findById(payload.id_toko);
         if (!toko) {
@@ -50,17 +50,28 @@ export const projekPlanningService = {
 
         // 4. Upload file to Google Drive if provided
         let fpdLink = payload.link_fpd;
-        if (file) {
+        let rabSipilLink = payload.link_gambar_rab_sipil;
+        let rabMeLink = payload.link_gambar_rab_me;
+        if (files) {
+            const fFpd = files["file_fpd"]?.[0];
+            const fRabSipil = files["file_rab_sipil"]?.[0];
+            const fRabMe = files["file_rab_me"]?.[0];
+
             try {
-                const uploaded = await GoogleProvider.instance.uploadFile(
-                    env.DOC_DRIVE_ROOT_ID,
-                    file.originalname,
-                    file.mimetype,
-                    file.buffer
-                );
-                if (uploaded.webViewLink) fpdLink = uploaded.webViewLink;
+                if (fFpd) {
+                    const u = await GoogleProvider.instance.uploadFile(env.DOC_DRIVE_ROOT_ID, fFpd.originalname, fFpd.mimetype, fFpd.buffer);
+                    if (u.webViewLink) fpdLink = u.webViewLink;
+                }
+                if (fRabSipil) {
+                    const u = await GoogleProvider.instance.uploadFile(env.DOC_DRIVE_ROOT_ID, fRabSipil.originalname, fRabSipil.mimetype, fRabSipil.buffer);
+                    if (u.webViewLink) rabSipilLink = u.webViewLink;
+                }
+                if (fRabMe) {
+                    const u = await GoogleProvider.instance.uploadFile(env.DOC_DRIVE_ROOT_ID, fRabMe.originalname, fRabMe.mimetype, fRabMe.buffer);
+                    if (u.webViewLink) rabMeLink = u.webViewLink;
+                }
             } catch (e) {
-                console.error("Gagal upload FPD ke Drive:", e);
+                console.error("Gagal upload file FPD/RAB ke Drive:", e);
             }
         }
 
@@ -72,6 +83,8 @@ export const projekPlanningService = {
             cabang: toko.cabang ?? null,
             proyek: toko.proyek ?? null,
             link_fpd: fpdLink ?? undefined,
+            link_gambar_rab_sipil: rabSipilLink ?? undefined,
+            link_gambar_rab_me: rabMeLink ?? undefined,
             status: PP_STATUS.WAITING_BM_APPROVAL,
         });
 
@@ -93,7 +106,7 @@ export const projekPlanningService = {
     // RESUBMIT FPD (Coordinator) — update record DRAFT yang sudah ada
     // ============================================================
 
-    async resubmit(id: number, payload: ResubmitProjekPlanningInput, file?: Express.Multer.File) {
+    async resubmit(id: number, payload: ResubmitProjekPlanningInput, files?: { [fieldname: string]: Express.Multer.File[] }) {
         const data = await projekPlanningRepository.findById(id);
         if (!data) throw new AppError("Project planning tidak ditemukan", 404);
 
@@ -113,17 +126,28 @@ export const projekPlanningService = {
 
         // Upload file if provided
         let fpdLink = payload.link_fpd;
-        if (file) {
+        let rabSipilLink = payload.link_gambar_rab_sipil;
+        let rabMeLink = payload.link_gambar_rab_me;
+        if (files) {
+            const fFpd = files["file_fpd"]?.[0];
+            const fRabSipil = files["file_rab_sipil"]?.[0];
+            const fRabMe = files["file_rab_me"]?.[0];
+
             try {
-                const uploaded = await GoogleProvider.instance.uploadFile(
-                    env.DOC_DRIVE_ROOT_ID,
-                    file.originalname,
-                    file.mimetype,
-                    file.buffer
-                );
-                if (uploaded.webViewLink) fpdLink = uploaded.webViewLink;
+                if (fFpd) {
+                    const u = await GoogleProvider.instance.uploadFile(env.DOC_DRIVE_ROOT_ID, fFpd.originalname, fFpd.mimetype, fFpd.buffer);
+                    if (u.webViewLink) fpdLink = u.webViewLink;
+                }
+                if (fRabSipil) {
+                    const u = await GoogleProvider.instance.uploadFile(env.DOC_DRIVE_ROOT_ID, fRabSipil.originalname, fRabSipil.mimetype, fRabSipil.buffer);
+                    if (u.webViewLink) rabSipilLink = u.webViewLink;
+                }
+                if (fRabMe) {
+                    const u = await GoogleProvider.instance.uploadFile(env.DOC_DRIVE_ROOT_ID, fRabMe.originalname, fRabMe.mimetype, fRabMe.buffer);
+                    if (u.webViewLink) rabMeLink = u.webViewLink;
+                }
             } catch (e) {
-                console.error("Gagal upload FPD ke Drive:", e);
+                console.error("Gagal upload file FPD/RAB ke Drive:", e);
             }
         }
 
@@ -135,6 +159,8 @@ export const projekPlanningService = {
             cabang: toko.cabang ?? null,
             proyek: toko.proyek ?? null,
             link_fpd: fpdLink ?? projek.link_fpd ?? undefined,
+            link_gambar_rab_sipil: rabSipilLink ?? projek.link_gambar_rab_sipil ?? undefined,
+            link_gambar_rab_me: rabMeLink ?? projek.link_gambar_rab_me ?? undefined,
             status: PP_STATUS.WAITING_BM_APPROVAL,
         });
 

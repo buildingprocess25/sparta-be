@@ -17,7 +17,8 @@ import { projekPlanningService } from "./projek-planning.service";
 
 export const submitProjekPlanning = asyncHandler(async (req: Request, res: Response) => {
     const payload = submitProjekPlanningSchema.parse(req.body);
-    const result = await projekPlanningService.submit(payload, req.file);
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+    const result = await projekPlanningService.submit(payload, files);
 
     res.status(201).json({
         status: "success",
@@ -38,7 +39,8 @@ export const resubmitProjekPlanning = asyncHandler(async (req: Request, res: Res
     }
 
     const payload = resubmitProjekPlanningSchema.parse(req.body);
-    const result = await projekPlanningService.resubmit(id, payload, req.file);
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+    const result = await projekPlanningService.resubmit(id, payload, files);
 
     res.json({
         status: "success",
