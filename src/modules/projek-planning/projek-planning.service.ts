@@ -5,6 +5,14 @@ import { projekPlanningRepository } from "./projek-planning.repository";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
 import { buildProjekPlanningPdfBuffer } from "./projek-planning.pdf";
+import { compressImage } from "../../common/image-compressor";
+
+async function uploadCompressedFile(file: Express.Multer.File, folderId: string): Promise<string | null> {
+    const { buffer, mimetype, originalname } = await compressImage(file);
+    const u = await GoogleProvider.instance.uploadFile(folderId, originalname, mimetype, buffer);
+    return u.webViewLink || null;
+}
+
 import type {
     SubmitProjekPlanningInput,
     ResubmitProjekPlanningInput,
@@ -60,16 +68,16 @@ export const projekPlanningService = {
 
             try {
                 if (fFpd) {
-                    const u = await GoogleProvider.instance.uploadFile(env.DOC_DRIVE_ROOT_ID, fFpd.originalname, fFpd.mimetype, fFpd.buffer);
-                    if (u.webViewLink) fpdLink = u.webViewLink;
+                    const link = await uploadCompressedFile(fFpd, env.DOC_DRIVE_ROOT_ID);
+                    if (link) fpdLink = link;
                 }
                 if (fRabSipil) {
-                    const u = await GoogleProvider.instance.uploadFile(env.DOC_DRIVE_ROOT_ID, fRabSipil.originalname, fRabSipil.mimetype, fRabSipil.buffer);
-                    if (u.webViewLink) rabSipilLink = u.webViewLink;
+                    const link = await uploadCompressedFile(fRabSipil, env.DOC_DRIVE_ROOT_ID);
+                    if (link) rabSipilLink = link;
                 }
                 if (fRabMe) {
-                    const u = await GoogleProvider.instance.uploadFile(env.DOC_DRIVE_ROOT_ID, fRabMe.originalname, fRabMe.mimetype, fRabMe.buffer);
-                    if (u.webViewLink) rabMeLink = u.webViewLink;
+                    const link = await uploadCompressedFile(fRabMe, env.DOC_DRIVE_ROOT_ID);
+                    if (link) rabMeLink = link;
                 }
             } catch (e) {
                 console.error("Gagal upload file FPD/RAB ke Drive:", e);
@@ -136,16 +144,16 @@ export const projekPlanningService = {
 
             try {
                 if (fFpd) {
-                    const u = await GoogleProvider.instance.uploadFile(env.DOC_DRIVE_ROOT_ID, fFpd.originalname, fFpd.mimetype, fFpd.buffer);
-                    if (u.webViewLink) fpdLink = u.webViewLink;
+                    const link = await uploadCompressedFile(fFpd, env.DOC_DRIVE_ROOT_ID);
+                    if (link) fpdLink = link;
                 }
                 if (fRabSipil) {
-                    const u = await GoogleProvider.instance.uploadFile(env.DOC_DRIVE_ROOT_ID, fRabSipil.originalname, fRabSipil.mimetype, fRabSipil.buffer);
-                    if (u.webViewLink) rabSipilLink = u.webViewLink;
+                    const link = await uploadCompressedFile(fRabSipil, env.DOC_DRIVE_ROOT_ID);
+                    if (link) rabSipilLink = link;
                 }
                 if (fRabMe) {
-                    const u = await GoogleProvider.instance.uploadFile(env.DOC_DRIVE_ROOT_ID, fRabMe.originalname, fRabMe.mimetype, fRabMe.buffer);
-                    if (u.webViewLink) rabMeLink = u.webViewLink;
+                    const link = await uploadCompressedFile(fRabMe, env.DOC_DRIVE_ROOT_ID);
+                    if (link) rabMeLink = link;
                 }
             } catch (e) {
                 console.error("Gagal upload file FPD/RAB ke Drive:", e);
@@ -400,12 +408,12 @@ export const projekPlanningService = {
             
             try {
                 if (fRab) {
-                    const uRab = await GoogleProvider.instance.uploadFile(env.DOC_DRIVE_ROOT_ID, fRab.originalname, fRab.mimetype, fRab.buffer);
-                    if (uRab.webViewLink) linkRab = uRab.webViewLink;
+                    const link = await uploadCompressedFile(fRab, env.DOC_DRIVE_ROOT_ID);
+                    if (link) linkRab = link;
                 }
                 if (fGambar) {
-                    const uGambar = await GoogleProvider.instance.uploadFile(env.DOC_DRIVE_ROOT_ID, fGambar.originalname, fGambar.mimetype, fGambar.buffer);
-                    if (uGambar.webViewLink) linkGambar = uGambar.webViewLink;
+                    const link = await uploadCompressedFile(fGambar, env.DOC_DRIVE_ROOT_ID);
+                    if (link) linkGambar = link;
                 }
             } catch (e) {
                 console.error("Gagal upload RAB/Gambar ke Drive:", e);
