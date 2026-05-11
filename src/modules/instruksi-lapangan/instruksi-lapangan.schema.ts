@@ -12,6 +12,8 @@ export const instruksiLapanganItemSchema = z.object({
 export const submitInstruksiLapanganSchema = z.object({
     nomor_ulok: z.string().min(1),
     email_pembuat: z.string().email(),
+    tanggal_mulai: z.string().min(1),
+    tanggal_selesai: z.string().min(1),
     
     // Optional file from frontend
     lampiran: z.string().optional(),

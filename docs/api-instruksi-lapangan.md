@@ -10,12 +10,14 @@ Base URL: `/api/instruksi-lapangan`
 
 ### Payload Form Data:
 
-| Field           | Type          | Required | Description                                               |
-| :-------------- | :------------ | :------- | :-------------------------------------------------------- |
-| `nomor_ulok`    | string        | Yes      | Nomor ULOK toko.                                          |
-| `email_pembuat` | string        | Yes      | Email pembuat instruksi lapangan.                         |
-| `lampiran`      | file          | No       | File lampiran PDF/Gambar (maks 10MB).                     |
-| `detail_items`  | string (JSON) | Yes      | Array of object yang di-stringify. Detail lihat di bawah. |
+| Field             | Type          | Required | Description                                               |
+| :---------------- | :------------ | :------- | :-------------------------------------------------------- |
+| `nomor_ulok`      | string        | Yes      | Nomor ULOK toko.                                          |
+| `email_pembuat`   | string        | Yes      | Email pembuat instruksi lapangan.                         |
+| `tanggal_mulai`   | string (date) | Yes      | Tanggal mulai pekerjaan (format `YYYY-MM-DD`).            |
+| `tanggal_selesai` | string (date) | Yes      | Tanggal selesai pekerjaan (format `YYYY-MM-DD`).          |
+| `lampiran`        | file          | No       | File lampiran PDF/Gambar (maks 10MB).                     |
+| `detail_items`    | string (JSON) | Yes      | Array of object yang di-stringify. Detail lihat di bawah. |
 
 #### Format `detail_items` (JSON String):
 
