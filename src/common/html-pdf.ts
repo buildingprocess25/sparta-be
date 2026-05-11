@@ -11,6 +11,12 @@ const nunjucksEnv = new nunjucks.Environment(undefined, {
     lstripBlocks: true,
 });
 
+nunjucksEnv.addFilter("capitalizeFirst", (value: unknown) => {
+    if (typeof value !== "string") return value;
+    const lower = value.toLowerCase();
+    return lower.length > 0 ? `${lower[0].toUpperCase()}${lower.slice(1)}` : lower;
+});
+
 export const renderHtmlTemplate = async (
     templatePath: string,
     context: Record<string, unknown>
