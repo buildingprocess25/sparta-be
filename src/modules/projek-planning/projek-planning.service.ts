@@ -4,6 +4,7 @@ import { PP_STATUS, PP_ROLE, PP_AKSI, PP_STATUS_LABEL, type PpStatus } from "./p
 import { projekPlanningRepository } from "./projek-planning.repository";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
+import { buildProjekPlanningPdfBuffer } from "./projek-planning.pdf";
 import type {
     SubmitProjekPlanningInput,
     ResubmitProjekPlanningInput,
@@ -184,6 +185,25 @@ export const projekPlanningService = {
 
     async list(query: ListProjekPlanningQuery) {
         return projekPlanningRepository.list(query);
+    },
+
+
+
+    // ============================================================
+    // GENERATE PDF
+    // ============================================================
+
+    async generatePdf(projekPlanningId: number): Promise<Buffer> {
+        const item = await projekPlanningRepository.findById(projekPlanningId);
+        if (!item) {
+            throw new AppError("Data Project Planning tidak ditemukan", 404);
+        }
+
+        if (item.status !== PP_STATUS.COMPLETED) {
+            throw new AppError("PDF hanya bisa digenerate setelah project planning berstatus COMPLETED", 400);
+        }
+
+        return buildProjekPlanningPdfBuffer(item);
     },
 
     // ============================================================

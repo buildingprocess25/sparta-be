@@ -36,30 +36,20 @@ export type ProjekPlanningRow = {
     // Jenis Pengajuan Design
     jenis_pengajuan: string | null;
     jenis_pengajuan_lainnya: string | null;
+    // Fasilitas (dari tabel terpisah)
+    fasilitas?: {
+        id?: number;
+        jenis_fasilitas: string;
+        nama_fasilitas_lainnya?: string | null;
+        is_tersedia: boolean;
+        keterangan?: string | null;
+    }[];
 
-    // Fasilitas
-    fasilitas_air_bersih: boolean;
-    fasilitas_air_bersih_keterangan: string | null;
-    fasilitas_drain: boolean;
-    fasilitas_drain_keterangan: string | null;
-    fasilitas_ac: boolean;
-    fasilitas_ac_keterangan: string | null;
-    fasilitas_lainnya: string | null;
-    fasilitas_lainnya_keterangan: string | null;
+    // Ketentuan (dari tabel terpisah)
+    ketentuan?: { id?: number; isi_ketentuan: string }[];
 
-    // Ketentuan
-    ketentuan_1: string | null;
-    ketentuan_2: string | null;
-    ketentuan_3: string | null;
-    ketentuan_4: string | null;
-    ketentuan_5: string | null;
-
-    // Catatan Design
-    catatan_design_1: string | null;
-    catatan_design_2: string | null;
-    catatan_design_3: string | null;
-    catatan_design_4: string | null;
-    catatan_design_5: string | null;
+    // Catatan Design (dari tabel terpisah)
+    catatan_design?: { id?: number; isi_catatan: string }[];
 
     // Links
     link_fpd: string | null;
@@ -115,12 +105,6 @@ const PP_COLUMNS = `
     jenis_proyek, estimasi_biaya, keterangan,
     nama_pengaju, nama_lokasi,
     jenis_pengajuan, jenis_pengajuan_lainnya,
-    fasilitas_air_bersih, fasilitas_air_bersih_keterangan,
-    fasilitas_drain, fasilitas_drain_keterangan,
-    fasilitas_ac, fasilitas_ac_keterangan,
-    fasilitas_lainnya, fasilitas_lainnya_keterangan,
-    ketentuan_1, ketentuan_2, ketentuan_3, ketentuan_4, ketentuan_5,
-    catatan_design_1, catatan_design_2, catatan_design_3, catatan_design_4, catatan_design_5,
     link_fpd, link_rab, link_gambar_kerja, link_desain_3d, link_fpd_approved,
     link_gambar_rab_sipil, link_gambar_rab_me,
     status, butuh_desain_3d,
@@ -151,19 +135,30 @@ export const projekPlanningRepository = {
         );
 
         if ((headerResult.rowCount ?? 0) === 0) return null;
+        const projek = headerResult.rows[0];
 
-        const logsResult = await pool.query<ProjekPlanningLogRow>(
-            `SELECT id, projek_planning_id, actor_email, role, aksi,
-                    status_sebelum, status_sesudah, alasan_penolakan, keterangan, created_at
-             FROM projek_planning_log
-             WHERE projek_planning_id = $1
-             ORDER BY created_at ASC`,
-            [id]
-        );
+        const [logsRes, fasilitasRes, ketentuanRes, catatanRes] = await Promise.all([
+            pool.query<ProjekPlanningLogRow>(
+                `SELECT * FROM projek_planning_log WHERE projek_planning_id = $1 ORDER BY created_at ASC`, [id]
+            ),
+            pool.query(
+                `SELECT id, jenis_fasilitas, nama_fasilitas_lainnya, is_tersedia, keterangan FROM projek_planning_fasilitas WHERE projek_planning_id = $1`, [id]
+            ),
+            pool.query(
+                `SELECT id, isi_ketentuan FROM projek_planning_ketentuan WHERE projek_planning_id = $1`, [id]
+            ),
+            pool.query(
+                `SELECT id, isi_catatan FROM projek_planning_catatan WHERE projek_planning_id = $1`, [id]
+            )
+        ]);
+
+        projek.fasilitas = fasilitasRes.rows;
+        projek.ketentuan = ketentuanRes.rows;
+        projek.catatan_design = catatanRes.rows;
 
         return {
-            projek: headerResult.rows[0],
-            logs: logsResult.rows,
+            projek,
+            logs: logsRes.rows,
         };
     },
 
@@ -254,80 +249,84 @@ export const projekPlanningRepository = {
         proyek: string | null;
         status: PpStatus;
     }): Promise<ProjekPlanningRow> {
-        const result = await pool.query<ProjekPlanningRow>(
-            `INSERT INTO projek_planning (
-                id_toko, nomor_ulok, email_pembuat,
-                nama_toko, kode_toko, cabang, proyek, lingkup_pekerjaan,
-                jenis_proyek, estimasi_biaya, keterangan, link_fpd,
-                nama_pengaju, nama_lokasi,
-                jenis_pengajuan, jenis_pengajuan_lainnya,
-                fasilitas_air_bersih, fasilitas_air_bersih_keterangan,
-                fasilitas_drain, fasilitas_drain_keterangan,
-                fasilitas_ac, fasilitas_ac_keterangan,
-                fasilitas_lainnya, fasilitas_lainnya_keterangan,
-                ketentuan_1, ketentuan_2, ketentuan_3, ketentuan_4, ketentuan_5,
-                catatan_design_1, catatan_design_2, catatan_design_3, catatan_design_4, catatan_design_5,
-                link_gambar_rab_sipil, link_gambar_rab_me,
-                status, butuh_desain_3d,
-                created_at, updated_at
-            ) VALUES (
-                $1, $2, $3,
-                $4, $5, $6, $7, $8,
-                $9, $10, $11, $12,
-                $13, $14,
-                $15, $16,
-                $17, $18,
-                $19, $20,
-                $21, $22,
-                $23, $24,
-                $25, $26, $27, $28, $29,
-                $30, $31, $32, $33, $34,
-                $35, $36,
-                $37, FALSE,
-                NOW(), NOW()
-            )
-            RETURNING ${PP_COLUMNS}`,
-            [
-                payload.id_toko,
-                payload.nomor_ulok,
-                payload.email_pembuat,
-                payload.nama_toko,
-                payload.kode_toko,
-                payload.cabang,
-                payload.proyek,
-                payload.lingkup_pekerjaan,
-                payload.jenis_proyek,
-                payload.estimasi_biaya ?? null,
-                payload.keterangan ?? null,
-                payload.link_fpd ?? null,
-                payload.nama_pengaju,
-                payload.nama_lokasi,
-                payload.jenis_pengajuan,
-                payload.jenis_pengajuan_lainnya ?? null,
-                payload.fasilitas_air_bersih ?? false,
-                payload.fasilitas_air_bersih_keterangan ?? null,
-                payload.fasilitas_drain ?? false,
-                payload.fasilitas_drain_keterangan ?? null,
-                payload.fasilitas_ac ?? false,
-                payload.fasilitas_ac_keterangan ?? null,
-                payload.fasilitas_lainnya ?? null,
-                payload.fasilitas_lainnya_keterangan ?? null,
-                payload.ketentuan_1 ?? null,
-                payload.ketentuan_2 ?? null,
-                payload.ketentuan_3 ?? null,
-                payload.ketentuan_4 ?? null,
-                payload.ketentuan_5 ?? null,
-                payload.catatan_design_1 ?? null,
-                payload.catatan_design_2 ?? null,
-                payload.catatan_design_3 ?? null,
-                payload.catatan_design_4 ?? null,
-                payload.catatan_design_5 ?? null,
-                payload.link_gambar_rab_sipil ?? null,
-                payload.link_gambar_rab_me ?? null,
-                payload.status,
-            ]
-        );
-        return result.rows[0];
+        return withTransaction(async (client) => {
+            const result = await client.query<ProjekPlanningRow>(
+                `INSERT INTO projek_planning (
+                    id_toko, nomor_ulok, email_pembuat,
+                    nama_toko, kode_toko, cabang, proyek, lingkup_pekerjaan,
+                    jenis_proyek, estimasi_biaya, keterangan, link_fpd,
+                    nama_pengaju, nama_lokasi,
+                    jenis_pengajuan, jenis_pengajuan_lainnya,
+                    link_gambar_rab_sipil, link_gambar_rab_me,
+                    status, butuh_desain_3d,
+                    created_at, updated_at
+                ) VALUES (
+                    $1, $2, $3,
+                    $4, $5, $6, $7, $8,
+                    $9, $10, $11, $12,
+                    $13, $14,
+                    $15, $16,
+                    $17, $18,
+                    $19, FALSE,
+                    NOW(), NOW()
+                )
+                RETURNING ${PP_COLUMNS}`,
+                [
+                    payload.id_toko,
+                    payload.nomor_ulok,
+                    payload.email_pembuat,
+                    payload.nama_toko,
+                    payload.kode_toko,
+                    payload.cabang,
+                    payload.proyek,
+                    payload.lingkup_pekerjaan,
+                    payload.jenis_proyek,
+                    payload.estimasi_biaya ?? null,
+                    payload.keterangan ?? null,
+                    payload.link_fpd ?? null,
+                    payload.nama_pengaju,
+                    payload.nama_lokasi,
+                    payload.jenis_pengajuan,
+                    payload.jenis_pengajuan_lainnya ?? null,
+                    payload.link_gambar_rab_sipil ?? null,
+                    payload.link_gambar_rab_me ?? null,
+                    payload.status,
+                ]
+            );
+            const row = result.rows[0];
+            const ppId = row.id;
+
+            if (payload.ketentuan && payload.ketentuan.length > 0) {
+                for (const k of payload.ketentuan) {
+                    await client.query(
+                        `INSERT INTO projek_planning_ketentuan (projek_planning_id, isi_ketentuan) VALUES ($1, $2)`,
+                        [ppId, k]
+                    );
+                }
+            }
+            if (payload.catatan_design && payload.catatan_design.length > 0) {
+                for (const c of payload.catatan_design) {
+                    await client.query(
+                        `INSERT INTO projek_planning_catatan (projek_planning_id, isi_catatan) VALUES ($1, $2)`,
+                        [ppId, c]
+                    );
+                }
+            }
+            if (payload.fasilitas && payload.fasilitas.length > 0) {
+                for (const f of payload.fasilitas) {
+                    await client.query(
+                        `INSERT INTO projek_planning_fasilitas (projek_planning_id, jenis_fasilitas, nama_fasilitas_lainnya, is_tersedia, keterangan) VALUES ($1, $2, $3, $4, $5)`,
+                        [ppId, f.jenis_fasilitas, f.nama_fasilitas_lainnya ?? null, f.is_tersedia, f.keterangan ?? null]
+                    );
+                }
+            }
+            
+            row.ketentuan = payload.ketentuan?.map(k => ({ isi_ketentuan: k })) || [];
+            row.catatan_design = payload.catatan_design?.map(c => ({ isi_catatan: c })) || [];
+            row.fasilitas = payload.fasilitas || [];
+            
+            return row;
+        });
     },
 
     // ----------------------------------------------------------
@@ -341,99 +340,95 @@ export const projekPlanningRepository = {
         proyek: string | null;
         status: PpStatus;
     }): Promise<ProjekPlanningRow> {
-        const result = await pool.query<ProjekPlanningRow>(
-            `UPDATE projek_planning
-             SET email_pembuat = $1,
-                 lingkup_pekerjaan = $2,
-                 jenis_proyek = $3,
-                 estimasi_biaya = $4,
-                 keterangan = $5,
-                 link_fpd = COALESCE($6, link_fpd),
-                 nama_toko = $7,
-                 kode_toko = $8,
-                 cabang = $9,
-                 proyek = $10,
-                 nama_pengaju = $11,
-                 nama_lokasi = $12,
-                 jenis_pengajuan = $13,
-                 jenis_pengajuan_lainnya = $14,
-                 fasilitas_air_bersih = $15,
-                 fasilitas_air_bersih_keterangan = $16,
-                 fasilitas_drain = $17,
-                 fasilitas_drain_keterangan = $18,
-                 fasilitas_ac = $19,
-                 fasilitas_ac_keterangan = $20,
-                 fasilitas_lainnya = $21,
-                 fasilitas_lainnya_keterangan = $22,
-                 ketentuan_1 = $23,
-                 ketentuan_2 = $24,
-                 ketentuan_3 = $25,
-                 ketentuan_4 = $26,
-                 ketentuan_5 = $27,
-                 catatan_design_1 = $28,
-                 catatan_design_2 = $29,
-                 catatan_design_3 = $30,
-                 catatan_design_4 = $31,
-                 catatan_design_5 = $32,
-                 link_gambar_rab_sipil = $33,
-                 link_gambar_rab_me = $34,
-                 status = $35,
-                 butuh_desain_3d = FALSE,
-                 bm_approver_email = NULL,
-                 bm_waktu_persetujuan = NULL,
-                 bm_alasan_penolakan = NULL,
-                 pp1_approver_email = NULL,
-                 pp1_waktu_persetujuan = NULL,
-                 pp1_alasan_penolakan = NULL,
-                 pp_manager_approver_email = NULL,
-                 pp_manager_waktu_persetujuan = NULL,
-                 pp_manager_alasan_penolakan = NULL,
-                 pp2_approver_email = NULL,
-                 pp2_waktu_persetujuan = NULL,
-                 pp2_alasan_penolakan = NULL,
-                 updated_at = NOW()
-             WHERE id = $36
-             RETURNING ${PP_COLUMNS}`,
-            [
-                payload.email_pembuat,
-                payload.lingkup_pekerjaan,
-                payload.jenis_proyek,
-                payload.estimasi_biaya ?? null,
-                payload.keterangan ?? null,
-                payload.link_fpd ?? null,
-                payload.nama_toko,
-                payload.kode_toko,
-                payload.cabang,
-                payload.proyek,
-                payload.nama_pengaju,
-                payload.nama_lokasi,
-                payload.jenis_pengajuan,
-                payload.jenis_pengajuan_lainnya ?? null,
-                payload.fasilitas_air_bersih ?? false,
-                payload.fasilitas_air_bersih_keterangan ?? null,
-                payload.fasilitas_drain ?? false,
-                payload.fasilitas_drain_keterangan ?? null,
-                payload.fasilitas_ac ?? false,
-                payload.fasilitas_ac_keterangan ?? null,
-                payload.fasilitas_lainnya ?? null,
-                payload.fasilitas_lainnya_keterangan ?? null,
-                payload.ketentuan_1 ?? null,
-                payload.ketentuan_2 ?? null,
-                payload.ketentuan_3 ?? null,
-                payload.ketentuan_4 ?? null,
-                payload.ketentuan_5 ?? null,
-                payload.catatan_design_1 ?? null,
-                payload.catatan_design_2 ?? null,
-                payload.catatan_design_3 ?? null,
-                payload.catatan_design_4 ?? null,
-                payload.catatan_design_5 ?? null,
-                payload.link_gambar_rab_sipil ?? null,
-                payload.link_gambar_rab_me ?? null,
-                payload.status,
-                id,
-            ]
-        );
-        return result.rows[0];
+        return withTransaction(async (client) => {
+            const result = await client.query<ProjekPlanningRow>(
+                `UPDATE projek_planning
+                 SET email_pembuat = $1,
+                     lingkup_pekerjaan = $2,
+                     jenis_proyek = $3,
+                     estimasi_biaya = $4,
+                     keterangan = $5,
+                     link_fpd = COALESCE($6, link_fpd),
+                     nama_toko = $7,
+                     kode_toko = $8,
+                     cabang = $9,
+                     proyek = $10,
+                     nama_pengaju = $11,
+                     nama_lokasi = $12,
+                     jenis_pengajuan = $13,
+                     jenis_pengajuan_lainnya = $14,
+                     link_gambar_rab_sipil = $15,
+                     link_gambar_rab_me = $16,
+                     status = $17,
+                     butuh_desain_3d = FALSE,
+                     bm_approver_email = NULL,
+                     bm_waktu_persetujuan = NULL,
+                     bm_alasan_penolakan = NULL,
+                     pp1_approver_email = NULL,
+                     pp1_waktu_persetujuan = NULL,
+                     pp1_alasan_penolakan = NULL,
+                     pp_manager_approver_email = NULL,
+                     pp_manager_waktu_persetujuan = NULL,
+                     pp_manager_alasan_penolakan = NULL,
+                     pp2_approver_email = NULL,
+                     pp2_waktu_persetujuan = NULL,
+                     pp2_alasan_penolakan = NULL,
+                     updated_at = NOW()
+                 WHERE id = $18
+                 RETURNING ${PP_COLUMNS}`,
+                [
+                    payload.email_pembuat,
+                    payload.lingkup_pekerjaan,
+                    payload.jenis_proyek,
+                    payload.estimasi_biaya ?? null,
+                    payload.keterangan ?? null,
+                    payload.link_fpd ?? null,
+                    payload.nama_toko,
+                    payload.kode_toko,
+                    payload.cabang,
+                    payload.proyek,
+                    payload.nama_pengaju,
+                    payload.nama_lokasi,
+                    payload.jenis_pengajuan,
+                    payload.jenis_pengajuan_lainnya ?? null,
+                    payload.link_gambar_rab_sipil ?? null,
+                    payload.link_gambar_rab_me ?? null,
+                    payload.status,
+                    id,
+                ]
+            );
+            const row = result.rows[0];
+
+            // Re-create relations
+            await client.query(`DELETE FROM projek_planning_ketentuan WHERE projek_planning_id = $1`, [id]);
+            await client.query(`DELETE FROM projek_planning_catatan WHERE projek_planning_id = $1`, [id]);
+            await client.query(`DELETE FROM projek_planning_fasilitas WHERE projek_planning_id = $1`, [id]);
+
+            if (payload.ketentuan && payload.ketentuan.length > 0) {
+                for (const k of payload.ketentuan) {
+                    await client.query(`INSERT INTO projek_planning_ketentuan (projek_planning_id, isi_ketentuan) VALUES ($1, $2)`, [id, k]);
+                }
+            }
+            if (payload.catatan_design && payload.catatan_design.length > 0) {
+                for (const c of payload.catatan_design) {
+                    await client.query(`INSERT INTO projek_planning_catatan (projek_planning_id, isi_catatan) VALUES ($1, $2)`, [id, c]);
+                }
+            }
+            if (payload.fasilitas && payload.fasilitas.length > 0) {
+                for (const f of payload.fasilitas) {
+                    await client.query(
+                        `INSERT INTO projek_planning_fasilitas (projek_planning_id, jenis_fasilitas, nama_fasilitas_lainnya, is_tersedia, keterangan) VALUES ($1, $2, $3, $4, $5)`,
+                        [id, f.jenis_fasilitas, f.nama_fasilitas_lainnya ?? null, f.is_tersedia, f.keterangan ?? null]
+                    );
+                }
+            }
+            
+            row.ketentuan = payload.ketentuan?.map(k => ({ isi_ketentuan: k })) || [];
+            row.catatan_design = payload.catatan_design?.map(c => ({ isi_catatan: c })) || [];
+            row.fasilitas = payload.fasilitas || [];
+            
+            return row;
+        });
     },
 
     // ----------------------------------------------------------

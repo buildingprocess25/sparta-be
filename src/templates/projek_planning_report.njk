@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>Laporan Project Planning</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 15mm 15mm 20mm 15mm;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 10px;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+
+    .header-main {
+      background-color: #dc2626; /* Red color as requested */
+      color: #ffffff;
+      padding: 15px 20px;
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+      border-radius: 4px;
+    }
+
+    .header-logo {
+      height: 35px;
+      margin-right: 15px;
+    }
+
+    .header-title {
+      font-size: 20px;
+      font-weight: bold;
+      margin: 0;
+      letter-spacing: 1px;
+    }
+
+    .header-subtitle {
+      font-size: 11px;
+      margin: 0;
+      opacity: 0.9;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: bold;
+      color: #dc2626;
+      border-bottom: 1px solid #dc2626;
+      padding-bottom: 4px;
+      margin-top: 20px;
+      margin-bottom: 10px;
+    }
+
+    .info-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 15px;
+    }
+
+    .info-table td {
+      padding: 4px 0;
+      vertical-align: top;
+    }
+
+    .info-table .label {
+      font-weight: bold;
+      color: #555;
+      width: 130px;
+    }
+
+    .info-table .value {
+      color: #111;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      margin-bottom: 15px;
+    }
+
+    .data-table th, .data-table td {
+      border: 1px solid #e5e7eb;
+      padding: 6px 8px;
+    }
+
+    .data-table th {
+      background-color: #fef2f2;
+      color: #dc2626;
+      text-align: left;
+      font-weight: bold;
+    }
+
+    .data-table td.label-col {
+      width: 40%;
+      background-color: #fafafa;
+    }
+
+    .approval-table {
+      width: 100%;
+      margin-top: 30px;
+      border-collapse: collapse;
+      text-align: center;
+      page-break-inside: avoid;
+    }
+
+    .approval-box {
+      border-top: 4px solid #dc2626;
+      background: #f9fafb;
+      padding: 10px;
+      margin: 0 5px;
+      border-radius: 0 0 4px 4px;
+    }
+
+    .approval-box.bm { border-color: #dc2626; }
+    .approval-box.pp1 { border-color: #dc2626; }
+    .approval-box.pp2 { border-color: #dc2626; }
+
+    .approval-title {
+      font-size: 11px;
+      font-weight: bold;
+      color: #ffffff;
+      background: #dc2626;
+      padding: 6px;
+      margin: 0 5px;
+      border-radius: 4px 4px 0 0;
+      text-transform: uppercase;
+    }
+
+    .approval-name {
+      font-weight: bold;
+      margin-top: 40px;
+      font-size: 11px;
+    }
+
+    .approval-nik {
+      font-size: 9px;
+      color: #666;
+    }
+
+    .approval-date {
+      font-size: 9px;
+      color: #888;
+      margin-top: 4px;
+      font-style: italic;
+    }
+
+    .approval-role {
+      font-size: 10px;
+      color: #555;
+      margin-top: 10px;
+      border-top: 1px solid #eee;
+      padding-top: 5px;
+    }
+
+    .footer {
+      position: fixed;
+      bottom: -10mm;
+      left: 0;
+      right: 0;
+      font-size: 9px;
+      color: #888;
+      text-align: center;
+      border-top: 1px solid #eee;
+      padding-top: 5px;
+    }
+
+    .watermark {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      width: 400px;
+      transform: translate(-50%, -50%);
+      opacity: 0.05;
+      z-index: -1;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  {% if watermark_logo_path %}
+  <img src="{{ watermark_logo_path }}" class="watermark" alt="watermark" />
+  {% endif %}
+
+  <div class="header-main">
+    {% if logo_path %}
+    <img src="{{ logo_path }}" class="header-logo" alt="Logo" />
+    {% endif %}
+    <div>
+      <h1 class="header-title">SPARTA</h1>
+      <p class="header-subtitle">Building</p>
+    </div>
+  </div>
+
+  <div class="section-title">Informasi Pengajuan FPD</div>
+  <table class="info-table">
+    <tr>
+      <td class="label">Nomor ULOK</td>
+      <td class="value">: {{ projek.nomor_ulok }}</td>
+      <td class="label">Tanggal Submit</td>
+      <td class="value">: {{ created_at_formatted }}</td>
+    </tr>
+    <tr>
+      <td class="label">Nama Toko</td>
+      <td class="value">: {{ projek.nama_toko or '-' }}</td>
+      <td class="label">Cabang</td>
+      <td class="value">: {{ projek.cabang or '-' }}</td>
+    </tr>
+    <tr>
+      <td class="label">Kode Toko</td>
+      <td class="value">: {{ projek.kode_toko or '-' }}</td>
+      <td class="label">Nama Pengaju</td>
+      <td class="value">: {{ projek.nama_pengaju or '-' }}</td>
+    </tr>
+    <tr>
+      <td class="label">Proyek</td>
+      <td class="value">: {{ projek.proyek or '-' }}</td>
+      <td class="label">Nama Lokasi</td>
+      <td class="value">: {{ projek.nama_lokasi or '-' }}</td>
+    </tr>
+    <tr>
+      <td class="label">Lingkup Pekerjaan</td>
+      <td class="value">: {{ projek.lingkup_pekerjaan or '-' }}</td>
+      <td class="label">Estimasi Biaya</td>
+      <td class="value">: Rp {{ estimasi_biaya_formatted }}</td>
+    </tr>
+  </table>
+
+  <div class="section-title">Fasilitas & Ketentuan</div>
+  <table class="data-table">
+    <tr>
+      <td class="label-col">Jenis Pengajuan Design</td>
+      <td>{{ projek.jenis_pengajuan or '-' }} {{ '(' + projek.jenis_pengajuan_lainnya + ')' if projek.jenis_pengajuan == 'LAINNYA' and projek.jenis_pengajuan_lainnya else '' }}</td>
+    </tr>
+    {% if projek.fasilitas and projek.fasilitas.length > 0 %}
+      {% for fas in projek.fasilitas %}
+      <tr>
+        <td class="label-col">
+          {% if fas.jenis_fasilitas == 'LAINNYA' %}
+            Fasilitas Lainnya: {{ fas.nama_fasilitas_lainnya }}
+          {% else %}
+            {% if fas.jenis_fasilitas == 'AIR_BERSIH' %}Sumber Air Bersih
+            {% elif fas.jenis_fasilitas == 'DRAINASE' %}Drain Pembuangan Air Kotor
+            {% elif fas.jenis_fasilitas == 'AC' %}AC
+            {% else %}{{ fas.jenis_fasilitas }}{% endif %}
+          {% endif %}
+        </td>
+        <td>{{ 'Ya' if fas.is_tersedia else 'Tidak' }} {{ '(' + fas.keterangan + ')' if fas.keterangan else '' }}</td>
+      </tr>
+      {% endfor %}
+    {% endif %}
+  </table>
+
+  {% if projek.ketentuan and projek.ketentuan.length > 0 %}
+  <div class="section-title">Ketentuan Pengelola / Pihak Ketiga</div>
+  <table class="data-table">
+    {% for ket in projek.ketentuan %}
+    <tr><td class="label-col">Ketentuan {{ loop.index }}</td><td>{{ ket.isi_ketentuan }}</td></tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+
+  {% if projek.catatan_design and projek.catatan_design.length > 0 %}
+  <div class="section-title">Catatan Design</div>
+  <table class="data-table">
+    {% for cat in projek.catatan_design %}
+    <tr><td class="label-col">Catatan {{ loop.index }}</td><td>{{ cat.isi_catatan }}</td></tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+
+  <table class="approval-table">
+    <tr>
+      <td style="width: 25%; vertical-align: top;">
+        <div class="approval-title">DIBUAT</div>
+        <div class="approval-box bm">
+          <div class="approval-name">{{ projek.email_pembuat.split('@')[0] | upper }}</div>
+          <div class="approval-date">{{ created_at_formatted }}</div>
+          <div class="approval-role">Coordinator / BM Support</div>
+        </div>
+      </td>
+      <td style="width: 25%; vertical-align: top;">
+        <div class="approval-title">DISETUJUI</div>
+        <div class="approval-box pp1">
+          <div class="approval-name">{{ (projek.bm_approver_email.split('@')[0] | upper) if projek.bm_approver_email else '-' }}</div>
+          <div class="approval-date">{{ bm_waktu_formatted or '-' }}</div>
+          <div class="approval-role">Branch Manager</div>
+        </div>
+      </td>
+      <td style="width: 25%; vertical-align: top;">
+        <div class="approval-title">DISETUJUI</div>
+        <div class="approval-box pp2">
+          <div class="approval-name">{{ (projek.pp2_approver_email.split('@')[0] | upper) if projek.pp2_approver_email else '-' }}</div>
+          <div class="approval-date">{{ pp2_waktu_formatted or '-' }}</div>
+          <div class="approval-role">PP Specialist</div>
+        </div>
+      </td>
+      <td style="width: 25%; vertical-align: top;">
+        <div class="approval-title">MENGETAHUI</div>
+        <div class="approval-box bm">
+          <div class="approval-name">{{ (projek.pp_manager_approver_email.split('@')[0] | upper) if projek.pp_manager_approver_email else '-' }}</div>
+          <div class="approval-date">{{ pp_manager_waktu_formatted or '-' }}</div>
+          <div class="approval-role">PP Manager</div>
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <div class="footer">
+    No. Laporan: {{ projek.id }} — Dokumen ini di-generate otomatis oleh sistem SPARTA Building pada {{ generated_at }}
+  </div>
+</body>
+</html>

@@ -12,6 +12,7 @@ import {
     handlePpManagerApproval,
     handlePpApproval2,
     getProjekPlanningLogs,
+    downloadPdf,
 } from "./projek-planning.controller";
 
 const fpdUpload = multer({
@@ -30,6 +31,7 @@ projekPlanningRouter.post("/:id/upload-rab", fpdUpload.fields([{ name: "file_rab
 projekPlanningRouter.get("/", listProjekPlanning);
 projekPlanningRouter.get("/:id", getProjekPlanningById);
 projekPlanningRouter.get("/:id/logs", getProjekPlanningLogs);
+projekPlanningRouter.get("/:id/pdf", downloadPdf);
 
 // ── BM Manager ───────────────────────────────────────────────
 projekPlanningRouter.post("/:id/bm-approval", handleBmApproval);

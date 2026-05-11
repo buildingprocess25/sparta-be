@@ -16,7 +16,12 @@ import { projekPlanningService } from "./projek-planning.service";
 // ============================================================
 
 export const submitProjekPlanning = asyncHandler(async (req: Request, res: Response) => {
-    const payload = submitProjekPlanningSchema.parse(req.body);
+    const payloadStr = req.body;
+    if (typeof payloadStr.ketentuan === "string") payloadStr.ketentuan = JSON.parse(payloadStr.ketentuan);
+    if (typeof payloadStr.catatan_design === "string") payloadStr.catatan_design = JSON.parse(payloadStr.catatan_design);
+    if (typeof payloadStr.fasilitas === "string") payloadStr.fasilitas = JSON.parse(payloadStr.fasilitas);
+
+    const payload = submitProjekPlanningSchema.parse(payloadStr);
     const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
     const result = await projekPlanningService.submit(payload, files);
 
@@ -38,7 +43,12 @@ export const resubmitProjekPlanning = asyncHandler(async (req: Request, res: Res
         return;
     }
 
-    const payload = resubmitProjekPlanningSchema.parse(req.body);
+    const payloadStr = req.body;
+    if (typeof payloadStr.ketentuan === "string") payloadStr.ketentuan = JSON.parse(payloadStr.ketentuan);
+    if (typeof payloadStr.catatan_design === "string") payloadStr.catatan_design = JSON.parse(payloadStr.catatan_design);
+    if (typeof payloadStr.fasilitas === "string") payloadStr.fasilitas = JSON.parse(payloadStr.fasilitas);
+
+    const payload = resubmitProjekPlanningSchema.parse(payloadStr);
     const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
     const result = await projekPlanningService.resubmit(id, payload, files);
 
@@ -224,4 +234,18 @@ export const getProjekPlanningLogs = asyncHandler(async (req: Request, res: Resp
 
     const logs = await projekPlanningService.getLogs(id);
     res.json({ status: "success", data: logs });
+});
+
+export const downloadPdf = asyncHandler(async (req: Request, res: Response) => {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+        res.status(400).json({ status: "error", message: "ID tidak valid" });
+        return;
+    }
+
+    const buffer = await projekPlanningService.generatePdf(id);
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename=Project_Planning_${id}.pdf`);
+    res.send(buffer);
 });
