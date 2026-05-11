@@ -18,31 +18,39 @@
     }
 
     .header-main {
-      background-color: #dc2626; /* Red color as requested */
+      background-color: #1976B8;
       color: #ffffff;
-      padding: 15px 20px;
+      padding: 14px 20px;
       display: flex;
       align-items: center;
       margin-bottom: 20px;
       border-radius: 4px;
     }
 
-    .header-logo {
-      height: 35px;
-      margin-right: 15px;
+    .header-alfamart-logo {
+      height: 38px;
+      margin-right: 14px;
+      padding-right: 14px;
+      border-right: 2px solid rgba(255,255,255,0.35);
+    }
+
+    .header-sparta-logo {
+      height: 32px;
+      margin-right: 10px;
     }
 
     .header-title {
-      font-size: 20px;
+      font-size: 22px;
       font-weight: bold;
       margin: 0;
-      letter-spacing: 1px;
+      letter-spacing: 2px;
     }
 
     .header-subtitle {
       font-size: 11px;
       margin: 0;
-      opacity: 0.9;
+      opacity: 0.85;
+      letter-spacing: 0.5px;
     }
 
     .section-title {
@@ -187,8 +195,11 @@
   {% endif %}
 
   <div class="header-main">
-    {% if logo_path %}
-    <img src="{{ logo_path }}" class="header-logo" alt="Logo" />
+    {% if alfamart_logo_path %}
+    <img src="{{ alfamart_logo_path }}" class="header-alfamart-logo" alt="Alfamart" />
+    {% endif %}
+    {% if sparta_logo_path %}
+    <img src="{{ sparta_logo_path }}" class="header-sparta-logo" alt="SPARTA" />
     {% endif %}
     <div>
       <h1 class="header-title">SPARTA</h1>
@@ -224,9 +235,7 @@
     </tr>
     <tr>
       <td class="label">Lingkup Pekerjaan</td>
-      <td class="value">: {{ projek.lingkup_pekerjaan or '-' }}</td>
-      <td class="label">Estimasi Biaya</td>
-      <td class="value">: Rp {{ estimasi_biaya_formatted }}</td>
+      <td class="value" colspan="3">: {{ projek.lingkup_pekerjaan or '-' }}</td>
     </tr>
   </table>
 

@@ -51,7 +51,8 @@ export const buildProjekPlanningPdfBuffer = async (
     const html = await renderHtmlTemplate(templatePath, {
         projek,
         watermark_logo_path: staticAssetPath("Building-Logo.png"),
-        logo_path: staticAssetPath("Logo_Alfamart_transparent.png"),
+        alfamart_logo_path: staticAssetPath("Alfamart-Emblem.png"),
+        sparta_logo_path: staticAssetPath("Building-Logo.png"),
         created_at_formatted: formatDateIndonesia(projek.created_at),
         bm_waktu_formatted: formatDateIndonesia(projek.bm_waktu_persetujuan),
         pp2_waktu_formatted: formatDateIndonesia(projek.pp2_waktu_persetujuan),
