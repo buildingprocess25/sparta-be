@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { renderHtmlTemplate, renderPdfFromHtml, resolveTemplatePath } from "../../common/html-pdf";
-import type { ProjekPlanningItem } from "./projek-planning.constants";
+import type { ProjekPlanningRow } from "./projek-planning.repository";
 
 const monthNames = [
     "Januari", "Februari", "Maret", "April", "Mei", "Juni",
@@ -44,7 +44,7 @@ const staticAssetPath = (filename: string): string => {
 };
 
 export const buildProjekPlanningPdfBuffer = async (
-    projek: ProjekPlanningItem
+    projek: ProjekPlanningRow
 ): Promise<Buffer> => {
     const templatePath = await resolveTemplatePath("projek_planning_report.njk");
 

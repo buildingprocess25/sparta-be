@@ -199,11 +199,11 @@ export const projekPlanningService = {
             throw new AppError("Data Project Planning tidak ditemukan", 404);
         }
 
-        if (item.status !== PP_STATUS.COMPLETED) {
+        if (item.projek.status !== PP_STATUS.COMPLETED) {
             throw new AppError("PDF hanya bisa digenerate setelah project planning berstatus COMPLETED", 400);
         }
 
-        return buildProjekPlanningPdfBuffer(item);
+        return buildProjekPlanningPdfBuffer(item.projek);
     },
 
     // ============================================================
