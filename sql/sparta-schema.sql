@@ -36,7 +36,7 @@ CREATE TABLE rab (
     link_pdf_non_sbo VARCHAR(255),
     link_pdf_rekapitulasi VARCHAR(255),
     link_pdf_sph VARCHAR(255),
-    logo VARCHAR(255),
+    logo TEXT,
     email_pembuat VARCHAR(255),
     pemberi_persetujuan_direktur VARCHAR(255),
     waktu_persetujuan_direktur TIMESTAMP,
@@ -51,7 +51,7 @@ CREATE TABLE rab (
     kategori_lokasi VARCHAR(255),
     no_polis VARCHAR(255),
     berlaku_polis VARCHAR(255),
-    file_asuransi VARCHAR(500),
+    file_asuransi TEXT,
     luas_bangunan VARCHAR(255),
     luas_terbangun VARCHAR(255),
     luas_area_terbuka VARCHAR(255),
@@ -955,6 +955,8 @@ CREATE TABLE IF NOT EXISTS instruksi_lapangan (
     link_pdf_rekapitulasi VARCHAR(500),
     link_lampiran VARCHAR(500),
     email_pembuat VARCHAR(255),
+    tanggal_mulai DATE,
+    tanggal_selesai DATE,
     pemberi_persetujuan_koordinator VARCHAR(255),
     waktu_persetujuan_koordinator TIMESTAMP,
     pemberi_persetujuan_manager VARCHAR(255),
@@ -968,6 +970,10 @@ CREATE TABLE IF NOT EXISTS instruksi_lapangan (
     created_at TIMESTAMP NOT NULL DEFAULT timezone('Asia/Jakarta', now()),
     CONSTRAINT fk_instruksi_lapangan_toko FOREIGN KEY (id_toko) REFERENCES toko(id) ON DELETE CASCADE
 );
+
+ALTER TABLE instruksi_lapangan
+    ADD COLUMN IF NOT EXISTS tanggal_mulai DATE,
+    ADD COLUMN IF NOT EXISTS tanggal_selesai DATE;
 
 CREATE INDEX IF NOT EXISTS idx_instruksi_lapangan_id_toko ON instruksi_lapangan(id_toko);
 

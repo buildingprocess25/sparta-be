@@ -10,6 +10,8 @@ export interface InstruksiLapanganRow {
     link_pdf_rekapitulasi: string | null;
     link_lampiran: string | null;
     email_pembuat: string;
+    tanggal_mulai: string | null;
+    tanggal_selesai: string | null;
     pemberi_persetujuan_koordinator: string | null;
     waktu_persetujuan_koordinator: string | null;
     pemberi_persetujuan_manager: string | null;
@@ -77,14 +79,17 @@ export const instruksiLapanganRepository = {
 
             const insertHeaderRes = await client.query(`
                 INSERT INTO instruksi_lapangan (
-                    id_toko, status, email_pembuat, link_lampiran, grand_total
-                ) VALUES ($1, $2, $3, $4, $5) RETURNING *
+                    id_toko, status, email_pembuat, link_lampiran, grand_total,
+                    tanggal_mulai, tanggal_selesai
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *
             `, [
                 idToko,
                 "Menunggu Persetujuan Koordinator",
                 input.email_pembuat,
                 lampiranPath || null,
-                grandTotal.toString()
+                grandTotal.toString(),
+                input.tanggal_mulai,
+                input.tanggal_selesai
             ]);
 
             const header = insertHeaderRes.rows[0];
@@ -164,7 +169,9 @@ export const instruksiLapanganRepository = {
                 "pemberi_persetujuan_kontraktor = NULL",
                 "waktu_persetujuan_kontraktor = NULL",
                 "created_at = timezone('Asia/Jakarta', now())",
-                `grand_total = '${grandTotal.toString()}'`
+                `grand_total = '${grandTotal.toString()}'`,
+                `tanggal_mulai = '${input.tanggal_mulai}'`,
+                `tanggal_selesai = '${input.tanggal_selesai}'`
             ];
             
             const params: any[] = [idIL];
