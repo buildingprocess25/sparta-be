@@ -13,6 +13,7 @@ import {
     handlePpApproval2,
     getProjekPlanningLogs,
     downloadPdf,
+    proxyFile,
 } from "./projek-planning.controller";
 
 const fpdUpload = multer({
@@ -32,6 +33,7 @@ projekPlanningRouter.get("/", listProjekPlanning);
 projekPlanningRouter.get("/:id", getProjekPlanningById);
 projekPlanningRouter.get("/:id/logs", getProjekPlanningLogs);
 projekPlanningRouter.get("/:id/pdf", downloadPdf);
+projekPlanningRouter.get("/:id/proxy-file", proxyFile);
 
 // ── BM Manager ───────────────────────────────────────────────
 projekPlanningRouter.post("/:id/bm-approval", handleBmApproval);

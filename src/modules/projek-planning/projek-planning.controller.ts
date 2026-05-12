@@ -249,3 +249,91 @@ export const downloadPdf = asyncHandler(async (req: Request, res: Response) => {
     res.setHeader("Content-Disposition", `attachment; filename=Project_Planning_${id}.pdf`);
     res.send(buffer);
 });
+
+// ============================================================
+// PROXY FILE — stream GDrive file ke client (agar semua role bisa lihat/unduh)
+// GET /:id/proxy-file?field=fpd|rab_sipil|rab_me|rab|gambar_kerja|desain_3d|fpd_approved|foto_item&item_index=N&mode=view|download
+// ============================================================
+
+export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+        res.status(400).json({ status: "error", message: "ID tidak valid" });
+        return;
+    }
+
+    const field = String(req.query.field || "");
+    const itemIndex = req.query.item_index ? parseInt(String(req.query.item_index), 10) : undefined;
+    const mode = String(req.query.mode || "view"); // "view" atau "download"
+
+    const result = await projekPlanningService.getOne(id);
+    if (!result) {
+        res.status(404).json({ status: "error", message: "Projek tidak ditemukan" });
+        return;
+    }
+
+    const projek = result;
+
+    // Pilih URL berdasarkan field
+    let fileUrl: string | null | undefined;
+    if (field === "fpd") fileUrl = projek.link_fpd;
+    else if (field === "rab_sipil") fileUrl = projek.link_gambar_rab_sipil;
+    else if (field === "rab_me") fileUrl = projek.link_gambar_rab_me;
+    else if (field === "rab") fileUrl = projek.link_rab;
+    else if (field === "gambar_kerja") fileUrl = projek.link_gambar_kerja;
+    else if (field === "desain_3d") fileUrl = projek.link_desain_3d;
+    else if (field === "fpd_approved") fileUrl = projek.link_fpd_approved;
+    else if (field === "foto_item" && itemIndex !== undefined) {
+        const fotoItem = (projek.foto_items || []).find((f: any) => f.item_index === itemIndex);
+        fileUrl = fotoItem?.link_foto;
+    }
+
+    if (!fileUrl) {
+        res.status(404).json({ status: "error", message: "File tidak ditemukan" });
+        return;
+    }
+
+    // Ekstrak fileId dari URL GDrive
+    const { extractGdriveFileId } = await import("./projek-planning.pdf");
+    const fileId = extractGdriveFileId(fileUrl);
+
+    if (!fileId) {
+        // Bukan URL GDrive — redirect langsung
+        res.redirect(fileUrl);
+        return;
+    }
+
+    const { GoogleProvider } = await import("../../common/google");
+    const drive = GoogleProvider.instance.docDrive;
+    if (!drive) {
+        res.status(503).json({ status: "error", message: "Layanan Drive belum siap" });
+        return;
+    }
+
+    // Ambil metadata file
+    let mimeType = "application/octet-stream";
+    let fileName = `file_${field}_${id}`;
+    try {
+        const meta = await drive.files.get({ fileId, fields: "name, mimeType" });
+        if (meta.data.name) fileName = meta.data.name;
+        if (meta.data.mimeType) mimeType = meta.data.mimeType;
+    } catch { /* ignore, gunakan default */ }
+
+    // Download buffer
+    const buffer = await GoogleProvider.instance.getFileBufferById(drive, fileId);
+    if (!buffer) {
+        res.status(502).json({ status: "error", message: "Gagal mengambil file dari Drive" });
+        return;
+    }
+
+    res.setHeader("Content-Type", mimeType);
+    res.setHeader(
+        "Content-Disposition",
+        mode === "download"
+            ? `attachment; filename="${encodeURIComponent(fileName)}"`
+            : `inline; filename="${encodeURIComponent(fileName)}"`
+    );
+    res.setHeader("Content-Length", buffer.length);
+    res.send(buffer);
+});
+

@@ -600,4 +600,14 @@ export const projekPlanningService = {
         if (!data) throw new AppError("Project planning tidak ditemukan", 404);
         return data.logs;
     },
+
+    // ============================================================
+    // GET ONE — full detail (dipakai proxy file & PDF)
+    // ============================================================
+
+    async getOne(id: number) {
+        const data = await projekPlanningRepository.findById(id);
+        if (!data) throw new AppError("Project planning tidak ditemukan", 404);
+        return data.projek;
+    },
 };
