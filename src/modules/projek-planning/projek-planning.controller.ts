@@ -22,7 +22,7 @@ export const submitProjekPlanning = asyncHandler(async (req: Request, res: Respo
     if (typeof payloadStr.fasilitas === "string") payloadStr.fasilitas = JSON.parse(payloadStr.fasilitas);
 
     const payload = submitProjekPlanningSchema.parse(payloadStr);
-    const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+    const files = req.files as Express.Multer.File[] | undefined;
     const result = await projekPlanningService.submit(payload, files);
 
     res.status(201).json({
@@ -49,7 +49,7 @@ export const resubmitProjekPlanning = asyncHandler(async (req: Request, res: Res
     if (typeof payloadStr.fasilitas === "string") payloadStr.fasilitas = JSON.parse(payloadStr.fasilitas);
 
     const payload = resubmitProjekPlanningSchema.parse(payloadStr);
-    const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+    const files = req.files as Express.Multer.File[] | undefined;
     const result = await projekPlanningService.resubmit(id, payload, files);
 
     res.json({

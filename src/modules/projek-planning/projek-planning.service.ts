@@ -29,7 +29,7 @@ export const projekPlanningService = {
     // SUBMIT FPD (Coordinator) — record baru
     // ============================================================
 
-    async submit(payload: SubmitProjekPlanningInput, files?: { [fieldname: string]: Express.Multer.File[] }) {
+    async submit(payload: SubmitProjekPlanningInput, files?: Express.Multer.File[]) {
         // 1. Validasi toko
         const toko = await tokoRepository.findById(payload.id_toko);
         if (!toko) {
@@ -61,10 +61,14 @@ export const projekPlanningService = {
         let fpdLink = payload.link_fpd;
         let rabSipilLink = payload.link_gambar_rab_sipil;
         let rabMeLink = payload.link_gambar_rab_me;
-        if (files) {
-            const fFpd = files["file_fpd"]?.[0];
-            const fRabSipil = files["file_rab_sipil"]?.[0];
-            const fRabMe = files["file_rab_me"]?.[0];
+        let fotoItemsLinks: { item_index: number; link_foto: string }[] = [];
+
+        if (files && files.length > 0) {
+            const fFpd = files.find(f => f.fieldname === "file_fpd");
+            const fRabSipil = files.find(f => f.fieldname === "file_rab_sipil");
+            const fRabMe = files.find(f => f.fieldname === "file_rab_me");
+
+            const itemRegex = /^foto_items_(\d+)$/i;
 
             try {
                 if (fFpd) {
@@ -79,8 +83,20 @@ export const projekPlanningService = {
                     const link = await uploadCompressedFile(fRabMe, env.DOC_DRIVE_ROOT_ID);
                     if (link) rabMeLink = link;
                 }
+
+                // Process foto_items_X
+                for (const file of files) {
+                    const match = itemRegex.exec(file.fieldname);
+                    if (match) {
+                        const index = parseInt(match[1], 10);
+                        if (!isNaN(index)) {
+                            const link = await uploadCompressedFile(file, env.DOC_DRIVE_ROOT_ID);
+                            if (link) fotoItemsLinks.push({ item_index: index, link_foto: link });
+                        }
+                    }
+                }
             } catch (e) {
-                console.error("Gagal upload file FPD/RAB ke Drive:", e);
+                console.error("Gagal upload file FPD/RAB/Foto ke Drive:", e);
             }
         }
 
@@ -108,6 +124,10 @@ export const projekPlanningService = {
             keterangan: "FPD berhasil diajukan oleh Coordinator, menunggu approval BM Manager",
         });
 
+        if (fotoItemsLinks.length > 0) {
+            await projekPlanningRepository.createFotoItemsBulk(created.id, fotoItemsLinks);
+        }
+
         return created;
     },
 
@@ -115,7 +135,7 @@ export const projekPlanningService = {
     // RESUBMIT FPD (Coordinator) — update record DRAFT yang sudah ada
     // ============================================================
 
-    async resubmit(id: number, payload: ResubmitProjekPlanningInput, files?: { [fieldname: string]: Express.Multer.File[] }) {
+    async resubmit(id: number, payload: ResubmitProjekPlanningInput, files?: Express.Multer.File[]) {
         const data = await projekPlanningRepository.findById(id);
         if (!data) throw new AppError("Project planning tidak ditemukan", 404);
 
@@ -137,10 +157,14 @@ export const projekPlanningService = {
         let fpdLink = payload.link_fpd;
         let rabSipilLink = payload.link_gambar_rab_sipil;
         let rabMeLink = payload.link_gambar_rab_me;
-        if (files) {
-            const fFpd = files["file_fpd"]?.[0];
-            const fRabSipil = files["file_rab_sipil"]?.[0];
-            const fRabMe = files["file_rab_me"]?.[0];
+        let fotoItemsLinks: { item_index: number; link_foto: string }[] = [];
+
+        if (files && files.length > 0) {
+            const fFpd = files.find(f => f.fieldname === "file_fpd");
+            const fRabSipil = files.find(f => f.fieldname === "file_rab_sipil");
+            const fRabMe = files.find(f => f.fieldname === "file_rab_me");
+
+            const itemRegex = /^foto_items_(\d+)$/i;
 
             try {
                 if (fFpd) {
@@ -155,8 +179,20 @@ export const projekPlanningService = {
                     const link = await uploadCompressedFile(fRabMe, env.DOC_DRIVE_ROOT_ID);
                     if (link) rabMeLink = link;
                 }
+
+                // Process foto_items_X
+                for (const file of files) {
+                    const match = itemRegex.exec(file.fieldname);
+                    if (match) {
+                        const index = parseInt(match[1], 10);
+                        if (!isNaN(index)) {
+                            const link = await uploadCompressedFile(file, env.DOC_DRIVE_ROOT_ID);
+                            if (link) fotoItemsLinks.push({ item_index: index, link_foto: link });
+                        }
+                    }
+                }
             } catch (e) {
-                console.error("Gagal upload file FPD/RAB ke Drive:", e);
+                console.error("Gagal upload file FPD/RAB/Foto ke Drive:", e);
             }
         }
 
@@ -183,6 +219,12 @@ export const projekPlanningService = {
             status_sesudah: PP_STATUS.WAITING_BM_APPROVAL,
             keterangan: "FPD diajukan ulang oleh Coordinator setelah penolakan, menunggu approval BM Manager",
         });
+
+        if (fotoItemsLinks.length > 0) {
+            for (const item of fotoItemsLinks) {
+                await projekPlanningRepository.upsertFotoItem(id, item.item_index, item.link_foto);
+            }
+        }
 
         return updated;
     },

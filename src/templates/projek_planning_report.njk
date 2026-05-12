@@ -319,6 +319,40 @@
     </tr>
   </table>
 
+  {% if projek.foto_items and projek.foto_items.length > 0 %}
+  <div style="page-break-before: always;"></div>
+  
+  <div class="header">
+    <table style="width: 100%; border: none;">
+      <tr>
+        <td style="width: 15%; border: none;">
+          <img src="{{ alfamart_logo_path }}" alt="Alfamart Logo" style="height: 40px;">
+        </td>
+        <td style="width: 70%; text-align: center; border: none;">
+          <div class="header-title">LAMPIRAN FOTO DOKUMENTASI</div>
+          <div class="header-subtitle">FORM PENGAJUAN PROJECT PLANNING (FPD)</div>
+        </td>
+        <td style="width: 15%; text-align: right; border: none;">
+          <img src="{{ sparta_logo_path }}" alt="Sparta Logo" style="height: 40px;">
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <div style="margin-top: 20px;">
+    {% for foto in projek.foto_items %}
+      <div style="display: inline-block; width: 48%; border: 1px solid #000; margin-bottom: 15px; margin-right: 1%; vertical-align: top; page-break-inside: avoid;">
+        <div style="background-color: #f1f5f9; padding: 5px; font-weight: bold; border-bottom: 1px solid #000; font-size: 11px; text-align: center;">
+          Kamera Sudut #{{ foto.item_index }}
+        </div>
+        <div style="padding: 5px; text-align: center; height: 250px;">
+          <img src="{{ foto.link_foto }}" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
   <div class="footer">
     No. Laporan: {{ projek.id }} — Dokumen ini di-generate otomatis oleh sistem SPARTA Building pada {{ generated_at }}
   </div>

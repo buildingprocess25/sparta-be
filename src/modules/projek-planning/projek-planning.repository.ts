@@ -51,6 +51,9 @@ export type ProjekPlanningRow = {
     // Catatan Design (dari tabel terpisah)
     catatan_design?: { id?: number; isi_catatan: string }[];
 
+    // Foto Lampiran FPD (dari tabel terpisah)
+    foto_items?: { id?: number; item_index: number; link_foto: string }[];
+
     // Links
     link_fpd: string | null;
     link_rab: string | null;
@@ -137,7 +140,7 @@ export const projekPlanningRepository = {
         if ((headerResult.rowCount ?? 0) === 0) return null;
         const projek = headerResult.rows[0];
 
-        const [logsRes, fasilitasRes, ketentuanRes, catatanRes] = await Promise.all([
+        const [logsRes, fasilitasRes, ketentuanRes, catatanRes, fotoRes] = await Promise.all([
             pool.query<ProjekPlanningLogRow>(
                 `SELECT * FROM projek_planning_log WHERE projek_planning_id = $1 ORDER BY created_at ASC`, [id]
             ),
@@ -149,12 +152,16 @@ export const projekPlanningRepository = {
             ),
             pool.query(
                 `SELECT id, isi_catatan FROM projek_planning_catatan WHERE projek_planning_id = $1`, [id]
+            ),
+            pool.query(
+                `SELECT id, item_index, link_foto FROM projek_planning_foto_item WHERE id_projek_planning = $1 ORDER BY item_index ASC`, [id]
             )
         ]);
 
         projek.fasilitas = fasilitasRes.rows;
         projek.ketentuan = ketentuanRes.rows;
         projek.catatan_design = catatanRes.rows;
+        projek.foto_items = fotoRes.rows;
 
         return {
             projek,
@@ -236,6 +243,31 @@ export const projekPlanningRepository = {
         );
 
         return result.rows;
+    },
+
+    // ----------------------------------------------------------
+    // FOTO ITEMS
+    // ----------------------------------------------------------
+
+    async createFotoItemsBulk(id_projek_planning: number, items: { item_index: number; link_foto: string }[], client?: PoolClient): Promise<void> {
+        const db = client ?? pool;
+        for (const item of items) {
+            await db.query(
+                `INSERT INTO projek_planning_foto_item (id_projek_planning, item_index, link_foto) VALUES ($1, $2, $3)`,
+                [id_projek_planning, item.item_index, item.link_foto]
+            );
+        }
+    },
+
+    async deleteFotoItemsBulk(id_projek_planning: number, client?: PoolClient): Promise<void> {
+        const db = client ?? pool;
+        await db.query(`DELETE FROM projek_planning_foto_item WHERE id_projek_planning = $1`, [id_projek_planning]);
+    },
+
+    async upsertFotoItem(id_projek_planning: number, item_index: number, link_foto: string, client?: PoolClient): Promise<void> {
+        const db = client ?? pool;
+        await db.query(`DELETE FROM projek_planning_foto_item WHERE id_projek_planning = $1 AND item_index = $2`, [id_projek_planning, item_index]);
+        await db.query(`INSERT INTO projek_planning_foto_item (id_projek_planning, item_index, link_foto) VALUES ($1, $2, $3)`, [id_projek_planning, item_index, link_foto]);
     },
 
     // ----------------------------------------------------------
