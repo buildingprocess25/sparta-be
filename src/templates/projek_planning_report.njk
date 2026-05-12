@@ -293,7 +293,7 @@
         </div>
       </td>
       <td style="width: 25%; vertical-align: top;">
-        <div class="approval-title">DISETUJUI</div>
+        <div class="approval-title">MENGETAHUI</div>
         <div class="approval-box pp1">
           <div class="approval-name">{{ (projek.bm_approver_email.split('@')[0] | upper) if projek.bm_approver_email else '-' }}</div>
           <div class="approval-date">{{ bm_waktu_formatted or '-' }}</div>
@@ -301,7 +301,7 @@
         </div>
       </td>
       <td style="width: 25%; vertical-align: top;">
-        <div class="approval-title">DISETUJUI</div>
+        <div class="approval-title">MENGETAHUI</div>
         <div class="approval-box pp2">
           <div class="approval-name">{{ (projek.pp2_approver_email.split('@')[0] | upper) if projek.pp2_approver_email else '-' }}</div>
           <div class="approval-date">{{ pp2_waktu_formatted or '-' }}</div>
@@ -309,7 +309,7 @@
         </div>
       </td>
       <td style="width: 25%; vertical-align: top;">
-        <div class="approval-title">MENGETAHUI</div>
+        <div class="approval-title">DISETUJUI</div>
         <div class="approval-box bm">
           <div class="approval-name">{{ (projek.pp_manager_approver_email.split('@')[0] | upper) if projek.pp_manager_approver_email else '-' }}</div>
           <div class="approval-date">{{ pp_manager_waktu_formatted or '-' }}</div>
