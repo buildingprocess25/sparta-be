@@ -21,7 +21,7 @@ export const submitProjekPlanningSchema = z.object({
 
     // ── Identitas Pengajuan ──────────────────────────────────
     nama_pengaju: z.string().min(1, "Nama pengaju wajib diisi"),
-    nama_lokasi: z.string().min(1, "Nama lokasi wajib diisi"),
+    nama_lokasi: z.string().optional().or(z.literal("")),
 
     // ── Jenis Pengajuan Design ───────────────────────────────
     jenis_pengajuan: z.string().min(1, "Jenis pengajuan wajib dipilih"),
@@ -62,7 +62,7 @@ export const resubmitProjekPlanningSchema = z.object({
 
     // ── Identitas Pengajuan ──────────────────────────────────
     nama_pengaju: z.string().min(1, "Nama pengaju wajib diisi"),
-    nama_lokasi: z.string().min(1, "Nama lokasi wajib diisi"),
+    nama_lokasi: z.string().optional().or(z.literal("")),
 
     // ── Jenis Pengajuan Design ───────────────────────────────
     jenis_pengajuan: z.string().min(1, "Jenis pengajuan wajib dipilih"),
