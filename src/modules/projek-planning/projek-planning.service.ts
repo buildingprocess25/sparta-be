@@ -31,12 +31,26 @@ export const projekPlanningService = {
 
     async submit(payload: SubmitProjekPlanningInput, files?: Express.Multer.File[]) {
         // 1. Validasi toko
-        const toko = await tokoRepository.findById(payload.id_toko);
-        if (!toko) {
-            throw new AppError("id_toko tidak ditemukan di master toko", 404);
-        }
-        if (toko.nomor_ulok !== payload.nomor_ulok) {
-            throw new AppError("id_toko tidak cocok dengan nomor_ulok", 409);
+        let toko: any;
+        if (payload.id_toko === 0) {
+            // Upsert / Create new toko manually
+            toko = await tokoRepository.create({
+                nomor_ulok: payload.nomor_ulok,
+                nama_toko: payload.nama_toko ?? "Toko Baru",
+                kode_toko: "0000",
+                cabang: payload.cabang ?? "UNKNOWN",
+                alamat: payload.alamat_toko ?? "-",
+            });
+            payload.id_toko = toko.id;
+        } else {
+            const existingToko = await tokoRepository.findById(payload.id_toko);
+            if (!existingToko) {
+                throw new AppError("id_toko tidak ditemukan di master toko", 404);
+            }
+            if (existingToko.nomor_ulok !== payload.nomor_ulok) {
+                throw new AppError("id_toko tidak cocok dengan nomor_ulok", 409);
+            }
+            toko = existingToko;
         }
 
         // 2. Cek apakah sudah ada projek planning AKTIF untuk toko ini

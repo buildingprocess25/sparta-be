@@ -5,8 +5,13 @@ import { z } from "zod";
 // ============================================================
 
 export const submitProjekPlanningSchema = z.object({
-    id_toko: z.coerce.number().int().positive(),
+    id_toko: z.coerce.number().int().min(0), // 0 means create new toko
     nomor_ulok: z.string().min(1),
+    // New fields for manual toko creation
+    cabang: z.string().optional().or(z.literal("")),
+    nama_toko: z.string().optional().or(z.literal("")),
+    alamat_toko: z.string().optional().or(z.literal("")),
+    
     email_pembuat: z.string().email(),
     lingkup_pekerjaan: z.string().optional().or(z.literal("")),
     jenis_proyek: z.string().optional().or(z.literal("")),
