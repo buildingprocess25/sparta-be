@@ -283,6 +283,7 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
     else if (field === "gambar_kerja") fileUrl = projek.link_gambar_kerja;
     else if (field === "desain_3d") fileUrl = projek.link_desain_3d;
     else if (field === "fpd_approved") fileUrl = projek.link_fpd_approved;
+    else if (field === "gambar_kompetitor") fileUrl = projek.link_gambar_kompetitor;
     else if (field === "foto_item" && itemIndex !== undefined) {
         const fotoItem = (projek.foto_items || []).find((f: any) => f.item_index === itemIndex);
         fileUrl = fotoItem?.link_foto;

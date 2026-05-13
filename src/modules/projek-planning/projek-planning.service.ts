@@ -76,6 +76,7 @@ export const projekPlanningService = {
         let gambarKerjaMe = payload.link_gambar_kerja;
         let rabSipilLink = payload.link_gambar_rab_sipil;
         let rabMeLink = payload.link_gambar_rab_me;
+        let gambarKompetitor = payload.link_gambar_kompetitor;
         let fotoItemsLinks: { item_index: number; link_foto: string }[] = [];
 
         if (files && files.length > 0) {
@@ -83,6 +84,7 @@ export const projekPlanningService = {
             const fGambarKerjaMe = files.find(f => f.fieldname === "file_gambar_kerja_me");
             const fRabSipil = files.find(f => f.fieldname === "file_rab_sipil");
             const fRabMe = files.find(f => f.fieldname === "file_rab_me");
+            const fKompetitor = files.find(f => f.fieldname === "file_gambar_kompetitor");
 
             const itemRegex = /^foto_items_(\d+)$/i;
 
@@ -102,6 +104,10 @@ export const projekPlanningService = {
                 if (fRabMe) {
                     const link = await uploadCompressedFile(fRabMe, env.DOC_DRIVE_ROOT_ID);
                     if (link) rabMeLink = link;
+                }
+                if (fKompetitor) {
+                    const link = await uploadCompressedFile(fKompetitor, env.DOC_DRIVE_ROOT_ID);
+                    if (link) gambarKompetitor = link;
                 }
 
                 // Process foto_items_X
@@ -131,8 +137,9 @@ export const projekPlanningService = {
             link_gambar_kerja: gambarKerjaMe ?? undefined,
             link_gambar_rab_sipil: rabSipilLink ?? undefined,
             link_gambar_rab_me: rabMeLink ?? undefined,
+            link_gambar_kompetitor: gambarKompetitor ?? undefined,
             status: PP_STATUS.WAITING_BM_APPROVAL,
-        });
+        } as any);
 
         // 6. Catat log
         await projekPlanningRepository.insertLog({
@@ -179,6 +186,7 @@ export const projekPlanningService = {
         let gambarKerjaMe = payload.link_gambar_kerja;
         let rabSipilLink = payload.link_gambar_rab_sipil;
         let rabMeLink = payload.link_gambar_rab_me;
+        let gambarKompetitor = payload.link_gambar_kompetitor;
         let fotoItemsLinks: { item_index: number; link_foto: string }[] = [];
 
         if (files && files.length > 0) {
@@ -186,6 +194,7 @@ export const projekPlanningService = {
             const fGambarKerjaMe = files.find(f => f.fieldname === "file_gambar_kerja_me");
             const fRabSipil = files.find(f => f.fieldname === "file_rab_sipil");
             const fRabMe = files.find(f => f.fieldname === "file_rab_me");
+            const fKompetitor = files.find(f => f.fieldname === "file_gambar_kompetitor");
 
             const itemRegex = /^foto_items_(\d+)$/i;
 
@@ -205,6 +214,10 @@ export const projekPlanningService = {
                 if (fRabMe) {
                     const link = await uploadCompressedFile(fRabMe, env.DOC_DRIVE_ROOT_ID);
                     if (link) rabMeLink = link;
+                }
+                if (fKompetitor) {
+                    const link = await uploadCompressedFile(fKompetitor, env.DOC_DRIVE_ROOT_ID);
+                    if (link) gambarKompetitor = link;
                 }
 
                 // Process foto_items_X
@@ -234,8 +247,9 @@ export const projekPlanningService = {
             link_gambar_kerja: gambarKerjaMe ?? projek.link_gambar_kerja ?? undefined,
             link_gambar_rab_sipil: rabSipilLink ?? projek.link_gambar_rab_sipil ?? undefined,
             link_gambar_rab_me: rabMeLink ?? projek.link_gambar_rab_me ?? undefined,
+            link_gambar_kompetitor: gambarKompetitor ?? projek.link_gambar_kompetitor ?? undefined,
             status: PP_STATUS.WAITING_BM_APPROVAL,
-        });
+        } as any);
 
         // Catat log
         await projekPlanningRepository.insertLog({

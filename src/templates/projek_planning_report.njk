@@ -235,6 +235,12 @@
       <td class="label">Lingkup Pekerjaan</td>
       <td class="value" colspan="3">: {{ projek.lingkup_pekerjaan or '-' }}</td>
     </tr>
+    <tr>
+      <td class="label">Tipe Bangunan</td>
+      <td class="value">: {{ 'Ruko (' + projek.jumlah_lantai + ' Lantai)' if projek.is_ruko else 'Non-Ruko' }}</td>
+      <td class="label">Jenis Pengajuan</td>
+      <td class="value">: {{ projek.jenis_pengajuan or '-' }}</td>
+    </tr>
   </table>
 
   <div class="section-title">Fasilitas & Ketentuan</div>

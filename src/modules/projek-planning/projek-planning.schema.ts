@@ -46,6 +46,13 @@ export const submitProjekPlanningSchema = z.object({
     link_gambar_kerja: z.string().optional(),
     link_gambar_rab_sipil: z.string().optional(),
     link_gambar_rab_me: z.string().optional(),
+
+    // ── Ruko / Non-Ruko ──────────────────────────────────────
+    is_ruko: z.coerce.boolean().optional().default(false),
+    jumlah_lantai: z.coerce.number().int().min(1).max(20).optional(),
+
+    // ── Gambar Kompetitor ────────────────────────────────────
+    link_gambar_kompetitor: z.string().optional(),
 });
 
 export type SubmitProjekPlanningInput = z.infer<typeof submitProjekPlanningSchema>;
@@ -88,6 +95,13 @@ export const resubmitProjekPlanningSchema = z.object({
     link_gambar_kerja: z.string().optional(),
     link_gambar_rab_sipil: z.string().optional(),
     link_gambar_rab_me: z.string().optional(),
+
+    // ── Ruko / Non-Ruko ──────────────────────────────────────
+    is_ruko: z.coerce.boolean().optional().default(false),
+    jumlah_lantai: z.coerce.number().int().min(1).max(20).optional(),
+
+    // ── Gambar Kompetitor ────────────────────────────────────
+    link_gambar_kompetitor: z.string().optional(),
 });
 
 export type ResubmitProjekPlanningInput = z.infer<typeof resubmitProjekPlanningSchema>;

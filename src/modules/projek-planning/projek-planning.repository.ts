@@ -66,6 +66,9 @@ export type ProjekPlanningRow = {
     // Status & flags
     status: PpStatus;
     butuh_desain_3d: boolean;
+    is_ruko: boolean;
+    jumlah_lantai: number | null;
+    link_gambar_kompetitor: string | null;
 
     // Approval fields
     bm_approver_email: string | null;
@@ -109,8 +112,8 @@ const PP_COLUMNS = `
     nama_pengaju, nama_lokasi,
     jenis_pengajuan, jenis_pengajuan_lainnya,
     link_fpd, link_rab, link_gambar_kerja, link_desain_3d, link_fpd_approved,
-    link_gambar_rab_sipil, link_gambar_rab_me,
-    status, butuh_desain_3d,
+    link_gambar_rab_sipil, link_gambar_rab_me, link_gambar_kompetitor,
+    status, butuh_desain_3d, is_ruko, jumlah_lantai,
     bm_approver_email, bm_waktu_persetujuan, bm_alasan_penolakan,
     pp1_approver_email, pp1_waktu_persetujuan, pp1_alasan_penolakan,
     pp_manager_approver_email, pp_manager_waktu_persetujuan, pp_manager_alasan_penolakan,
@@ -290,6 +293,8 @@ export const projekPlanningRepository = {
                     nama_pengaju, nama_lokasi,
                     jenis_pengajuan, jenis_pengajuan_lainnya,
                     link_gambar_kerja, link_gambar_rab_sipil, link_gambar_rab_me,
+                    link_gambar_kompetitor,
+                    is_ruko, jumlah_lantai,
                     status, butuh_desain_3d,
                     created_at, updated_at
                 ) VALUES (
@@ -299,7 +304,9 @@ export const projekPlanningRepository = {
                     $13, $14,
                     $15, $16,
                     $17, $18, $19,
-                    $20, FALSE,
+                    $20,
+                    $21, $22,
+                    $23, FALSE,
                     NOW(), NOW()
                 )
                 RETURNING ${PP_COLUMNS}`,
@@ -323,6 +330,9 @@ export const projekPlanningRepository = {
                     (payload as any).link_gambar_kerja ?? null,
                     payload.link_gambar_rab_sipil ?? null,
                     payload.link_gambar_rab_me ?? null,
+                    (payload as any).link_gambar_kompetitor ?? null,
+                    (payload as any).is_ruko ?? false,
+                    (payload as any).jumlah_lantai ?? null,
                     payload.status,
                 ]
             );
@@ -393,7 +403,10 @@ export const projekPlanningRepository = {
                      link_gambar_rab_sipil = $15,
                      link_gambar_rab_me = $16,
                      link_gambar_kerja = COALESCE($17, link_gambar_kerja),
-                     status = $18,
+                     link_gambar_kompetitor = COALESCE($18, link_gambar_kompetitor),
+                     is_ruko = $19,
+                     jumlah_lantai = $20,
+                     status = $21,
                      butuh_desain_3d = FALSE,
                      bm_approver_email = NULL,
                      bm_waktu_persetujuan = NULL,
@@ -408,7 +421,7 @@ export const projekPlanningRepository = {
                      pp2_waktu_persetujuan = NULL,
                      pp2_alasan_penolakan = NULL,
                      updated_at = NOW()
-                 WHERE id = $19
+                 WHERE id = $22
                  RETURNING ${PP_COLUMNS}`,
                 [
                     payload.email_pembuat,
@@ -428,6 +441,9 @@ export const projekPlanningRepository = {
                     payload.link_gambar_rab_sipil ?? null,
                     payload.link_gambar_rab_me ?? null,
                     (payload as any).link_gambar_kerja ?? null,
+                    (payload as any).link_gambar_kompetitor ?? null,
+                    (payload as any).is_ruko ?? false,
+                    (payload as any).jumlah_lantai ?? null,
                     payload.status,
                     id,
                 ]
