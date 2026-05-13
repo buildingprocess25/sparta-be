@@ -122,6 +122,7 @@
       padding: 10px;
       margin: 0 5px;
       border-radius: 0 0 4px 4px;
+      text-align: center;
     }
 
     .approval-box.bm { border-color: #dc2626; }
@@ -137,17 +138,20 @@
       margin: 0 5px;
       border-radius: 4px 4px 0 0;
       text-transform: uppercase;
+      text-align: center;
     }
 
     .approval-name {
       font-weight: bold;
       margin-top: 40px;
       font-size: 11px;
+      text-align: center;
     }
 
     .approval-nik {
       font-size: 9px;
       color: #666;
+      text-align: center;
     }
 
     .approval-date {
@@ -164,6 +168,7 @@
       margin-top: 10px;
       border-top: 1px solid #eee;
       padding-top: 5px;
+      text-align: center;
     }
 
     .footer {
@@ -295,7 +300,7 @@
     <tr>
 
       {# ── [1] DIBUAT — Coordinator (selalu ada nama & tanggal) ── #}
-      <td style="width: 25%; vertical-align: top;">
+      <td style="width: 25%; vertical-align: top; text-align: center;">
         <div class="approval-title">DIBUAT</div>
         <div class="approval-box bm" style="min-height: 90px;">
           <div class="approval-date">{{ created_at_formatted }}</div>
@@ -306,7 +311,7 @@
       </td>
 
       {# ── [2] MENGETAHUI — B&M Manager (nama & tanggal jika sudah approve) ── #}
-      <td style="width: 25%; vertical-align: top;">
+      <td style="width: 25%; vertical-align: top; text-align: center;">
         <div class="approval-title">MENGETAHUI</div>
         <div class="approval-box pp1" style="min-height: 90px;">
           {% if projek.bm_approver_email %}
@@ -321,7 +326,7 @@
       </td>
 
       {# ── [3] MENGETAHUI — PP Specialist (nama & tanggal jika sudah approve) ── #}
-      <td style="width: 25%; vertical-align: top;">
+      <td style="width: 25%; vertical-align: top; text-align: center;">
         <div class="approval-title">MENGETAHUI</div>
         <div class="approval-box pp2" style="min-height: 90px;">
           {% if projek.pp2_approver_email %}
@@ -336,7 +341,7 @@
       </td>
 
       {# ── [4] DISETUJUI — PP Manager (nama & tanggal jika sudah approve) ── #}
-      <td style="width: 25%; vertical-align: top;">
+      <td style="width: 25%; vertical-align: top; text-align: center;">
         <div class="approval-title">DISETUJUI</div>
         <div class="approval-box bm" style="min-height: 90px;">
           {% if projek.pp_manager_approver_email %}
