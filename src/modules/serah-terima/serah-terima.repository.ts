@@ -183,13 +183,21 @@ export const serahTerimaRepository = {
         return result.rows[0] ?? null;
     },
 
-    async listBerkasSerahTerima(idToko?: number): Promise<BerkasSerahTerimaWithTokoRow[]> {
-        const values: Array<number> = [];
-        const whereClause = typeof idToko === "number" ? "WHERE bst.id_toko = $1" : "";
+    async listBerkasSerahTerima(filter: { id_toko?: number; nomor_ulok?: string } = {}): Promise<BerkasSerahTerimaWithTokoRow[]> {
+        const values: Array<number | string> = [];
+        const conditions: string[] = [];
 
-        if (typeof idToko === "number") {
-            values.push(idToko);
+        if (typeof filter.id_toko === "number") {
+            values.push(filter.id_toko);
+            conditions.push(`bst.id_toko = $${values.length}`);
         }
+
+        if (filter.nomor_ulok) {
+            values.push(filter.nomor_ulok);
+            conditions.push(`t.nomor_ulok = $${values.length}`);
+        }
+
+        const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
         const result = await pool.query<BerkasSerahTerimaWithTokoRow>(
             `

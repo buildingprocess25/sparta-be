@@ -5,7 +5,7 @@ import { serahTerimaService } from "./serah-terima.service";
 
 export const listBerkasSerahTerima = asyncHandler(async (req: Request, res: Response) => {
     const query = listBerkasSerahTerimaQuerySchema.parse(req.query);
-    const data = await serahTerimaService.list(query.id_toko);
+    const data = await serahTerimaService.list({ id_toko: query.id_toko, nomor_ulok: query.nomor_ulok });
 
     res.json({
         status: "success",
