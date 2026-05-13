@@ -18,7 +18,7 @@
     }
 
     .header-main {
-      background-color: #1976B8;
+      background-color: #dc2626;
       color: #ffffff;
       padding: 14px 20px;
       display: flex;
@@ -205,7 +205,7 @@
     </div>
   </div>
 
-  <div class="section-title">Informasi Pengajuan FPD</div>
+  <div class="section-title">Informasi Pengajuan Form Permintaan Design</div>
   <table class="info-table">
     <tr>
       <td class="label">Nomor ULOK</td>
@@ -248,7 +248,7 @@
       <tr>
         <td class="label-col">
           {% if fas.jenis_fasilitas == 'LAINNYA' %}
-            Fasilitas Lainnya: {{ fas.nama_fasilitas_lainnya }}
+            {{ fas.nama_fasilitas_lainnya }}
           {% else %}
             {% if fas.jenis_fasilitas == 'AIR_BERSIH' %}Sumber Air Bersih
             {% elif fas.jenis_fasilitas == 'DRAINASE' %}Drain Pembuangan Air Kotor
@@ -327,7 +327,7 @@
         <div class="approval-box bm">
           <div class="approval-name">{{ projek.email_pembuat.split('@')[0] | upper }}</div>
           <div class="approval-date">{{ created_at_formatted }}</div>
-          <div class="approval-role">Coordinator / BM Support</div>
+          <div class="approval-role">Branch Building Coordinator</div>
         </div>
       </td>
       <td style="width: 25%; vertical-align: top;">
@@ -335,7 +335,7 @@
         <div class="approval-box pp1">
           <div class="approval-name">{{ (projek.bm_approver_email.split('@')[0] | upper) if projek.bm_approver_email else '-' }}</div>
           <div class="approval-date">{{ bm_waktu_formatted or '-' }}</div>
-          <div class="approval-role">Branch Manager</div>
+          <div class="approval-role">Building &amp; Maintenance Manager</div>
         </div>
       </td>
       <td style="width: 25%; vertical-align: top;">
@@ -343,7 +343,7 @@
         <div class="approval-box pp2">
           <div class="approval-name">{{ (projek.pp2_approver_email.split('@')[0] | upper) if projek.pp2_approver_email else '-' }}</div>
           <div class="approval-date">{{ pp2_waktu_formatted or '-' }}</div>
-          <div class="approval-role">PP Specialist</div>
+          <div class="approval-role">Project Planning &amp; Development Specialist</div>
         </div>
       </td>
       <td style="width: 25%; vertical-align: top;">
@@ -351,7 +351,7 @@
         <div class="approval-box bm">
           <div class="approval-name">{{ (projek.pp_manager_approver_email.split('@')[0] | upper) if projek.pp_manager_approver_email else '-' }}</div>
           <div class="approval-date">{{ pp_manager_waktu_formatted or '-' }}</div>
-          <div class="approval-role">PP Manager</div>
+          <div class="approval-role">Project Planning &amp; Development Manager</div>
         </div>
       </td>
     </tr>

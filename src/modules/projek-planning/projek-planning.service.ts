@@ -37,7 +37,7 @@ export const projekPlanningService = {
             toko = await tokoRepository.create({
                 nomor_ulok: payload.nomor_ulok,
                 nama_toko: payload.nama_toko ?? "Toko Baru",
-                kode_toko: "0000",
+                kode_toko: payload.kode_toko ?? "0000",
                 cabang: payload.cabang ?? "UNKNOWN",
                 alamat: payload.alamat_toko ?? "-",
             });

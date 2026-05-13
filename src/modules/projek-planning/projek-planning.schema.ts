@@ -10,6 +10,7 @@ export const submitProjekPlanningSchema = z.object({
     // New fields for manual toko creation
     cabang: z.string().optional().or(z.literal("")),
     nama_toko: z.string().optional().or(z.literal("")),
+    kode_toko: z.string().optional().or(z.literal("")),
     alamat_toko: z.string().optional().or(z.literal("")),
     
     email_pembuat: z.string().email(),
