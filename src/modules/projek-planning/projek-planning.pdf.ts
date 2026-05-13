@@ -57,7 +57,11 @@ const formatDateIndonesia = (value?: string | null): string => {
     if (!value) return "-";
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return String(value);
-    return `${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()} pukul ${date.getHours().toString().padStart(2, '0')}.${date.getMinutes().toString().padStart(2, '0')}`;
+
+    // Konversi ke WIB (UTC+7)
+    const wibDate = new Date(date.getTime() + 7 * 60 * 60 * 1000);
+
+    return `${wibDate.getUTCDate()} ${monthNames[wibDate.getUTCMonth()]} ${wibDate.getUTCFullYear()} pukul ${wibDate.getUTCHours().toString().padStart(2, '0')}.${wibDate.getUTCMinutes().toString().padStart(2, '0')}`;
 };
 
 const formatCurrency = (value?: string | number | null): string => {
