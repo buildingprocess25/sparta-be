@@ -73,12 +73,14 @@ export const projekPlanningService = {
 
         // 4. Upload file to Google Drive if provided
         let fpdLink = payload.link_fpd;
+        let gambarKerjaMe = payload.link_gambar_kerja;
         let rabSipilLink = payload.link_gambar_rab_sipil;
         let rabMeLink = payload.link_gambar_rab_me;
         let fotoItemsLinks: { item_index: number; link_foto: string }[] = [];
 
         if (files && files.length > 0) {
             const fFpd = files.find(f => f.fieldname === "file_fpd");
+            const fGambarKerjaMe = files.find(f => f.fieldname === "file_gambar_kerja_me");
             const fRabSipil = files.find(f => f.fieldname === "file_rab_sipil");
             const fRabMe = files.find(f => f.fieldname === "file_rab_me");
 
@@ -88,6 +90,10 @@ export const projekPlanningService = {
                 if (fFpd) {
                     const link = await uploadCompressedFile(fFpd, env.DOC_DRIVE_ROOT_ID);
                     if (link) fpdLink = link;
+                }
+                if (fGambarKerjaMe) {
+                    const link = await uploadCompressedFile(fGambarKerjaMe, env.DOC_DRIVE_ROOT_ID);
+                    if (link) gambarKerjaMe = link;
                 }
                 if (fRabSipil) {
                     const link = await uploadCompressedFile(fRabSipil, env.DOC_DRIVE_ROOT_ID);
@@ -122,6 +128,7 @@ export const projekPlanningService = {
             cabang: toko.cabang ?? null,
             proyek: toko.proyek ?? null,
             link_fpd: fpdLink ?? undefined,
+            link_gambar_kerja: gambarKerjaMe ?? undefined,
             link_gambar_rab_sipil: rabSipilLink ?? undefined,
             link_gambar_rab_me: rabMeLink ?? undefined,
             status: PP_STATUS.WAITING_BM_APPROVAL,
@@ -169,12 +176,14 @@ export const projekPlanningService = {
 
         // Upload file if provided
         let fpdLink = payload.link_fpd;
+        let gambarKerjaMe = payload.link_gambar_kerja;
         let rabSipilLink = payload.link_gambar_rab_sipil;
         let rabMeLink = payload.link_gambar_rab_me;
         let fotoItemsLinks: { item_index: number; link_foto: string }[] = [];
 
         if (files && files.length > 0) {
             const fFpd = files.find(f => f.fieldname === "file_fpd");
+            const fGambarKerjaMe = files.find(f => f.fieldname === "file_gambar_kerja_me");
             const fRabSipil = files.find(f => f.fieldname === "file_rab_sipil");
             const fRabMe = files.find(f => f.fieldname === "file_rab_me");
 
@@ -184,6 +193,10 @@ export const projekPlanningService = {
                 if (fFpd) {
                     const link = await uploadCompressedFile(fFpd, env.DOC_DRIVE_ROOT_ID);
                     if (link) fpdLink = link;
+                }
+                if (fGambarKerjaMe) {
+                    const link = await uploadCompressedFile(fGambarKerjaMe, env.DOC_DRIVE_ROOT_ID);
+                    if (link) gambarKerjaMe = link;
                 }
                 if (fRabSipil) {
                     const link = await uploadCompressedFile(fRabSipil, env.DOC_DRIVE_ROOT_ID);
@@ -218,6 +231,7 @@ export const projekPlanningService = {
             cabang: toko.cabang ?? null,
             proyek: toko.proyek ?? null,
             link_fpd: fpdLink ?? projek.link_fpd ?? undefined,
+            link_gambar_kerja: gambarKerjaMe ?? projek.link_gambar_kerja ?? undefined,
             link_gambar_rab_sipil: rabSipilLink ?? projek.link_gambar_rab_sipil ?? undefined,
             link_gambar_rab_me: rabMeLink ?? projek.link_gambar_rab_me ?? undefined,
             status: PP_STATUS.WAITING_BM_APPROVAL,
@@ -261,10 +275,6 @@ export const projekPlanningService = {
         const item = await projekPlanningRepository.findById(projekPlanningId);
         if (!item) {
             throw new AppError("Data Project Planning tidak ditemukan", 404);
-        }
-
-        if (item.projek.status !== PP_STATUS.COMPLETED) {
-            throw new AppError("PDF hanya bisa digenerate setelah project planning berstatus COMPLETED", 400);
         }
 
         return buildProjekPlanningPdfBuffer(item.projek);

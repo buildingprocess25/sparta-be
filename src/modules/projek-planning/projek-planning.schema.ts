@@ -43,6 +43,7 @@ export const submitProjekPlanningSchema = z.object({
     catatan_design: z.array(z.string()).optional().default([]),
 
     // ── Upload Files ─────────────────────────────────────────
+    link_gambar_kerja: z.string().optional(),
     link_gambar_rab_sipil: z.string().optional(),
     link_gambar_rab_me: z.string().optional(),
 });
@@ -84,6 +85,7 @@ export const resubmitProjekPlanningSchema = z.object({
     catatan_design: z.array(z.string()).optional().default([]),
 
     // ── Upload Files ─────────────────────────────────────────
+    link_gambar_kerja: z.string().optional(),
     link_gambar_rab_sipil: z.string().optional(),
     link_gambar_rab_me: z.string().optional(),
 });

@@ -289,7 +289,7 @@ export const projekPlanningRepository = {
                     jenis_proyek, estimasi_biaya, keterangan, link_fpd,
                     nama_pengaju, nama_lokasi,
                     jenis_pengajuan, jenis_pengajuan_lainnya,
-                    link_gambar_rab_sipil, link_gambar_rab_me,
+                    link_gambar_kerja, link_gambar_rab_sipil, link_gambar_rab_me,
                     status, butuh_desain_3d,
                     created_at, updated_at
                 ) VALUES (
@@ -298,8 +298,8 @@ export const projekPlanningRepository = {
                     $9, $10, $11, $12,
                     $13, $14,
                     $15, $16,
-                    $17, $18,
-                    $19, FALSE,
+                    $17, $18, $19,
+                    $20, FALSE,
                     NOW(), NOW()
                 )
                 RETURNING ${PP_COLUMNS}`,
@@ -320,6 +320,7 @@ export const projekPlanningRepository = {
                     payload.nama_lokasi,
                     payload.jenis_pengajuan,
                     payload.jenis_pengajuan_lainnya ?? null,
+                    (payload as any).link_gambar_kerja ?? null,
                     payload.link_gambar_rab_sipil ?? null,
                     payload.link_gambar_rab_me ?? null,
                     payload.status,
@@ -391,7 +392,8 @@ export const projekPlanningRepository = {
                      jenis_pengajuan_lainnya = $14,
                      link_gambar_rab_sipil = $15,
                      link_gambar_rab_me = $16,
-                     status = $17,
+                     link_gambar_kerja = COALESCE($17, link_gambar_kerja),
+                     status = $18,
                      butuh_desain_3d = FALSE,
                      bm_approver_email = NULL,
                      bm_waktu_persetujuan = NULL,
@@ -406,7 +408,7 @@ export const projekPlanningRepository = {
                      pp2_waktu_persetujuan = NULL,
                      pp2_alasan_penolakan = NULL,
                      updated_at = NOW()
-                 WHERE id = $18
+                 WHERE id = $19
                  RETURNING ${PP_COLUMNS}`,
                 [
                     payload.email_pembuat,
@@ -425,6 +427,7 @@ export const projekPlanningRepository = {
                     payload.jenis_pengajuan_lainnya ?? null,
                     payload.link_gambar_rab_sipil ?? null,
                     payload.link_gambar_rab_me ?? null,
+                    (payload as any).link_gambar_kerja ?? null,
                     payload.status,
                     id,
                 ]
