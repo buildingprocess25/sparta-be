@@ -303,8 +303,9 @@
       <td style="width: 25%; vertical-align: top; text-align: center;">
         <div class="approval-title">DIBUAT</div>
         <div class="approval-box bm" style="min-height: 90px;">
+          <div style="min-height: 25px;"></div>
           <div class="approval-date">{{ created_at_formatted | replace(" pukul ", "<br>pukul ") | safe }}</div>
-          <div style="min-height: 40px;"></div>
+          <div style="min-height: 25px;"></div>
           <div class="approval-name">{{ projek.email_pembuat.split('@')[0] | upper }}</div>
           <div class="approval-role">Branch Building Coordinator</div>
         </div>
@@ -315,8 +316,9 @@
         <div class="approval-title">MENGETAHUI</div>
         <div class="approval-box pp1" style="min-height: 90px;">
           {% if projek.bm_approver_email %}
+            <div style="min-height: 25px;"></div>
             <div class="approval-date">{{ (bm_waktu_formatted or '-') | replace(" pukul ", "<br>pukul ") | safe }}</div>
-            <div style="min-height: 40px;"></div>
+            <div style="min-height: 25px;"></div>
             <div class="approval-name">{{ projek.bm_approver_email.split('@')[0] | upper }}</div>
           {% else %}
             <div style="min-height: 80px;"></div>
@@ -330,8 +332,9 @@
         <div class="approval-title">MENGETAHUI</div>
         <div class="approval-box pp2" style="min-height: 90px;">
           {% if projek.pp2_approver_email %}
+            <div style="min-height: 25px;"></div>
             <div class="approval-date">{{ (pp2_waktu_formatted or '-') | replace(" pukul ", "<br>pukul ") | safe }}</div>
-            <div style="min-height: 40px;"></div>
+            <div style="min-height: 25px;"></div>
             <div class="approval-name">{{ projek.pp2_approver_email.split('@')[0] | upper }}</div>
           {% else %}
             <div style="min-height: 80px;"></div>
@@ -345,8 +348,9 @@
         <div class="approval-title">DISETUJUI</div>
         <div class="approval-box bm" style="min-height: 90px;">
           {% if projek.pp_manager_approver_email %}
+            <div style="min-height: 25px;"></div>
             <div class="approval-date">{{ (pp_manager_waktu_formatted or '-') | replace(" pukul ", "<br>pukul ") | safe }}</div>
-            <div style="min-height: 40px;"></div>
+            <div style="min-height: 25px;"></div>
             <div class="approval-name">{{ projek.pp_manager_approver_email.split('@')[0] | upper }}</div>
           {% else %}
             <div style="min-height: 80px;"></div>
