@@ -33,8 +33,8 @@ export const spkApprovalSchema = z
     });
 
 export const spkListQuerySchema = z.object({
-    status: z.string().optional(),
-    nomor_ulok: z.string().optional()
+    status: z.string().trim().min(1).optional(),
+    nomor_ulok: z.string().trim().min(1).optional()
 });
 
 export type SubmitSpkInput = z.infer<typeof submitSpkSchema>;
