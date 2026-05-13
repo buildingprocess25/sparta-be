@@ -146,12 +146,18 @@ Mengambil daftar pengajuan SPK. Mendukung filter query.
 | `status`     | string | Filter status SPK (exact match) |
 | `nomor_ulok` | string | Filter nomor ULOK (exact match) |
 
+Catatan filter:
+
+- jika hanya `nomor_ulok`, data ditampilkan untuk nomor ULOK tersebut (semua status)
+- jika `nomor_ulok` dan `status` diisi, data akan difilter berdasarkan keduanya
+
 ### Contoh Request
 
 ```http
 GET /api/spk
 GET /api/spk?status=WAITING_FOR_BM_APPROVAL
 GET /api/spk?nomor_ulok=Z001-2512-TEST
+GET /api/spk?nomor_ulok=Z001-2512-TEST&status=SPK_APPROVED
 ```
 
 ### Response — 200 OK
