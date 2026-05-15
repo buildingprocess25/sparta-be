@@ -53,6 +53,16 @@ export const submitProjekPlanningSchema = z.object({
 
     // ── Gambar Kompetitor ────────────────────────────────────
     link_gambar_kompetitor: z.string().optional(),
+
+    // ── Head to Head & Seating Area ─────────────────────────
+    is_head_to_head: z.coerce.boolean().optional().default(false),
+    is_seating_area: z.coerce.boolean().optional().default(false),
+
+    // ── Kategori Toko ────────────────────────────────────────
+    is_dark_store: z.coerce.boolean().optional().default(false),
+
+    // ── Tipe Bean Spot ───────────────────────────────────────
+    beanspot_tipe: z.string().optional().or(z.literal("")),
 });
 
 export type SubmitProjekPlanningInput = z.infer<typeof submitProjekPlanningSchema>;
@@ -106,6 +116,16 @@ export const resubmitProjekPlanningSchema = z.object({
 
     // ── Gambar Kompetitor ────────────────────────────────────
     link_gambar_kompetitor: z.string().optional(),
+
+    // ── Head to Head & Seating Area ─────────────────────────
+    is_head_to_head: z.coerce.boolean().optional().default(false),
+    is_seating_area: z.coerce.boolean().optional().default(false),
+
+    // ── Kategori Toko ────────────────────────────────────────
+    is_dark_store: z.coerce.boolean().optional().default(false),
+
+    // ── Tipe Bean Spot ───────────────────────────────────────
+    beanspot_tipe: z.string().optional().or(z.literal("")),
 });
 
 export type ResubmitProjekPlanningInput = z.infer<typeof resubmitProjekPlanningSchema>;

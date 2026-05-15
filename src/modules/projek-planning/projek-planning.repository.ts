@@ -72,6 +72,10 @@ export type ProjekPlanningRow = {
     butuh_desain_3d: boolean;
     is_ruko: boolean;
     jumlah_lantai: number | null;
+    is_head_to_head: boolean;
+    is_seating_area: boolean;
+    is_dark_store: boolean;
+    beanspot_tipe: string | null;
 
     // Approval fields
     bm_approver_email: string | null;
@@ -118,6 +122,7 @@ const PP_COLUMNS = `
     link_gambar_rab_sipil, link_gambar_rab_me, link_gambar_kompetitor,
     link_rab_sipil, link_rab_me, link_gambar_kerja_final,
     status, butuh_desain_3d, is_ruko, jumlah_lantai,
+    is_head_to_head, is_seating_area, is_dark_store, beanspot_tipe,
     bm_approver_email, bm_waktu_persetujuan, bm_alasan_penolakan,
     pp1_approver_email, pp1_waktu_persetujuan, pp1_alasan_penolakan,
     pp_manager_approver_email, pp_manager_waktu_persetujuan, pp_manager_alasan_penolakan,
@@ -299,6 +304,7 @@ export const projekPlanningRepository = {
                     link_gambar_kerja, link_gambar_rab_sipil, link_gambar_rab_me,
                     link_gambar_kompetitor,
                     is_ruko, jumlah_lantai,
+                    is_head_to_head, is_seating_area, is_dark_store, beanspot_tipe,
                     status, butuh_desain_3d,
                     created_at, updated_at
                 ) VALUES (
@@ -310,7 +316,8 @@ export const projekPlanningRepository = {
                     $17, $18, $19,
                     $20,
                     $21, $22,
-                    $23, FALSE,
+                    $23, $24, $25, $26,
+                    $27, FALSE,
                     NOW(), NOW()
                 )
                 RETURNING ${PP_COLUMNS}`,
@@ -337,6 +344,10 @@ export const projekPlanningRepository = {
                     (payload as any).link_gambar_kompetitor ?? null,
                     (payload as any).is_ruko ?? false,
                     (payload as any).jumlah_lantai ?? null,
+                    (payload as any).is_head_to_head ?? false,
+                    (payload as any).is_seating_area ?? false,
+                    (payload as any).is_dark_store ?? false,
+                    (payload as any).beanspot_tipe ?? null,
                     payload.status,
                 ]
             );
@@ -389,7 +400,7 @@ export const projekPlanningRepository = {
     }): Promise<ProjekPlanningRow> {
         return withTransaction(async (client) => {
             const result = await client.query<ProjekPlanningRow>(
-                `UPDATE projek_planning
+                 `UPDATE projek_planning
                  SET email_pembuat = $1,
                      lingkup_pekerjaan = $2,
                      jenis_proyek = $3,
@@ -410,7 +421,11 @@ export const projekPlanningRepository = {
                      link_gambar_kompetitor = COALESCE($18, link_gambar_kompetitor),
                      is_ruko = $19,
                      jumlah_lantai = $20,
-                     status = $21,
+                     is_head_to_head = $21,
+                     is_seating_area = $22,
+                     is_dark_store = $23,
+                     beanspot_tipe = $24,
+                     status = $25,
                      butuh_desain_3d = FALSE,
                      bm_approver_email = NULL,
                      bm_waktu_persetujuan = NULL,
@@ -421,7 +436,7 @@ export const projekPlanningRepository = {
                      pp2_approver_email = NULL,
                      pp2_waktu_persetujuan = NULL,
                      updated_at = NOW()
-                 WHERE id = $22
+                 WHERE id = $26
                  RETURNING ${PP_COLUMNS}`,
                 [
                     payload.email_pembuat,
@@ -444,6 +459,10 @@ export const projekPlanningRepository = {
                     (payload as any).link_gambar_kompetitor ?? null,
                     (payload as any).is_ruko ?? false,
                     (payload as any).jumlah_lantai ?? null,
+                    (payload as any).is_head_to_head ?? false,
+                    (payload as any).is_seating_area ?? false,
+                    (payload as any).is_dark_store ?? false,
+                    (payload as any).beanspot_tipe ?? null,
                     payload.status,
                     id,
                 ]
