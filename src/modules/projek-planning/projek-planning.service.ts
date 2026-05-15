@@ -495,11 +495,12 @@ export const projekPlanningService = {
         if (files) {
             const fRabSipil = files["file_rab_sipil"]?.[0];
             const fRabMe = files["file_rab_me"]?.[0];
+            const fRabLegacy = files["file_rab"]?.[0];
             const fGambar = files["file_gambar_kerja"]?.[0];
             
             try {
-                if (fRabSipil) {
-                    const link = await uploadCompressedFile(fRabSipil, env.DOC_DRIVE_ROOT_ID);
+                if (fRabSipil || fRabLegacy) {
+                    const link = await uploadCompressedFile(fRabSipil ?? fRabLegacy, env.DOC_DRIVE_ROOT_ID);
                     if (link) linkRabSipil = link;
                 }
                 if (fRabMe) {

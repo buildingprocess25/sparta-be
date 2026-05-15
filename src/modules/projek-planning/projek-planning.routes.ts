@@ -26,7 +26,17 @@ const projekPlanningRouter = Router();
 // ── Coordinator ──────────────────────────────────────────────
 projekPlanningRouter.post("/submit", fpdUpload.any(), submitProjekPlanning);
 projekPlanningRouter.post("/:id/resubmit", fpdUpload.any(), resubmitProjekPlanning);
-projekPlanningRouter.post("/:id/upload-rab", fpdUpload.fields([{ name: "file_rab" }, { name: "file_gambar_kerja" }]), handleUploadRab);
+projekPlanningRouter.post(
+    "/:id/upload-rab",
+    fpdUpload.fields([
+        { name: "file_rab_sipil", maxCount: 1 },
+        { name: "file_rab_me", maxCount: 1 },
+        { name: "file_gambar_kerja", maxCount: 1 },
+        // Backward compatibility for older clients that still send one generic RAB file.
+        { name: "file_rab", maxCount: 1 },
+    ]),
+    handleUploadRab
+);
 
 // ── Query ─────────────────────────────────────────────────────
 projekPlanningRouter.get("/", listProjekPlanning);
