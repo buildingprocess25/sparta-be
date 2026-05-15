@@ -135,8 +135,8 @@ export const projekPlanningRepository = {
         projek: ProjekPlanningRow;
         logs: ProjekPlanningLogRow[];
     } | null> {
-        const headerResult = await pool.query<ProjekPlanningRow>(
-            `SELECT ${PP_COLUMNS} FROM projek_planning WHERE id = $1`,
+        const headerResult = await pool.query<ProjekPlanningRow & { alamat_toko?: string }>(
+            `SELECT ${PP_COLUMNS}, (SELECT alamat FROM toko WHERE toko.id = projek_planning.id_toko) as alamat_toko FROM projek_planning WHERE id = $1`,
             [id]
         );
 

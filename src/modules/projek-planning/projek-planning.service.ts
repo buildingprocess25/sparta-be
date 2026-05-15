@@ -176,10 +176,19 @@ export const projekPlanningService = {
         }
 
         // Ambil data toko terbaru
-        const toko = await tokoRepository.findById(projek.id_toko);
+        let toko = await tokoRepository.findById(projek.id_toko);
         if (!toko) {
             throw new AppError("Toko tidak ditemukan", 404);
         }
+
+        // Update toko if there are changes from manual ulok
+        const updatedToko = await tokoRepository.updateById(projek.id_toko, {
+            nama_toko: payload.nama_toko !== undefined ? payload.nama_toko : undefined,
+            kode_toko: payload.kode_toko !== undefined ? payload.kode_toko : undefined,
+            cabang: payload.cabang !== undefined ? payload.cabang : undefined,
+            alamat: payload.alamat_toko !== undefined ? payload.alamat_toko : undefined,
+        });
+        if (updatedToko) toko = updatedToko;
 
         // Upload file if provided
         let fpdLink = payload.link_fpd;
