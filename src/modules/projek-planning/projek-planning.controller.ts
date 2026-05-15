@@ -277,13 +277,20 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
     // Pilih URL berdasarkan field
     let fileUrl: string | null | undefined;
     if (field === "fpd") fileUrl = projek.link_fpd;
-    else if (field === "rab_sipil") fileUrl = projek.link_gambar_rab_sipil;
-    else if (field === "rab_me") fileUrl = projek.link_gambar_rab_me;
-    else if (field === "rab") fileUrl = projek.link_rab;
-    else if (field === "gambar_kerja") fileUrl = projek.link_gambar_kerja;
+    // Dokumen form awal koordinator
+    else if (field === "rab_sipil_awal" || field === "rab_sipil") fileUrl = projek.link_gambar_rab_sipil;
+    else if (field === "rab_me_awal" || field === "rab_me") fileUrl = projek.link_gambar_rab_me;
+    else if (field === "gambar_kerja_awal" || field === "gambar_kerja") fileUrl = projek.link_gambar_kerja;
+    else if (field === "gambar_kompetitor") fileUrl = projek.link_gambar_kompetitor;
+    // Dokumen PP Specialist
     else if (field === "desain_3d") fileUrl = projek.link_desain_3d;
     else if (field === "fpd_approved") fileUrl = projek.link_fpd_approved;
-    else if (field === "gambar_kompetitor") fileUrl = projek.link_gambar_kompetitor;
+    // Dokumen RAB & Final (koordinator — setelah PP Specialist approve)
+    else if (field === "rab_sipil_final") fileUrl = (projek as any).link_rab_sipil;
+    else if (field === "rab_me_final") fileUrl = (projek as any).link_rab_me;
+    else if (field === "gambar_kerja_final") fileUrl = (projek as any).link_gambar_kerja_final;
+    // Legacy
+    else if (field === "rab") fileUrl = projek.link_rab;
     else if (field === "foto_item" && itemIndex !== undefined) {
         const fotoItem = (projek.foto_items || []).find((f: any) => f.item_index === itemIndex);
         fileUrl = fotoItem?.link_foto;

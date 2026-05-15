@@ -173,7 +173,8 @@ export type Upload3dInput = z.infer<typeof upload3dSchema>;
 
 export const uploadRabSchema = z.object({
     uploader_email: z.string().email(),
-    link_rab: z.string().optional(),
+    link_rab_sipil: z.string().optional(),
+    link_rab_me: z.string().optional(),
     link_gambar_kerja: z.string().optional(),
     keterangan: z.string().optional(),
 });

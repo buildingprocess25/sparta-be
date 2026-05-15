@@ -62,13 +62,16 @@ export type ProjekPlanningRow = {
     link_fpd_approved: string | null;
     link_gambar_rab_sipil: string | null;
     link_gambar_rab_me: string | null;
+    link_gambar_kompetitor: string | null;
+    link_rab_sipil: string | null;
+    link_rab_me: string | null;
+    link_gambar_kerja_final: string | null;
 
     // Status & flags
     status: PpStatus;
     butuh_desain_3d: boolean;
     is_ruko: boolean;
     jumlah_lantai: number | null;
-    link_gambar_kompetitor: string | null;
 
     // Approval fields
     bm_approver_email: string | null;
@@ -113,6 +116,7 @@ const PP_COLUMNS = `
     jenis_pengajuan, jenis_pengajuan_lainnya,
     link_fpd, link_rab, link_gambar_kerja, link_desain_3d, link_fpd_approved,
     link_gambar_rab_sipil, link_gambar_rab_me, link_gambar_kompetitor,
+    link_rab_sipil, link_rab_me, link_gambar_kerja_final,
     status, butuh_desain_3d, is_ruko, jumlah_lantai,
     bm_approver_email, bm_waktu_persetujuan, bm_alasan_penolakan,
     pp1_approver_email, pp1_waktu_persetujuan, pp1_alasan_penolakan,
@@ -602,19 +606,20 @@ export const projekPlanningRepository = {
     async updateRabUpload(
         id: number,
         newStatus: PpStatus,
-        payload: UploadRabInput,
+        payload: { link_rab_sipil?: string; link_rab_me?: string; link_gambar_kerja?: string },
         client?: PoolClient
     ): Promise<ProjekPlanningRow> {
         const db = client ?? pool;
         const result = await db.query<ProjekPlanningRow>(
             `UPDATE projek_planning
              SET status = $1,
-                 link_rab = COALESCE($2, link_rab),
-                 link_gambar_kerja = COALESCE($3, link_gambar_kerja),
+                 link_rab_sipil = COALESCE($2, link_rab_sipil),
+                 link_rab_me = COALESCE($3, link_rab_me),
+                 link_gambar_kerja_final = COALESCE($4, link_gambar_kerja_final),
                  updated_at = NOW()
-             WHERE id = $4
+             WHERE id = $5
              RETURNING ${PP_COLUMNS}`,
-            [newStatus, payload.link_rab ?? null, payload.link_gambar_kerja ?? null, id]
+            [newStatus, payload.link_rab_sipil ?? null, payload.link_rab_me ?? null, payload.link_gambar_kerja ?? null, id]
         );
         return result.rows[0];
     },

@@ -488,17 +488,23 @@ export const projekPlanningService = {
         }
 
         // Upload file if provided
-        let linkRab = payload.link_rab;
+        let linkRabSipil = payload.link_rab_sipil;
+        let linkRabMe = payload.link_rab_me;
         let linkGambar = payload.link_gambar_kerja;
         
         if (files) {
-            const fRab = files["file_rab"]?.[0];
+            const fRabSipil = files["file_rab_sipil"]?.[0];
+            const fRabMe = files["file_rab_me"]?.[0];
             const fGambar = files["file_gambar_kerja"]?.[0];
             
             try {
-                if (fRab) {
-                    const link = await uploadCompressedFile(fRab, env.DOC_DRIVE_ROOT_ID);
-                    if (link) linkRab = link;
+                if (fRabSipil) {
+                    const link = await uploadCompressedFile(fRabSipil, env.DOC_DRIVE_ROOT_ID);
+                    if (link) linkRabSipil = link;
+                }
+                if (fRabMe) {
+                    const link = await uploadCompressedFile(fRabMe, env.DOC_DRIVE_ROOT_ID);
+                    if (link) linkRabMe = link;
                 }
                 if (fGambar) {
                     const link = await uploadCompressedFile(fGambar, env.DOC_DRIVE_ROOT_ID);
@@ -521,14 +527,15 @@ export const projekPlanningService = {
                 status_sesudah: newStatus,
                 keterangan: payload.keterangan ?? "RAB & Gambar Kerja berhasil diupload, menunggu approval PP Specialist",
             },
-            (client) => projekPlanningRepository.updateRabUpload(id, newStatus, { ...payload, link_rab: linkRab, link_gambar_kerja: linkGambar }, client)
+            (client) => projekPlanningRepository.updateRabUpload(id, newStatus, { ...payload, link_rab_sipil: linkRabSipil, link_rab_me: linkRabMe, link_gambar_kerja: linkGambar }, client)
         );
 
         return {
             id,
             old_status: projek.status,
             new_status: updated.status,
-            link_rab: linkRab ?? null,
+            link_rab_sipil: linkRabSipil ?? null,
+            link_rab_me: linkRabMe ?? null,
             link_gambar_kerja: linkGambar ?? null,
         };
     },
