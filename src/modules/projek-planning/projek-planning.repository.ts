@@ -483,57 +483,56 @@ export const projekPlanningRepository = {
     },
 
     // ----------------------------------------------------------
-    // RESET ke DRAFT (saat ditolak di tahap manapun)
-    // Mendukung PoolClient untuk digunakan dalam transaksi
+    // RESET ke DRAFT (saat ditolak oleh BM / PP1)
     // ----------------------------------------------------------
 
-    async resetToDraft(id: number, client?: PoolClient): Promise<ProjekPlanningRow> {
+    async updateStatusAndRejectToDraft(
+        id: number,
+        role: PpRole,
+        action: ApprovalInput,
+        client?: PoolClient
+    ): Promise<ProjekPlanningRow> {
         const db = client ?? pool;
+        const setRoleFields = role === "BM"
+            ? `bm_approver_email = $2, bm_waktu_persetujuan = NOW(), bm_alasan_penolakan = $3`
+            : `pp1_approver_email = $2, pp1_waktu_persetujuan = NOW(), pp1_alasan_penolakan = $3`;
+
         const result = await db.query<ProjekPlanningRow>(
             `UPDATE projek_planning
              SET status = 'DRAFT',
                  butuh_desain_3d = FALSE,
-                 bm_approver_email = NULL,
-                 bm_waktu_persetujuan = NULL,
-                 bm_alasan_penolakan = NULL,
-                 pp1_approver_email = NULL,
-                 pp1_waktu_persetujuan = NULL,
-                 pp1_alasan_penolakan = NULL,
-                 pp_manager_approver_email = NULL,
-                 pp_manager_waktu_persetujuan = NULL,
-                 pp_manager_alasan_penolakan = NULL,
-                 pp2_approver_email = NULL,
-                 pp2_waktu_persetujuan = NULL,
-                 pp2_alasan_penolakan = NULL,
+                 ${setRoleFields},
                  updated_at = NOW()
              WHERE id = $1
              RETURNING ${PP_COLUMNS}`,
-            [id]
+            [id, action.approver_email, action.alasan_penolakan ?? null]
         );
         return result.rows[0];
     },
 
     // ----------------------------------------------------------
-    // RESET ke RAB UPLOAD (saat ditolak oleh PP Manager)
+    // RESET ke RAB UPLOAD (saat ditolak oleh PP2 / PP Manager)
     // ----------------------------------------------------------
 
-    async resetToRabUpload(id: number, client?: PoolClient): Promise<ProjekPlanningRow> {
+    async updateStatusAndRejectToRabUpload(
+        id: number,
+        role: PpRole,
+        action: ApprovalInput,
+        client?: PoolClient
+    ): Promise<ProjekPlanningRow> {
         const db = client ?? pool;
+        const setRoleFields = role === "PP_MANAGER"
+            ? `pp_manager_approver_email = $2, pp_manager_waktu_persetujuan = NOW(), pp_manager_alasan_penolakan = $3`
+            : `pp2_approver_email = $2, pp2_waktu_persetujuan = NOW(), pp2_alasan_penolakan = $3`;
+
         const result = await db.query<ProjekPlanningRow>(
             `UPDATE projek_planning
              SET status = 'WAITING_RAB_UPLOAD',
-                 pp_manager_approver_email = NULL,
-                 pp_manager_waktu_persetujuan = NULL,
-                 pp_manager_alasan_penolakan = NULL,
-                 pp2_approver_email = NULL,
-                 pp2_waktu_persetujuan = NULL,
-                 pp2_alasan_penolakan = NULL,
-                 link_rab = NULL,
-                 link_gambar_kerja = NULL,
+                 ${setRoleFields},
                  updated_at = NOW()
              WHERE id = $1
              RETURNING ${PP_COLUMNS}`,
-            [id]
+            [id, action.approver_email, action.alasan_penolakan ?? null]
         );
         return result.rows[0];
     },

@@ -340,7 +340,7 @@ export const projekPlanningService = {
             },
             isApprove
                 ? (client) => projekPlanningRepository.updateStatusAndBmApproval(id, newStatus, action, client)
-                : (client) => projekPlanningRepository.resetToDraft(id, client)
+                : (client) => projekPlanningRepository.updateStatusAndRejectToDraft(id, PP_ROLE.BM, action, client)
         );
 
         return {
@@ -395,7 +395,7 @@ export const projekPlanningService = {
             },
             isApprove
                 ? (client) => projekPlanningRepository.updateStatusAndPp1Approval(id, newStatus, action, client)
-                : (client) => projekPlanningRepository.resetToDraft(id, client)
+                : (client) => projekPlanningRepository.updateStatusAndRejectToDraft(id, PP_ROLE.PP_SPECIALIST, action, client)
         );
 
         return {
@@ -558,7 +558,7 @@ export const projekPlanningService = {
             },
             isApprove
                 ? (client) => projekPlanningRepository.updateStatusAndPp2Approval(id, newStatus, action, client)
-                : (client) => projekPlanningRepository.resetToRabUpload(id, client)
+                : (client) => projekPlanningRepository.updateStatusAndRejectToRabUpload(id, PP_ROLE.PP_SPECIALIST, action, client)
         );
 
         return {
@@ -603,7 +603,7 @@ export const projekPlanningService = {
             },
             isApprove
                 ? (client) => projekPlanningRepository.updateStatusAndPpManagerApproval(id, newStatus, action, client)
-                : (client) => projekPlanningRepository.resetToRabUpload(id, client)
+                : (client) => projekPlanningRepository.updateStatusAndRejectToRabUpload(id, PP_ROLE.PP_MANAGER, action, client)
         );
 
         return {
