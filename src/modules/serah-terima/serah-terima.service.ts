@@ -29,8 +29,11 @@ const uploadPdfToDrive = async (buffer: Buffer, filename: string): Promise<strin
 };
 
 export const serahTerimaService = {
-    async list(idToko?: number) {
-        const rows = await serahTerimaRepository.listBerkasSerahTerima(idToko);
+    async list(filter: { id_toko?: number; nomor_ulok?: string } = {}) {
+        const rows = await serahTerimaRepository.listBerkasSerahTerima({
+            id_toko: filter.id_toko,
+            nomor_ulok: filter.nomor_ulok,
+        });
 
         return rows.map((row) => ({
             id: row.id,

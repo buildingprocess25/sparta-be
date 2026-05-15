@@ -117,9 +117,10 @@ PDF yang dihasilkan berisi:
 
 ### Query Parameters (opsional)
 
-| Parameter | Tipe     | Deskripsi               |
-| --------- | -------- | ----------------------- |
-| `id_toko` | `number` | Filter berdasarkan toko |
+| Parameter    | Tipe     | Deskripsi                     |
+| ------------ | -------- | ----------------------------- |
+| `id_toko`    | `number` | Filter berdasarkan toko       |
+| `nomor_ulok` | `string` | Filter berdasarkan nomor ULOK |
 
 ### Response — 200 OK
 
