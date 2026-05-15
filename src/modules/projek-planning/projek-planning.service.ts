@@ -13,6 +13,77 @@ async function uploadCompressedFile(file: Express.Multer.File, folderId: string)
     return u.webViewLink || null;
 }
 
+function normalizeText(value: unknown): string {
+    return String(value ?? "").trim();
+}
+
+function normalizeBoolean(value: unknown): boolean {
+    return value === true || value === "true" || value === "1" || value === 1;
+}
+
+function normalizeArrayForCompare(value: unknown): string {
+    if (!Array.isArray(value)) return "[]";
+    return JSON.stringify(value.map((item) => {
+        if (item && typeof item === "object") {
+            return Object.keys(item as Record<string, unknown>)
+                .sort()
+                .reduce<Record<string, unknown>>((acc, key) => {
+                    acc[key] = (item as Record<string, unknown>)[key];
+                    return acc;
+                }, {});
+        }
+        return item;
+    }));
+}
+
+function buildRevisionSummary(
+    projek: any,
+    payload: any,
+    links: {
+        link_fpd?: string | null;
+        link_gambar_kerja?: string | null;
+        link_gambar_rab_sipil?: string | null;
+        link_gambar_rab_me?: string | null;
+        link_gambar_kompetitor?: string | null;
+    }
+): string {
+    const changed: string[] = [];
+    const addIfChanged = (label: string, before: unknown, after: unknown) => {
+        if (normalizeText(before) !== normalizeText(after)) changed.push(label);
+    };
+    const addBoolIfChanged = (label: string, before: unknown, after: unknown) => {
+        if (normalizeBoolean(before) !== normalizeBoolean(after)) changed.push(label);
+    };
+
+    addIfChanged("Nama toko/lokasi", projek.nama_lokasi || projek.nama_toko, payload.nama_lokasi || payload.nama_toko);
+    addIfChanged("Lingkup pekerjaan", projek.lingkup_pekerjaan, payload.lingkup_pekerjaan);
+    addIfChanged("Jenis proyek", projek.jenis_proyek, payload.jenis_proyek);
+    addIfChanged("Estimasi biaya", projek.estimasi_biaya, payload.estimasi_biaya);
+    addIfChanged("Keterangan", projek.keterangan, payload.keterangan);
+    addIfChanged("Jenis pengajuan", projek.jenis_pengajuan, payload.jenis_pengajuan);
+    addIfChanged("Jenis pengajuan lainnya", projek.jenis_pengajuan_lainnya, payload.jenis_pengajuan_lainnya);
+    addBoolIfChanged("Ruko / non-ruko", projek.is_ruko, payload.is_ruko);
+    addIfChanged("Jumlah lantai", projek.jumlah_lantai, payload.jumlah_lantai);
+    addBoolIfChanged("Head to head", projek.is_head_to_head, payload.is_head_to_head);
+    addBoolIfChanged("Seating area", projek.is_seating_area, payload.is_seating_area);
+    addBoolIfChanged("Dark store", projek.is_dark_store, payload.is_dark_store);
+    addIfChanged("Tipe Bean Spot", projek.beanspot_tipe, payload.beanspot_tipe);
+
+    if (normalizeArrayForCompare(projek.ketentuan?.map((k: any) => k.isi_ketentuan) ?? []) !== normalizeArrayForCompare(payload.ketentuan ?? [])) changed.push("Ketentuan");
+    if (normalizeArrayForCompare(projek.catatan_design?.map((c: any) => c.isi_catatan) ?? []) !== normalizeArrayForCompare(payload.catatan_design ?? [])) changed.push("Catatan design");
+    if (normalizeArrayForCompare(projek.fasilitas ?? []) !== normalizeArrayForCompare(payload.fasilitas ?? [])) changed.push("Fasilitas");
+
+    addIfChanged("File/Link FPD", projek.link_fpd, links.link_fpd);
+    addIfChanged("Gambar kerja ME", projek.link_gambar_kerja, links.link_gambar_kerja);
+    addIfChanged("RAB Sipil awal", projek.link_gambar_rab_sipil, links.link_gambar_rab_sipil);
+    addIfChanged("RAB ME awal", projek.link_gambar_rab_me, links.link_gambar_rab_me);
+    addIfChanged("Gambar kompetitor", projek.link_gambar_kompetitor, links.link_gambar_kompetitor);
+
+    return changed.length > 0
+        ? `Perubahan revisi: ${changed.join(", ")}.`
+        : "Perubahan revisi: tidak terdeteksi detail perubahan.";
+}
+
 import type {
     SubmitProjekPlanningInput,
     ResubmitProjekPlanningInput,
@@ -246,6 +317,14 @@ export const projekPlanningService = {
         }
 
         // Update record DRAFT → WAITING_BM_APPROVAL
+        const revisionSummary = buildRevisionSummary(projek, payload, {
+            link_fpd: fpdLink ?? projek.link_fpd ?? null,
+            link_gambar_kerja: gambarKerjaMe ?? projek.link_gambar_kerja ?? null,
+            link_gambar_rab_sipil: rabSipilLink ?? projek.link_gambar_rab_sipil ?? null,
+            link_gambar_rab_me: rabMeLink ?? projek.link_gambar_rab_me ?? null,
+            link_gambar_kompetitor: gambarKompetitor ?? projek.link_gambar_kompetitor ?? null,
+        });
+
         const updated = await projekPlanningRepository.resubmitDraft(id, {
             ...payload,
             nama_toko: toko.nama_toko ?? null,
@@ -268,7 +347,7 @@ export const projekPlanningService = {
             aksi: PP_AKSI.SUBMIT,
             status_sebelum: PP_STATUS.DRAFT,
             status_sesudah: PP_STATUS.WAITING_BM_APPROVAL,
-            keterangan: "FPD diajukan ulang oleh Coordinator setelah penolakan, menunggu approval BM Manager",
+            keterangan: `FPD diajukan ulang oleh Coordinator setelah penolakan, menunggu approval BM Manager. ${revisionSummary}`,
         });
 
         if (fotoItemsLinks.length > 0) {

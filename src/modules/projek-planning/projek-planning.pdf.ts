@@ -141,6 +141,20 @@ export const buildProjekPlanningPdfBuffer = async (
     projek: ProjekPlanningRow
 ): Promise<Buffer> => {
     const templatePath = await resolveTemplatePath("projek_planning_report.njk");
+    const status = projek.status;
+    const hasBmSignature = [
+        "WAITING_PP_APPROVAL_1",
+        "PP_DESIGN_3D_REQUIRED",
+        "WAITING_RAB_UPLOAD",
+        "WAITING_PP_APPROVAL_2",
+        "WAITING_PP_MANAGER_APPROVAL",
+        "COMPLETED",
+    ].includes(status) && !!projek.bm_approver_email;
+    const hasPpSpecialistSignature = [
+        "WAITING_PP_MANAGER_APPROVAL",
+        "COMPLETED",
+    ].includes(status) && !!projek.pp2_approver_email;
+    const hasPpManagerSignature = status === "COMPLETED" && !!projek.pp_manager_approver_email;
 
     // Enrich foto_items: download dari GDrive sebagai base64 dan tambahkan label
     const enrichedFotoItems = await Promise.all(
@@ -157,6 +171,9 @@ export const buildProjekPlanningPdfBuffer = async (
         alfamart_logo_path: staticAssetPath("Alfamart-Emblem.png"),
         sparta_logo_path: staticAssetPath("Building-Logo.png"),
         created_at_formatted: formatDateIndonesia(projek.created_at),
+        has_bm_signature: hasBmSignature,
+        has_pp_specialist_signature: hasPpSpecialistSignature,
+        has_pp_manager_signature: hasPpManagerSignature,
         bm_waktu_formatted: formatDateIndonesia(projek.bm_waktu_persetujuan),
         pp2_waktu_formatted: formatDateIndonesia(projek.pp2_waktu_persetujuan),
         pp_manager_waktu_formatted: formatDateIndonesia(projek.pp_manager_waktu_persetujuan),
