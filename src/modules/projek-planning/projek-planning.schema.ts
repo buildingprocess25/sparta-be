@@ -62,6 +62,10 @@ export type SubmitProjekPlanningInput = z.infer<typeof submitProjekPlanningSchem
 // ============================================================
 
 export const resubmitProjekPlanningSchema = z.object({
+    cabang: z.string().optional().or(z.literal("")),
+    nama_toko: z.string().optional().or(z.literal("")),
+    kode_toko: z.string().optional().or(z.literal("")),
+    alamat_toko: z.string().optional().or(z.literal("")),
     email_pembuat: z.string().email(),
     lingkup_pekerjaan: z.string().optional().or(z.literal("")),
     jenis_proyek: z.string().optional().or(z.literal("")),
