@@ -31,9 +31,9 @@ export const submitProjekPlanningSchema = z.object({
     // ── Fasilitas Yang Disediakan ────────────────────────────
     fasilitas: z.array(z.object({
         jenis_fasilitas: z.string(),
-        nama_fasilitas_lainnya: z.string().optional(),
+        nama_fasilitas_lainnya: z.string().nullable().optional(),
         is_tersedia: z.coerce.boolean().default(false),
-        keterangan: z.string().optional()
+        keterangan: z.string().nullable().optional()
     })).optional().default([]),
 
     // ── Ketentuan dari Pengelola/Landlord/Pihak Ketiga ───────
@@ -80,9 +80,9 @@ export const resubmitProjekPlanningSchema = z.object({
     // ── Fasilitas Yang Disediakan ────────────────────────────
     fasilitas: z.array(z.object({
         jenis_fasilitas: z.string(),
-        nama_fasilitas_lainnya: z.string().optional(),
+        nama_fasilitas_lainnya: z.string().nullable().optional(),
         is_tersedia: z.coerce.boolean().default(false),
-        keterangan: z.string().optional()
+        keterangan: z.string().nullable().optional()
     })).optional().default([]),
 
     // ── Ketentuan dari Pengelola/Landlord/Pihak Ketiga ───────

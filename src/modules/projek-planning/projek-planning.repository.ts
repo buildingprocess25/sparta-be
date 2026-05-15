@@ -410,16 +410,12 @@ export const projekPlanningRepository = {
                      butuh_desain_3d = FALSE,
                      bm_approver_email = NULL,
                      bm_waktu_persetujuan = NULL,
-                     bm_alasan_penolakan = NULL,
                      pp1_approver_email = NULL,
                      pp1_waktu_persetujuan = NULL,
-                     pp1_alasan_penolakan = NULL,
                      pp_manager_approver_email = NULL,
                      pp_manager_waktu_persetujuan = NULL,
-                     pp_manager_alasan_penolakan = NULL,
                      pp2_approver_email = NULL,
                      pp2_waktu_persetujuan = NULL,
-                     pp2_alasan_penolakan = NULL,
                      updated_at = NOW()
                  WHERE id = $22
                  RETURNING ${PP_COLUMNS}`,
