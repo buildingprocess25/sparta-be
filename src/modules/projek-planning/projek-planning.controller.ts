@@ -70,6 +70,21 @@ export const listProjekPlanning = asyncHandler(async (req: Request, res: Respons
     res.json({ status: "success", data });
 });
 
+export const getProjekPlanningTaskCounts = asyncHandler(async (req: Request, res: Response) => {
+    const roles = String(req.query.roles || "")
+        .split(",")
+        .map((role) => role.trim())
+        .filter(Boolean);
+
+    const data = await projekPlanningService.getTaskCounts({
+        roles,
+        cabang: req.query.cabang ? String(req.query.cabang) : undefined,
+        email: req.query.email ? String(req.query.email) : undefined,
+    });
+
+    res.json({ status: "success", data });
+});
+
 // ============================================================
 // GET BY ID
 // ============================================================

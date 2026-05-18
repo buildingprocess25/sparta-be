@@ -711,6 +711,45 @@ export const projekPlanningService = {
         return data.logs;
     },
 
+    async getTaskCounts(input: { roles?: string[]; cabang?: string; email?: string }) {
+        const roles = (input.roles ?? []).map((role) => role.toUpperCase());
+        const hasRole = (keyword: string) => roles.some((role) => role.includes(keyword));
+
+        let approval = 0;
+        let projectPlanning = 0;
+
+        if (hasRole("BRANCH BUILDING COORDINATOR")) {
+            projectPlanning += await projekPlanningRepository.countCoordinatorTasks(input.cabang, input.email);
+        }
+
+        if (hasRole("BRANCH BUILDING & MAINTENANCE MANAGER") || hasRole("MAINTENANCE MANAGER") || hasRole("BBMM")) {
+            approval += await projekPlanningRepository.countByStatuses(
+                [PP_STATUS.WAITING_BM_APPROVAL],
+                input.cabang
+            );
+        }
+
+        if (hasRole("PROJECT PLANNING & DEVELOPMENT SPECIALIST")) {
+            approval += await projekPlanningRepository.countByStatuses([
+                PP_STATUS.WAITING_PP_APPROVAL_1,
+                PP_STATUS.PP_DESIGN_3D_REQUIRED,
+                PP_STATUS.WAITING_PP_APPROVAL_2,
+            ]);
+        }
+
+        if (hasRole("PROJECT PLANNING & DEVELOPMENT MANAGER")) {
+            approval += await projekPlanningRepository.countByStatuses([
+                PP_STATUS.WAITING_PP_MANAGER_APPROVAL,
+            ]);
+        }
+
+        return {
+            approval,
+            projectPlanning,
+            total: approval + projectPlanning,
+        };
+    },
+
     // ============================================================
     // GET ONE — full detail (dipakai proxy file & PDF)
     // ============================================================
