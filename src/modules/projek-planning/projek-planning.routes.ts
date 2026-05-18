@@ -12,6 +12,7 @@ import {
     handlePpManagerApproval,
     handlePpApproval2,
     getProjekPlanningLogs,
+    getProjekPlanningTaskCounts,
     downloadPdf,
     proxyFile,
 } from "./projek-planning.controller";
@@ -42,6 +43,7 @@ projekPlanningRouter.post(
 
 // ── Query ─────────────────────────────────────────────────────
 projekPlanningRouter.get("/", listProjekPlanning);
+projekPlanningRouter.get("/task-counts", getProjekPlanningTaskCounts);
 projekPlanningRouter.get("/:id", getProjekPlanningById);
 projekPlanningRouter.get("/:id/logs", getProjekPlanningLogs);
 projekPlanningRouter.get("/:id/pdf", downloadPdf);

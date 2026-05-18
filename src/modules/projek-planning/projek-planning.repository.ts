@@ -287,6 +287,54 @@ export const projekPlanningRepository = {
         return result.rows;
     },
 
+    async countByStatuses(statuses: PpStatus[], cabang?: string): Promise<number> {
+        if (statuses.length === 0) return 0;
+
+        const values: unknown[] = [statuses];
+        const conditions = [`status = ANY($1::text[])`];
+
+        if (cabang && cabang.toUpperCase() !== "HEAD OFFICE") {
+            values.push(cabang);
+            conditions.push(`UPPER(cabang) = UPPER($${values.length})`);
+        }
+
+        const result = await pool.query<{ count: string }>(
+            `SELECT COUNT(*)::text AS count
+             FROM projek_planning
+             WHERE ${conditions.join(" AND ")}`,
+            values
+        );
+
+        return Number(result.rows[0]?.count ?? 0);
+    },
+
+    async countCoordinatorTasks(cabang?: string, email?: string): Promise<number> {
+        const values: unknown[] = [[
+            "DRAFT",
+            "WAITING_RAB_UPLOAD",
+        ]];
+        const conditions = [`status = ANY($1::text[])`];
+
+        if (cabang && cabang.toUpperCase() !== "HEAD OFFICE") {
+            values.push(cabang);
+            conditions.push(`UPPER(cabang) = UPPER($${values.length})`);
+        }
+
+        if (email) {
+            values.push(email);
+            conditions.push(`(status <> 'DRAFT' OR LOWER(email_pembuat) = LOWER($${values.length}))`);
+        }
+
+        const result = await pool.query<{ count: string }>(
+            `SELECT COUNT(*)::text AS count
+             FROM projek_planning
+             WHERE ${conditions.join(" AND ")}`,
+            values
+        );
+
+        return Number(result.rows[0]?.count ?? 0);
+    },
+
     // ----------------------------------------------------------
     // FOTO ITEMS
     // ----------------------------------------------------------
