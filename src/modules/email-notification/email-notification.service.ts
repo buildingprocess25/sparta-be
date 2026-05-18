@@ -5,10 +5,24 @@ import { env } from "../../config/env";
 import { userCabangRepository } from "../user-cabang/user-cabang.repository";
 import type { SendEmailNotificationInput } from "./email-notification.schema";
 
-const TEMPLATE_MAP: Record<string, { template: string; subject: string }> = {
+type EmailTemplateConfig = {
+    template: string;
+    subject: string;
+    targetJabatan: string;
+    ccJabatan?: string;
+};
+
+const TEMPLATE_MAP: Record<string, EmailTemplateConfig> = {
     "send-notification-spk": {
         template: "send-notification-spk.njk",
-        subject: "SPARTA Building - Notifikasi Approval SPK"
+        subject: "SPARTA Building - Notifikasi Approval SPK",
+        targetJabatan: "Branch Manager",
+        ccJabatan: "BRANCH BUILDING & MAINTENANCE MANAGER"
+    },
+    "notification-spk-has-approve": {
+        template: "send-notification-spk-has-approve.njk",
+        subject: "SPARTA Building - SPK Disetujui",
+        targetJabatan: "KONTRAKTOR"
     }
 };
 
@@ -83,16 +97,18 @@ export const emailNotificationService = {
 
         const targetUser = await userCabangRepository.findByCabangAndJabatan(
             payload.cabang,
-            "Branch Manager"
+            templateConfig.targetJabatan
         );
         if (!targetUser) {
-            throw new AppError("Branch Manager untuk cabang tersebut tidak ditemukan", 404);
+            throw new AppError(
+                `User dengan jabatan "${templateConfig.targetJabatan}" untuk cabang tersebut tidak ditemukan`,
+                404
+            );
         }
 
-        const ccUser = await userCabangRepository.findByCabangAndJabatan(
-            payload.cabang,
-            "BRANCH BUILDING & MAINTENANCE MANAGER"
-        );
+        const ccUser = templateConfig.ccJabatan
+            ? await userCabangRepository.findByCabangAndJabatan(payload.cabang, templateConfig.ccJabatan)
+            : null;
 
         if (!env.EMAIL_USER) {
             throw new AppError("EMAIL_USER belum diset", 500);
@@ -104,7 +120,7 @@ export const emailNotificationService = {
             flag: payload.flag,
             sent_at: formatJakartaTimestamp(),
             greeting: getFormalGreeting(),
-            nama_lengkap: targetUser.nama_lengkap?.trim() || "Branch Manager"
+            nama_lengkap: targetUser.nama_lengkap?.trim() || templateConfig.targetJabatan
         });
 
         const gp = GoogleProvider.instance;

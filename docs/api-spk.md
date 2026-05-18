@@ -284,6 +284,10 @@ Generate dan download PDF SPK dari template `spk_report.njk`.
 
 Memproses approval SPK satu level (Branch Manager).
 
+Catatan:
+
+- Jika tindakan `APPROVE`, sistem mengirim email notifikasi ke user cabang dengan jabatan `KONTRAKTOR` (flag `notification-spk-has-approve`).
+
 Aturan:
 
 - Hanya bisa diproses saat status masih `WAITING_FOR_BM_APPROVAL`

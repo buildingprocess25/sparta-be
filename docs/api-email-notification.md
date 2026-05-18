@@ -8,7 +8,7 @@ Base URL: /api
 
 POST /api/send-email-notification
 
-Mengirim email notifikasi ke Branch Manager berdasarkan cabang dan flag template.
+Mengirim email notifikasi berdasarkan cabang dan flag template.
 
 ### Request Body
 
@@ -18,6 +18,11 @@ Mengirim email notifikasi ke Branch Manager berdasarkan cabang dan flag template
   "flag": "send-notification-spk"
 }
 ```
+
+Flag yang tersedia:
+
+- `send-notification-spk` -> target: Branch Manager (cc: Branch Building & Maintenance Manager)
+- `notification-spk-has-approve` -> target: KONTRAKTOR
 
 ### Validasi
 
@@ -47,7 +52,7 @@ Mengirim email notifikasi ke Branch Manager berdasarkan cabang dan flag template
 | Code | Kondisi                                              |
 | ---- | ---------------------------------------------------- |
 | 400  | Template email untuk flag tidak ditemukan            |
-| 404  | Branch Manager untuk cabang tersebut tidak ditemukan |
+| 404  | User target untuk cabang dan jabatan tidak ditemukan |
 | 422  | Validasi request gagal                               |
 | 500  | Gmail belum terkonfigurasi / EMAIL_USER belum diset  |
 
