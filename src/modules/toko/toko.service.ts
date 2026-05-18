@@ -11,6 +11,9 @@ import type {
 } from "./toko.schema";
 
 const isHeadOfficeCabang = (cabang: string) => cabang.trim().toLowerCase() === "head office";
+const OTP_CHALLENGE_JABATAN = "BUILDING & MAINTENANCE SUPER HUMAN";
+const isOtpChallengeJabatan = (jabatan?: string | null) =>
+    (jabatan ?? "").trim().toLowerCase() === OTP_CHALLENGE_JABATAN.toLowerCase();
 
 const buildLoginResponse = async (input: {
     matchedUser: { cabang: string; nama_lengkap: string; jabatan: string; email_sat: string; nama_pt: string };
@@ -77,7 +80,7 @@ export const tokoService = {
             throw new AppError("password salah", 401);
         }
 
-        if (isHeadOfficeCabang(matchedUser.cabang)) {
+        if (isHeadOfficeCabang(matchedUser.cabang) && isOtpChallengeJabatan(matchedUser.jabatan)) {
             const otp = await authOtpService.createAndSend({
                 email_sat: matchedUser.email_sat,
                 cabang: matchedUser.cabang,
@@ -112,7 +115,7 @@ export const tokoService = {
             throw new AppError("password salah", 401);
         }
 
-        if (!isHeadOfficeCabang(matchedUser.cabang)) {
+        if (!isHeadOfficeCabang(matchedUser.cabang) || !isOtpChallengeJabatan(matchedUser.jabatan)) {
             throw new AppError("OTP tidak diperlukan", 400);
         }
 

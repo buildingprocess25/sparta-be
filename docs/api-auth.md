@@ -17,7 +17,7 @@ Base URL: /api/auth
 
 POST /api/auth/login
 
-Login user cabang menggunakan email SAT dan cabang (sebagai password). Jika cabang adalah Head Office, server akan mengirim OTP via email.
+Login user cabang menggunakan email SAT dan cabang (sebagai password). OTP hanya dikirim jika cabang Head Office dan jabatan user adalah BUILDING & MAINTENANCE SUPER HUMAN.
 
 ### Request Body
 
@@ -44,7 +44,7 @@ Login user cabang menggunakan email SAT dan cabang (sebagai password). Jika caba
 }
 ```
 
-### Response - 200 OK (OTP dikirim - hanya Head Office)
+### Response - 200 OK (OTP dikirim - Head Office + jabatan tertentu)
 
 ```json
 {
@@ -74,7 +74,7 @@ Login user cabang menggunakan email SAT dan cabang (sebagai password). Jika caba
 
 POST /api/auth/verify-otp
 
-Verifikasi OTP yang dikirim pada login Head Office. Jika valid, akan mengembalikan data user sama seperti login biasa.
+Verifikasi OTP yang dikirim pada login Head Office untuk jabatan BUILDING & MAINTENANCE SUPER HUMAN. Jika valid, akan mengembalikan data user sama seperti login biasa.
 
 ### Request Body
 
@@ -105,13 +105,13 @@ Verifikasi OTP yang dikirim pada login Head Office. Jika valid, akan mengembalik
 
 ### Error Responses
 
-| Code | Kondisi                                |
-| ---- | -------------------------------------- |
-| 400  | OTP tidak diperlukan (bukan HO)        |
-| 401  | OTP salah / kadaluarsa / sudah dipakai |
-| 404  | Email belum terdaftar                  |
-| 422  | Validasi request gagal                 |
-| 500  | Gmail belum terkonfigurasi             |
+| Code | Kondisi                                                |
+| ---- | ------------------------------------------------------ |
+| 400  | OTP tidak diperlukan (bukan HO / jabatan bukan target) |
+| 401  | OTP salah / kadaluarsa / sudah dipakai                 |
+| 404  | Email belum terdaftar                                  |
+| 422  | Validasi request gagal                                 |
+| 500  | Gmail belum terkonfigurasi                             |
 
 ---
 
