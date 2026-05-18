@@ -24,6 +24,7 @@ export type ProjekPlanningRow = {
     kode_toko: string | null;
     cabang: string | null;
     alamat_toko: string | null;
+    link_google_maps: string | null;
     proyek: string | null;
     lingkup_pekerjaan: string | null;
     jenis_proyek: string | null;
@@ -117,7 +118,7 @@ export type ProjekPlanningLogRow = {
 
 const PP_COLUMNS = `
     id, id_toko, nomor_ulok, email_pembuat,
-    nama_toko, kode_toko, cabang, alamat_toko, proyek, lingkup_pekerjaan,
+    nama_toko, kode_toko, cabang, alamat_toko, link_google_maps, proyek, lingkup_pekerjaan,
     jenis_proyek, estimasi_biaya, keterangan,
     nama_pengaju, nama_lokasi,
     jenis_pengajuan, jenis_pengajuan_lainnya,
@@ -376,7 +377,7 @@ export const projekPlanningRepository = {
             const result = await client.query<ProjekPlanningRow>(
                 `INSERT INTO projek_planning (
                     id_toko, nomor_ulok, email_pembuat,
-                    nama_toko, kode_toko, cabang, alamat_toko, proyek, lingkup_pekerjaan,
+                    nama_toko, kode_toko, cabang, alamat_toko, link_google_maps, proyek, lingkup_pekerjaan,
                     jenis_proyek, estimasi_biaya, keterangan, link_fpd,
                     nama_pengaju, nama_lokasi,
                     jenis_pengajuan, jenis_pengajuan_lainnya,
@@ -388,15 +389,15 @@ export const projekPlanningRepository = {
                     created_at, updated_at
                 ) VALUES (
                     $1, $2, $3,
-                    $4, $5, $6, $7, $8, $9,
-                    $10, $11, $12, $13,
-                    $14, $15,
-                    $16, $17,
-                    $18, $19, $20,
-                    $21,
-                    $22, $23,
-                    $24, $25, $26, $27,
-                    $28, FALSE,
+                    $4, $5, $6, $7, $8, $9, $10,
+                    $11, $12, $13, $14,
+                    $15, $16,
+                    $17, $18,
+                    $19, $20, $21,
+                    $22,
+                    $23, $24,
+                    $25, $26, $27, $28,
+                    $29, FALSE,
                     NOW(), NOW()
                 )
                 RETURNING ${PP_COLUMNS}`,
@@ -408,6 +409,7 @@ export const projekPlanningRepository = {
                     payload.kode_toko,
                     payload.cabang,
                     payload.alamat_toko,
+                    (payload as any).link_google_maps ?? null,
                     payload.proyek,
                     payload.lingkup_pekerjaan,
                     payload.jenis_proyek,
@@ -492,22 +494,23 @@ export const projekPlanningRepository = {
                      kode_toko = $8,
                      cabang = $9,
                      alamat_toko = $10,
-                     proyek = $11,
-                     nama_pengaju = $12,
-                     nama_lokasi = $13,
-                     jenis_pengajuan = $14,
-                     jenis_pengajuan_lainnya = $15,
-                     link_gambar_rab_sipil = $16,
-                     link_gambar_rab_me = $17,
-                     link_gambar_kerja = COALESCE($18, link_gambar_kerja),
-                     link_gambar_kompetitor = COALESCE($19, link_gambar_kompetitor),
-                     is_ruko = $20,
-                     jumlah_lantai = $21,
-                     is_head_to_head = $22,
-                     is_seating_area = $23,
-                     is_dark_store = $24,
-                     beanspot_tipe = $25,
-                     status = $26,
+                     link_google_maps = $11,
+                     proyek = $12,
+                     nama_pengaju = $13,
+                     nama_lokasi = $14,
+                     jenis_pengajuan = $15,
+                     jenis_pengajuan_lainnya = $16,
+                     link_gambar_rab_sipil = $17,
+                     link_gambar_rab_me = $18,
+                     link_gambar_kerja = COALESCE($19, link_gambar_kerja),
+                     link_gambar_kompetitor = COALESCE($20, link_gambar_kompetitor),
+                     is_ruko = $21,
+                     jumlah_lantai = $22,
+                     is_head_to_head = $23,
+                     is_seating_area = $24,
+                     is_dark_store = $25,
+                     beanspot_tipe = $26,
+                     status = $27,
                      butuh_desain_3d = FALSE,
                      bm_approver_email = NULL,
                      bm_waktu_persetujuan = NULL,
@@ -518,7 +521,7 @@ export const projekPlanningRepository = {
                      pp2_approver_email = NULL,
                      pp2_waktu_persetujuan = NULL,
                      updated_at = NOW()
-                 WHERE id = $27
+                 WHERE id = $28
                  RETURNING ${PP_COLUMNS}`,
                 [
                     payload.email_pembuat,
@@ -531,6 +534,7 @@ export const projekPlanningRepository = {
                     payload.kode_toko,
                     payload.cabang,
                     payload.alamat_toko,
+                    (payload as any).link_google_maps ?? null,
                     payload.proyek,
                     payload.nama_pengaju,
                     payload.nama_lokasi,

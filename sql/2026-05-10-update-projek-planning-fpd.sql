@@ -1,7 +1,7 @@
 -- ============================================================
 -- MIGRATION: Update Project Planning — Add FPD Form Fields
 -- Date: 2026-05-10
--- Description: Menambahkan kolom-kolom FPD (Form Pengajuan Data) untuk
+-- Description: Menambahkan kolom-kolom FPD (Form Pengajuan Desain) untuk
 --              menyimpan data formulir pengajuan design dari Google Form
 --              ke dalam tabel projek_planning.
 -- ============================================================

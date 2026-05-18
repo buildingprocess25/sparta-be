@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS projek_planning (
     proyek VARCHAR(255),
     lingkup_pekerjaan VARCHAR(255),
 
-    -- Data FPD (Form Pengajuan Data)
+    -- Data FPD (Form Pengajuan Desain)
     jenis_proyek VARCHAR(255),
     estimasi_biaya NUMERIC(18,2),
     keterangan TEXT,

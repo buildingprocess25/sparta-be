@@ -35,6 +35,7 @@ ALTER TABLE projek_planning
     ADD COLUMN IF NOT EXISTS jumlah_lantai         INTEGER DEFAULT NULL,
     ADD COLUMN IF NOT EXISTS link_gambar_kompetitor TEXT    DEFAULT NULL,
     ADD COLUMN IF NOT EXISTS alamat_toko TEXT DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS link_google_maps TEXT DEFAULT NULL,
     ADD COLUMN IF NOT EXISTS link_gambar_kerja_final_sipil TEXT DEFAULT NULL,
     ADD COLUMN IF NOT EXISTS link_gambar_kerja_final_me TEXT DEFAULT NULL;
 

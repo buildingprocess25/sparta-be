@@ -12,12 +12,27 @@ async function uploadCompressedFile(file: Express.Multer.File, folderId: string)
     return u.webViewLink || null;
 }
 
+async function uploadCompressedFiles(files: Express.Multer.File[], folderId: string): Promise<string | undefined> {
+    const links: string[] = [];
+    for (const file of files.slice(0, 2)) {
+        const link = await uploadCompressedFile(file, folderId);
+        if (link) links.push(link);
+    }
+    return links.length > 0 ? links.join("\n") : undefined;
+}
+
 function normalizeText(value: unknown): string {
     return String(value ?? "").trim();
 }
 
 function normalizeBoolean(value: unknown): boolean {
     return value === true || value === "true" || value === "1" || value === 1;
+}
+
+function normalizeBeanspotTipe(value: unknown): string | null {
+    const text = normalizeText(value);
+    if (!text) return null;
+    return text.toUpperCase() === "BASIC" ? "RTD ONLY" : text;
 }
 
 function normalizeArrayForCompare(value: unknown): string {
@@ -55,6 +70,7 @@ function buildRevisionSummary(
     };
 
     addIfChanged("Nama toko/lokasi", projek.nama_lokasi || projek.nama_toko, payload.nama_lokasi || payload.nama_toko);
+    addIfChanged("Link Google Maps", projek.link_google_maps, payload.link_google_maps);
     addIfChanged("Lingkup pekerjaan", projek.lingkup_pekerjaan, payload.lingkup_pekerjaan);
     addIfChanged("Jenis proyek", projek.jenis_proyek, payload.jenis_proyek);
     addIfChanged("Estimasi biaya", projek.estimasi_biaya, payload.estimasi_biaya);
@@ -66,7 +82,7 @@ function buildRevisionSummary(
     addBoolIfChanged("Head to head", projek.is_head_to_head, payload.is_head_to_head);
     addBoolIfChanged("Seating area", projek.is_seating_area, payload.is_seating_area);
     addBoolIfChanged("Dark store", projek.is_dark_store, payload.is_dark_store);
-    addIfChanged("Tipe Bean Spot", projek.beanspot_tipe, payload.beanspot_tipe);
+    addIfChanged("Tipe Bean Spot", normalizeBeanspotTipe(projek.beanspot_tipe), normalizeBeanspotTipe(payload.beanspot_tipe));
 
     if (normalizeArrayForCompare(projek.ketentuan?.map((k: any) => k.isi_ketentuan) ?? []) !== normalizeArrayForCompare(payload.ketentuan ?? [])) changed.push("Ketentuan");
     if (normalizeArrayForCompare(projek.catatan_design?.map((c: any) => c.isi_catatan) ?? []) !== normalizeArrayForCompare(payload.catatan_design ?? [])) changed.push("Catatan design");
@@ -131,33 +147,33 @@ export const projekPlanningService = {
         let fotoItemsLinks: { item_index: number; link_foto: string }[] = [];
 
         if (files && files.length > 0) {
-            const fFpd = files.find(f => f.fieldname === "file_fpd");
-            const fGambarKerjaMe = files.find(f => f.fieldname === "file_gambar_kerja_me");
-            const fRabSipil = files.find(f => f.fieldname === "file_rab_sipil");
-            const fRabMe = files.find(f => f.fieldname === "file_rab_me");
-            const fKompetitor = files.find(f => f.fieldname === "file_gambar_kompetitor");
+            const fFpd = files.filter(f => f.fieldname === "file_fpd");
+            const fGambarKerjaMe = files.filter(f => f.fieldname === "file_gambar_kerja_me");
+            const fRabSipil = files.filter(f => f.fieldname === "file_rab_sipil");
+            const fRabMe = files.filter(f => f.fieldname === "file_rab_me");
+            const fKompetitor = files.filter(f => f.fieldname === "file_gambar_kompetitor");
 
             const itemRegex = /^foto_items_(\d+)$/i;
 
             try {
-                if (fFpd) {
-                    const link = await uploadCompressedFile(fFpd, env.DOC_DRIVE_ROOT_ID);
+                if (fFpd.length > 0) {
+                    const link = await uploadCompressedFiles(fFpd, env.DOC_DRIVE_ROOT_ID);
                     if (link) fpdLink = link;
                 }
-                if (fGambarKerjaMe) {
-                    const link = await uploadCompressedFile(fGambarKerjaMe, env.DOC_DRIVE_ROOT_ID);
+                if (fGambarKerjaMe.length > 0) {
+                    const link = await uploadCompressedFiles(fGambarKerjaMe, env.DOC_DRIVE_ROOT_ID);
                     if (link) gambarKerjaMe = link;
                 }
-                if (fRabSipil) {
-                    const link = await uploadCompressedFile(fRabSipil, env.DOC_DRIVE_ROOT_ID);
+                if (fRabSipil.length > 0) {
+                    const link = await uploadCompressedFiles(fRabSipil, env.DOC_DRIVE_ROOT_ID);
                     if (link) rabSipilLink = link;
                 }
-                if (fRabMe) {
-                    const link = await uploadCompressedFile(fRabMe, env.DOC_DRIVE_ROOT_ID);
+                if (fRabMe.length > 0) {
+                    const link = await uploadCompressedFiles(fRabMe, env.DOC_DRIVE_ROOT_ID);
                     if (link) rabMeLink = link;
                 }
-                if (fKompetitor) {
-                    const link = await uploadCompressedFile(fKompetitor, env.DOC_DRIVE_ROOT_ID);
+                if (fKompetitor.length > 0) {
+                    const link = await uploadCompressedFiles(fKompetitor, env.DOC_DRIVE_ROOT_ID);
                     if (link) gambarKompetitor = link;
                 }
 
@@ -186,7 +202,9 @@ export const projekPlanningService = {
             kode_toko: payload.kode_toko || null,
             cabang: payload.cabang || null,
             alamat_toko: payload.alamat_toko || null,
+            link_google_maps: payload.link_google_maps || null,
             proyek: payload.jenis_proyek || null,
+            beanspot_tipe: normalizeBeanspotTipe(payload.beanspot_tipe),
             link_fpd: fpdLink ?? undefined,
             link_gambar_kerja: gambarKerjaMe ?? undefined,
             link_gambar_rab_sipil: rabSipilLink ?? undefined,
@@ -238,33 +256,33 @@ export const projekPlanningService = {
         let fotoItemsLinks: { item_index: number; link_foto: string }[] = [];
 
         if (files && files.length > 0) {
-            const fFpd = files.find(f => f.fieldname === "file_fpd");
-            const fGambarKerjaMe = files.find(f => f.fieldname === "file_gambar_kerja_me");
-            const fRabSipil = files.find(f => f.fieldname === "file_rab_sipil");
-            const fRabMe = files.find(f => f.fieldname === "file_rab_me");
-            const fKompetitor = files.find(f => f.fieldname === "file_gambar_kompetitor");
+            const fFpd = files.filter(f => f.fieldname === "file_fpd");
+            const fGambarKerjaMe = files.filter(f => f.fieldname === "file_gambar_kerja_me");
+            const fRabSipil = files.filter(f => f.fieldname === "file_rab_sipil");
+            const fRabMe = files.filter(f => f.fieldname === "file_rab_me");
+            const fKompetitor = files.filter(f => f.fieldname === "file_gambar_kompetitor");
 
             const itemRegex = /^foto_items_(\d+)$/i;
 
             try {
-                if (fFpd) {
-                    const link = await uploadCompressedFile(fFpd, env.DOC_DRIVE_ROOT_ID);
+                if (fFpd.length > 0) {
+                    const link = await uploadCompressedFiles(fFpd, env.DOC_DRIVE_ROOT_ID);
                     if (link) fpdLink = link;
                 }
-                if (fGambarKerjaMe) {
-                    const link = await uploadCompressedFile(fGambarKerjaMe, env.DOC_DRIVE_ROOT_ID);
+                if (fGambarKerjaMe.length > 0) {
+                    const link = await uploadCompressedFiles(fGambarKerjaMe, env.DOC_DRIVE_ROOT_ID);
                     if (link) gambarKerjaMe = link;
                 }
-                if (fRabSipil) {
-                    const link = await uploadCompressedFile(fRabSipil, env.DOC_DRIVE_ROOT_ID);
+                if (fRabSipil.length > 0) {
+                    const link = await uploadCompressedFiles(fRabSipil, env.DOC_DRIVE_ROOT_ID);
                     if (link) rabSipilLink = link;
                 }
-                if (fRabMe) {
-                    const link = await uploadCompressedFile(fRabMe, env.DOC_DRIVE_ROOT_ID);
+                if (fRabMe.length > 0) {
+                    const link = await uploadCompressedFiles(fRabMe, env.DOC_DRIVE_ROOT_ID);
                     if (link) rabMeLink = link;
                 }
-                if (fKompetitor) {
-                    const link = await uploadCompressedFile(fKompetitor, env.DOC_DRIVE_ROOT_ID);
+                if (fKompetitor.length > 0) {
+                    const link = await uploadCompressedFiles(fKompetitor, env.DOC_DRIVE_ROOT_ID);
                     if (link) gambarKompetitor = link;
                 }
 
@@ -299,7 +317,9 @@ export const projekPlanningService = {
             kode_toko: payload.kode_toko || projek.kode_toko || null,
             cabang: payload.cabang || projek.cabang || null,
             alamat_toko: payload.alamat_toko || projek.alamat_toko || null,
+            link_google_maps: payload.link_google_maps || projek.link_google_maps || null,
             proyek: payload.jenis_proyek || projek.proyek || null,
+            beanspot_tipe: normalizeBeanspotTipe(payload.beanspot_tipe),
             link_fpd: fpdLink ?? projek.link_fpd ?? undefined,
             link_gambar_kerja: gambarKerjaMe ?? projek.link_gambar_kerja ?? undefined,
             link_gambar_rab_sipil: rabSipilLink ?? projek.link_gambar_rab_sipil ?? undefined,
@@ -543,32 +563,32 @@ export const projekPlanningService = {
         let linkGambarMe = payload.link_gambar_kerja_final_me;
         
         if (files) {
-            const fRabSipil = files["file_rab_sipil"]?.[0];
-            const fRabMe = files["file_rab_me"]?.[0];
+            const fRabSipil = files["file_rab_sipil"] ?? [];
+            const fRabMe = files["file_rab_me"] ?? [];
             const fRabLegacy = files["file_rab"]?.[0];
-            const fGambar = files["file_gambar_kerja"]?.[0];
-            const fGambarSipil = files["file_gambar_kerja_final_sipil"]?.[0];
-            const fGambarMe = files["file_gambar_kerja_final_me"]?.[0];
+            const fGambar = files["file_gambar_kerja"] ?? [];
+            const fGambarSipil = files["file_gambar_kerja_final_sipil"] ?? [];
+            const fGambarMe = files["file_gambar_kerja_final_me"] ?? [];
             
             try {
-                if (fRabSipil || fRabLegacy) {
-                    const link = await uploadCompressedFile(fRabSipil ?? fRabLegacy, env.DOC_DRIVE_ROOT_ID);
+                if (fRabSipil.length > 0 || fRabLegacy) {
+                    const link = await uploadCompressedFiles(fRabSipil.length > 0 ? fRabSipil : [fRabLegacy], env.DOC_DRIVE_ROOT_ID);
                     if (link) linkRabSipil = link;
                 }
-                if (fRabMe) {
-                    const link = await uploadCompressedFile(fRabMe, env.DOC_DRIVE_ROOT_ID);
+                if (fRabMe.length > 0) {
+                    const link = await uploadCompressedFiles(fRabMe, env.DOC_DRIVE_ROOT_ID);
                     if (link) linkRabMe = link;
                 }
-                if (fGambar) {
-                    const link = await uploadCompressedFile(fGambar, env.DOC_DRIVE_ROOT_ID);
+                if (fGambar.length > 0) {
+                    const link = await uploadCompressedFiles(fGambar, env.DOC_DRIVE_ROOT_ID);
                     if (link) linkGambar = link;
                 }
-                if (fGambarSipil) {
-                    const link = await uploadCompressedFile(fGambarSipil, env.DOC_DRIVE_ROOT_ID);
+                if (fGambarSipil.length > 0) {
+                    const link = await uploadCompressedFiles(fGambarSipil, env.DOC_DRIVE_ROOT_ID);
                     if (link) linkGambarSipil = link;
                 }
-                if (fGambarMe) {
-                    const link = await uploadCompressedFile(fGambarMe, env.DOC_DRIVE_ROOT_ID);
+                if (fGambarMe.length > 0) {
+                    const link = await uploadCompressedFiles(fGambarMe, env.DOC_DRIVE_ROOT_ID);
                     if (link) linkGambarMe = link;
                 }
             } catch (e) {

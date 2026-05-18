@@ -318,6 +318,8 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
         return;
     }
 
+    fileUrl = String(fileUrl).split(/\r?\n/).map((item) => item.trim()).filter(Boolean)[0];
+
     // Ekstrak fileId dari URL GDrive
     const { extractGdriveFileId } = await import("./projek-planning.pdf");
     const fileId = extractGdriveFileId(fileUrl);
