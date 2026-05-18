@@ -20,7 +20,7 @@ export const authOtpRepository = {
             WHERE LOWER(email_sat) = LOWER($1)
               AND LOWER(cabang) = LOWER($2)
               AND consumed_at IS NULL
-              AND expires_at > timezone('Asia/Jakarta', now())
+                            AND expires_at > now()
             `,
             [emailSat, cabang]
         );

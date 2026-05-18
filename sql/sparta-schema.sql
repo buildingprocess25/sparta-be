@@ -133,9 +133,9 @@ CREATE TABLE IF NOT EXISTS auth_otp (
     cabang VARCHAR(255) NOT NULL,
     otp_hash VARCHAR(255) NOT NULL,
     otp_token VARCHAR(64) NOT NULL,
-    expires_at TIMESTAMP NOT NULL,
-    created_at TIMESTAMP DEFAULT timezone('Asia/Jakarta', now()),
-    consumed_at TIMESTAMP DEFAULT NULL
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    consumed_at TIMESTAMPTZ DEFAULT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_auth_otp_lookup
