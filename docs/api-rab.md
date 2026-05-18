@@ -499,6 +499,8 @@ Endpoint ini juga melewati backend agar link tetap bisa dipakai walau file Googl
 
 Memproses approval atau penolakan RAB.
 
+Jika `nama_lengkap` dikirim, nama tersebut hanya dipakai untuk tampilan tanda tangan di PDF. Nilai yang disimpan di kolom `pemberi_persetujuan_*` tetap `approver_email`.
+
 ### Path Parameter
 
 | Parameter | Tipe   | Deskripsi        |
@@ -510,6 +512,7 @@ Memproses approval atau penolakan RAB.
 ```json
 {
   "approver_email": "koordinator@alfamart.com",
+  "nama_lengkap": "Dewi Lestari",
   "jabatan": "KOORDINATOR",
   "tindakan": "APPROVE",
   "alasan_penolakan": null
@@ -521,6 +524,7 @@ Memproses approval atau penolakan RAB.
 | Field              | Aturan                                                  |
 | ------------------ | ------------------------------------------------------- |
 | `approver_email`   | Wajib, format email valid                               |
+| `nama_lengkap`     | Opsional, nama untuk tanda tangan di PDF                |
 | `jabatan`          | Wajib, salah satu: `KOORDINATOR`, `MANAGER`, `DIREKTUR` |
 | `tindakan`         | Wajib, salah satu: `APPROVE`, `REJECT`                  |
 | `alasan_penolakan` | Wajib jika `tindakan = REJECT`, opsional jika `APPROVE` |

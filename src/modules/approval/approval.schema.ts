@@ -6,6 +6,7 @@ const tindakanSchema = z.enum(["APPROVE", "REJECT"]);
 export const approvalActionSchema = z
     .object({
         approver_email: z.string().email(),
+        nama_lengkap: z.string().nullable().optional(),
         jabatan: jabatanSchema,
         tindakan: tindakanSchema,
         // Frontend/Postman kadang mengirim null saat approve.
