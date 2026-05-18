@@ -95,11 +95,15 @@ export const emailNotificationService = {
             throw new AppError(`Template email untuk flag ${payload.flag} tidak ditemukan`, 400);
         }
 
-        const targetUser = await userCabangRepository.findByCabangAndJabatan(
-            payload.cabang,
-            templateConfig.targetJabatan
-        );
-        if (!targetUser) {
+        const isKontraktorTarget = templateConfig.targetJabatan.toUpperCase() === "KONTRAKTOR";
+        const targetUsers = isKontraktorTarget
+            ? await userCabangRepository.findAll({ cabang: payload.cabang, jabatan: templateConfig.targetJabatan })
+            : [];
+        const targetUser = isKontraktorTarget
+            ? null
+            : await userCabangRepository.findByCabangAndJabatan(payload.cabang, templateConfig.targetJabatan);
+
+        if (!targetUser && targetUsers.length === 0) {
             throw new AppError(
                 `User dengan jabatan "${templateConfig.targetJabatan}" untuk cabang tersebut tidak ditemukan`,
                 404
@@ -120,7 +124,9 @@ export const emailNotificationService = {
             flag: payload.flag,
             sent_at: formatJakartaTimestamp(),
             greeting: getFormalGreeting(),
-            nama_lengkap: targetUser.nama_lengkap?.trim() || templateConfig.targetJabatan
+            nama_lengkap: isKontraktorTarget
+                ? "Kontraktor"
+                : targetUser?.nama_lengkap?.trim() || templateConfig.targetJabatan
         });
 
         const gp = GoogleProvider.instance;
@@ -129,13 +135,25 @@ export const emailNotificationService = {
             throw new AppError("Google Gmail belum terkonfigurasi", 500);
         }
 
-        const ccEmail = ccUser?.email_sat && ccUser.email_sat !== targetUser.email_sat
+        const rawTargetEmails = isKontraktorTarget
+            ? targetUsers.map((user) => user.email_sat)
+            : [targetUser?.email_sat].filter((email): email is string => Boolean(email));
+        const targetEmails = Array.from(new Set(rawTargetEmails.map((email) => email.trim()).filter(Boolean)));
+
+        if (targetEmails.length === 0) {
+            throw new AppError(
+                `User dengan jabatan "${templateConfig.targetJabatan}" untuk cabang tersebut tidak ditemukan`,
+                404
+            );
+        }
+
+        const ccEmail = ccUser?.email_sat && !targetEmails.includes(ccUser.email_sat)
             ? ccUser.email_sat
             : undefined;
 
         const raw = buildRawEmail({
             from: env.EMAIL_USER,
-            to: targetUser.email_sat,
+            to: targetEmails.join(", "),
             cc: ccEmail,
             subject: templateConfig.subject,
             html
@@ -150,7 +168,7 @@ export const emailNotificationService = {
             message_id: result.data.id ?? null,
             cabang: payload.cabang,
             flag: payload.flag,
-            to: targetUser.email_sat,
+            to: targetEmails.length === 1 ? targetEmails[0] : targetEmails,
             cc: ccEmail ?? null,
             subject: templateConfig.subject
         };

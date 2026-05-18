@@ -286,7 +286,7 @@ Memproses approval SPK satu level (Branch Manager).
 
 Catatan:
 
-- Jika tindakan `APPROVE`, sistem mengirim email notifikasi ke user cabang dengan jabatan `KONTRAKTOR` (flag `notification-spk-has-approve`).
+- Jika tindakan `APPROVE`, sistem mengirim email notifikasi ke semua user cabang dengan jabatan `KONTRAKTOR` (flag `notification-spk-has-approve`).
 
 Aturan:
 

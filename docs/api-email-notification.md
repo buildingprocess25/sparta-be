@@ -22,7 +22,7 @@ Mengirim email notifikasi berdasarkan cabang dan flag template.
 Flag yang tersedia:
 
 - `send-notification-spk` -> target: Branch Manager (cc: Branch Building & Maintenance Manager)
-- `notification-spk-has-approve` -> target: KONTRAKTOR
+- `notification-spk-has-approve` -> target: semua user KONTRAKTOR pada cabang terkait
 
 ### Validasi
 
