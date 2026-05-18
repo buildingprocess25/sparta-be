@@ -1,6 +1,6 @@
 # Dokumentasi API Project Planning — sparta-api
 
-Base URL: `/api/projek-planning`
+Base URL: `/api/project-planning`
 
 > Catatan: Modul ini menggunakan tabel `projek_planning` dan `projek_planning_log`.
 
@@ -10,17 +10,17 @@ Base URL: `/api/projek-planning`
 
 | #   | Method | Path                                   | Deskripsi                                        |
 | --- | ------ | -------------------------------------- | ------------------------------------------------ |
-| 1   | `POST` | `/api/projek-planning/submit`          | Submit pengajuan FPD baru                        |
-| 2   | `POST` | `/api/projek-planning/:id/resubmit`    | Resubmit FPD (update record DRAFT)               |
-| 3   | `GET`  | `/api/projek-planning`                 | List pengajuan FPD (+ filter)                    |
-| 4   | `GET`  | `/api/projek-planning/:id`             | Detail FPD + audit trail                         |
-| 5   | `POST` | `/api/projek-planning/:id/bm-approval` | Approve/Reject oleh BM Manager                   |
-| 6   | `POST` | `/api/projek-planning/:id/pp-approval-1` | Approve/Reject oleh PP Specialist (Tahap 1)    |
-| 7   | `POST` | `/api/projek-planning/:id/upload-3d`   | Upload desain 3D oleh PP Specialist              |
-| 8   | `POST` | `/api/projek-planning/:id/upload-rab`  | Upload RAB & Gambar Kerja oleh Coordinator       |
-| 9   | `POST` | `/api/projek-planning/:id/pp-approval-2` | Approve/Reject oleh PP Specialist (Setelah RAB) |
-| 10  | `POST` | `/api/projek-planning/:id/pp-manager-approval` | Approve/Reject oleh PP Manager (Final)          |
-| 11  | `GET`  | `/api/projek-planning/:id/logs`        | Ambil audit trail                                |
+| 1   | `POST` | `/api/project-planning/submit`          | Submit pengajuan FPD baru                        |
+| 2   | `POST` | `/api/project-planning/:id/resubmit`    | Resubmit FPD (update record DRAFT)               |
+| 3   | `GET`  | `/api/project-planning`                 | List pengajuan FPD (+ filter)                    |
+| 4   | `GET`  | `/api/project-planning/:id`             | Detail FPD + audit trail                         |
+| 5   | `POST` | `/api/project-planning/:id/bm-approval` | Approve/Reject oleh BM Manager                   |
+| 6   | `POST` | `/api/project-planning/:id/pp-approval-1` | Approve/Reject oleh PP Specialist (Tahap 1)    |
+| 7   | `POST` | `/api/project-planning/:id/upload-3d`   | Upload desain 3D oleh PP Specialist              |
+| 8   | `POST` | `/api/project-planning/:id/upload-rab`  | Upload RAB & Gambar Kerja oleh Coordinator       |
+| 9   | `POST` | `/api/project-planning/:id/pp-approval-2` | Approve/Reject oleh PP Specialist (Setelah RAB) |
+| 10  | `POST` | `/api/project-planning/:id/pp-manager-approval` | Approve/Reject oleh PP Manager (Final)          |
+| 11  | `GET`  | `/api/project-planning/:id/logs`        | Ambil audit trail                                |
 
 ---
 
@@ -51,7 +51,7 @@ Status aktif (tidak bisa submit baru untuk toko yang sama):
 
 ## 1. Submit FPD
 
-**`POST /api/projek-planning/submit`**
+**`POST /api/project-planning/submit`**
 
 Membuat pengajuan FPD baru. Sistem akan:
 
@@ -141,7 +141,7 @@ Membuat pengajuan FPD baru. Sistem akan:
 
 ## 2. Resubmit FPD
 
-**`POST /api/projek-planning/:id/resubmit`**
+**`POST /api/project-planning/:id/resubmit`**
 
 Update record DRAFT yang sudah ada (setelah rejection). Sistem akan:
 
@@ -176,7 +176,7 @@ Sama seperti Submit tetapi **tanpa** `id_toko` dan `nomor_ulok`.
 
 ## 3. List FPD
 
-**`GET /api/projek-planning`**
+**`GET /api/project-planning`**
 
 Mengambil daftar pengajuan FPD. Mendukung filter query.
 
@@ -193,9 +193,9 @@ Mengambil daftar pengajuan FPD. Mendukung filter query.
 ### Contoh Request
 
 ```http
-GET /api/projek-planning
-GET /api/projek-planning?status=WAITING_BM_APPROVAL
-GET /api/projek-planning?cabang=KLATEN
+GET /api/project-planning
+GET /api/project-planning?status=WAITING_BM_APPROVAL
+GET /api/project-planning?cabang=KLATEN
 ```
 
 ### Response — 200 OK
@@ -211,7 +211,7 @@ GET /api/projek-planning?cabang=KLATEN
 
 ## 4. Detail FPD
 
-**`GET /api/projek-planning/:id`**
+**`GET /api/project-planning/:id`**
 
 Mengambil detail 1 FPD beserta riwayat audit trail.
 
@@ -243,7 +243,7 @@ Mengambil detail 1 FPD beserta riwayat audit trail.
 
 ## 5. BM Approval
 
-**`POST /api/projek-planning/:id/bm-approval`**
+**`POST /api/project-planning/:id/bm-approval`**
 
 Memproses approval oleh Branch Manager.
 
@@ -285,7 +285,7 @@ Aturan:
 
 ## 6. PP Specialist Approval (Tahap 1)
 
-**`POST /api/projek-planning/:id/pp-approval-1`**
+**`POST /api/project-planning/:id/pp-approval-1`**
 
 PP Specialist menentukan apakah pengajuan butuh desain 3D.
 
@@ -320,7 +320,7 @@ Aturan:
 
 ## 7. Upload Desain 3D
 
-**`POST /api/projek-planning/:id/upload-3d`**
+**`POST /api/project-planning/:id/upload-3d`**
 
 PP Specialist mengupload link desain 3D.
 
@@ -351,7 +351,7 @@ Aturan:
 
 ## 8. Upload RAB & Gambar Kerja
 
-**`POST /api/projek-planning/:id/upload-rab`**
+**`POST /api/project-planning/:id/upload-rab`**
 
 Coordinator mengupload link RAB dan/atau gambar kerja.
 
@@ -376,7 +376,7 @@ Aturan:
 
 ## 9. PP Manager Approval
 
-**`POST /api/projek-planning/:id/pp-manager-approval`**
+**`POST /api/project-planning/:id/pp-manager-approval`**
 
 Aturan:
 
@@ -392,7 +392,7 @@ Sama seperti BM Approval (#5).
 
 ## 10. PP Specialist Approval (Final)
 
-**`POST /api/projek-planning/:id/pp-approval-2`**
+**`POST /api/project-planning/:id/pp-approval-2`**
 
 Aturan:
 
@@ -408,7 +408,7 @@ Sama seperti BM Approval (#5).
 
 ## 11. Audit Trail (Logs)
 
-**`GET /api/projek-planning/:id/logs`**
+**`GET /api/project-planning/:id/logs`**
 
 ### Response — 200 OK
 

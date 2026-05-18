@@ -1,9 +1,9 @@
 import { AppError } from "../../common/app-error";
-import { PP_STATUS, PP_ROLE, PP_AKSI, PP_STATUS_LABEL, type PpStatus } from "./projek-planning.constants";
-import { projekPlanningRepository } from "./projek-planning.repository";
+import { PP_STATUS, PP_ROLE, PP_AKSI, PP_STATUS_LABEL, type PpStatus } from "./project-planning.constants";
+import { projekPlanningRepository } from "./project-planning.repository";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
-import { buildProjekPlanningPdfBuffer } from "./projek-planning.pdf";
+import { buildProjekPlanningPdfBuffer } from "./project-planning.pdf";
 import { compressImage } from "../../common/image-compressor";
 
 async function uploadCompressedFile(file: Express.Multer.File, folderId: string): Promise<string | null> {
@@ -107,7 +107,7 @@ import type {
     Upload3dInput,
     UploadRabInput,
     ListProjekPlanningQuery,
-} from "./projek-planning.schema";
+} from "./project-planning.schema";
 
 export const projekPlanningService = {
 

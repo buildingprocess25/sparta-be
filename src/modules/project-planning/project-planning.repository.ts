@@ -1,6 +1,6 @@
 import { pool, withTransaction } from "../../db/pool";
 import type { PoolClient } from "pg";
-import type { PpStatus, PpRole, PpAksi } from "./projek-planning.constants";
+import type { PpStatus, PpRole, PpAksi } from "./project-planning.constants";
 import type {
     SubmitProjekPlanningInput,
     ApprovalInput,
@@ -9,7 +9,7 @@ import type {
     UploadRabInput,
     ListProjekPlanningQuery,
     ResubmitProjekPlanningInput,
-} from "./projek-planning.schema";
+} from "./project-planning.schema";
 
 // ============================================================
 // ROW TYPES

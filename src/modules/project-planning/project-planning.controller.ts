@@ -8,8 +8,8 @@ import {
     upload3dSchema,
     uploadRabSchema,
     listProjekPlanningQuerySchema,
-} from "./projek-planning.schema";
-import { projekPlanningService } from "./projek-planning.service";
+} from "./project-planning.schema";
+import { projekPlanningService } from "./project-planning.service";
 
 // ============================================================
 // SUBMIT FPD (Coordinator) — record baru
@@ -321,7 +321,7 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
     fileUrl = String(fileUrl).split(/\r?\n/).map((item) => item.trim()).filter(Boolean)[0];
 
     // Ekstrak fileId dari URL GDrive
-    const { extractGdriveFileId } = await import("./projek-planning.pdf");
+    const { extractGdriveFileId } = await import("./project-planning.pdf");
     const fileId = extractGdriveFileId(fileUrl);
 
     if (!fileId) {

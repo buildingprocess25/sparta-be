@@ -1,5 +1,5 @@
 // Test 1: JSON
-fetch('https://sparta-be.onrender.com/api/projek-planning/submit', {
+fetch('https://sparta-be.onrender.com/api/project-planning/submit', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
@@ -26,7 +26,7 @@ form.append('nama_pengaju', 'Test User');
 form.append('nama_lokasi', 'Test Lokasi');
 form.append('jenis_pengajuan', 'LAINNYA');
 
-fetch('https://sparta-be.onrender.com/api/projek-planning/submit', {
+fetch('https://sparta-be.onrender.com/api/project-planning/submit', {
   method: 'POST',
   body: form
 }).then(r => r.text()).then(v => console.log("FormData:", v));

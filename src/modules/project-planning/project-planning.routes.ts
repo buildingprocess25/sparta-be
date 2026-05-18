@@ -15,7 +15,7 @@ import {
     getProjekPlanningTaskCounts,
     downloadPdf,
     proxyFile,
-} from "./projek-planning.controller";
+} from "./project-planning.controller";
 
 const fpdUpload = multer({
     storage: multer.memoryStorage(),
