@@ -8,13 +8,14 @@ DROP TABLE IF EXISTS projek_planning CASCADE;
 -- 1. Table Utama Projek Planning (Normalized - Tanpa kolom fasilitas, catatan, & ketentuan)
 CREATE TABLE projek_planning (
     id SERIAL PRIMARY KEY,
-    id_toko INTEGER NOT NULL,
+    id_toko INTEGER,
     nomor_ulok VARCHAR(100) NOT NULL,
     email_pembuat VARCHAR(255) NOT NULL,
     
     nama_toko VARCHAR(255),
     kode_toko VARCHAR(50),
     cabang VARCHAR(100),
+    alamat_toko TEXT,
     proyek VARCHAR(255),
     lingkup_pekerjaan VARCHAR(100),
     jenis_proyek VARCHAR(100),

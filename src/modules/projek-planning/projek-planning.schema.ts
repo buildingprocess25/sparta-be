@@ -5,7 +5,7 @@ import { z } from "zod";
 // ============================================================
 
 export const submitProjekPlanningSchema = z.object({
-    id_toko: z.coerce.number().int().min(0), // 0 means create new toko
+    id_toko: z.coerce.number().int().min(0).optional().default(0),
     nomor_ulok: z.string().min(1),
     // New fields for manual toko creation
     cabang: z.string().optional().or(z.literal("")),

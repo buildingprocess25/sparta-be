@@ -9,7 +9,7 @@
 -- 1) PROJEK_PLANNING (Header)
 CREATE TABLE IF NOT EXISTS projek_planning (
     id SERIAL PRIMARY KEY,
-    id_toko INT NOT NULL,
+    id_toko INT,
     nomor_ulok VARCHAR(255) NOT NULL,
     email_pembuat VARCHAR(255) NOT NULL,
 
@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS projek_planning (
     nama_toko VARCHAR(255),
     kode_toko VARCHAR(255),
     cabang VARCHAR(255),
+    alamat_toko TEXT,
     proyek VARCHAR(255),
     lingkup_pekerjaan VARCHAR(255),
 
@@ -59,7 +60,6 @@ CREATE TABLE IF NOT EXISTS projek_planning (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
-    CONSTRAINT fk_projek_planning_toko FOREIGN KEY (id_toko) REFERENCES toko(id) ON DELETE CASCADE,
     CONSTRAINT chk_projek_planning_status CHECK (status IN (
         'DRAFT',
         'WAITING_BM_APPROVAL',
