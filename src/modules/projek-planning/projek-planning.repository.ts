@@ -66,6 +66,8 @@ export type ProjekPlanningRow = {
     link_rab_sipil: string | null;
     link_rab_me: string | null;
     link_gambar_kerja_final: string | null;
+    link_gambar_kerja_final_sipil: string | null;
+    link_gambar_kerja_final_me: string | null;
 
     // Status & flags
     status: PpStatus;
@@ -121,6 +123,7 @@ const PP_COLUMNS = `
     link_fpd, link_rab, link_gambar_kerja, link_desain_3d, link_fpd_approved,
     link_gambar_rab_sipil, link_gambar_rab_me, link_gambar_kompetitor,
     link_rab_sipil, link_rab_me, link_gambar_kerja_final,
+    link_gambar_kerja_final_sipil, link_gambar_kerja_final_me,
     status, butuh_desain_3d, is_ruko, jumlah_lantai,
     is_head_to_head, is_seating_area, is_dark_store, beanspot_tipe,
     bm_approver_email, bm_waktu_persetujuan, bm_alasan_penolakan,
@@ -625,7 +628,13 @@ export const projekPlanningRepository = {
     async updateRabUpload(
         id: number,
         newStatus: PpStatus,
-        payload: { link_rab_sipil?: string; link_rab_me?: string; link_gambar_kerja?: string },
+        payload: {
+            link_rab_sipil?: string;
+            link_rab_me?: string;
+            link_gambar_kerja?: string;
+            link_gambar_kerja_final_sipil?: string;
+            link_gambar_kerja_final_me?: string;
+        },
         client?: PoolClient
     ): Promise<ProjekPlanningRow> {
         const db = client ?? pool;
@@ -635,10 +644,20 @@ export const projekPlanningRepository = {
                  link_rab_sipil = COALESCE($2, link_rab_sipil),
                  link_rab_me = COALESCE($3, link_rab_me),
                  link_gambar_kerja_final = COALESCE($4, link_gambar_kerja_final),
+                 link_gambar_kerja_final_sipil = COALESCE($5, link_gambar_kerja_final_sipil),
+                 link_gambar_kerja_final_me = COALESCE($6, link_gambar_kerja_final_me),
                  updated_at = NOW()
-             WHERE id = $5
+             WHERE id = $7
              RETURNING ${PP_COLUMNS}`,
-            [newStatus, payload.link_rab_sipil ?? null, payload.link_rab_me ?? null, payload.link_gambar_kerja ?? null, id]
+            [
+                newStatus,
+                payload.link_rab_sipil ?? null,
+                payload.link_rab_me ?? null,
+                payload.link_gambar_kerja ?? null,
+                payload.link_gambar_kerja_final_sipil ?? null,
+                payload.link_gambar_kerja_final_me ?? null,
+                id,
+            ]
         );
         return result.rows[0];
     },

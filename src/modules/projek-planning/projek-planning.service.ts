@@ -570,12 +570,16 @@ export const projekPlanningService = {
         let linkRabSipil = payload.link_rab_sipil;
         let linkRabMe = payload.link_rab_me;
         let linkGambar = payload.link_gambar_kerja;
+        let linkGambarSipil = payload.link_gambar_kerja_final_sipil;
+        let linkGambarMe = payload.link_gambar_kerja_final_me;
         
         if (files) {
             const fRabSipil = files["file_rab_sipil"]?.[0];
             const fRabMe = files["file_rab_me"]?.[0];
             const fRabLegacy = files["file_rab"]?.[0];
             const fGambar = files["file_gambar_kerja"]?.[0];
+            const fGambarSipil = files["file_gambar_kerja_final_sipil"]?.[0];
+            const fGambarMe = files["file_gambar_kerja_final_me"]?.[0];
             
             try {
                 if (fRabSipil || fRabLegacy) {
@@ -589,6 +593,14 @@ export const projekPlanningService = {
                 if (fGambar) {
                     const link = await uploadCompressedFile(fGambar, env.DOC_DRIVE_ROOT_ID);
                     if (link) linkGambar = link;
+                }
+                if (fGambarSipil) {
+                    const link = await uploadCompressedFile(fGambarSipil, env.DOC_DRIVE_ROOT_ID);
+                    if (link) linkGambarSipil = link;
+                }
+                if (fGambarMe) {
+                    const link = await uploadCompressedFile(fGambarMe, env.DOC_DRIVE_ROOT_ID);
+                    if (link) linkGambarMe = link;
                 }
             } catch (e) {
                 console.error("Gagal upload RAB/Gambar ke Drive:", e);
@@ -605,9 +617,16 @@ export const projekPlanningService = {
                 aksi: PP_AKSI.UPLOAD_RAB,
                 status_sebelum: projek.status,
                 status_sesudah: newStatus,
-                keterangan: payload.keterangan ?? "RAB & Gambar Kerja berhasil diupload, menunggu approval PP Specialist",
+                keterangan: payload.keterangan ?? "RAB & Gambar Kerja Final berhasil diupload, menunggu approval PP Specialist",
             },
-            (client) => projekPlanningRepository.updateRabUpload(id, newStatus, { ...payload, link_rab_sipil: linkRabSipil, link_rab_me: linkRabMe, link_gambar_kerja: linkGambar }, client)
+            (client) => projekPlanningRepository.updateRabUpload(id, newStatus, {
+                ...payload,
+                link_rab_sipil: linkRabSipil,
+                link_rab_me: linkRabMe,
+                link_gambar_kerja: linkGambar,
+                link_gambar_kerja_final_sipil: linkGambarSipil,
+                link_gambar_kerja_final_me: linkGambarMe,
+            }, client)
         );
 
         return {
@@ -617,6 +636,8 @@ export const projekPlanningService = {
             link_rab_sipil: linkRabSipil ?? null,
             link_rab_me: linkRabMe ?? null,
             link_gambar_kerja: linkGambar ?? null,
+            link_gambar_kerja_final_sipil: linkGambarSipil ?? null,
+            link_gambar_kerja_final_me: linkGambarMe ?? null,
         };
     },
 

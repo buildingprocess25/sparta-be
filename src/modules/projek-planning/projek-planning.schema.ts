@@ -196,6 +196,8 @@ export const uploadRabSchema = z.object({
     link_rab_sipil: z.string().optional(),
     link_rab_me: z.string().optional(),
     link_gambar_kerja: z.string().optional(),
+    link_gambar_kerja_final_sipil: z.string().optional(),
+    link_gambar_kerja_final_me: z.string().optional(),
     keterangan: z.string().optional(),
 });
 

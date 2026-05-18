@@ -33,7 +33,14 @@ CREATE INDEX IF NOT EXISTS idx_projek_planning_foto_item_projek
 ALTER TABLE projek_planning
     ADD COLUMN IF NOT EXISTS is_ruko               BOOLEAN DEFAULT FALSE,
     ADD COLUMN IF NOT EXISTS jumlah_lantai         INTEGER DEFAULT NULL,
-    ADD COLUMN IF NOT EXISTS link_gambar_kompetitor TEXT    DEFAULT NULL;
+    ADD COLUMN IF NOT EXISTS link_gambar_kompetitor TEXT    DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS link_gambar_kerja_final_sipil TEXT DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS link_gambar_kerja_final_me TEXT DEFAULT NULL;
+
+UPDATE projek_planning
+SET link_gambar_kerja_final_sipil = link_gambar_kerja_final
+WHERE link_gambar_kerja_final_sipil IS NULL
+  AND link_gambar_kerja_final IS NOT NULL;
 
 
 -- ============================================================
@@ -52,6 +59,8 @@ WHERE table_name = 'projek_planning'
       'link_gambar_rab_sipil',
       'link_gambar_rab_me',
       'link_gambar_kompetitor',
+      'link_gambar_kerja_final_sipil',
+      'link_gambar_kerja_final_me',
       'is_ruko',
       'jumlah_lantai'
   )
