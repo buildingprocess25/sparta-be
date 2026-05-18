@@ -267,7 +267,7 @@
         <tr>
             <td></td>
             <td class="signature-right">
-                <div class="date-text">Tangerang, {{ tanggal_persetujuan }}<br><strong>{{ nama_pt }}</strong></div>
+                <div class="date-text">{{ cabang | capitalizeFirst }}, {{ tanggal_persetujuan }}<br><strong>{{ nama_pt }}</strong></div>
                 {% if direktur_approval_time %}
                 <div class="approved-middle">Disetujui pada: {{ direktur_approval_time }}</div>
                 {% endif %}
