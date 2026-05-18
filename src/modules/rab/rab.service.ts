@@ -85,10 +85,10 @@ const normalizeDetailItems = (items: RabItemRow[]): DetailItemInput[] => {
 // Branch detection helpers
 // ---------------------------------------------------------------------------
 
-/** MANADO: tidak ada koordinator, langsung Direktur → Manajer */
-const isManadoBranch = (cabang?: string | null): boolean => {
+/** BOGOR: tidak ada koordinator, langsung Direktur -> Manajer */
+const isBogorBranch = (cabang?: string | null): boolean => {
     const normalized = String(cabang ?? "").trim().toUpperCase();
-    return normalized === "MANADO";
+    return normalized === "BOGOR";
 };
 
 /** BATAM/BINTAN: tidak ada manajer, langsung Direktur → Koordinator */
@@ -102,7 +102,7 @@ const resolveStatusTransition = (
     action: ApprovalActionInput,
     cabang?: string | null
 ): RabStatus => {
-    const manado = isManadoBranch(cabang);
+    const bogor = isBogorBranch(cabang);
     const batam = isBatamBranch(cabang);
 
     if (action.tindakan === "APPROVE") {
@@ -110,8 +110,8 @@ const resolveStatusTransition = (
             if (currentStatus !== RAB_STATUS.WAITING_FOR_DIREKTUR) {
                 throw new AppError(`Status saat ini "${currentStatus}" tidak valid untuk approval direktur`, 409);
             }
-            // MANADO: skip koordinator → langsung ke manajer
-            if (manado) return RAB_STATUS.WAITING_FOR_MANAGER;
+            // BOGOR: skip koordinator -> langsung ke manajer
+            if (bogor) return RAB_STATUS.WAITING_FOR_MANAGER;
             // Default & BATAM: ke koordinator
             return RAB_STATUS.WAITING_FOR_COORDINATOR;
         }

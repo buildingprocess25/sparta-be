@@ -209,9 +209,9 @@ const isBatamBranch = (cabang?: string | null): boolean => {
     return normalizedCabang === "BATAM" || normalizedCabang === "BINTAN";
 };
 
-const isManadoBranch = (cabang?: string | null): boolean => {
+const isBogorBranch = (cabang?: string | null): boolean => {
     const normalizedCabang = String(cabang ?? "").trim().toUpperCase();
-    return normalizedCabang === "MANADO";
+    return normalizedCabang === "BOGOR";
 };
 
 const computeRecapTotals = (nonSboTotal: number, cabang?: string | null) => {
@@ -227,7 +227,7 @@ export const buildRabPdfBuffer = async (input: BuildRabPdfInput): Promise<Buffer
     const recap = computeRecapTotals(total, input.toko.cabang);
     const templatePath = await resolveTemplatePath("rab_report.njk");
     const isBatam = isBatamBranch(input.toko.cabang);
-    const isManado = isManadoBranch(input.toko.cabang);
+    const isBogor = isBogorBranch(input.toko.cabang);
 
     const html = await renderHtmlTemplate(templatePath, {
         data: {
@@ -255,7 +255,7 @@ export const buildRabPdfBuffer = async (input: BuildRabPdfInput): Promise<Buffer
         tanggal_pengajuan: formatDateIndonesia(input.rab.created_at),
         nama_pt: input.rab.nama_pt || "NAMA PT. KONTRAKTOR TIDAK ADA",
         is_batam_branch: isBatam,
-        is_manado_branch: isManado,
+        is_bogor_branch: isBogor,
         creator_details: approvalDetails(input.rab.email_pembuat, input.rab.created_at),
         coordinator_approval_details: approvalDetails(
             input.rab.pemberi_persetujuan_koordinator,

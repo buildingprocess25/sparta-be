@@ -262,7 +262,7 @@
     {# ============================================================
        TANDA TANGAN - 3 layout berdasarkan cabang:
        - BATAM/BINTAN : 2 kolom (Dibuat + Koordinator), tanpa Manajer
-       - MANADO       : 2 kolom (Dibuat + Manajer), tanpa Koordinator
+    - BOGOR        : 2 kolom (Dibuat + Manajer), tanpa Koordinator
        - Default      : 3 kolom (Dibuat + Koordinator + Manajer)
        ============================================================ #}
     {% if is_batam_branch %}
@@ -285,8 +285,8 @@
             <p>BRANCH BUILDING COORDINATOR</p>
         </div>
     </div>
-    {% elif is_manado_branch %}
-    {# MANADO: tidak ada koordinator, langsung ke manajer #}
+    {% elif is_bogor_branch %}
+    {# BOGOR: tidak ada koordinator, langsung ke manajer #}
     <div class="signatures two-cols">
         <div class="signature-box">
             <p>Dibuat</p>
