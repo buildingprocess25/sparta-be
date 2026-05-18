@@ -24,6 +24,15 @@ export const loginUserCabangSchema = z.object({
 
 export type LoginUserCabangInput = z.infer<typeof loginUserCabangSchema>;
 
+export const verifyOtpSchema = z.object({
+    email_sat: z.string().trim().email(),
+    cabang: z.string().trim().min(1),
+    otp_token: z.string().trim().min(1),
+    otp_code: z.string().trim().regex(/^\d{6}$/)
+});
+
+export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
+
 export const getTokoDetailQuerySchema = z.object({
     id: z.coerce.number().positive().optional(),
     nomor_ulok: z.string().trim().min(1).optional(),
