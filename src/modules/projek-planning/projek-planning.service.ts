@@ -1,5 +1,4 @@
 import { AppError } from "../../common/app-error";
-import { tokoRepository } from "../toko/toko.repository";
 import { PP_STATUS, PP_ROLE, PP_AKSI, PP_STATUS_LABEL, type PpStatus } from "./projek-planning.constants";
 import { projekPlanningRepository } from "./projek-planning.repository";
 import { GoogleProvider } from "../../common/google";
@@ -101,48 +100,29 @@ export const projekPlanningService = {
     // ============================================================
 
     async submit(payload: SubmitProjekPlanningInput, files?: Express.Multer.File[]) {
-        // 1. Validasi toko
-        let toko: any;
-        if (payload.id_toko === 0) {
-            // Upsert / Create new toko manually
-            toko = await tokoRepository.create({
-                nomor_ulok: payload.nomor_ulok,
-                nama_toko: payload.nama_toko ?? "Toko Baru",
-                kode_toko: payload.kode_toko ?? "0000",
-                cabang: payload.cabang ?? "UNKNOWN",
-                alamat: payload.alamat_toko ?? "-",
-            });
-            payload.id_toko = toko.id;
-        } else {
-            const existingToko = await tokoRepository.findById(payload.id_toko);
-            if (!existingToko) {
-                throw new AppError("id_toko tidak ditemukan di master toko", 404);
-            }
-            if (existingToko.nomor_ulok !== payload.nomor_ulok) {
-                throw new AppError("id_toko tidak cocok dengan nomor_ulok", 409);
-            }
-            toko = existingToko;
+        const nomorUlok = normalizeText(payload.nomor_ulok);
+        if (!nomorUlok) {
+            throw new AppError("Nomor ULOK wajib diisi", 422);
         }
 
-        // 2. Cek apakah sudah ada projek planning AKTIF untuk toko ini
-        const existingActive = await projekPlanningRepository.findActiveByTokoId(payload.id_toko);
+        // Project Planning berdiri sendiri, jadi tidak membuat/mengubah master toko.
+        const existingActive = await projekPlanningRepository.findActiveByNomorUlok(nomorUlok);
         if (existingActive) {
             throw new AppError(
-                `Toko ini sudah memiliki project planning aktif dengan status: ${PP_STATUS_LABEL[existingActive.status]}`,
+                `ULOK ini sudah memiliki project planning aktif dengan status: ${PP_STATUS_LABEL[existingActive.status]}`,
                 409
             );
         }
 
-        // 3. Cek apakah ada DRAFT yang bisa di-resubmit
-        const existingDraft = await projekPlanningRepository.findDraftByTokoId(payload.id_toko);
+        const existingDraft = await projekPlanningRepository.findDraftByNomorUlok(nomorUlok);
         if (existingDraft) {
             throw new AppError(
-                `Toko ini sudah memiliki project planning DRAFT (ID: ${existingDraft.id}). Gunakan endpoint resubmit (POST /:id/resubmit) untuk mengajukan ulang.`,
+                `ULOK ini sudah memiliki project planning DRAFT (ID: ${existingDraft.id}). Gunakan endpoint resubmit (POST /:id/resubmit) untuk mengajukan ulang.`,
                 409
             );
         }
 
-        // 4. Upload file to Google Drive if provided
+        // Upload file to Google Drive if provided
         let fpdLink = payload.link_fpd;
         let gambarKerjaMe = payload.link_gambar_kerja;
         let rabSipilLink = payload.link_gambar_rab_sipil;
@@ -197,13 +177,16 @@ export const projekPlanningService = {
             }
         }
 
-        // 5. Buat record baru langsung ke status WAITING_BM_APPROVAL
+        // Buat record baru langsung ke status WAITING_BM_APPROVAL
         const created = await projekPlanningRepository.create({
             ...payload,
-            nama_toko: toko.nama_toko ?? null,
-            kode_toko: toko.kode_toko ?? null,
-            cabang: toko.cabang ?? null,
-            proyek: toko.proyek ?? null,
+            id_toko: payload.id_toko ?? 0,
+            nomor_ulok: nomorUlok,
+            nama_toko: payload.nama_toko || payload.nama_lokasi || null,
+            kode_toko: payload.kode_toko || null,
+            cabang: payload.cabang || null,
+            alamat_toko: payload.alamat_toko || null,
+            proyek: payload.jenis_proyek || null,
             link_fpd: fpdLink ?? undefined,
             link_gambar_kerja: gambarKerjaMe ?? undefined,
             link_gambar_rab_sipil: rabSipilLink ?? undefined,
@@ -245,21 +228,6 @@ export const projekPlanningService = {
                 409
             );
         }
-
-        // Ambil data toko terbaru
-        let toko = await tokoRepository.findById(projek.id_toko);
-        if (!toko) {
-            throw new AppError("Toko tidak ditemukan", 404);
-        }
-
-        // Update toko if there are changes from manual ulok
-        const updatedToko = await tokoRepository.updateById(projek.id_toko, {
-            nama_toko: payload.nama_toko !== undefined ? payload.nama_toko : undefined,
-            kode_toko: payload.kode_toko !== undefined ? payload.kode_toko : undefined,
-            cabang: payload.cabang !== undefined ? payload.cabang : undefined,
-            alamat: payload.alamat_toko !== undefined ? payload.alamat_toko : undefined,
-        });
-        if (updatedToko) toko = updatedToko;
 
         // Upload file if provided
         let fpdLink = payload.link_fpd;
@@ -327,10 +295,11 @@ export const projekPlanningService = {
 
         const updated = await projekPlanningRepository.resubmitDraft(id, {
             ...payload,
-            nama_toko: toko.nama_toko ?? null,
-            kode_toko: toko.kode_toko ?? null,
-            cabang: toko.cabang ?? null,
-            proyek: toko.proyek ?? null,
+            nama_toko: payload.nama_toko || payload.nama_lokasi || projek.nama_toko || null,
+            kode_toko: payload.kode_toko || projek.kode_toko || null,
+            cabang: payload.cabang || projek.cabang || null,
+            alamat_toko: payload.alamat_toko || projek.alamat_toko || null,
+            proyek: payload.jenis_proyek || projek.proyek || null,
             link_fpd: fpdLink ?? projek.link_fpd ?? undefined,
             link_gambar_kerja: gambarKerjaMe ?? projek.link_gambar_kerja ?? undefined,
             link_gambar_rab_sipil: rabSipilLink ?? projek.link_gambar_rab_sipil ?? undefined,
@@ -570,12 +539,16 @@ export const projekPlanningService = {
         let linkRabSipil = payload.link_rab_sipil;
         let linkRabMe = payload.link_rab_me;
         let linkGambar = payload.link_gambar_kerja;
+        let linkGambarSipil = payload.link_gambar_kerja_final_sipil;
+        let linkGambarMe = payload.link_gambar_kerja_final_me;
         
         if (files) {
             const fRabSipil = files["file_rab_sipil"]?.[0];
             const fRabMe = files["file_rab_me"]?.[0];
             const fRabLegacy = files["file_rab"]?.[0];
             const fGambar = files["file_gambar_kerja"]?.[0];
+            const fGambarSipil = files["file_gambar_kerja_final_sipil"]?.[0];
+            const fGambarMe = files["file_gambar_kerja_final_me"]?.[0];
             
             try {
                 if (fRabSipil || fRabLegacy) {
@@ -589,6 +562,14 @@ export const projekPlanningService = {
                 if (fGambar) {
                     const link = await uploadCompressedFile(fGambar, env.DOC_DRIVE_ROOT_ID);
                     if (link) linkGambar = link;
+                }
+                if (fGambarSipil) {
+                    const link = await uploadCompressedFile(fGambarSipil, env.DOC_DRIVE_ROOT_ID);
+                    if (link) linkGambarSipil = link;
+                }
+                if (fGambarMe) {
+                    const link = await uploadCompressedFile(fGambarMe, env.DOC_DRIVE_ROOT_ID);
+                    if (link) linkGambarMe = link;
                 }
             } catch (e) {
                 console.error("Gagal upload RAB/Gambar ke Drive:", e);
@@ -605,9 +586,16 @@ export const projekPlanningService = {
                 aksi: PP_AKSI.UPLOAD_RAB,
                 status_sebelum: projek.status,
                 status_sesudah: newStatus,
-                keterangan: payload.keterangan ?? "RAB & Gambar Kerja berhasil diupload, menunggu approval PP Specialist",
+                keterangan: payload.keterangan ?? "RAB & Gambar Kerja Final berhasil diupload, menunggu approval PP Specialist",
             },
-            (client) => projekPlanningRepository.updateRabUpload(id, newStatus, { ...payload, link_rab_sipil: linkRabSipil, link_rab_me: linkRabMe, link_gambar_kerja: linkGambar }, client)
+            (client) => projekPlanningRepository.updateRabUpload(id, newStatus, {
+                ...payload,
+                link_rab_sipil: linkRabSipil,
+                link_rab_me: linkRabMe,
+                link_gambar_kerja: linkGambar,
+                link_gambar_kerja_final_sipil: linkGambarSipil,
+                link_gambar_kerja_final_me: linkGambarMe,
+            }, client)
         );
 
         return {
@@ -617,6 +605,8 @@ export const projekPlanningService = {
             link_rab_sipil: linkRabSipil ?? null,
             link_rab_me: linkRabMe ?? null,
             link_gambar_kerja: linkGambar ?? null,
+            link_gambar_kerja_final_sipil: linkGambarSipil ?? null,
+            link_gambar_kerja_final_me: linkGambarMe ?? null,
         };
     },
 

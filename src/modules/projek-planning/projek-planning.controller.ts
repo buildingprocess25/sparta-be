@@ -289,6 +289,8 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
     else if (field === "rab_sipil_final") fileUrl = (projek as any).link_rab_sipil;
     else if (field === "rab_me_final") fileUrl = (projek as any).link_rab_me;
     else if (field === "gambar_kerja_final") fileUrl = (projek as any).link_gambar_kerja_final;
+    else if (field === "gambar_kerja_final_sipil") fileUrl = (projek as any).link_gambar_kerja_final_sipil || (projek as any).link_gambar_kerja_final;
+    else if (field === "gambar_kerja_final_me") fileUrl = (projek as any).link_gambar_kerja_final_me;
     // Legacy
     else if (field === "rab") fileUrl = projek.link_rab;
     else if (field === "foto_item" && itemIndex !== undefined) {
@@ -344,4 +346,3 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
     res.setHeader("Content-Length", buffer.length);
     res.send(buffer);
 });
-

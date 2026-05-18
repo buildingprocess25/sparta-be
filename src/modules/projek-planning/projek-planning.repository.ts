@@ -23,6 +23,7 @@ export type ProjekPlanningRow = {
     nama_toko: string | null;
     kode_toko: string | null;
     cabang: string | null;
+    alamat_toko: string | null;
     proyek: string | null;
     lingkup_pekerjaan: string | null;
     jenis_proyek: string | null;
@@ -66,6 +67,8 @@ export type ProjekPlanningRow = {
     link_rab_sipil: string | null;
     link_rab_me: string | null;
     link_gambar_kerja_final: string | null;
+    link_gambar_kerja_final_sipil: string | null;
+    link_gambar_kerja_final_me: string | null;
 
     // Status & flags
     status: PpStatus;
@@ -114,13 +117,14 @@ export type ProjekPlanningLogRow = {
 
 const PP_COLUMNS = `
     id, id_toko, nomor_ulok, email_pembuat,
-    nama_toko, kode_toko, cabang, proyek, lingkup_pekerjaan,
+    nama_toko, kode_toko, cabang, alamat_toko, proyek, lingkup_pekerjaan,
     jenis_proyek, estimasi_biaya, keterangan,
     nama_pengaju, nama_lokasi,
     jenis_pengajuan, jenis_pengajuan_lainnya,
     link_fpd, link_rab, link_gambar_kerja, link_desain_3d, link_fpd_approved,
     link_gambar_rab_sipil, link_gambar_rab_me, link_gambar_kompetitor,
     link_rab_sipil, link_rab_me, link_gambar_kerja_final,
+    link_gambar_kerja_final_sipil, link_gambar_kerja_final_me,
     status, butuh_desain_3d, is_ruko, jumlah_lantai,
     is_head_to_head, is_seating_area, is_dark_store, beanspot_tipe,
     bm_approver_email, bm_waktu_persetujuan, bm_alasan_penolakan,
@@ -144,8 +148,8 @@ export const projekPlanningRepository = {
         projek: ProjekPlanningRow;
         logs: ProjekPlanningLogRow[];
     } | null> {
-        const headerResult = await pool.query<ProjekPlanningRow & { alamat_toko?: string }>(
-            `SELECT ${PP_COLUMNS}, (SELECT alamat FROM toko WHERE toko.id = projek_planning.id_toko) as alamat_toko FROM projek_planning WHERE id = $1`,
+        const headerResult = await pool.query<ProjekPlanningRow>(
+            `SELECT ${PP_COLUMNS} FROM projek_planning WHERE id = $1`,
             [id]
         );
 
@@ -215,6 +219,32 @@ export const projekPlanningRepository = {
              ORDER BY created_at DESC
              LIMIT 1`,
             [idToko]
+        );
+        return result.rows[0] ?? null;
+    },
+
+    async findActiveByNomorUlok(nomorUlok: string): Promise<ProjekPlanningRow | null> {
+        const result = await pool.query<ProjekPlanningRow>(
+            `SELECT ${PP_COLUMNS}
+             FROM projek_planning
+             WHERE nomor_ulok = $1
+               AND status NOT IN ('COMPLETED', 'REJECTED', 'DRAFT')
+             ORDER BY created_at DESC
+             LIMIT 1`,
+            [nomorUlok]
+        );
+        return result.rows[0] ?? null;
+    },
+
+    async findDraftByNomorUlok(nomorUlok: string): Promise<ProjekPlanningRow | null> {
+        const result = await pool.query<ProjekPlanningRow>(
+            `SELECT ${PP_COLUMNS}
+             FROM projek_planning
+             WHERE nomor_ulok = $1
+               AND status = 'DRAFT'
+             ORDER BY created_at DESC
+             LIMIT 1`,
+            [nomorUlok]
         );
         return result.rows[0] ?? null;
     },
@@ -290,6 +320,7 @@ export const projekPlanningRepository = {
         nama_toko: string | null;
         kode_toko: string | null;
         cabang: string | null;
+        alamat_toko: string | null;
         proyek: string | null;
         status: PpStatus;
     }): Promise<ProjekPlanningRow> {
@@ -297,7 +328,7 @@ export const projekPlanningRepository = {
             const result = await client.query<ProjekPlanningRow>(
                 `INSERT INTO projek_planning (
                     id_toko, nomor_ulok, email_pembuat,
-                    nama_toko, kode_toko, cabang, proyek, lingkup_pekerjaan,
+                    nama_toko, kode_toko, cabang, alamat_toko, proyek, lingkup_pekerjaan,
                     jenis_proyek, estimasi_biaya, keterangan, link_fpd,
                     nama_pengaju, nama_lokasi,
                     jenis_pengajuan, jenis_pengajuan_lainnya,
@@ -309,15 +340,15 @@ export const projekPlanningRepository = {
                     created_at, updated_at
                 ) VALUES (
                     $1, $2, $3,
-                    $4, $5, $6, $7, $8,
-                    $9, $10, $11, $12,
-                    $13, $14,
-                    $15, $16,
-                    $17, $18, $19,
-                    $20,
-                    $21, $22,
-                    $23, $24, $25, $26,
-                    $27, FALSE,
+                    $4, $5, $6, $7, $8, $9,
+                    $10, $11, $12, $13,
+                    $14, $15,
+                    $16, $17,
+                    $18, $19, $20,
+                    $21,
+                    $22, $23,
+                    $24, $25, $26, $27,
+                    $28, FALSE,
                     NOW(), NOW()
                 )
                 RETURNING ${PP_COLUMNS}`,
@@ -328,6 +359,7 @@ export const projekPlanningRepository = {
                     payload.nama_toko,
                     payload.kode_toko,
                     payload.cabang,
+                    payload.alamat_toko,
                     payload.proyek,
                     payload.lingkup_pekerjaan,
                     payload.jenis_proyek,
@@ -395,6 +427,7 @@ export const projekPlanningRepository = {
         nama_toko: string | null;
         kode_toko: string | null;
         cabang: string | null;
+        alamat_toko: string | null;
         proyek: string | null;
         status: PpStatus;
     }): Promise<ProjekPlanningRow> {
@@ -410,22 +443,23 @@ export const projekPlanningRepository = {
                      nama_toko = $7,
                      kode_toko = $8,
                      cabang = $9,
-                     proyek = $10,
-                     nama_pengaju = $11,
-                     nama_lokasi = $12,
-                     jenis_pengajuan = $13,
-                     jenis_pengajuan_lainnya = $14,
-                     link_gambar_rab_sipil = $15,
-                     link_gambar_rab_me = $16,
-                     link_gambar_kerja = COALESCE($17, link_gambar_kerja),
-                     link_gambar_kompetitor = COALESCE($18, link_gambar_kompetitor),
-                     is_ruko = $19,
-                     jumlah_lantai = $20,
-                     is_head_to_head = $21,
-                     is_seating_area = $22,
-                     is_dark_store = $23,
-                     beanspot_tipe = $24,
-                     status = $25,
+                     alamat_toko = $10,
+                     proyek = $11,
+                     nama_pengaju = $12,
+                     nama_lokasi = $13,
+                     jenis_pengajuan = $14,
+                     jenis_pengajuan_lainnya = $15,
+                     link_gambar_rab_sipil = $16,
+                     link_gambar_rab_me = $17,
+                     link_gambar_kerja = COALESCE($18, link_gambar_kerja),
+                     link_gambar_kompetitor = COALESCE($19, link_gambar_kompetitor),
+                     is_ruko = $20,
+                     jumlah_lantai = $21,
+                     is_head_to_head = $22,
+                     is_seating_area = $23,
+                     is_dark_store = $24,
+                     beanspot_tipe = $25,
+                     status = $26,
                      butuh_desain_3d = FALSE,
                      bm_approver_email = NULL,
                      bm_waktu_persetujuan = NULL,
@@ -436,7 +470,7 @@ export const projekPlanningRepository = {
                      pp2_approver_email = NULL,
                      pp2_waktu_persetujuan = NULL,
                      updated_at = NOW()
-                 WHERE id = $26
+                 WHERE id = $27
                  RETURNING ${PP_COLUMNS}`,
                 [
                     payload.email_pembuat,
@@ -448,6 +482,7 @@ export const projekPlanningRepository = {
                     payload.nama_toko,
                     payload.kode_toko,
                     payload.cabang,
+                    payload.alamat_toko,
                     payload.proyek,
                     payload.nama_pengaju,
                     payload.nama_lokasi,
@@ -625,7 +660,13 @@ export const projekPlanningRepository = {
     async updateRabUpload(
         id: number,
         newStatus: PpStatus,
-        payload: { link_rab_sipil?: string; link_rab_me?: string; link_gambar_kerja?: string },
+        payload: {
+            link_rab_sipil?: string;
+            link_rab_me?: string;
+            link_gambar_kerja?: string;
+            link_gambar_kerja_final_sipil?: string;
+            link_gambar_kerja_final_me?: string;
+        },
         client?: PoolClient
     ): Promise<ProjekPlanningRow> {
         const db = client ?? pool;
@@ -635,10 +676,20 @@ export const projekPlanningRepository = {
                  link_rab_sipil = COALESCE($2, link_rab_sipil),
                  link_rab_me = COALESCE($3, link_rab_me),
                  link_gambar_kerja_final = COALESCE($4, link_gambar_kerja_final),
+                 link_gambar_kerja_final_sipil = COALESCE($5, link_gambar_kerja_final_sipil),
+                 link_gambar_kerja_final_me = COALESCE($6, link_gambar_kerja_final_me),
                  updated_at = NOW()
-             WHERE id = $5
+             WHERE id = $7
              RETURNING ${PP_COLUMNS}`,
-            [newStatus, payload.link_rab_sipil ?? null, payload.link_rab_me ?? null, payload.link_gambar_kerja ?? null, id]
+            [
+                newStatus,
+                payload.link_rab_sipil ?? null,
+                payload.link_rab_me ?? null,
+                payload.link_gambar_kerja ?? null,
+                payload.link_gambar_kerja_final_sipil ?? null,
+                payload.link_gambar_kerja_final_me ?? null,
+                id,
+            ]
         );
         return result.rows[0];
     },
