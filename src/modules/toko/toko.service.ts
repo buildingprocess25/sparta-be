@@ -1,12 +1,33 @@
 import { AppError } from "../../common/app-error";
+import { authOtpService } from "../auth/auth-otp.service";
 import { tokoRepository } from "./toko.repository";
 import type {
     CreateTokoInput,
     ListTokoQueryInput,
     LoginUserCabangInput,
+    VerifyOtpInput,
     GetTokoDetailQueryInput,
     UpdateTokoByIdBodyInput
 } from "./toko.schema";
+
+const isHeadOfficeCabang = (cabang: string) => cabang.trim().toLowerCase() === "head office";
+const OTP_CHALLENGE_JABATAN = "BUILDING & MAINTENANCE SUPER HUMAN";
+const isOtpChallengeJabatan = (jabatan?: string | null) =>
+    (jabatan ?? "").trim().toLowerCase() === OTP_CHALLENGE_JABATAN.toLowerCase();
+
+const buildLoginResponse = async (input: {
+    matchedUser: { cabang: string; nama_lengkap: string; jabatan: string; email_sat: string; nama_pt: string };
+    registeredUsers: Array<{ cabang: string; nama_lengkap: string; jabatan: string; email_sat: string; nama_pt: string }>;
+}) => {
+    const alamatCabangRow = await tokoRepository.findAlamatCabangByCabang(input.matchedUser.cabang);
+    const alamat_cabang = alamatCabangRow?.alamat ?? null;
+    const jabatanList = Array.from(new Set(input.registeredUsers.map((user) => user.jabatan)));
+    if (jabatanList.length > 1) {
+        return { ...input.matchedUser, jabatan: jabatanList, alamat_cabang };
+    }
+
+    return { ...input.matchedUser, alamat_cabang };
+};
 
 export const tokoService = {
     async create(input: CreateTokoInput) {
@@ -59,13 +80,52 @@ export const tokoService = {
             throw new AppError("password salah", 401);
         }
 
-        const alamatCabangRow = await tokoRepository.findAlamatCabangByCabang(matchedUser.cabang);
-        const alamat_cabang = alamatCabangRow?.alamat ?? null;
-        const jabatanList = Array.from(new Set(registeredUsers.map((user) => user.jabatan)));
-        if (jabatanList.length > 1) {
-            return { ...matchedUser, jabatan: jabatanList, alamat_cabang };
+        if (isHeadOfficeCabang(matchedUser.cabang) && isOtpChallengeJabatan(matchedUser.jabatan)) {
+            const otp = await authOtpService.createAndSend({
+                email_sat: matchedUser.email_sat,
+                cabang: matchedUser.cabang,
+                nama_lengkap: matchedUser.nama_lengkap
+            });
+
+            return {
+                requires_otp: true,
+                otp_token: otp.otp_token,
+                otp_expires_at: otp.otp_expires_at,
+                email_sat: matchedUser.email_sat,
+                cabang: matchedUser.cabang
+            };
         }
 
-        return { ...matchedUser, alamat_cabang };
+        return buildLoginResponse({ matchedUser, registeredUsers });
+    },
+
+    async verifyLoginOtp(input: VerifyOtpInput) {
+        const emailSat = input.email_sat.trim();
+        const cabang = input.cabang.trim();
+
+        const registeredUsers = await tokoRepository.findUserCabangByEmailSatAll(emailSat);
+        if (registeredUsers.length === 0) {
+            throw new AppError("email belum terdaftar", 404);
+        }
+
+        const matchedUser = registeredUsers.find(
+            (user) => user.cabang.toLowerCase() === cabang.toLowerCase()
+        );
+        if (!matchedUser) {
+            throw new AppError("password salah", 401);
+        }
+
+        if (!isHeadOfficeCabang(matchedUser.cabang) || !isOtpChallengeJabatan(matchedUser.jabatan)) {
+            throw new AppError("OTP tidak diperlukan", 400);
+        }
+
+        await authOtpService.verify({
+            email_sat: emailSat,
+            cabang,
+            otp_token: input.otp_token.trim(),
+            otp_code: input.otp_code.trim()
+        });
+
+        return buildLoginResponse({ matchedUser, registeredUsers });
     }
 };

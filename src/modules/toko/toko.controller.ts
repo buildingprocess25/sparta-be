@@ -5,6 +5,7 @@ import {
     createTokoSchema,
     listTokoQuerySchema,
     loginUserCabangSchema,
+    verifyOtpSchema,
     getTokoDetailQuerySchema,
     updateTokoByIdBodySchema,
     updateTokoByIdParamSchema
@@ -45,6 +46,12 @@ export const listToko = asyncHandler(async (req: Request, res: Response) => {
 export const loginUserCabang = asyncHandler(async (req: Request, res: Response) => {
     const payload = loginUserCabangSchema.parse(req.body);
     const data = await tokoService.loginUserCabang(payload);
+    res.json({ status: "success", data });
+});
+
+export const verifyLoginOtp = asyncHandler(async (req: Request, res: Response) => {
+    const payload = verifyOtpSchema.parse(req.body);
+    const data = await tokoService.verifyLoginOtp(payload);
     res.json({ status: "success", data });
 });
 

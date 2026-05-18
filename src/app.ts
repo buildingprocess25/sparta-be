@@ -20,7 +20,7 @@ import { opnameFinalRouter } from "./modules/opname-final/opname-final.routes";
 import { userCabangRouter } from "./modules/user-cabang/user-cabang.routes";
 import { instruksiLapanganRouter } from "./modules/instruksi-lapangan/instruksi-lapangan.routes";
 import { serahTerimaRouter } from "./modules/serah-terima/serah-terima.routes";
-import { getKontraktor, loginUserCabang } from "./modules/toko/toko.controller";
+import { getKontraktor, loginUserCabang, verifyLoginOtp } from "./modules/toko/toko.controller";
 import { dashboardRouter } from "./modules/dashboard/dashboard.routes";
 import { emailNotificationRouter } from "./modules/email-notification/email-notification.routes";
 import { projekPlanningRouter } from "./modules/projek-planning/projek-planning.routes";
@@ -114,6 +114,7 @@ app.get("/health", (_req, res) => {
 
 app.use("/api/toko", tokoRouter);
 app.post("/api/auth/login", loginUserCabang);
+app.post("/api/auth/verify-otp", verifyLoginOtp);
 app.get("/api/get_kontraktor", getKontraktor);
 app.use("/api/rab", rabRouter);
 app.use("/api/spk", spkRouter);

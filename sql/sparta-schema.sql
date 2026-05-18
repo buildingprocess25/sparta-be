@@ -126,6 +126,25 @@ CREATE TABLE IF NOT EXISTS user_cabang (
     CONSTRAINT uq_user_cabang_email_cabang UNIQUE (email_sat, cabang)
 );
 
+-- 4a) AUTH_OTP (OTP login untuk Head Office)
+CREATE TABLE IF NOT EXISTS auth_otp (
+    id SERIAL PRIMARY KEY,
+    email_sat VARCHAR(255) NOT NULL,
+    cabang VARCHAR(255) NOT NULL,
+    otp_hash VARCHAR(255) NOT NULL,
+    otp_token VARCHAR(64) NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    consumed_at TIMESTAMPTZ DEFAULT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_otp_lookup
+    ON auth_otp (email_sat, cabang, otp_token);
+
+CREATE INDEX IF NOT EXISTS idx_auth_otp_active
+    ON auth_otp (email_sat, cabang, expires_at)
+    WHERE consumed_at IS NULL;
+
 -- ============================================================
 -- GANTT CHART TABLES
 -- ============================================================
