@@ -514,7 +514,12 @@ async function uploadPdfToDrive(buffer: Buffer, filename: string): Promise<strin
 async function regenerateRabPdfs(
     rabId: string,
     filenameParts: { proyek?: string | null; nomorUlok?: string | null },
-    alamatCabangOverride?: string | null
+    alamatCabangOverride?: string | null,
+    approvalNameOverrides?: {
+        koordinator?: string;
+        manager?: string;
+        direktur?: string;
+    } | null
 ): Promise<{
     link_pdf_gabungan: string;
     link_pdf_non_sbo: string;
@@ -532,6 +537,27 @@ async function regenerateRabPdfs(
     }
     fullData.rab.no_sph = noSph;
 
+    const rabForPdf = approvalNameOverrides
+        ? { ...fullData.rab }
+        : fullData.rab;
+
+    if (approvalNameOverrides) {
+        const koordinatorName = (approvalNameOverrides.koordinator ?? "").trim();
+        const managerName = (approvalNameOverrides.manager ?? "").trim();
+        const direkturName = (approvalNameOverrides.direktur ?? "").trim();
+
+        if (koordinatorName) {
+            rabForPdf.pemberi_persetujuan_koordinator = koordinatorName;
+        }
+        if (managerName) {
+            rabForPdf.pemberi_persetujuan_manager = managerName;
+        }
+        if (direkturName) {
+            rabForPdf.pemberi_persetujuan_direktur = direkturName;
+            rabForPdf.nama_lengkap_persetujuan_direktur = direkturName;
+        }
+    }
+
     const cabangKey = fullData.toko.cabang ?? "";
     const alamatCabangRow = alamatCabangOverride
         ? { alamat: alamatCabangOverride, cabang: cabangKey }
@@ -542,14 +568,14 @@ async function regenerateRabPdfs(
     const nomorUlok = filenameParts.nomorUlok ?? fullData.toko.nomor_ulok ?? "UNKNOWN";
 
     const pdfNonSbo = await buildRabPdfBuffer({
-        rab: fullData.rab,
+        rab: rabForPdf,
         items: fullData.items,
         toko: fullData.toko
     });
     logRab("PDF", "PDF non SBO selesai dibuat", { rabId });
 
     const pdfRecap = await buildRecapPdfBuffer({
-        rab: fullData.rab,
+        rab: rabForPdf,
         items: fullData.items,
         toko: fullData.toko
     });
@@ -560,7 +586,7 @@ async function regenerateRabPdfs(
     const logoDataUri = await resolveLogoForPdf(fullData.rab.logo);
 
     const pdfSph = await generateSphPdf({
-        rab: fullData.rab,
+        rab: rabForPdf,
         items: fullData.items,
         toko: fullData.toko,
         logoOverride: logoDataUri,
@@ -900,11 +926,19 @@ export const rabService = {
 
         if (action.tindakan === "APPROVE") {
             try {
+                const approvalName = (action.nama_lengkap ?? "").trim();
+                const approvalOverrides = approvalName
+                    ? action.jabatan === "KOORDINATOR"
+                        ? { koordinator: approvalName }
+                        : action.jabatan === "MANAGER"
+                            ? { manager: approvalName }
+                            : { direktur: approvalName }
+                    : undefined;
                 // Generate all PDFs together. If Direktur has approved, it will automatically include SPH.
                 const links = await regenerateRabPdfs(id, {
                     proyek: data.toko.proyek,
                     nomorUlok: data.toko.nomor_ulok
-                });
+                }, undefined, approvalOverrides);
 
                 if (links) {
                     await rabRepository.updatePdfLinks(id, {
