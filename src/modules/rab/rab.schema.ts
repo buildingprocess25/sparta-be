@@ -7,6 +7,9 @@ export const detailItemSchema = z.object({
     volume: z.coerce.number().nonnegative(),
     harga_material: z.coerce.number().nonnegative(),
     harga_upah: z.coerce.number().nonnegative(),
+    total_material: z.coerce.number().nonnegative().optional(),
+    total_upah: z.coerce.number().nonnegative().optional(),
+    total_harga: z.coerce.number().nonnegative().optional(),
     catatan: z.string().optional()
 });
 

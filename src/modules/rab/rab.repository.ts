@@ -150,9 +150,9 @@ const insertRabItems = async (
         const placeholders: string[] = [];
 
         for (const item of chunk) {
-            const totalMaterial = item.volume * item.harga_material;
-            const totalUpah = item.volume * item.harga_upah;
-            const totalHarga = totalMaterial + totalUpah;
+            const totalMaterial = item.total_material ?? (item.volume * item.harga_material);
+            const totalUpah = item.total_upah ?? (item.volume * item.harga_upah);
+            const totalHarga = item.total_harga ?? (totalMaterial + totalUpah);
             const catatan = item.catatan?.trim() || null;
 
             const base = values.length;
@@ -645,9 +645,9 @@ export const rabRepository = {
             const updatedRows: RabItemRow[] = [];
 
             for (const item of items) {
-                const totalMaterial = item.volume * item.harga_material;
-                const totalUpah = item.volume * item.harga_upah;
-                const totalHarga = totalMaterial + totalUpah;
+                const totalMaterial = item.total_material ?? (item.volume * item.harga_material);
+                const totalUpah = item.total_upah ?? (item.volume * item.harga_upah);
+                const totalHarga = item.total_harga ?? (totalMaterial + totalUpah);
                 const catatan = item.catatan?.trim() || null;
 
                 const result = await client.query<RabItemRow>(

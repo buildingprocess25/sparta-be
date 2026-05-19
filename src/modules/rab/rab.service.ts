@@ -51,7 +51,9 @@ const computeTotals = (detailItems: DetailItemInput[]) => {
     let totalNonSbo = 0;
 
     for (const item of detailItems) {
-        const totalItem = roundCurrency(item.volume * (item.harga_material + item.harga_upah));
+        const totalItem = roundCurrency(
+            item.total_harga ?? (item.volume * (item.harga_material + item.harga_upah))
+        );
         grandTotal += totalItem;
 
         if (item.kategori_pekerjaan.trim().toUpperCase() !== "PEKERJAAN SBO") {
@@ -77,6 +79,9 @@ const normalizeDetailItems = (items: RabItemRow[]): DetailItemInput[] => {
         volume: Number(item.volume) || 0,
         harga_material: Number(item.harga_material) || 0,
         harga_upah: Number(item.harga_upah) || 0,
+        total_material: Number(item.total_material) || 0,
+        total_upah: Number(item.total_upah) || 0,
+        total_harga: Number(item.total_harga) || 0,
         catatan: item.catatan ?? undefined
     }));
 };
