@@ -258,7 +258,7 @@ export const downloadPdf = asyncHandler(async (req: Request, res: Response) => {
         return;
     }
 
-    const buffer = await projekPlanningService.generatePdf(id);
+    const { buffer } = await projekPlanningService.generatePdfAndStoreLink(id);
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename=Project_Planning_${id}.pdf`);

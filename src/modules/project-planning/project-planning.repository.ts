@@ -70,6 +70,7 @@ export type ProjekPlanningRow = {
     link_gambar_kerja_final: string | null;
     link_gambar_kerja_final_sipil: string | null;
     link_gambar_kerja_final_me: string | null;
+    link_pdf: string | null;
 
     // Status & flags
     status: PpStatus;
@@ -125,7 +126,7 @@ const PP_COLUMNS = `
     link_fpd, link_rab, link_gambar_kerja, link_desain_3d, link_fpd_approved,
     link_gambar_rab_sipil, link_gambar_rab_me, link_gambar_kompetitor,
     link_rab_sipil, link_rab_me, link_gambar_kerja_final,
-    link_gambar_kerja_final_sipil, link_gambar_kerja_final_me,
+    link_gambar_kerja_final_sipil, link_gambar_kerja_final_me, link_pdf,
     status, butuh_desain_3d, is_ruko, jumlah_lantai,
     is_head_to_head, is_seating_area, is_dark_store, beanspot_tipe,
     bm_approver_email, bm_waktu_persetujuan, bm_alasan_penolakan,
@@ -784,6 +785,19 @@ export const projekPlanningRepository = {
              WHERE id = $3
              RETURNING ${PP_COLUMNS}`,
             [newStatus, action.approver_email, id]
+        );
+        return result.rows[0];
+    },
+
+    async updatePdfLink(id: number, linkPdf: string, client?: PoolClient): Promise<ProjekPlanningRow> {
+        const db = client ?? pool;
+        const result = await db.query<ProjekPlanningRow>(
+            `UPDATE projek_planning
+             SET link_pdf = $1,
+                 updated_at = NOW()
+             WHERE id = $2
+             RETURNING ${PP_COLUMNS}`,
+            [linkPdf, id]
         );
         return result.rows[0];
     },

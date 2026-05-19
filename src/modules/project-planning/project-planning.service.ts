@@ -3,7 +3,7 @@ import { PP_STATUS, PP_ROLE, PP_AKSI, PP_STATUS_LABEL, type PpStatus } from "./p
 import { projekPlanningRepository } from "./project-planning.repository";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
-import { buildProjekPlanningPdfBuffer } from "./project-planning.pdf";
+import { buildProjekPlanningPdfBuffer, extractGdriveFileId } from "./project-planning.pdf";
 import { compressImage } from "../../common/image-compressor";
 
 const PROJECT_PLANNING_DRIVE_FOLDER_ID = env.PROJECT_PLANNING_DRIVE_FOLDER_ID;
@@ -21,6 +21,28 @@ async function uploadCompressedFiles(files: Express.Multer.File[], folderId: str
         if (link) links.push(link);
     }
     return links.length > 0 ? links.join("\n") : undefined;
+}
+
+async function uploadPdfToDrive(buffer: Buffer, filename: string): Promise<string> {
+    const gp = GoogleProvider.instance;
+    const drive = gp.spartaDrive;
+    if (!drive) throw new AppError("Google Drive (Sparta) belum terkonfigurasi", 500);
+
+    const result = await gp.uploadFile(
+        env.PDF_STORAGE_FOLDER_ID,
+        filename,
+        "application/pdf",
+        buffer,
+        2,
+        drive,
+    );
+
+    return result.webViewLink ?? `https://drive.google.com/file/d/${result.id}/view`;
+}
+
+function sanitizeFilenamePart(value: unknown, fallback: string): string {
+    const text = normalizeText(value) || fallback;
+    return text.replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, "_").slice(0, 80);
 }
 
 function normalizeText(value: unknown): string {
@@ -397,6 +419,30 @@ export const projekPlanningService = {
         }
 
         return buildProjekPlanningPdfBuffer(item.projek);
+    },
+
+    async generatePdfAndStoreLink(projekPlanningId: number): Promise<{ buffer: Buffer; link_pdf: string }> {
+        const item = await projekPlanningRepository.findById(projekPlanningId);
+        if (!item) {
+            throw new AppError("Data Project Planning tidak ditemukan", 404);
+        }
+
+        const existingFileId = extractGdriveFileId(item.projek.link_pdf ?? "");
+        const drive = GoogleProvider.instance.spartaDrive;
+        if (existingFileId && drive) {
+            const existingBuffer = await GoogleProvider.instance.getFileBufferById(drive, existingFileId);
+            if (existingBuffer?.length) {
+                return { buffer: existingBuffer, link_pdf: item.projek.link_pdf! };
+            }
+        }
+
+        const buffer = await buildProjekPlanningPdfBuffer(item.projek);
+        const filename = `PROJECT_PLANNING_${sanitizeFilenamePart(item.projek.nomor_ulok, String(projekPlanningId))}_${projekPlanningId}.pdf`;
+        const linkPdf = await uploadPdfToDrive(buffer, filename);
+
+        await projekPlanningRepository.updatePdfLink(projekPlanningId, linkPdf);
+
+        return { buffer, link_pdf: linkPdf };
     },
 
     // ============================================================
