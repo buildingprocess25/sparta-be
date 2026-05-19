@@ -398,7 +398,10 @@ export const spkRepository = {
         action: SpkInterventionInput
     ): Promise<void> {
         const logAction = targetStatus === "SPK_APPROVED" ? "APPROVE" : "REJECT";
-        const logReason = `[INTERVENSI SUPER HUMAN] ${oldStatus} -> ${targetStatus}. ${action.alasan_intervensi}`;
+        const customReason = action.alasan_intervensi?.trim();
+        const logReason = customReason
+            ? `[INTERVENSI SUPER HUMAN] ${oldStatus} -> ${targetStatus}. ${customReason}`
+            : `[INTERVENSI SUPER HUMAN] ${oldStatus} -> ${targetStatus}`;
 
         await withTransaction(async (client) => {
             if (targetStatus === "SPK_APPROVED") {
