@@ -3,7 +3,7 @@ import { z } from "zod";
 export const dokumentasiBangunanCreateSchema = z.object({
     nomor_ulok: z.string().trim().min(1),
     nama_toko: z.string().trim().min(1),
-    kode_toko: z.string().trim().min(1),
+    kode_toko: z.string().trim().optional().default(""),
     cabang: z.string().trim().optional().default(""),
     tanggal_go: z.string().trim().optional().default(""),
     tanggal_serah_terima: z.string().trim().optional().default(""),
