@@ -6,6 +6,8 @@ import { env } from "../../config/env";
 import { buildProjekPlanningPdfBuffer } from "./project-planning.pdf";
 import { compressImage } from "../../common/image-compressor";
 
+const PROJECT_PLANNING_DRIVE_FOLDER_ID = env.PROJECT_PLANNING_DRIVE_FOLDER_ID;
+
 async function uploadCompressedFile(file: Express.Multer.File, folderId: string): Promise<string | null> {
     const { buffer, mimetype, originalname } = await compressImage(file);
     const u = await GoogleProvider.instance.uploadFile(folderId, originalname, mimetype, buffer);
@@ -157,23 +159,23 @@ export const projekPlanningService = {
 
             try {
                 if (fFpd.length > 0) {
-                    const link = await uploadCompressedFiles(fFpd, env.DOC_DRIVE_ROOT_ID);
+                    const link = await uploadCompressedFiles(fFpd, PROJECT_PLANNING_DRIVE_FOLDER_ID);
                     if (link) fpdLink = link;
                 }
                 if (fGambarKerjaMe.length > 0) {
-                    const link = await uploadCompressedFiles(fGambarKerjaMe, env.DOC_DRIVE_ROOT_ID);
+                    const link = await uploadCompressedFiles(fGambarKerjaMe, PROJECT_PLANNING_DRIVE_FOLDER_ID);
                     if (link) gambarKerjaMe = link;
                 }
                 if (fRabSipil.length > 0) {
-                    const link = await uploadCompressedFiles(fRabSipil, env.DOC_DRIVE_ROOT_ID);
+                    const link = await uploadCompressedFiles(fRabSipil, PROJECT_PLANNING_DRIVE_FOLDER_ID);
                     if (link) rabSipilLink = link;
                 }
                 if (fRabMe.length > 0) {
-                    const link = await uploadCompressedFiles(fRabMe, env.DOC_DRIVE_ROOT_ID);
+                    const link = await uploadCompressedFiles(fRabMe, PROJECT_PLANNING_DRIVE_FOLDER_ID);
                     if (link) rabMeLink = link;
                 }
                 if (fKompetitor.length > 0) {
-                    const link = await uploadCompressedFiles(fKompetitor, env.DOC_DRIVE_ROOT_ID);
+                    const link = await uploadCompressedFiles(fKompetitor, PROJECT_PLANNING_DRIVE_FOLDER_ID);
                     if (link) gambarKompetitor = link;
                 }
 
@@ -183,7 +185,7 @@ export const projekPlanningService = {
                     if (match) {
                         const index = parseInt(match[1], 10);
                         if (!isNaN(index)) {
-                            const link = await uploadCompressedFile(file, env.DOC_DRIVE_ROOT_ID);
+                            const link = await uploadCompressedFile(file, PROJECT_PLANNING_DRIVE_FOLDER_ID);
                             if (link) fotoItemsLinks.push({ item_index: index, link_foto: link });
                         }
                     }
@@ -266,23 +268,23 @@ export const projekPlanningService = {
 
             try {
                 if (fFpd.length > 0) {
-                    const link = await uploadCompressedFiles(fFpd, env.DOC_DRIVE_ROOT_ID);
+                    const link = await uploadCompressedFiles(fFpd, PROJECT_PLANNING_DRIVE_FOLDER_ID);
                     if (link) fpdLink = link;
                 }
                 if (fGambarKerjaMe.length > 0) {
-                    const link = await uploadCompressedFiles(fGambarKerjaMe, env.DOC_DRIVE_ROOT_ID);
+                    const link = await uploadCompressedFiles(fGambarKerjaMe, PROJECT_PLANNING_DRIVE_FOLDER_ID);
                     if (link) gambarKerjaMe = link;
                 }
                 if (fRabSipil.length > 0) {
-                    const link = await uploadCompressedFiles(fRabSipil, env.DOC_DRIVE_ROOT_ID);
+                    const link = await uploadCompressedFiles(fRabSipil, PROJECT_PLANNING_DRIVE_FOLDER_ID);
                     if (link) rabSipilLink = link;
                 }
                 if (fRabMe.length > 0) {
-                    const link = await uploadCompressedFiles(fRabMe, env.DOC_DRIVE_ROOT_ID);
+                    const link = await uploadCompressedFiles(fRabMe, PROJECT_PLANNING_DRIVE_FOLDER_ID);
                     if (link) rabMeLink = link;
                 }
                 if (fKompetitor.length > 0) {
-                    const link = await uploadCompressedFiles(fKompetitor, env.DOC_DRIVE_ROOT_ID);
+                    const link = await uploadCompressedFiles(fKompetitor, PROJECT_PLANNING_DRIVE_FOLDER_ID);
                     if (link) gambarKompetitor = link;
                 }
 
@@ -292,7 +294,7 @@ export const projekPlanningService = {
                     if (match) {
                         const index = parseInt(match[1], 10);
                         if (!isNaN(index)) {
-                            const link = await uploadCompressedFile(file, env.DOC_DRIVE_ROOT_ID);
+                            const link = await uploadCompressedFile(file, PROJECT_PLANNING_DRIVE_FOLDER_ID);
                             if (link) fotoItemsLinks.push({ item_index: index, link_foto: link });
                         }
                     }
@@ -505,7 +507,7 @@ export const projekPlanningService = {
         if (file) {
             try {
                 const uploaded = await GoogleProvider.instance.uploadFile(
-                    env.DOC_DRIVE_ROOT_ID,
+                    PROJECT_PLANNING_DRIVE_FOLDER_ID,
                     file.originalname,
                     file.mimetype,
                     file.buffer
@@ -572,23 +574,23 @@ export const projekPlanningService = {
             
             try {
                 if (fRabSipil.length > 0 || fRabLegacy) {
-                    const link = await uploadCompressedFiles(fRabSipil.length > 0 ? fRabSipil : [fRabLegacy], env.DOC_DRIVE_ROOT_ID);
+                    const link = await uploadCompressedFiles(fRabSipil.length > 0 ? fRabSipil : [fRabLegacy], PROJECT_PLANNING_DRIVE_FOLDER_ID);
                     if (link) linkRabSipil = link;
                 }
                 if (fRabMe.length > 0) {
-                    const link = await uploadCompressedFiles(fRabMe, env.DOC_DRIVE_ROOT_ID);
+                    const link = await uploadCompressedFiles(fRabMe, PROJECT_PLANNING_DRIVE_FOLDER_ID);
                     if (link) linkRabMe = link;
                 }
                 if (fGambar.length > 0) {
-                    const link = await uploadCompressedFiles(fGambar, env.DOC_DRIVE_ROOT_ID);
+                    const link = await uploadCompressedFiles(fGambar, PROJECT_PLANNING_DRIVE_FOLDER_ID);
                     if (link) linkGambar = link;
                 }
                 if (fGambarSipil.length > 0) {
-                    const link = await uploadCompressedFiles(fGambarSipil, env.DOC_DRIVE_ROOT_ID);
+                    const link = await uploadCompressedFiles(fGambarSipil, PROJECT_PLANNING_DRIVE_FOLDER_ID);
                     if (link) linkGambarSipil = link;
                 }
                 if (fGambarMe.length > 0) {
-                    const link = await uploadCompressedFiles(fGambarMe, env.DOC_DRIVE_ROOT_ID);
+                    const link = await uploadCompressedFiles(fGambarMe, PROJECT_PLANNING_DRIVE_FOLDER_ID);
                     if (link) linkGambarMe = link;
                 }
             } catch (e) {
