@@ -73,6 +73,10 @@ export const bulkUpdateRabItemsSchema = z.object({
     items: z.array(updateRabItemSchema).min(1)
 });
 
+export const replaceRabItemsSchema = z.object({
+    items: z.array(detailItemSchema).min(1)
+});
+
 export const deleteRabItemsSchema = z.object({
     item_ids: z.array(z.coerce.number().int().positive()).min(1)
 });
@@ -83,4 +87,5 @@ export type RabListQuery = z.infer<typeof rabListQuerySchema>;
 export type UpdateRabStatusInput = z.infer<typeof updateRabStatusSchema>;
 export type UpdateRabItemInput = z.infer<typeof updateRabItemSchema>;
 export type BulkUpdateRabItemsInput = z.infer<typeof bulkUpdateRabItemsSchema>;
+export type ReplaceRabItemsInput = z.infer<typeof replaceRabItemsSchema>;
 export type DeleteRabItemsInput = z.infer<typeof deleteRabItemsSchema>;

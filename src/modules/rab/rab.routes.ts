@@ -8,6 +8,7 @@ import {
 	getRabById,
 	handleRabApproval,
 	listRab,
+	replaceRabItems,
 	submitRab,
 	updateRabItemsBulk,
 	updateRabStatus,
@@ -33,6 +34,7 @@ rabRouter.post(
 rabRouter.get("/", listRab);
 rabRouter.get("/:id", getRabById);
 rabRouter.put("/:id/items", updateRabItemsBulk);
+rabRouter.put("/:id/items/replace", replaceRabItems);
 rabRouter.delete("/:id/items", deleteRabItems);
 rabRouter.get("/:id/pdf", downloadRabPdf);
 rabRouter.get("/:id/logo", downloadRabLogo);

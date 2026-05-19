@@ -1242,6 +1242,54 @@ export const rabService = {
         };
     },
 
+    async replaceRabItems(rabId: string, items: DetailItemInput[]) {
+        const rabIdNumber = Number(rabId);
+        if (!Number.isInteger(rabIdNumber) || rabIdNumber <= 0) {
+            throw new AppError("id_rab tidak valid", 400);
+        }
+
+        const rabData = await rabRepository.findById(String(rabIdNumber));
+        if (!rabData) {
+            throw new AppError("Pengajuan RAB tidak ditemukan", 404);
+        }
+
+        const insertedCount = await rabRepository.replaceItems(rabIdNumber, items);
+        const totals = computeTotals(items);
+
+        await rabRepository.updateRabTotals(rabIdNumber, {
+            grand_total: String(totals.grandTotal),
+            grand_total_non_sbo: String(totals.totalNonSbo),
+            grand_total_final: String(totals.finalGrandTotal)
+        });
+
+        try {
+            const links = await regenerateRabPdfs(String(rabIdNumber), {
+                proyek: rabData.toko.proyek,
+                nomorUlok: rabData.toko.nomor_ulok
+            });
+
+            if (links) {
+                await rabRepository.updatePdfLinks(String(rabIdNumber), {
+                    link_pdf_gabungan: links.link_pdf_gabungan,
+                    link_pdf_non_sbo: links.link_pdf_non_sbo,
+                    link_pdf_rekapitulasi: links.link_pdf_rekapitulasi
+                });
+
+                if (links.link_pdf_sph) {
+                    await rabRepository.updateSphPdfLink(String(rabIdNumber), links.link_pdf_sph);
+                }
+            }
+        } catch (err) {
+            console.error("Warning: Gagal regenerate PDF RAB setelah replace items:", err);
+        }
+
+        return {
+            id_rab: rabIdNumber,
+            inserted_count: insertedCount,
+            totals
+        };
+    },
+
     async deleteRabItems(rabId: string, input: DeleteRabItemsInput) {
         const rabIdNumber = Number(rabId);
         if (!Number.isInteger(rabIdNumber) || rabIdNumber <= 0) {

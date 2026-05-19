@@ -6,6 +6,7 @@ import {
     bulkUpdateRabItemsSchema,
     deleteRabItemsSchema,
     rabListQuerySchema,
+    replaceRabItemsSchema,
     submitRabSchema,
     updateRabStatusSchema
 } from "./rab.schema";
@@ -194,6 +195,31 @@ export const deleteRabItems = asyncHandler(async (req: Request, res: Response) =
     res.json({
         status: "success",
         message: `${data.deleted_count} RAB item berhasil dihapus`,
+        data
+    });
+});
+
+export const replaceRabItems = asyncHandler(async (req: Request, res: Response) => {
+    let parsedItems = req.body.items;
+    if (typeof req.body.items === "string") {
+        try {
+            parsedItems = JSON.parse(req.body.items);
+        } catch {
+            throw new AppError("Format items tidak valid. Untuk multipart/form-data kirim items sebagai JSON string.", 400);
+        }
+    }
+
+    const payloadCandidate = {
+        ...req.body,
+        items: parsedItems
+    };
+    const { items } = replaceRabItemsSchema.parse(payloadCandidate);
+
+    const data = await rabService.replaceRabItems(req.params.id, items);
+
+    res.json({
+        status: "success",
+        message: `${data.inserted_count} RAB item berhasil direplace`,
         data
     });
 });

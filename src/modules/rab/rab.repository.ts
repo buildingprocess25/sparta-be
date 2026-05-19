@@ -693,6 +693,31 @@ export const rabRepository = {
         });
     },
 
+    async replaceItems(
+        rabId: number,
+        items: DetailItemInput[]
+    ): Promise<number> {
+        return withTransaction(async (client) => {
+            const rabRes = await client.query<{ id: number }>(
+                `SELECT id FROM rab WHERE id = $1 FOR UPDATE`,
+                [rabId]
+            );
+
+            if ((rabRes.rowCount ?? 0) === 0) {
+                throw new Error(`RAB dengan id ${rabId} tidak ditemukan`);
+            }
+
+            await client.query(
+                `DELETE FROM rab_item WHERE id_rab = $1`,
+                [rabId]
+            );
+
+            await insertRabItems(client, rabId, items);
+
+            return items.length;
+        });
+    },
+
     async deleteItemsByIds(rabId: number, itemIds: number[]): Promise<number> {
         const result = await pool.query(
             `DELETE FROM rab_item WHERE id_rab = $1 AND id = ANY($2::int[])`,
