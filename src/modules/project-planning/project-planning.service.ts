@@ -37,6 +37,29 @@ function normalizeBeanspotTipe(value: unknown): string | null {
     return text.toUpperCase() === "BASIC" ? "RTD ONLY" : text;
 }
 
+function normalizeCabang(value: unknown): string {
+    return normalizeText(value).toUpperCase();
+}
+
+function shouldSkipBmApproval(cabang: unknown): boolean {
+    return ["BOGOR", "BATAM"].includes(normalizeCabang(cabang));
+}
+
+function isBogorBranch(cabang: unknown): boolean {
+    return normalizeCabang(cabang) === "BOGOR";
+}
+
+function getInitialSubmitMeta(cabang: unknown) {
+    const skipBm = shouldSkipBmApproval(cabang);
+    return {
+        status: skipBm ? PP_STATUS.WAITING_PP_APPROVAL_1 : PP_STATUS.WAITING_BM_APPROVAL,
+        role: isBogorBranch(cabang) ? PP_ROLE.BM : PP_ROLE.COORDINATOR,
+        keterangan: skipBm
+            ? "FPD berhasil diajukan, bypass approval BM Manager sesuai alur cabang khusus, menunggu approval PP Specialist tahap 1"
+            : "FPD berhasil diajukan oleh Coordinator, menunggu approval BM Manager",
+    };
+}
+
 function normalizeArrayForCompare(value: unknown): string {
     if (!Array.isArray(value)) return "[]";
     return JSON.stringify(value.map((item) => {
@@ -195,7 +218,9 @@ export const projekPlanningService = {
             }
         }
 
-        // Buat record baru langsung ke status WAITING_BM_APPROVAL
+        const initialMeta = getInitialSubmitMeta(payload.cabang);
+
+        // Buat record baru sesuai alur cabang
         const created = await projekPlanningRepository.create({
             ...payload,
             id_toko: payload.id_toko ?? 0,
@@ -212,18 +237,18 @@ export const projekPlanningService = {
             link_gambar_rab_sipil: rabSipilLink ?? undefined,
             link_gambar_rab_me: rabMeLink ?? undefined,
             link_gambar_kompetitor: gambarKompetitor ?? undefined,
-            status: PP_STATUS.WAITING_BM_APPROVAL,
+            status: initialMeta.status,
         } as any);
 
         // 6. Catat log
         await projekPlanningRepository.insertLog({
             projek_planning_id: created.id,
             actor_email: payload.email_pembuat,
-            role: PP_ROLE.COORDINATOR,
+            role: initialMeta.role,
             aksi: PP_AKSI.SUBMIT,
             status_sebelum: null,
-            status_sesudah: PP_STATUS.WAITING_BM_APPROVAL,
-            keterangan: "FPD berhasil diajukan oleh Coordinator, menunggu approval BM Manager",
+            status_sesudah: initialMeta.status,
+            keterangan: initialMeta.keterangan,
         });
 
         if (fotoItemsLinks.length > 0) {
@@ -305,6 +330,7 @@ export const projekPlanningService = {
         }
 
         // Update record DRAFT → WAITING_BM_APPROVAL
+        const initialMeta = getInitialSubmitMeta(payload.cabang || projek.cabang);
         const revisionSummary = buildRevisionSummary(projek, payload, {
             link_fpd: fpdLink ?? projek.link_fpd ?? null,
             link_gambar_kerja: gambarKerjaMe ?? projek.link_gambar_kerja ?? null,
@@ -327,18 +353,18 @@ export const projekPlanningService = {
             link_gambar_rab_sipil: rabSipilLink ?? projek.link_gambar_rab_sipil ?? undefined,
             link_gambar_rab_me: rabMeLink ?? projek.link_gambar_rab_me ?? undefined,
             link_gambar_kompetitor: gambarKompetitor ?? projek.link_gambar_kompetitor ?? undefined,
-            status: PP_STATUS.WAITING_BM_APPROVAL,
+            status: initialMeta.status,
         } as any);
 
         // Catat log
         await projekPlanningRepository.insertLog({
             projek_planning_id: id,
             actor_email: payload.email_pembuat,
-            role: PP_ROLE.COORDINATOR,
+            role: initialMeta.role,
             aksi: PP_AKSI.SUBMIT,
             status_sebelum: PP_STATUS.DRAFT,
-            status_sesudah: PP_STATUS.WAITING_BM_APPROVAL,
-            keterangan: `FPD diajukan ulang oleh Coordinator setelah penolakan, menunggu approval BM Manager. ${revisionSummary}`,
+            status_sesudah: initialMeta.status,
+            keterangan: `FPD diajukan ulang setelah penolakan. ${initialMeta.keterangan}. ${revisionSummary}`,
         });
 
         if (fotoItemsLinks.length > 0) {
@@ -449,7 +475,7 @@ export const projekPlanningService = {
         const isApprove = action.tindakan === "APPROVE";
 
         let newStatus: PpStatus = PP_STATUS.DRAFT;
-        let keterangan = `Ditolak oleh PP Specialist (Tahap 1): ${action.alasan_penolakan}. Dikembalikan ke Coordinator dari awal`;
+        let keterangan = `Ditolak oleh PP Specialist (Tahap 1): ${action.alasan_penolakan}. Dikembalikan ke pengaju dari awal`;
 
         if (isApprove) {
             if (action.butuh_desain_3d) {
@@ -604,7 +630,7 @@ export const projekPlanningService = {
             id,
             {
                 actor_email: payload.uploader_email,
-                role: PP_ROLE.COORDINATOR,
+                role: isBogorBranch(projek.cabang) ? PP_ROLE.BM : PP_ROLE.COORDINATOR,
                 aksi: PP_AKSI.UPLOAD_RAB,
                 status_sebelum: projek.status,
                 status_sesudah: newStatus,
