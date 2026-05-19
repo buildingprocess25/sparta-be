@@ -72,13 +72,19 @@ export const updateRabItemSchema = detailItemSchema.extend({
     id: z.coerce.number().int().positive()
 });
 
+const rabTotalsSchema = z.object({
+    grand_total: z.coerce.number().nonnegative().optional(),
+    grand_total_non_sbo: z.coerce.number().nonnegative().optional(),
+    grand_total_final: z.coerce.number().nonnegative().optional()
+});
+
 export const bulkUpdateRabItemsSchema = z.object({
     items: z.array(updateRabItemSchema).min(1)
-});
+}).and(rabTotalsSchema);
 
 export const replaceRabItemsSchema = z.object({
     items: z.array(detailItemSchema).min(1)
-});
+}).and(rabTotalsSchema);
 
 export const deleteRabItemsSchema = z.object({
     item_ids: z.array(z.coerce.number().int().positive()).min(1)

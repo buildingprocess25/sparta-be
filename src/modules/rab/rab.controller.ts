@@ -163,9 +163,13 @@ export const updateRabItemsBulk = asyncHandler(async (req: Request, res: Respons
         ...req.body,
         items: parsedItems
     };
-    const { items } = bulkUpdateRabItemsSchema.parse(payloadCandidate);
+    const { items, grand_total, grand_total_non_sbo, grand_total_final } = bulkUpdateRabItemsSchema.parse(payloadCandidate);
 
-    const data = await rabService.updateRabItemsBulk(req.params.id, items);
+    const data = await rabService.updateRabItemsBulk(req.params.id, items, {
+        grand_total,
+        grand_total_non_sbo,
+        grand_total_final
+    });
 
     res.json({
         status: "success",
@@ -213,9 +217,13 @@ export const replaceRabItems = asyncHandler(async (req: Request, res: Response) 
         ...req.body,
         items: parsedItems
     };
-    const { items } = replaceRabItemsSchema.parse(payloadCandidate);
+    const { items, grand_total, grand_total_non_sbo, grand_total_final } = replaceRabItemsSchema.parse(payloadCandidate);
 
-    const data = await rabService.replaceRabItems(req.params.id, items);
+    const data = await rabService.replaceRabItems(req.params.id, items, {
+        grand_total,
+        grand_total_non_sbo,
+        grand_total_final
+    });
 
     res.json({
         status: "success",

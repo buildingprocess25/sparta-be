@@ -71,6 +71,43 @@ const computeTotals = (detailItems: DetailItemInput[]) => {
     };
 };
 
+const resolveTotals = (
+    detailItems: DetailItemInput[],
+    manual?: {
+        grand_total?: number;
+        grand_total_non_sbo?: number;
+        grand_total_final?: number;
+    }
+) => {
+    const hasAny = manual
+        && (manual.grand_total !== undefined
+            || manual.grand_total_non_sbo !== undefined
+            || manual.grand_total_final !== undefined);
+
+    if (!hasAny) {
+        return computeTotals(detailItems);
+    }
+
+    const { grand_total, grand_total_non_sbo, grand_total_final } = manual ?? {};
+    const allPresent = grand_total !== undefined
+        && grand_total_non_sbo !== undefined
+        && grand_total_final !== undefined;
+
+    if (!allPresent) {
+        throw new AppError("Grand total manual harus diisi lengkap (grand_total, grand_total_non_sbo, grand_total_final)", 422);
+    }
+
+    if (!Number.isFinite(grand_total) || !Number.isFinite(grand_total_non_sbo) || !Number.isFinite(grand_total_final)) {
+        throw new AppError("Grand total manual tidak valid", 422);
+    }
+
+    return {
+        grandTotal: roundCurrency(grand_total),
+        totalNonSbo: roundCurrency(grand_total_non_sbo),
+        finalGrandTotal: roundCurrency(grand_total_final)
+    };
+};
+
 const normalizeDetailItems = (items: RabItemRow[]): DetailItemInput[] => {
     return items.map((item) => ({
         kategori_pekerjaan: item.kategori_pekerjaan,
@@ -1180,7 +1217,15 @@ export const rabService = {
         };
     },
 
-    async updateRabItemsBulk(rabId: string, items: UpdateRabItemInput[]) {
+    async updateRabItemsBulk(
+        rabId: string,
+        items: UpdateRabItemInput[],
+        manualTotals?: {
+            grand_total?: number;
+            grand_total_non_sbo?: number;
+            grand_total_final?: number;
+        }
+    ) {
         const rabIdNumber = Number(rabId);
         if (!Number.isInteger(rabIdNumber) || rabIdNumber <= 0) {
             throw new AppError("id_rab tidak valid", 400);
@@ -1211,7 +1256,7 @@ export const rabService = {
 
         const updatedItems = await rabRepository.updateItemsBulk(rabIdNumber, items);
         const refreshedItems = await rabRepository.listItemsByRabId(rabIdNumber);
-        const totals = computeTotals(normalizeDetailItems(refreshedItems));
+        const totals = resolveTotals(normalizeDetailItems(refreshedItems), manualTotals);
 
         await rabRepository.updateRabTotals(rabIdNumber, {
             grand_total: String(totals.grandTotal),
@@ -1247,7 +1292,15 @@ export const rabService = {
         };
     },
 
-    async replaceRabItems(rabId: string, items: DetailItemInput[]) {
+    async replaceRabItems(
+        rabId: string,
+        items: DetailItemInput[],
+        manualTotals?: {
+            grand_total?: number;
+            grand_total_non_sbo?: number;
+            grand_total_final?: number;
+        }
+    ) {
         const rabIdNumber = Number(rabId);
         if (!Number.isInteger(rabIdNumber) || rabIdNumber <= 0) {
             throw new AppError("id_rab tidak valid", 400);
@@ -1259,7 +1312,7 @@ export const rabService = {
         }
 
         const insertedCount = await rabRepository.replaceItems(rabIdNumber, items);
-        const totals = computeTotals(items);
+        const totals = resolveTotals(items, manualTotals);
 
         await rabRepository.updateRabTotals(rabIdNumber, {
             grand_total: String(totals.grandTotal),
