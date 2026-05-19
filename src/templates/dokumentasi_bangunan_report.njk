@@ -33,10 +33,26 @@
     }
 
     .header {
-      text-align: center;
       margin-bottom: 12px;
       border-bottom: 2px solid #0f172a;
       padding-bottom: 8px;
+    }
+
+    .header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .header-logo {
+      height: 42px;
+      width: auto;
+    }
+
+    .header-text {
+      flex: 1;
+      text-align: center;
     }
 
     .title {
@@ -80,42 +96,30 @@
       padding-bottom: 4px;
     }
 
-    .photo-page {
+    .photo-item {
+      margin-top: 10px;
+      border: 1px solid #cbd5f5;
+      border-radius: 10px;
+      padding: 10px;
+      background: #f8fafc;
       page-break-inside: avoid;
     }
 
-    .photo-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      grid-auto-rows: 145px;
-      gap: 8px;
-      margin-top: 8px;
+    .photo-item-title {
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #0f172a;
+      text-transform: uppercase;
     }
 
-    .photo-card {
-      border: 1px solid #cbd5f5;
-      border-radius: 8px;
-      overflow: hidden;
-      background: #f1f5f9;
-      position: relative;
-    }
-
-    .photo-card img {
+    .photo-item img {
       width: 100%;
-      height: 100%;
-      object-fit: cover;
+      max-height: 520px;
+      object-fit: contain;
       display: block;
-    }
-
-    .photo-caption {
-      position: absolute;
-      right: 6px;
-      bottom: 6px;
-      background: rgba(15, 23, 42, 0.75);
-      color: #ffffff;
-      font-size: 10px;
-      padding: 2px 6px;
-      border-radius: 10px;
+      background: #ffffff;
+      border-radius: 8px;
     }
 
     .page-break {
@@ -137,8 +141,18 @@
 
   <div class="content">
     <div class="header">
-      <h1 class="title">Dokumentasi Bangunan</h1>
-      <div class="subtitle">Generated: {{ generated_at }}</div>
+      <div class="header-row">
+        {% if header_logo_path %}
+        <img src="{{ header_logo_path }}" class="header-logo" alt="logo" />
+        {% else %}
+        <div style="width: 42px"></div>
+        {% endif %}
+        <div class="header-text">
+          <h1 class="title">Dokumentasi Bangunan</h1>
+          <div class="subtitle">Generated: {{ generated_at }}</div>
+        </div>
+        <div style="width: 42px"></div>
+      </div>
     </div>
 
     <table class="meta">
@@ -181,31 +195,23 @@
       <tr>
         <td class="label">Email Pengirim</td>
         <td>{{ dokumentasi.email_pengirim or '-' }}</td>
-        <td class="label">Status Validasi</td>
-        <td>{{ dokumentasi.status_validasi or '-' }}</td>
-      </tr>
-      <tr>
-        <td class="label">Alasan Revisi</td>
-        <td colspan="3">{{ dokumentasi.alasan_revisi or '-' }}</td>
+        <td class="label"></td>
+        <td></td>
       </tr>
     </table>
 
-    <div class="section-title">Kolase Foto</div>
+    <div class="section-title">Foto Dokumentasi</div>
 
-    {% if photo_pages.length == 0 %}
+    {% if photo_items.length == 0 %}
       <div>Tidak ada foto dokumentasi.</div>
     {% endif %}
 
-    {% for page in photo_pages %}
-    <div class="photo-page">
-      <div class="photo-grid">
-        {% for photo in page %}
-        <div class="photo-card">
-          <img src="{{ photo.link_foto }}" alt="foto" />
-          <div class="photo-caption">Foto {{ photo.index }}</div>
-        </div>
-        {% endfor %}
+    {% for photo in photo_items %}
+    <div class="photo-item">
+      <div class="photo-item-title">
+        {{ photo.sudut_foto or ('Foto ' ~ photo.index) }}
       </div>
+      <img src="{{ photo.link_foto }}" alt="foto" />
     </div>
     {% if not loop.last %}
     <div class="page-break"></div>

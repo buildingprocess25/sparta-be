@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS dokumentasi_bangunan_item (
     id SERIAL PRIMARY KEY,
     id_dokumentasi_bangunan INT NOT NULL,
     link_foto VARCHAR(500),
+    sudut_foto VARCHAR(255),
     created_at TIMESTAMP DEFAULT timezone('Asia/Jakarta', now()),
     CONSTRAINT fk_dokumentasi_bangunan_item
         FOREIGN KEY (id_dokumentasi_bangunan)

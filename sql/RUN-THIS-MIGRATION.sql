@@ -75,6 +75,15 @@ WHERE link_gambar_kerja_final_sipil IS NULL
 
 
 -- ============================================================
+-- [3] KOLOM BARU di tabel dokumentasi_bangunan_item
+--     File asal: 2026-05-19-add-sudut-foto-dokumentasi-bangunan-item.sql
+--     Kolom: sudut_foto
+-- ============================================================
+ALTER TABLE dokumentasi_bangunan_item
+        ADD COLUMN IF NOT EXISTS sudut_foto VARCHAR(255);
+
+
+-- ============================================================
 -- VERIFIKASI — Cek apakah semua kolom sudah ada
 -- ============================================================
 SELECT

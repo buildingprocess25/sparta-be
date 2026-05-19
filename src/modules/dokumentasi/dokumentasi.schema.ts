@@ -1,5 +1,32 @@
 import { z } from "zod";
 
+const sudutFotoItemsSchema = z.preprocess(
+    (value) => {
+        if (Array.isArray(value)) return value;
+        if (typeof value === "string") {
+            const trimmed = value.trim();
+            if (!trimmed) return [];
+            try {
+                const parsed = JSON.parse(trimmed);
+                if (Array.isArray(parsed)) return parsed;
+            } catch {
+                // fall back to comma-separated values
+            }
+            return trimmed.split(",").map((item) => item.trim()).filter(Boolean);
+        }
+        return [];
+    },
+    z.array(
+        z.union([
+            z.string().trim().min(1),
+            z.object({
+                item_index: z.coerce.number().int().positive().optional(),
+                sudut_foto: z.string().trim().min(1)
+            })
+        ])
+    ).default([])
+);
+
 export const dokumentasiBangunanCreateSchema = z.object({
     nomor_ulok: z.string().trim().min(1),
     nama_toko: z.string().trim().min(1),
@@ -15,7 +42,8 @@ export const dokumentasiBangunanCreateSchema = z.object({
     email_pengirim: z.string().trim().optional().default(""),
     status_validasi: z.string().trim().optional().default(""),
     alasan_revisi: z.string().trim().optional().default(""),
-    pic_dokumentasi: z.string().trim().optional().default("")
+    pic_dokumentasi: z.string().trim().optional().default(""),
+    sudut_foto_items: sudutFotoItemsSchema.optional()
 });
 
 export const dokumentasiBangunanUpdateSchema = z.object({

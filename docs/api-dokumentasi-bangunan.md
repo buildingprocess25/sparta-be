@@ -45,11 +45,12 @@ Base URL: `/api/dok`
 - `id` (PK)
 - `id_dokumentasi_bangunan` (FK -> `dokumentasi_bangunan.id`)
 - `link_foto` (varchar)
+- `sudut_foto` (varchar)
 - `created_at` (timestamp)
 
 **Catatan penting:**
 
-- Saat create dokumentasi bangunan, sistem otomatis generate PDF kolase foto, upload ke Google Drive, lalu simpan link ke `dokumentasi_bangunan.link_pdf`.
+- Saat create dokumentasi bangunan, sistem otomatis generate PDF foto per item, upload ke Google Drive, lalu simpan link ke `dokumentasi_bangunan.link_pdf`.
 - Jika butuh regenerate PDF, gunakan endpoint `/api/dok/bangunan/:id/pdf`.
 
 ---
@@ -63,6 +64,7 @@ Base URL: `/api/dok`
 Fields:
 
 - `foto_items_1`, `foto_items_2`, ... (file) satu file per item
+- `sudut_foto_items` (text, JSON array) optional, mapping label per foto item
 - data lain dikirim sebagai field text
 
 Contoh fields:
@@ -83,6 +85,7 @@ email_pengirim=user@mail.com
 status_validasi=valid
 alasan_revisi=
 pic_dokumentasi=John Doe
+sudut_foto_items=[{"item_index":1,"sudut_foto":"Tampak Depan"},{"item_index":2,"sudut_foto":"Area Kasir"}]
 foto_items_1=<file>
 foto_items_2=<file>
 ```
@@ -119,6 +122,7 @@ foto_items_2=<file>
         "id": 10,
         "id_dokumentasi_bangunan": 1,
         "link_foto": "https://drive.google.com/uc?export=view&id=...",
+        "sudut_foto": "Tampak Depan",
         "created_at": "2026-05-04T12:00:00.000Z"
       }
     ],
@@ -210,6 +214,7 @@ foto_items_2=<file>
         "id": 10,
         "id_dokumentasi_bangunan": 1,
         "link_foto": "https://drive.google.com/uc?export=view&id=...",
+        "sudut_foto": "Tampak Depan",
         "created_at": "2026-05-04T12:00:00.000Z"
       }
     ]
@@ -239,6 +244,7 @@ foto_items_2=<file>
         "id": 11,
         "id_dokumentasi_bangunan": 1,
         "link_foto": "https://drive.google.com/uc?export=view&id=...",
+        "sudut_foto": null,
         "created_at": "2026-05-04T12:10:00.000Z"
       }
     ]
@@ -284,6 +290,7 @@ foto_items_2=<file>
         "id": 20,
         "id_dokumentasi_bangunan": 1,
         "link_foto": "https://drive.google.com/uc?export=view&id=...",
+        "sudut_foto": null,
         "created_at": "2026-05-04T12:10:00.000Z"
       }
     ]
@@ -307,6 +314,7 @@ foto_items_2=<file>
     "id": 20,
     "id_dokumentasi_bangunan": 1,
     "link_foto": "https://drive.google.com/uc?export=view&id=...",
+    "sudut_foto": null,
     "created_at": "2026-05-04T12:10:00.000Z"
   }
 }

@@ -20,6 +20,8 @@ type DokumentasiItemFile = {
     itemIndex: number;
 };
 
+type SudutFotoItemInput = string | { item_index?: number; sudut_foto: string };
+
 const sanitizeFilenamePart = (value: string | undefined, fallback: string): string => {
     const normalized = (value ?? "").trim().replace(/[^a-zA-Z0-9_-]+/g, "_");
     return normalized || fallback;
@@ -83,13 +85,14 @@ const resolveDokumentasiFolderId = async (row: DokumentasiBangunanRow): Promise<
 
 const uploadFotoItemsBulk = async (
     dokumentasi: DokumentasiBangunanRow,
-    files: UploadedDokumentasiFile[]
+    files: UploadedDokumentasiFile[],
+    sudutFotoItems: string[]
 ): Promise<DokumentasiBangunanItemRow[]> => {
     if (files.length === 0) return [];
 
     const gp = GoogleProvider.instance;
     const folderId = await resolveDokumentasiFolderId(dokumentasi);
-    const linkResults: string[] = [];
+    const items: { link_foto: string; sudut_foto?: string | null }[] = [];
 
     for (let i = 0; i < files.length; i++) {
         const file = files[i];
@@ -106,26 +109,32 @@ const uploadFotoItemsBulk = async (
 
         const link = resolveDriveLink(uploaded.id, uploaded.webViewLink ?? null);
         if (link) {
-            linkResults.push(link);
+            items.push({
+                link_foto: link,
+                sudut_foto: sudutFotoItems[i] ?? null
+            });
         }
     }
 
-    return dokumentasiBangunanRepository.createItemsBulk(dokumentasi.id, linkResults);
+    return dokumentasiBangunanRepository.createItemsBulk(dokumentasi.id, items);
 };
 
 const uploadFotoItemsByIndex = async (
     dokumentasi: DokumentasiBangunanRow,
-    itemFiles: DokumentasiItemFile[]
+    itemFiles: DokumentasiItemFile[],
+    sudutFotoByIndex: Map<number, string>,
+    sudutFotoFallback: string[]
 ): Promise<DokumentasiBangunanItemRow[]> => {
     if (itemFiles.length === 0) return [];
 
     const gp = GoogleProvider.instance;
     const folderId = await resolveDokumentasiFolderId(dokumentasi);
-    const linkResults: string[] = [];
+    const items: { link_foto: string; sudut_foto?: string | null }[] = [];
     const safeKode = sanitizeFilenamePart(dokumentasi.kode_toko ?? undefined, "TOKO");
 
     const ordered = [...itemFiles].sort((a, b) => a.itemIndex - b.itemIndex);
-    for (const entry of ordered) {
+    for (let index = 0; index < ordered.length; index += 1) {
+        const entry = ordered[index];
         const ext = resolveFileExtension(entry.file);
         const filename = `FOTO_ITEM_${safeKode}_${dokumentasi.id}_${entry.itemIndex}${ext}`;
 
@@ -138,11 +147,39 @@ const uploadFotoItemsByIndex = async (
 
         const link = resolveDriveLink(uploaded.id, uploaded.webViewLink ?? null);
         if (link) {
-            linkResults.push(link);
+            const sudutFoto = sudutFotoByIndex.get(entry.itemIndex) ?? sudutFotoFallback[index] ?? null;
+            items.push({
+                link_foto: link,
+                sudut_foto: sudutFoto
+            });
         }
     }
 
-    return dokumentasiBangunanRepository.createItemsBulk(dokumentasi.id, linkResults);
+    return dokumentasiBangunanRepository.createItemsBulk(dokumentasi.id, items);
+};
+
+const splitSudutFotoItems = (items?: SudutFotoItemInput[]) => {
+    const sudutFotoByIndex = new Map<number, string>();
+    const sudutFotoFallback: string[] = [];
+
+    if (!items) return { sudutFotoByIndex, sudutFotoFallback };
+
+    for (const entry of items) {
+        if (typeof entry === "string") {
+            sudutFotoFallback.push(entry);
+            continue;
+        }
+
+        if (entry?.sudut_foto) {
+            if (entry.item_index) {
+                sudutFotoByIndex.set(entry.item_index, entry.sudut_foto);
+            } else {
+                sudutFotoFallback.push(entry.sudut_foto);
+            }
+        }
+    }
+
+    return { sudutFotoByIndex, sudutFotoFallback };
 };
 
 const splitItemFiles = (files: UploadedDokumentasiFile[]) => {
@@ -179,11 +216,17 @@ const uploadPdfToDrive = async (folderId: string, buffer: Buffer, filename: stri
 
 export const dokumentasiBangunanService = {
     async create(input: DokumentasiBangunanCreateInput, files: UploadedDokumentasiFile[]) {
-        const dokumentasi = await dokumentasiBangunanRepository.create(input);
+        const { sudut_foto_items, ...payload } = input as DokumentasiBangunanCreateInput;
+        const dokumentasi = await dokumentasiBangunanRepository.create(payload);
+        const { sudutFotoByIndex, sudutFotoFallback } = splitSudutFotoItems(sudut_foto_items);
         const { itemFiles, bulkFiles } = splitItemFiles(files);
         const items = itemFiles.length > 0
-            ? await uploadFotoItemsByIndex(dokumentasi, itemFiles)
-            : await uploadFotoItemsBulk(dokumentasi, bulkFiles.length > 0 ? bulkFiles : files);
+            ? await uploadFotoItemsByIndex(dokumentasi, itemFiles, sudutFotoByIndex, sudutFotoFallback)
+            : await uploadFotoItemsBulk(
+                dokumentasi,
+                bulkFiles.length > 0 ? bulkFiles : files,
+                sudutFotoFallback
+            );
 
         const detail = await dokumentasiBangunanRepository.getDetail(dokumentasi.id);
         if (!detail) {
@@ -232,7 +275,7 @@ export const dokumentasiBangunanService = {
             throw new AppError("Dokumentasi bangunan tidak ditemukan", 404);
         }
 
-        const newItems = await uploadFotoItemsBulk(updated, files);
+        const newItems = await uploadFotoItemsBulk(updated, files, []);
 
         return {
             dokumentasi: updated,
@@ -246,7 +289,7 @@ export const dokumentasiBangunanService = {
             throw new AppError("Dokumentasi bangunan tidak ditemukan", 404);
         }
 
-        const items = await uploadFotoItemsBulk(dokumentasi, files);
+        const items = await uploadFotoItemsBulk(dokumentasi, files, []);
         return { dokumentasi, items };
     },
 

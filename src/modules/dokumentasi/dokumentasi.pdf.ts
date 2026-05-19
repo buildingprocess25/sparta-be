@@ -45,15 +45,6 @@ const resolveFallbackPhoto = (): string => {
     return `https://drive.google.com/uc?export=view&id=${fileId}`;
 };
 
-const chunkArray = <T>(items: T[], size: number): T[][] => {
-    if (size <= 0) return [items];
-    const chunks: T[][] = [];
-    for (let i = 0; i < items.length; i += size) {
-        chunks.push(items.slice(i, i + size));
-    }
-    return chunks;
-};
-
 export const buildDokumentasiBangunanPdfBuffer = async (
     detail: DokumentasiBangunanDetail
 ): Promise<Buffer> => {
@@ -62,15 +53,15 @@ export const buildDokumentasiBangunanPdfBuffer = async (
 
     const items = detail.items.map((item, index) => ({
         index: index + 1,
-        link_foto: item.link_foto || fallbackPhoto
+        link_foto: item.link_foto || fallbackPhoto,
+        sudut_foto: item.sudut_foto || ""
     }));
-
-    const photoPages = chunkArray(items, 6);
 
     const html = await renderHtmlTemplate(templatePath, {
         dokumentasi: detail.dokumentasi,
-        photo_pages: photoPages,
+        photo_items: items,
         watermark_logo_path: staticAssetPath("Building-Logo.png"),
+        header_logo_path: staticAssetPath("Building-Logo.png"),
         tanggal_go_formatted: formatDateIndonesia(detail.dokumentasi.tanggal_go),
         tanggal_serah_terima_formatted: formatDateIndonesia(detail.dokumentasi.tanggal_serah_terima),
         tanggal_ambil_foto_formatted: formatDateIndonesia(detail.dokumentasi.tanggal_ambil_foto),
