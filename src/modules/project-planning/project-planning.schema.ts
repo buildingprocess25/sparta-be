@@ -25,7 +25,7 @@ export const submitProjekPlanningSchema = z.object({
     nama_pengaju: z.string().min(1, "Nama pengaju wajib diisi"),
     nama_lokasi: z.string().optional().or(z.literal("")),
 
-    // ── Jenis Pengajuan Design ───────────────────────────────
+    // ── Jenis Pengajuan Desain ───────────────────────────────
     jenis_pengajuan: z.string().min(1, "Jenis pengajuan wajib dipilih"),
     jenis_pengajuan_lainnya: z.string().optional(),
 
@@ -40,7 +40,7 @@ export const submitProjekPlanningSchema = z.object({
     // ── Ketentuan dari Pengelola/Landlord/Pihak Ketiga ───────
     ketentuan: z.array(z.string()).optional().default([]),
 
-    // ── Catatan Design (Hasil Ukur & Kondisi Lingkungan) ─────
+    // ── Catatan Desain (Hasil Ukur & Kondisi Lingkungan) ─────
     catatan_design: z.array(z.string()).optional().default([]),
 
     // ── Upload Files ─────────────────────────────────────────
@@ -89,7 +89,7 @@ export const resubmitProjekPlanningSchema = z.object({
     nama_pengaju: z.string().min(1, "Nama pengaju wajib diisi"),
     nama_lokasi: z.string().optional().or(z.literal("")),
 
-    // ── Jenis Pengajuan Design ───────────────────────────────
+    // ── Jenis Pengajuan Desain ───────────────────────────────
     jenis_pengajuan: z.string().min(1, "Jenis pengajuan wajib dipilih"),
     jenis_pengajuan_lainnya: z.string().optional(),
 
@@ -104,7 +104,7 @@ export const resubmitProjekPlanningSchema = z.object({
     // ── Ketentuan dari Pengelola/Landlord/Pihak Ketiga ───────
     ketentuan: z.array(z.string()).optional().default([]),
 
-    // ── Catatan Design (Hasil Ukur & Kondisi Lingkungan) ─────
+    // ── Catatan Desain (Hasil Ukur & Kondisi Lingkungan) ─────
     catatan_design: z.array(z.string()).optional().default([]),
 
     // ── Upload Files ─────────────────────────────────────────

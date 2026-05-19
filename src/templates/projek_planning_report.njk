@@ -77,11 +77,23 @@
     .info-table .label {
       font-weight: bold;
       color: #555;
-      width: 130px;
+      width: 120px;
     }
 
     .info-table .value {
       color: #111;
+      width: 32%;
+      padding-right: 18px;
+    }
+
+    .info-table a {
+      color: #2563eb;
+      text-decoration: underline;
+    }
+
+    .info-table .full-value {
+      color: #111;
+      padding-right: 0;
     }
 
     .data-table {
@@ -212,7 +224,7 @@
     </div>
   </div>
 
-  <div class="section-title">Informasi Pengajuan Form Permintaan Design</div>
+  <div class="section-title">Informasi Form Permintaan Desain</div>
   <table class="info-table">
     <tr>
       <td class="label">Nomor ULOK</td>
@@ -234,24 +246,34 @@
     </tr>
     <tr>
       <td class="label">Proyek</td>
-      <td class="value" colspan="3">: {{ projek.proyek or '-' }}</td>
-    </tr>
-    <tr>
-      <td class="label">Lingkup Pekerjaan</td>
-      <td class="value" colspan="3">: {{ projek.lingkup_pekerjaan or '-' }}</td>
+      <td class="value">: {{ projek.proyek or '-' }}</td>
+      <td class="label">Jenis Pengajuan</td>
+      <td class="value">: {{ projek.jenis_pengajuan or '-' }}</td>
     </tr>
     <tr>
       <td class="label">Tipe Bangunan</td>
       <td class="value">: {{ 'Ruko (' + projek.jumlah_lantai + ' Lantai)' if projek.is_ruko else 'Non-Ruko' }}</td>
-      <td class="label">Jenis Pengajuan</td>
-      <td class="value">: {{ projek.jenis_pengajuan or '-' }}</td>
+      <td class="label">Google Maps</td>
+      <td class="value">
+        : {% if projek.link_google_maps %}
+          <a href="{{ projek.link_google_maps }}">Buka Lokasi</a>
+        {% else %}
+          -
+        {% endif %}
+      </td>
     </tr>
+    {% if projek.alamat_toko %}
+    <tr>
+      <td class="label">Alamat</td>
+      <td class="full-value" colspan="3">: {{ projek.alamat_toko }}</td>
+    </tr>
+    {% endif %}
   </table>
 
   <div class="section-title">Fasilitas & Ketentuan</div>
   <table class="data-table">
     <tr>
-      <td class="label-col">Jenis Pengajuan Design</td>
+      <td class="label-col">Jenis Pengajuan Desain</td>
       <td>{{ projek.jenis_pengajuan or '-' }} {{ '(' + projek.jenis_pengajuan_lainnya + ')' if projek.jenis_pengajuan == 'LAINNYA' and projek.jenis_pengajuan_lainnya else '' }}</td>
     </tr>
     {% if projek.fasilitas and projek.fasilitas.length > 0 %}
@@ -283,7 +305,7 @@
   {% endif %}
 
   {% if projek.catatan_design and projek.catatan_design.length > 0 %}
-  <div class="section-title">Catatan Design</div>
+  <div class="section-title">Catatan Desain</div>
   <table class="data-table">
     {% for cat in projek.catatan_design %}
     <tr><td class="label-col">Catatan {{ loop.index }}</td><td>{{ cat.isi_catatan }}</td></tr>

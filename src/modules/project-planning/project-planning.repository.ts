@@ -35,7 +35,7 @@ export type ProjekPlanningRow = {
     nama_pengaju: string | null;
     nama_lokasi: string | null;
 
-    // Jenis Pengajuan Design
+    // Jenis Pengajuan Desain
     jenis_pengajuan: string | null;
     jenis_pengajuan_lainnya: string | null;
     // Fasilitas (dari tabel terpisah)
@@ -50,7 +50,7 @@ export type ProjekPlanningRow = {
     // Ketentuan (dari tabel terpisah)
     ketentuan?: { id?: number; isi_ketentuan: string }[];
 
-    // Catatan Design (dari tabel terpisah)
+    // Catatan Desain (dari tabel terpisah)
     catatan_design?: { id?: number; isi_catatan: string }[];
 
     // Foto Lampiran FPD (dari tabel terpisah)
