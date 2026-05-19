@@ -130,6 +130,7 @@ app.use("/api/user_cabang", userCabangRouter);
 app.use("/api/instruksi-lapangan", instruksiLapanganRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/project-planning", projekPlanningRouter);
+app.use("/api/projek-planning", projekPlanningRouter);
 app.use("/api", emailNotificationRouter);
 app.use("/api", serahTerimaRouter);
 app.use("/", priceRabRouter);
