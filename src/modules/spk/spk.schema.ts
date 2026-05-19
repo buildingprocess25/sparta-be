@@ -37,6 +37,14 @@ export const spkListQuerySchema = z.object({
     nomor_ulok: z.string().trim().min(1).optional()
 });
 
+export const spkInterventionSchema = z.object({
+    actor_email: z.string().email(),
+    actor_role: z.string().trim().min(1),
+    target_status: z.enum(["WAITING_FOR_BM_APPROVAL", "SPK_APPROVED", "SPK_REJECTED"]),
+    alasan_intervensi: z.string().trim().min(1, "alasan_intervensi wajib diisi")
+});
+
 export type SubmitSpkInput = z.infer<typeof submitSpkSchema>;
 export type SpkApprovalInput = z.infer<typeof spkApprovalSchema>;
 export type SpkListQuery = z.infer<typeof spkListQuerySchema>;
+export type SpkInterventionInput = z.infer<typeof spkInterventionSchema>;

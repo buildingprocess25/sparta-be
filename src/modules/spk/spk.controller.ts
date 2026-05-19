@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { asyncHandler } from "../../common/async-handler";
-import { spkApprovalSchema, spkListQuerySchema, submitSpkSchema } from "./spk.schema";
+import { spkApprovalSchema, spkInterventionSchema, spkListQuerySchema, submitSpkSchema } from "./spk.schema";
 import { spkService } from "./spk.service";
 
 export const submitSpk = asyncHandler(async (req: Request, res: Response) => {
@@ -42,6 +42,17 @@ export const handleSpkApproval = asyncHandler(async (req: Request, res: Response
     res.json({
         status: "success",
         message: "Approval SPK berhasil diproses",
+        data: result
+    });
+});
+
+export const handleSpkIntervention = asyncHandler(async (req: Request, res: Response) => {
+    const action = spkInterventionSchema.parse(req.body);
+    const result = await spkService.intervene(req.params.id, action);
+
+    res.json({
+        status: "success",
+        message: "Intervensi SPK berhasil diproses",
         data: result
     });
 });

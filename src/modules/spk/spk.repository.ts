@@ -1,6 +1,6 @@
 import { pool, withTransaction } from "../../db/pool";
 import { ACTIVE_SPK_STATUSES, type SpkStatus } from "./spk.constants";
-import type { SpkApprovalInput } from "./spk.schema";
+import type { SpkApprovalInput, SpkInterventionInput } from "./spk.schema";
 
 export type PengajuanSpkRow = {
     id: string;
@@ -387,6 +387,67 @@ export const spkRepository = {
                     action.tindakan,
                     action.alasan_penolakan ?? null
                 ]
+            );
+        });
+    },
+
+    async interveneStatusAndInsertLog(
+        pengajuanSpkId: string,
+        oldStatus: SpkStatus,
+        targetStatus: SpkStatus,
+        action: SpkInterventionInput
+    ): Promise<void> {
+        const logAction = targetStatus === "SPK_APPROVED" ? "APPROVE" : "REJECT";
+        const logReason = `[INTERVENSI SUPER HUMAN] ${oldStatus} -> ${targetStatus}. ${action.alasan_intervensi}`;
+
+        await withTransaction(async (client) => {
+            if (targetStatus === "SPK_APPROVED") {
+                await client.query(
+                    `
+          UPDATE pengajuan_spk
+          SET status = $1,
+              approver_email = $2,
+              waktu_persetujuan = NOW(),
+              alasan_penolakan = NULL
+          WHERE id = $3
+          `,
+                    [targetStatus, action.actor_email, pengajuanSpkId]
+                );
+            } else if (targetStatus === "SPK_REJECTED") {
+                await client.query(
+                    `
+          UPDATE pengajuan_spk
+          SET status = $1,
+              approver_email = NULL,
+              waktu_persetujuan = NULL,
+              alasan_penolakan = $2,
+              link_pdf = NULL
+          WHERE id = $3
+          `,
+                    [targetStatus, logReason, pengajuanSpkId]
+                );
+            } else {
+                await client.query(
+                    `
+          UPDATE pengajuan_spk
+          SET status = $1,
+              approver_email = NULL,
+              waktu_persetujuan = NULL,
+              alasan_penolakan = NULL,
+              link_pdf = NULL
+          WHERE id = $2
+          `,
+                    [targetStatus, pengajuanSpkId]
+                );
+            }
+
+            await client.query(
+                `
+        INSERT INTO spk_approval_log (
+          pengajuan_spk_id, approver_email, tindakan, alasan_penolakan, waktu_tindakan
+        ) VALUES ($1, $2, $3, $4, NOW())
+        `,
+                [pengajuanSpkId, action.actor_email, logAction, logReason]
             );
         });
     },

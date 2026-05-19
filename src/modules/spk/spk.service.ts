@@ -5,7 +5,7 @@ import { tokoRepository } from "../toko/toko.repository";
 import { SPK_STATUS, getCabangCode } from "./spk.constants";
 import { buildSpkPdfBuffer } from "./spk.pdf";
 import { spkRepository } from "./spk.repository";
-import type { SpkApprovalInput, SpkListQuery, SubmitSpkInput } from "./spk.schema";
+import type { SpkApprovalInput, SpkInterventionInput, SpkListQuery, SubmitSpkInput } from "./spk.schema";
 
 const terbilang = (angka: number): string => {
     const satuan = ["", "Satu", "Dua", "Tiga", "Empat", "Lima", "Enam", "Tujuh", "Delapan", "Sembilan", "Sepuluh", "Sebelas"];
@@ -221,6 +221,48 @@ export const spkService = {
             id,
             old_status: currentStatus,
             new_status: newStatus
+        };
+    },
+
+    async intervene(id: string, action: SpkInterventionInput) {
+        const role = action.actor_role.toUpperCase();
+        if (!role.includes("SUPER HUMAN")) {
+            throw new AppError("Hanya role Super Human yang dapat melakukan intervensi SPK", 403);
+        }
+
+        const data = await spkRepository.findById(id);
+        if (!data) {
+            throw new AppError("Pengajuan SPK tidak ditemukan", 404);
+        }
+
+        const currentStatus = data.pengajuan.status;
+        const targetStatus = action.target_status;
+
+        if (currentStatus === targetStatus) {
+            throw new AppError(`Status SPK sudah ${targetStatus}`, 409);
+        }
+
+        await spkRepository.interveneStatusAndInsertLog(id, currentStatus, targetStatus, action);
+
+        if (targetStatus === SPK_STATUS.SPK_APPROVED) {
+            try {
+                const linkPdf = await regenerateSpkPdfAndUpload(id, {
+                    proyek: data.pengajuan.proyek,
+                    nomorUlok: data.pengajuan.nomor_ulok
+                });
+
+                if (linkPdf) {
+                    await spkRepository.updatePdfLink(id, linkPdf);
+                }
+            } catch (err) {
+                console.error("Warning: Gagal regenerate PDF SPK setelah intervensi:", err);
+            }
+        }
+
+        return {
+            id,
+            old_status: currentStatus,
+            new_status: targetStatus
         };
     },
 
