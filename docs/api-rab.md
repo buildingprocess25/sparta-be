@@ -499,7 +499,7 @@ Endpoint ini juga melewati backend agar link tetap bisa dipakai walau file Googl
 
 Memproses approval atau penolakan RAB.
 
-Jika `nama_lengkap` dikirim, nama tersebut hanya dipakai untuk tampilan tanda tangan di PDF. Nilai yang disimpan di kolom `pemberi_persetujuan_*` tetap `approver_email`.
+Jika `nama_lengkap` dikirim, nama tersebut disimpan ke kolom `nama_persetujuan_*` untuk tampilan tanda tangan di PDF. Nilai di kolom `pemberi_persetujuan_*` tetap memakai `approver_email`.
 
 ### Path Parameter
 
@@ -588,6 +588,7 @@ Saat **APPROVE** oleh Koordinator:
 UPDATE rab SET
   status = 'Menunggu Persetujuan Manajer',
   pemberi_persetujuan_koordinator = 'koordinator@alfamart.com',
+  nama_persetujuan_koordinator = 'Dewi Lestari',
   waktu_persetujuan_koordinator = '2026-03-11T10:30:00+07:00'
 WHERE id = :id
 ```
@@ -598,6 +599,7 @@ Saat **APPROVE** oleh Manager:
 UPDATE rab SET
   status = 'Disetujui',
   pemberi_persetujuan_manager = 'manager@alfamart.com',
+  nama_persetujuan_manager = 'Rizky Pratama',
   waktu_persetujuan_manager = '2026-03-11T14:00:00+07:00'
 WHERE id = :id
 ```

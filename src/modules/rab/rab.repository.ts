@@ -20,10 +20,13 @@ export type RabRow = {
     link_pdf_non_sbo: string | null;
     link_pdf_rekapitulasi: string | null;
     pemberi_persetujuan_koordinator: string | null;
+    nama_persetujuan_koordinator: string | null;
     waktu_persetujuan_koordinator: string | null;
     pemberi_persetujuan_manager: string | null;
+    nama_persetujuan_manager: string | null;
     waktu_persetujuan_manager: string | null;
     pemberi_persetujuan_direktur: string | null;
+    nama_persetujuan_direktur: string | null;
     nama_lengkap_persetujuan_direktur?: string | null;
     waktu_persetujuan_direktur: string | null;
     alasan_penolakan: string | null;
@@ -94,9 +97,9 @@ export type RabMinimalRow = {
 const RAB_COLUMNS = `
     r.id, r.id_toko, r.no_sph, r.status, r.nama_pt, r.email_pembuat, r.logo,
     r.link_pdf_gabungan, r.link_pdf_non_sbo, r.link_pdf_rekapitulasi,
-    r.pemberi_persetujuan_koordinator, r.waktu_persetujuan_koordinator,
-    r.pemberi_persetujuan_manager, r.waktu_persetujuan_manager,
-    r.pemberi_persetujuan_direktur, r.waktu_persetujuan_direktur,
+    r.pemberi_persetujuan_koordinator, r.nama_persetujuan_koordinator, r.waktu_persetujuan_koordinator,
+    r.pemberi_persetujuan_manager, r.nama_persetujuan_manager, r.waktu_persetujuan_manager,
+    r.pemberi_persetujuan_direktur, r.nama_persetujuan_direktur, r.waktu_persetujuan_direktur,
     r.alasan_penolakan, r.waktu_penolakan, r.ditolak_oleh, r.durasi_pekerjaan, r.kategori_lokasi,
     r.no_polis, r.berlaku_polis, r.file_asuransi,
     r.luas_bangunan, r.luas_terbangun, r.luas_area_terbuka,
@@ -347,10 +350,13 @@ export const rabRepository = {
                      waktu_penolakan = NULL,
                      ditolak_oleh = NULL,
                      pemberi_persetujuan_direktur = NULL,
+                     nama_persetujuan_direktur = NULL,
                      waktu_persetujuan_direktur = NULL,
                      pemberi_persetujuan_koordinator = NULL,
+                     nama_persetujuan_koordinator = NULL,
                      waktu_persetujuan_koordinator = NULL,
                      pemberi_persetujuan_manager = NULL,
+                     nama_persetujuan_manager = NULL,
                      waktu_persetujuan_manager = NULL,
                      created_at = timezone('Asia/Jakarta', now())
                  WHERE id = $19
@@ -564,10 +570,13 @@ export const rabRepository = {
             link_pdf_non_sbo: row.link_pdf_non_sbo,
             link_pdf_rekapitulasi: row.link_pdf_rekapitulasi,
             pemberi_persetujuan_koordinator: row.pemberi_persetujuan_koordinator,
+            nama_persetujuan_koordinator: row.nama_persetujuan_koordinator,
             waktu_persetujuan_koordinator: row.waktu_persetujuan_koordinator,
             pemberi_persetujuan_manager: row.pemberi_persetujuan_manager,
+            nama_persetujuan_manager: row.nama_persetujuan_manager,
             waktu_persetujuan_manager: row.waktu_persetujuan_manager,
             pemberi_persetujuan_direktur: row.pemberi_persetujuan_direktur,
+            nama_persetujuan_direktur: row.nama_persetujuan_direktur,
             nama_lengkap_persetujuan_direktur: (row as any).nama_lengkap_persetujuan_direktur ?? null,
             waktu_persetujuan_direktur: row.waktu_persetujuan_direktur,
             alasan_penolakan: row.alasan_penolakan,
@@ -777,20 +786,34 @@ export const rabRepository = {
             throw new Error("updateApproval hanya untuk tindakan APPROVE");
         }
 
+        const approverName = (action.nama_lengkap ?? "").trim();
+
         const sets: string[] = ["status = $1"];
         const values: unknown[] = [newStatus];
 
         if (action.jabatan === "KOORDINATOR") {
             values.push(action.approver_email);
             sets.push(`pemberi_persetujuan_koordinator = $${values.length}`);
+            if (approverName) {
+                values.push(approverName);
+                sets.push(`nama_persetujuan_koordinator = $${values.length}`);
+            }
             sets.push(`waktu_persetujuan_koordinator = timezone('Asia/Jakarta', now())`);
         } else if (action.jabatan === "MANAGER") {
             values.push(action.approver_email);
             sets.push(`pemberi_persetujuan_manager = $${values.length}`);
+            if (approverName) {
+                values.push(approverName);
+                sets.push(`nama_persetujuan_manager = $${values.length}`);
+            }
             sets.push(`waktu_persetujuan_manager = timezone('Asia/Jakarta', now())`);
         } else {
             values.push(action.approver_email);
             sets.push(`pemberi_persetujuan_direktur = $${values.length}`);
+            if (approverName) {
+                values.push(approverName);
+                sets.push(`nama_persetujuan_direktur = $${values.length}`);
+            }
             sets.push(`waktu_persetujuan_direktur = timezone('Asia/Jakarta', now())`);
         }
 

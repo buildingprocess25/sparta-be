@@ -547,13 +547,13 @@ async function regenerateRabPdfs(
         const direkturName = (approvalNameOverrides.direktur ?? "").trim();
 
         if (koordinatorName) {
-            rabForPdf.pemberi_persetujuan_koordinator = koordinatorName;
+            rabForPdf.nama_persetujuan_koordinator = koordinatorName;
         }
         if (managerName) {
-            rabForPdf.pemberi_persetujuan_manager = managerName;
+            rabForPdf.nama_persetujuan_manager = managerName;
         }
         if (direkturName) {
-            rabForPdf.pemberi_persetujuan_direktur = direkturName;
+            rabForPdf.nama_persetujuan_direktur = direkturName;
             rabForPdf.nama_lengkap_persetujuan_direktur = direkturName;
         }
     }

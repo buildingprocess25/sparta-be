@@ -258,11 +258,11 @@ export const buildRabPdfBuffer = async (input: BuildRabPdfInput): Promise<Buffer
         is_bogor_branch: isBogor,
         creator_details: approvalDetails(input.rab.email_pembuat, input.rab.created_at),
         coordinator_approval_details: approvalDetails(
-            input.rab.pemberi_persetujuan_koordinator,
+            input.rab.nama_persetujuan_koordinator || input.rab.pemberi_persetujuan_koordinator,
             input.rab.waktu_persetujuan_koordinator,
         ),
         manager_approval_details: approvalDetails(
-            input.rab.pemberi_persetujuan_manager,
+            input.rab.nama_persetujuan_manager || input.rab.pemberi_persetujuan_manager,
             input.rab.waktu_persetujuan_manager,
         ),
     });
@@ -353,6 +353,7 @@ export const generateSphPdf = async (
             : formatDateIndonesia(input.rab.created_at),
         nama_pt: input.rab.nama_pt || "PT. ONTOSENO BAYUAJI",
         nama_direktur: input.rab.nama_lengkap_persetujuan_direktur
+            || input.rab.nama_persetujuan_direktur
             || input.rab.pemberi_persetujuan_direktur
             || "__________________",
         direktur_approval_time: formatApprovalDateTimeIndonesia(input.rab.waktu_persetujuan_direktur),
