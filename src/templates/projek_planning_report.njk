@@ -254,13 +254,13 @@
       <td class="label">Tipe Bangunan</td>
       <td class="value">: {{ 'Ruko (' + projek.jumlah_lantai + ' Lantai)' if projek.is_ruko else 'Non-Ruko' }}</td>
       <td class="label">Kategori Toko</td>
-      <td class="value">: {{ 'B2B' if projek.is_dark_store else 'Reguler' }}</td>
+      <td class="value">: {{ '-' if 'DARK STORE' in (projek.jenis_pengajuan or '') else ('B2B' if projek.is_dark_store else 'Reguler') }}</td>
     </tr>
     <tr>
       <td class="label">Head to Head</td>
-      <td class="value">: {{ 'Tidak' if 'DARK STORE' in (projek.jenis_pengajuan or '') else ('Ya' if projek.is_head_to_head else 'Tidak') }}</td>
+      <td class="value">: {{ '-' if 'DARK STORE' in (projek.jenis_pengajuan or '') else ('Ya' if projek.is_head_to_head else 'Tidak') }}</td>
       <td class="label">Seating Area</td>
-      <td class="value">: {{ 'Tidak' if 'DARK STORE' in (projek.jenis_pengajuan or '') else ('Ya' if projek.is_seating_area else 'Tidak') }}</td>
+      <td class="value">: {{ '-' if 'DARK STORE' in (projek.jenis_pengajuan or '') else ('Ya' if projek.is_seating_area else 'Tidak') }}</td>
     </tr>
     <tr>
       <td class="label">Google Maps</td>
