@@ -33,26 +33,63 @@
     }
 
     .header {
-      margin-bottom: 12px;
-      border-bottom: 2px solid #0f172a;
-      padding-bottom: 8px;
+      margin-bottom: 14px;
     }
 
-    .header-row {
+    .topbar {
+      background: #d21f1f;
+      border-radius: 6px;
+      padding: 10px 14px;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 12px;
+      gap: 14px;
     }
 
-    .header-logo {
-      height: 42px;
+    .topbar-divider {
+      width: 1px;
+      height: 28px;
+      background: rgba(255, 255, 255, 0.6);
+    }
+
+    .topbar-left,
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .topbar-right {
+      margin-left: 6px;
+      flex: 1;
+    }
+
+    .brand-logo {
+      height: 28px;
       width: auto;
     }
 
+    .sparta-logo {
+      height: 28px;
+      width: auto;
+    }
+
+    .sparta-text {
+      color: #ffffff;
+      font-weight: 700;
+      letter-spacing: 1px;
+      line-height: 1;
+    }
+
+    .sparta-subtext {
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 10px;
+      letter-spacing: 0.5px;
+      margin-top: 2px;
+    }
+
     .header-text {
-      flex: 1;
       text-align: center;
+      margin-top: 12px;
     }
 
     .title {
@@ -67,6 +104,13 @@
       margin: 4px 0 0;
       color: #475569;
       font-size: 12px;
+    }
+
+    .title-rule {
+      height: 2px;
+      background: #0f172a;
+      margin: 8px auto 0;
+      width: 100%;
     }
 
     .meta {
@@ -144,17 +188,27 @@
 
   <div class="content">
     <div class="header">
-      <div class="header-row">
-        {% if header_logo_path %}
-        <img src="{{ header_logo_path }}" class="header-logo" alt="logo" />
-        {% else %}
-        <div style="width: 42px"></div>
-        {% endif %}
-        <div class="header-text">
-          <h1 class="title">Dokumentasi Bangunan</h1>
-          <div class="subtitle">Generated: {{ generated_at }}</div>
+      <div class="topbar">
+        <div class="topbar-left">
+          {% if alfamart_logo_path %}
+          <img src="{{ alfamart_logo_path }}" class="brand-logo" alt="Alfamart" />
+          {% endif %}
         </div>
-        <div style="width: 42px"></div>
+        <div class="topbar-divider"></div>
+        <div class="topbar-right">
+          {% if building_logo_path %}
+          <img src="{{ building_logo_path }}" class="sparta-logo" alt="Sparta" />
+          {% endif %}
+          <div>
+            <div class="sparta-text">SPARTA</div>
+            <div class="sparta-subtext">Building</div>
+          </div>
+        </div>
+      </div>
+      <div class="header-text">
+        <h1 class="title">Dokumentasi Bangunan</h1>
+        <div class="subtitle">Generated: {{ generated_at }}</div>
+        <div class="title-rule"></div>
       </div>
     </div>
 
