@@ -1,5 +1,43 @@
 import { z } from "zod";
 
+const fasilitasItemSchema = z.object({
+    jenis_fasilitas: z.string(),
+    nama_fasilitas_lainnya: z.string().nullable().optional(),
+    is_tersedia: z.coerce.boolean().default(false),
+    keterangan: z.string().nullable().optional()
+});
+
+const validateProjectPlanningBusinessRules = (val: {
+    jenis_pengajuan: string;
+    fasilitas?: z.infer<typeof fasilitasItemSchema>[];
+}, ctx: z.RefinementCtx) => {
+    const jenis = val.jenis_pengajuan
+        .split(",")
+        .map((item) => item.trim().toUpperCase())
+        .filter(Boolean);
+
+    if (jenis.includes("DARK STORE") && jenis.length > 1) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Dark Store tidak bisa digabung dengan jenis pengajuan lain",
+            path: ["jenis_pengajuan"],
+        });
+    }
+
+    (val.fasilitas ?? []).forEach((fac, index) => {
+        const selected = fac.jenis_fasilitas === "LAINNYA"
+            ? !!fac.nama_fasilitas_lainnya?.trim()
+            : fac.is_tersedia;
+        if (selected && !fac.keterangan?.trim()) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Keterangan fasilitas wajib diisi jika fasilitas dipilih",
+                path: ["fasilitas", index, "keterangan"],
+            });
+        }
+    });
+};
+
 // ============================================================
 // SUBMIT FPD (oleh Coordinator/Cabang) — record baru
 // ============================================================
@@ -30,12 +68,7 @@ export const submitProjekPlanningSchema = z.object({
     jenis_pengajuan_lainnya: z.string().optional(),
 
     // ── Fasilitas Yang Disediakan ────────────────────────────
-    fasilitas: z.array(z.object({
-        jenis_fasilitas: z.string(),
-        nama_fasilitas_lainnya: z.string().nullable().optional(),
-        is_tersedia: z.coerce.boolean().default(false),
-        keterangan: z.string().nullable().optional()
-    })).optional().default([]),
+    fasilitas: z.array(fasilitasItemSchema).optional().default([]),
 
     // ── Ketentuan dari Pengelola/Landlord/Pihak Ketiga ───────
     ketentuan: z.array(z.string()).optional().default([]),
@@ -64,7 +97,7 @@ export const submitProjekPlanningSchema = z.object({
 
     // ── Tipe Bean Spot ───────────────────────────────────────
     beanspot_tipe: z.string().optional().or(z.literal("")),
-});
+}).superRefine(validateProjectPlanningBusinessRules);
 
 export type SubmitProjekPlanningInput = z.infer<typeof submitProjekPlanningSchema>;
 
@@ -94,12 +127,7 @@ export const resubmitProjekPlanningSchema = z.object({
     jenis_pengajuan_lainnya: z.string().optional(),
 
     // ── Fasilitas Yang Disediakan ────────────────────────────
-    fasilitas: z.array(z.object({
-        jenis_fasilitas: z.string(),
-        nama_fasilitas_lainnya: z.string().nullable().optional(),
-        is_tersedia: z.coerce.boolean().default(false),
-        keterangan: z.string().nullable().optional()
-    })).optional().default([]),
+    fasilitas: z.array(fasilitasItemSchema).optional().default([]),
 
     // ── Ketentuan dari Pengelola/Landlord/Pihak Ketiga ───────
     ketentuan: z.array(z.string()).optional().default([]),
@@ -128,7 +156,7 @@ export const resubmitProjekPlanningSchema = z.object({
 
     // ── Tipe Bean Spot ───────────────────────────────────────
     beanspot_tipe: z.string().optional().or(z.literal("")),
-});
+}).superRefine(validateProjectPlanningBusinessRules);
 
 export type ResubmitProjekPlanningInput = z.infer<typeof resubmitProjekPlanningSchema>;
 

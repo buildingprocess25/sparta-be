@@ -3,7 +3,7 @@ import { PP_STATUS, PP_ROLE, PP_AKSI, PP_STATUS_LABEL, type PpStatus } from "./p
 import { projekPlanningRepository } from "./project-planning.repository";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
-import { buildProjekPlanningPdfBuffer, extractGdriveFileId } from "./project-planning.pdf";
+import { buildProjekPlanningPdfBuffer } from "./project-planning.pdf";
 import { compressImage } from "../../common/image-compressor";
 
 const PROJECT_PLANNING_DRIVE_FOLDER_ID = env.PROJECT_PLANNING_DRIVE_FOLDER_ID;
@@ -61,6 +61,13 @@ function normalizeBeanspotTipe(value: unknown): string | null {
 
 function normalizeCabang(value: unknown): string {
     return normalizeText(value).toUpperCase();
+}
+
+function isDarkStoreDesign(value: unknown): boolean {
+    return normalizeText(value)
+        .split(",")
+        .map((item) => item.trim().toUpperCase())
+        .includes("DARK STORE");
 }
 
 function shouldSkipBmApproval(cabang: unknown): boolean {
@@ -128,7 +135,7 @@ function buildRevisionSummary(
     addIfChanged("Jumlah lantai", projek.jumlah_lantai, payload.jumlah_lantai);
     addBoolIfChanged("Head to head", projek.is_head_to_head, payload.is_head_to_head);
     addBoolIfChanged("Seating area", projek.is_seating_area, payload.is_seating_area);
-    addBoolIfChanged("Dark store", projek.is_dark_store, payload.is_dark_store);
+    addBoolIfChanged("Kategori toko B2B", projek.is_dark_store, payload.is_dark_store);
     addIfChanged("Tipe Bean Spot", normalizeBeanspotTipe(projek.beanspot_tipe), normalizeBeanspotTipe(payload.beanspot_tipe));
 
     if (normalizeArrayForCompare(projek.ketentuan?.map((k: any) => k.isi_ketentuan) ?? []) !== normalizeArrayForCompare(payload.ketentuan ?? [])) changed.push("Ketentuan");
@@ -237,14 +244,18 @@ export const projekPlanningService = {
                 }
             } catch (e) {
                 console.error("Gagal upload file FPD/RAB/Foto ke Drive:", e);
+                throw new AppError("Gagal upload file FPD/RAB/Foto ke Drive", 502);
             }
         }
 
         const initialMeta = getInitialSubmitMeta(payload.cabang);
+        const darkStoreDesign = isDarkStoreDesign(payload.jenis_pengajuan);
 
         // Buat record baru sesuai alur cabang
         const created = await projekPlanningRepository.create({
             ...payload,
+            is_head_to_head: darkStoreDesign ? false : payload.is_head_to_head,
+            is_seating_area: darkStoreDesign ? false : payload.is_seating_area,
             id_toko: payload.id_toko ?? 0,
             nomor_ulok: nomorUlok,
             nama_toko: payload.nama_toko || payload.nama_lokasi || null,
@@ -348,11 +359,13 @@ export const projekPlanningService = {
                 }
             } catch (e) {
                 console.error("Gagal upload file FPD/RAB/Foto ke Drive:", e);
+                throw new AppError("Gagal upload file FPD/RAB/Foto ke Drive", 502);
             }
         }
 
         // Update record DRAFT → WAITING_BM_APPROVAL
         const initialMeta = getInitialSubmitMeta(payload.cabang || projek.cabang);
+        const darkStoreDesign = isDarkStoreDesign(payload.jenis_pengajuan);
         const revisionSummary = buildRevisionSummary(projek, payload, {
             link_fpd: fpdLink ?? projek.link_fpd ?? null,
             link_gambar_kerja: gambarKerjaMe ?? projek.link_gambar_kerja ?? null,
@@ -363,6 +376,8 @@ export const projekPlanningService = {
 
         const updated = await projekPlanningRepository.resubmitDraft(id, {
             ...payload,
+            is_head_to_head: darkStoreDesign ? false : payload.is_head_to_head,
+            is_seating_area: darkStoreDesign ? false : payload.is_seating_area,
             nama_toko: payload.nama_toko || payload.nama_lokasi || projek.nama_toko || null,
             kode_toko: payload.kode_toko || projek.kode_toko || null,
             cabang: payload.cabang || projek.cabang || null,
@@ -425,15 +440,6 @@ export const projekPlanningService = {
         const item = await projekPlanningRepository.findById(projekPlanningId);
         if (!item) {
             throw new AppError("Data Project Planning tidak ditemukan", 404);
-        }
-
-        const existingFileId = extractGdriveFileId(item.projek.link_pdf ?? "");
-        const drive = GoogleProvider.instance.spartaDrive;
-        if (existingFileId && drive) {
-            const existingBuffer = await GoogleProvider.instance.getFileBufferById(drive, existingFileId);
-            if (existingBuffer?.length) {
-                return { buffer: existingBuffer, link_pdf: item.projek.link_pdf! };
-            }
         }
 
         const buffer = await buildProjekPlanningPdfBuffer(item.projek);
@@ -587,6 +593,7 @@ export const projekPlanningService = {
                 if (uploaded.webViewLink) link3d = uploaded.webViewLink;
             } catch (e) {
                 console.error("Gagal upload 3D ke Drive:", e);
+                throw new AppError("Gagal upload Desain 3D ke Drive", 502);
             }
         }
 
@@ -667,6 +674,7 @@ export const projekPlanningService = {
                 }
             } catch (e) {
                 console.error("Gagal upload RAB/Gambar ke Drive:", e);
+                throw new AppError("Gagal upload RAB/Gambar ke Drive", 502);
             }
         }
 

@@ -253,8 +253,18 @@
     <tr>
       <td class="label">Tipe Bangunan</td>
       <td class="value">: {{ 'Ruko (' + projek.jumlah_lantai + ' Lantai)' if projek.is_ruko else 'Non-Ruko' }}</td>
+      <td class="label">Kategori Toko</td>
+      <td class="value">: {{ 'B2B' if projek.is_dark_store else 'Reguler' }}</td>
+    </tr>
+    <tr>
+      <td class="label">Head to Head</td>
+      <td class="value">: {{ 'Tidak' if 'DARK STORE' in (projek.jenis_pengajuan or '') else ('Ya' if projek.is_head_to_head else 'Tidak') }}</td>
+      <td class="label">Seating Area</td>
+      <td class="value">: {{ 'Tidak' if 'DARK STORE' in (projek.jenis_pengajuan or '') else ('Ya' if projek.is_seating_area else 'Tidak') }}</td>
+    </tr>
+    <tr>
       <td class="label">Google Maps</td>
-      <td class="value">
+      <td class="full-value" colspan="3">
         : {% if projek.link_google_maps %}
           <a href="{{ projek.link_google_maps }}">Buka Lokasi</a>
         {% else %}
@@ -356,7 +366,7 @@
             <div style="min-height: 25px;"></div>
             <div class="approval-date">{{ pp2_waktu_formatted or '-' }}</div>
             <div style="min-height: 25px;"></div>
-            <div class="approval-name">{{ projek.pp2_approver_email.split('@')[0] | upper }}</div>
+            <div class="approval-name">{{ pp_specialist_approver_email.split('@')[0] | upper }}</div>
           {% else %}
             <div style="min-height: 80px;"></div>
           {% endif %}

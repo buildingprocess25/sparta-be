@@ -150,10 +150,12 @@ export const buildProjekPlanningPdfBuffer = async (
         "WAITING_PP_MANAGER_APPROVAL",
         "COMPLETED",
     ].includes(status) && !!projek.bm_approver_email;
+    const ppSpecialistApproverEmail = projek.pp2_approver_email || projek.pp1_approver_email;
+    const ppSpecialistApprovalTime = projek.pp2_waktu_persetujuan || projek.pp1_waktu_persetujuan;
     const hasPpSpecialistSignature = [
         "WAITING_PP_MANAGER_APPROVAL",
         "COMPLETED",
-    ].includes(status) && !!projek.pp2_approver_email;
+    ].includes(status) && !!ppSpecialistApproverEmail;
     const hasPpManagerSignature = status === "COMPLETED" && !!projek.pp_manager_approver_email;
 
     // Enrich foto_items: download dari GDrive sebagai base64 dan tambahkan label
@@ -174,8 +176,9 @@ export const buildProjekPlanningPdfBuffer = async (
         has_bm_signature: hasBmSignature,
         has_pp_specialist_signature: hasPpSpecialistSignature,
         has_pp_manager_signature: hasPpManagerSignature,
+        pp_specialist_approver_email: ppSpecialistApproverEmail,
         bm_waktu_formatted: formatDateIndonesia(projek.bm_waktu_persetujuan),
-        pp2_waktu_formatted: formatDateIndonesia(projek.pp2_waktu_persetujuan),
+        pp2_waktu_formatted: formatDateIndonesia(ppSpecialistApprovalTime),
         pp_manager_waktu_formatted: formatDateIndonesia(projek.pp_manager_waktu_persetujuan),
         estimasi_biaya_formatted: formatCurrency(projek.estimasi_biaya),
         generated_at: formatDateIndonesia(new Date().toISOString())
