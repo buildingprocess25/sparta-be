@@ -211,7 +211,7 @@ const isBatamBranch = (cabang?: string | null): boolean => {
 
 const isBogorBranch = (cabang?: string | null): boolean => {
     const normalizedCabang = String(cabang ?? "").trim().toUpperCase();
-    return normalizedCabang === "BOGOR";
+    return normalizedCabang === "BOGOR" || /\bBOGOR\b/.test(normalizedCabang);
 };
 
 const computeRecapTotals = (nonSboTotal: number, cabang?: string | null) => {

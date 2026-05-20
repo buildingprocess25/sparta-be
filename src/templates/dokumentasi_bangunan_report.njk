@@ -96,13 +96,20 @@
       padding-bottom: 4px;
     }
 
+    .photo-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
     .photo-item {
-      margin-top: 10px;
+      width: calc(50% - 6px);
       border: 1px solid #cbd5f5;
       border-radius: 10px;
-      padding: 10px;
+      padding: 8px;
       background: #f8fafc;
       page-break-inside: avoid;
+      box-sizing: border-box;
     }
 
     .photo-item-title {
@@ -115,15 +122,11 @@
 
     .photo-item img {
       width: 100%;
-      max-height: 520px;
+      height: 220px;
       object-fit: contain;
       display: block;
       background: #ffffff;
       border-radius: 8px;
-    }
-
-    .page-break {
-      page-break-after: always;
     }
 
     .footer {
@@ -206,17 +209,20 @@
       <div>Tidak ada foto dokumentasi.</div>
     {% endif %}
 
-    {% for photo in photo_items %}
-    <div class="photo-item">
-      <div class="photo-item-title">
-        {{ photo.sudut_foto or ('Foto ' ~ photo.index) }}
+    <div class="photo-grid">
+      {% for photo in photo_items %}
+      <div class="photo-item">
+        <div class="photo-item-title">
+          {{ photo.sudut_foto or ('Foto ' ~ photo.index) }}
+        </div>
+        {% if photo.base64 %}
+          <img src="{{ photo.base64 }}" alt="foto" />
+        {% else %}
+          <img src="{{ photo.link_foto }}" alt="foto" />
+        {% endif %}
       </div>
-      <img src="{{ photo.link_foto }}" alt="foto" />
+      {% endfor %}
     </div>
-    {% if not loop.last %}
-    <div class="page-break"></div>
-    {% endif %}
-    {% endfor %}
 
     <div class="footer">Dokumentasi Bangunan - {{ dokumentasi.kode_toko or '-' }}</div>
   </div>
