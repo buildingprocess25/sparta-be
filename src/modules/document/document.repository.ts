@@ -37,6 +37,14 @@ export type PenyimpananDokumenMigrationItem = {
     source_last_edit: Date | null;
 };
 
+export type PenyimpananDokumenArchiveStoreRow = {
+    kode_toko: string | null;
+    nama_toko: string | null;
+    cabang: string | null;
+    jumlah_dokumen: number;
+    last_created_at: string | null;
+};
+
 export type TokoRow = {
     id: number;
     nama_toko: string | null;
@@ -152,6 +160,41 @@ export const penyimpananDokumenRepository = {
             ORDER BY created_at DESC, id DESC
             `,
             values
+        );
+
+        return result.rows;
+    },
+
+    async listArchiveStores(): Promise<PenyimpananDokumenArchiveStoreRow[]> {
+        const result = await pool.query<PenyimpananDokumenArchiveStoreRow>(
+            `
+            SELECT
+                pd.kode_toko,
+                pd.nama_toko,
+                pd.cabang,
+                COUNT(*)::int AS jumlah_dokumen,
+                MAX(pd.created_at)::text AS last_created_at
+            FROM penyimpanan_dokumen pd
+            WHERE pd.id_toko IS NULL
+              AND (pd.kode_toko IS NOT NULL OR pd.nama_toko IS NOT NULL)
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM toko t
+                  WHERE (
+                      pd.kode_toko IS NOT NULL
+                      AND t.kode_toko IS NOT NULL
+                      AND LOWER(t.kode_toko) = LOWER(pd.kode_toko)
+                  )
+                  OR (
+                      pd.nama_toko IS NOT NULL
+                      AND pd.cabang IS NOT NULL
+                      AND LOWER(t.nama_toko) = LOWER(pd.nama_toko)
+                      AND LOWER(t.cabang) = LOWER(pd.cabang)
+                  )
+              )
+            GROUP BY pd.kode_toko, pd.nama_toko, pd.cabang
+            ORDER BY jumlah_dokumen DESC, pd.nama_toko ASC
+            `
         );
 
         return result.rows;

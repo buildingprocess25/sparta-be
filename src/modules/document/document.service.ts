@@ -406,6 +406,10 @@ export const penyimpananDokumenService = {
         return penyimpananDokumenRepository.list(query);
     },
 
+    async listArchiveStores() {
+        return penyimpananDokumenRepository.listArchiveStores();
+    },
+
     async previewMigration(actorRole: string, files: UploadedDokumenFile[]) {
         ensureSuperHuman(actorRole);
         const parsed = parseMigrationWorkbook(files[0]);

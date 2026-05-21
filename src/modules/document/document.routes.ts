@@ -6,6 +6,7 @@ import {
     deletePenyimpananDokumen,
     getPenyimpananDokumenDetail,
     listPenyimpananDokumen,
+    listPenyimpananDokumenArchiveStores,
     previewPenyimpananDokumenMigration,
     updatePenyimpananDokumen
 } from "./document.controller";
@@ -26,6 +27,11 @@ documentRouter.post(
 );
 
 documentRouter.get("/penyimpanan-dokumen", listPenyimpananDokumen);
+
+documentRouter.get(
+    "/penyimpanan-dokumen/archive-stores",
+    listPenyimpananDokumenArchiveStores
+);
 
 documentRouter.post(
     "/penyimpanan-dokumen/migration-preview",

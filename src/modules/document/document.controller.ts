@@ -37,6 +37,15 @@ export const listPenyimpananDokumen = asyncHandler(async (req: Request, res: Res
     });
 });
 
+export const listPenyimpananDokumenArchiveStores = asyncHandler(async (_req: Request, res: Response) => {
+    const data = await penyimpananDokumenService.listArchiveStores();
+
+    res.json({
+        status: "success",
+        data
+    });
+});
+
 export const previewPenyimpananDokumenMigration = asyncHandler(async (req: Request, res: Response) => {
     const payload = penyimpananDokumenMigrationSchema.parse(req.body);
     const files = getUploadedFiles(req);
