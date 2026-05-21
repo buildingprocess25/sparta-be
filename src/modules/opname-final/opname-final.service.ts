@@ -3,6 +3,7 @@ import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
 import type { ApprovalActionInput } from "../approval/approval.schema";
 import { instruksiLapanganRepository } from "../instruksi-lapangan/instruksi-lapangan.repository";
+import { rabRepository } from "../rab/rab.repository";
 import { buildOpnameFinalPdfBuffer } from "./opname-final.pdf";
 import { OPNAME_FINAL_STATUS, type OpnameFinalStatus } from "./opname-final.constants";
 import { opnameFinalRepository } from "./opname-final.repository";
@@ -129,6 +130,16 @@ const loadInstruksiLapanganItems = async (idToko: number) => {
     return instruksiLapanganRepository.getItems(latestInstruksi.id);
 };
 
+const loadRabData = async (idToko: number) => {
+    const latestRab = await rabRepository.findLatestByTokoId(idToko);
+    if (!latestRab) {
+        return { header: null, items: [] };
+    }
+
+    const items = await rabRepository.listItemsByRabId(latestRab.id);
+    return { header: latestRab, items };
+};
+
 const regeneratePdfAndUpload = async (opnameFinalId: string): Promise<string> => {
     const detail = await opnameFinalRepository.findById(opnameFinalId);
     if (!detail) {
@@ -136,7 +147,8 @@ const regeneratePdfAndUpload = async (opnameFinalId: string): Promise<string> =>
     }
 
     const instruksiLapanganItems = await loadInstruksiLapanganItems(detail.toko.id);
-    const pdfBuffer = await buildOpnameFinalPdfBuffer(detail, instruksiLapanganItems);
+    const rabData = await loadRabData(detail.toko.id);
+    const pdfBuffer = await buildOpnameFinalPdfBuffer(detail, instruksiLapanganItems, rabData);
     const proyek = sanitizeFilenamePart(detail.toko.proyek ?? undefined, "PROYEK");
     const nomorUlok = sanitizeFilenamePart(detail.toko.nomor_ulok ?? undefined, "ULOK");
     const filename = `OPNAME_FINAL_${proyek}_${nomorUlok}_${detail.opname_final.id}.pdf`;
@@ -192,7 +204,8 @@ export const opnameFinalService = {
         }
 
         const instruksiLapanganItems = await loadInstruksiLapanganItems(detail.toko.id);
-        const pdfBuffer = await buildOpnameFinalPdfBuffer(detail, instruksiLapanganItems);
+        const rabData = await loadRabData(detail.toko.id);
+        const pdfBuffer = await buildOpnameFinalPdfBuffer(detail, instruksiLapanganItems, rabData);
         const proyek = sanitizeFilenamePart(detail.toko.proyek ?? undefined, "PROYEK");
         const nomorUlok = sanitizeFilenamePart(detail.toko.nomor_ulok ?? undefined, "ULOK");
 

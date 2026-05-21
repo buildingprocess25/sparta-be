@@ -376,6 +376,15 @@ export const opnameFinalRepository = {
                 return { item_count: 0 };
             }
 
+            const existingPhotos = await client.query<{ id_rab_item: number; foto: string | null }>(
+                `SELECT id_rab_item, foto FROM opname_item WHERE id_opname_final = $1`,
+                [opnameFinalId]
+            );
+            const photoByRabItem = new Map<number, string | null>();
+            for (const row of existingPhotos.rows) {
+                photoByRabItem.set(row.id_rab_item, row.foto);
+            }
+
             await client.query(
                 `DELETE FROM opname_item WHERE id_opname_final = $1`,
                 [opnameFinalId]
@@ -396,7 +405,7 @@ export const opnameFinalRepository = {
                     item.desain ?? null,
                     item.kualitas ?? null,
                     item.spesifikasi ?? null,
-                    item.foto ?? null,
+                    item.foto ?? photoByRabItem.get(item.id_rab_item) ?? null,
                     item.catatan ?? null
                 );
 
