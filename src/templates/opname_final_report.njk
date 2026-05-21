@@ -216,6 +216,8 @@
     {% endif %}
   </div>
 
+  <p class="section-title">Laporan Opname Final</p>
+
   <table class="meta">
     <tr>
       <td class="label">Tanggal Dokumen</td>
@@ -501,6 +503,44 @@
     </tr>
   </table>
   {% endif %}
+
+  <div class="page-break"></div>
+  <p class="section-title">Tanda Tangan</p>
+
+  <div class="signatures">
+    <div class="signature-box">
+      <p>Dibuat</p>
+      <div class="signature-content">
+        {{ creator_details | safe }}
+        <div class="signature-line"></div>
+      </div>
+      <p>KONTRAKTOR</p>
+    </div>
+    <div class="signature-box">
+      <p>Mengetahui</p>
+      <div class="signature-content">
+        {{ coordinator_approval_details | safe }}
+        <div class="signature-line"></div>
+      </div>
+      <p>KOORDINATOR</p>
+    </div>
+    <div class="signature-box">
+      <p>Menyetujui</p>
+      <div class="signature-content">
+        {{ manager_approval_details | safe }}
+        <div class="signature-line"></div>
+      </div>
+      <p>MANAGER</p>
+    </div>
+    <div class="signature-box">
+      <p>Menyetujui</p>
+      <div class="signature-content">
+        {{ director_approval_details | safe }}
+        <div class="signature-line"></div>
+      </div>
+      <p>DIREKTUR</p>
+    </div>
+  </div>
 
   <div class="footer">
     Digenerate otomatis oleh sistem SPARTA pada {{ generated_at }}
