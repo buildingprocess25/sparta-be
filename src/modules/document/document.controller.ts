@@ -37,8 +37,8 @@ export const listPenyimpananDokumen = asyncHandler(async (req: Request, res: Res
     });
 });
 
-export const listPenyimpananDokumenArchiveStores = asyncHandler(async (_req: Request, res: Response) => {
-    const data = await penyimpananDokumenService.listArchiveStores();
+export const listPenyimpananDokumenArchiveStores = asyncHandler(async (req: Request, res: Response) => {
+    const data = await penyimpananDokumenService.listArchiveStores(String(req.query.search ?? ""));
 
     res.json({
         status: "success",

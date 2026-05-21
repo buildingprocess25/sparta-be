@@ -406,8 +406,8 @@ export const penyimpananDokumenService = {
         return penyimpananDokumenRepository.list(query);
     },
 
-    async listArchiveStores() {
-        return penyimpananDokumenRepository.listArchiveStores();
+    async listArchiveStores(search?: string) {
+        return penyimpananDokumenRepository.listArchiveStores(search);
     },
 
     async previewMigration(actorRole: string, files: UploadedDokumenFile[]) {
