@@ -15,7 +15,8 @@ Mengirim email notifikasi berdasarkan cabang dan flag template.
 ```json
 {
   "cabang": "BATAM",
-  "flag": "send-notification-spk"
+  "flag": "send-notification-spk",
+  "id_toko": 123
 }
 ```
 
@@ -23,13 +24,21 @@ Flag yang tersedia:
 
 - `send-notification-spk` -> target: Branch Manager (cc: Branch Building & Maintenance Manager)
 - `notification-spk-has-approve` -> target: semua user KONTRAKTOR pada cabang terkait
+- `notification-spk-has-reject` -> target: semua user KONTRAKTOR pada cabang terkait
+
+Catatan untuk `notification-spk-has-approve` dan `notification-spk-has-reject`:
+
+- Jika `id_toko` dikirim, email tujuan diambil dari `rab.email_pembuat` berdasarkan RAB terbaru untuk `id_toko`.
+- CC akan ditambahkan dari `rab.pemberi_persetujuan_koordinator` dan `rab.pemberi_persetujuan_manager` (jika ada).
+- Jika `id_toko` tidak dikirim, perilaku tetap seperti biasa (target kontraktor pada cabang terkait).
 
 ### Validasi
 
-| Field  | Aturan              |
-| ------ | ------------------- |
-| cabang | wajib, string min 1 |
-| flag   | wajib, string min 1 |
+| Field   | Aturan                    |
+| ------- | ------------------------- |
+| cabang  | wajib, string min 1       |
+| flag    | wajib, string min 1       |
+| id_toko | opsional, integer positif |
 
 ### Response - 200 OK
 
@@ -42,7 +51,8 @@ Flag yang tersedia:
     "cabang": "BATAM",
     "flag": "send-notification-spk",
     "to": "manager.batam@alfamart.co.id",
-    "subject": "Notifikasi SPK"
+    "cc": "building.manager@alfamart.co.id",
+    "subject": "SPARTA Building - Notifikasi Approval SPK"
   }
 }
 ```
