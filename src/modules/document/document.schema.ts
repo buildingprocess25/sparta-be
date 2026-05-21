@@ -18,9 +18,11 @@ export const penyimpananDokumenCreateSchema = z.object({
 });
 
 export const penyimpananDokumenArchiveStoreCreateSchema = z.object({
+    nomor_ulok: z.string().trim().min(1).optional(),
     kode_toko: z.string().trim().min(1),
     nama_toko: z.string().trim().min(1),
     cabang: z.string().trim().min(1),
+    proyek: z.string().trim().min(1).optional(),
     folder_link: z.string().trim().optional()
 });
 

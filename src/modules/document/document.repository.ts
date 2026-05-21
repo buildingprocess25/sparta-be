@@ -48,9 +48,11 @@ export type PenyimpananDokumenMigrationStoreItem = {
 };
 
 export type PenyimpananDokumenArchiveStoreRow = {
+    nomor_ulok: string | null;
     kode_toko: string | null;
     nama_toko: string | null;
     cabang: string | null;
+    proyek: string | null;
     jumlah_dokumen: number;
     last_created_at: string | null;
 };
@@ -137,15 +139,17 @@ export const penyimpananDokumenRepository = {
         await pool.query(
             `
             INSERT INTO penyimpanan_dokumen_toko (
-                kode_toko, nama_toko, cabang, folder_link, migrated_at
+                nomor_ulok, kode_toko, nama_toko, cabang, proyek, folder_link, migrated_at
             )
-            VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+            VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
             ON CONFLICT DO NOTHING
             `,
             [
+                input.nomor_ulok || input.kode_toko,
                 input.kode_toko,
                 input.nama_toko,
                 input.cabang,
+                input.proyek || "Penyimpanan Dokumen",
                 input.folder_link || null
             ]
         );
@@ -153,9 +157,11 @@ export const penyimpananDokumenRepository = {
         const result = await pool.query<PenyimpananDokumenArchiveStoreRow>(
             `
             SELECT
+                s.nomor_ulok,
                 s.kode_toko,
                 s.nama_toko,
                 s.cabang,
+                s.proyek,
                 COUNT(pd.id)::int AS jumlah_dokumen,
                 MAX(COALESCE(pd.created_at, s.created_at))::text AS last_created_at
             FROM penyimpanan_dokumen_toko s
@@ -166,7 +172,7 @@ export const penyimpananDokumenRepository = {
             WHERE LOWER(COALESCE(s.kode_toko, '')) = LOWER($1)
               AND LOWER(COALESCE(s.nama_toko, '')) = LOWER($2)
               AND LOWER(COALESCE(s.cabang, '')) = LOWER($3)
-            GROUP BY s.kode_toko, s.nama_toko, s.cabang
+            GROUP BY s.nomor_ulok, s.kode_toko, s.nama_toko, s.cabang, s.proyek
             `,
             [input.kode_toko, input.nama_toko, input.cabang]
         );
@@ -243,9 +249,11 @@ export const penyimpananDokumenRepository = {
         const result = await pool.query<PenyimpananDokumenArchiveStoreRow>(
             `
             SELECT
+                s.nomor_ulok,
                 s.kode_toko,
                 s.nama_toko,
                 s.cabang,
+                s.proyek,
                 COUNT(pd.id)::int AS jumlah_dokumen,
                 MAX(COALESCE(pd.created_at, s.created_at))::text AS last_created_at
             FROM penyimpanan_dokumen_toko s
@@ -254,7 +262,7 @@ export const penyimpananDokumenRepository = {
              AND LOWER(COALESCE(pd.nama_toko, '')) = LOWER(COALESCE(s.nama_toko, ''))
              AND LOWER(COALESCE(pd.cabang, '')) = LOWER(COALESCE(s.cabang, ''))
             WHERE ${conditions.join(" AND ")}
-            GROUP BY s.kode_toko, s.nama_toko, s.cabang
+            GROUP BY s.nomor_ulok, s.kode_toko, s.nama_toko, s.cabang, s.proyek
             ORDER BY s.nama_toko ASC, s.kode_toko ASC
             `,
             values
@@ -341,22 +349,24 @@ export const penyimpananDokumenRepository = {
             const chunk = items.slice(offset, offset + chunkSize);
             const values: Array<string | Date | null> = [];
             const placeholders = chunk.map((item, index) => {
-                const base = index * 6;
+                const base = index * 8;
                 values.push(
+                    item.kode_toko,
                     item.kode_toko,
                     item.nama_toko,
                     item.cabang,
+                    "Penyimpanan Dokumen",
                     item.folder_link,
                     item.source_timestamp,
                     item.source_last_edit
                 );
-                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, CURRENT_TIMESTAMP)`;
+                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, CURRENT_TIMESTAMP)`;
             });
 
             const result = await pool.query<{ id: number }>(
                 `
                 INSERT INTO penyimpanan_dokumen_toko (
-                    kode_toko, nama_toko, cabang, folder_link,
+                    nomor_ulok, kode_toko, nama_toko, cabang, proyek, folder_link,
                     source_timestamp, source_last_edit, migrated_at
                 )
                 VALUES ${placeholders.join(", ")}
