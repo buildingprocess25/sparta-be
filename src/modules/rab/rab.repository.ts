@@ -864,7 +864,10 @@ export const rabRepository = {
              SET status = $1,
                  alasan_penolakan = $2,
                  waktu_penolakan = timezone('Asia/Jakarta', now()),
-                 ditolak_oleh = $3
+                 ditolak_oleh = $3,
+                 nama_persetujuan_direktur = NULL,
+                 nama_persetujuan_koordinator = NULL,
+                 nama_persetujuan_manager = NULL
              WHERE id = $4`,
             [newStatus, alasanPenolakan, ditolakOleh, rabId]
         );
@@ -921,7 +924,10 @@ export const rabRepository = {
                  SET status = $1,
                      alasan_penolakan = $2,
                      waktu_penolakan = timezone('Asia/Jakarta', now()),
-                     ditolak_oleh = $3
+                     ditolak_oleh = $3,
+                     nama_persetujuan_direktur = NULL,
+                     nama_persetujuan_koordinator = NULL,
+                     nama_persetujuan_manager = NULL
                  WHERE id = $4`,
                 [newStatus, alasanPenolakan, ditolakOleh, rabId]
             );
@@ -1129,7 +1135,10 @@ export const rabRepository = {
                 `UPDATE rab
                  SET status = $1,
                      ditolak_oleh = $2,
-                     waktu_penolakan = timezone('Asia/Jakarta', now())
+                     waktu_penolakan = timezone('Asia/Jakarta', now()),
+                     nama_persetujuan_direktur = NULL,
+                     nama_persetujuan_koordinator = NULL,
+                     nama_persetujuan_manager = NULL
                  WHERE id = $3`,
                 [newStatus, ditolakOleh, rabId]
             );
