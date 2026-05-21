@@ -1,8 +1,10 @@
 import { AppError } from "../../common/app-error";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
+import * as XLSX from "xlsx";
 import {
     penyimpananDokumenRepository,
+    type PenyimpananDokumenMigrationItem,
     type PenyimpananDokumenRow,
     type TokoRow
 } from "./document.repository";
@@ -17,6 +19,18 @@ export type UploadedDokumenFile = Express.Multer.File;
 type DokumenItemFile = {
     file: UploadedDokumenFile;
     itemIndex: number;
+};
+
+type MigrationParseResult = {
+    totalRows: number;
+    rowsWithFiles: number;
+    emptyFileRows: number;
+    parsedDocuments: number;
+    unparsedRows: Array<{ rowNumber: number; kode_toko: string | null; reason: string }>;
+    categoryCounts: Record<string, number>;
+    sourceCategoryCounts: Record<string, number>;
+    sample: PenyimpananDokumenMigrationItem[];
+    items: PenyimpananDokumenMigrationItem[];
 };
 
 const MAX_UPLOAD_CONCURRENCY = 3;
@@ -86,6 +100,162 @@ const extractDriveFileId = (link?: string | null): string | null => {
     return null;
 };
 
+const extractDriveFolderId = (link?: string | null): string | null => {
+    if (!link) return null;
+    const folderId = /\/folders\/([^/?#]+)/.exec(link)?.[1];
+    if (folderId) return folderId;
+    return /[?&]id=([^&]+)/.exec(link)?.[1] ?? null;
+};
+
+const normalizeCell = (value: unknown): string => String(value ?? "").trim();
+
+const parseExcelDate = (value: unknown): Date | null => {
+    if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+    if (typeof value === "number" && Number.isFinite(value)) {
+        const parsed = XLSX.SSF.parse_date_code(value);
+        if (!parsed) return null;
+        return new Date(Date.UTC(parsed.y, parsed.m - 1, parsed.d, parsed.H, parsed.M, Math.floor(parsed.S)));
+    }
+
+    const text = normalizeCell(value);
+    if (!text) return null;
+    const normalized = text.replace(" ", "T");
+    const date = new Date(normalized);
+    return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const CATEGORY_ALIASES: Record<string, string> = {
+    fotoAsal: "fotoExisting",
+    fotoExisting: "fotoExisting",
+    fotoRenovasi: "fotoRenovasi",
+    me: "me",
+    sipil: "sipil",
+    sketsaAwal: "sketsaAwal",
+    spk: "spk",
+    rab: "rab",
+    pendukung: "pendukung",
+    instruksiLapangan: "instruksiLapangan",
+    pengawasan: "pengawasan",
+    aanwijzing: "aanwijzing",
+    kerjaTambahKurang: "kerjaTambahKurang"
+};
+
+const parseFileLinks = (fileLinks: string) => {
+    const categories = Object.keys(CATEGORY_ALIASES).sort((a, b) => b.length - a.length);
+    const escaped = categories.map((category) => category.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+    const regex = new RegExp(`(${escaped})\\|([\\s\\S]*?)\\|(https?:\\/\\/[\\s\\S]*?)(?=,\\s*(?:${escaped})\\||$)`, "g");
+    const items: Array<{ sourceCategory: string; kategori: string; nama: string; link: string }> = [];
+    let match: RegExpExecArray | null;
+
+    while ((match = regex.exec(fileLinks)) !== null) {
+        const sourceCategory = match[1];
+        const nama = normalizeCell(match[2]).replace(/\s+/g, " ");
+        const link = normalizeCell(match[3]).replace(/,$/, "");
+        if (!nama || !link) continue;
+        items.push({
+            sourceCategory,
+            kategori: CATEGORY_ALIASES[sourceCategory] ?? sourceCategory,
+            nama,
+            link
+        });
+    }
+
+    return items;
+};
+
+const parseMigrationWorkbook = (file: UploadedDokumenFile): MigrationParseResult => {
+    if (!file?.buffer?.length) {
+        throw new AppError("File Excel wajib diupload", 400);
+    }
+
+    const workbook = XLSX.read(file.buffer, { type: "buffer", cellDates: true });
+    const sheetName = workbook.SheetNames.find((name) => name.toLowerCase() === "penyimpanan_dokumen") ?? workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    if (!worksheet) {
+        throw new AppError("Sheet Excel tidak ditemukan", 400);
+    }
+
+    const rows = XLSX.utils.sheet_to_json<unknown[]>(worksheet, { header: 1, defval: "", raw: true });
+    const headers = (rows[0] ?? []).map((header) => normalizeCell(header).toLowerCase());
+    const indexOf = (name: string) => headers.indexOf(name);
+    const requiredColumns = ["kode_toko", "nama_toko", "cabang", "folder_link", "file_links"];
+    const missingColumns = requiredColumns.filter((column) => indexOf(column) === -1);
+    if (missingColumns.length > 0) {
+        throw new AppError(`Kolom Excel tidak lengkap: ${missingColumns.join(", ")}`, 400);
+    }
+
+    const indexes = {
+        kodeToko: indexOf("kode_toko"),
+        namaToko: indexOf("nama_toko"),
+        cabang: indexOf("cabang"),
+        folderLink: indexOf("folder_link"),
+        fileLinks: indexOf("file_links"),
+        timestamp: indexOf("timestamp"),
+        lastEdit: indexOf("last_edit")
+    };
+
+    const result: MigrationParseResult = {
+        totalRows: Math.max(rows.length - 1, 0),
+        rowsWithFiles: 0,
+        emptyFileRows: 0,
+        parsedDocuments: 0,
+        unparsedRows: [],
+        categoryCounts: {},
+        sourceCategoryCounts: {},
+        sample: [],
+        items: []
+    };
+
+    for (let i = 1; i < rows.length; i += 1) {
+        const row = rows[i] ?? [];
+        const fileLinks = normalizeCell(row[indexes.fileLinks]);
+        const kodeToko = normalizeCell(row[indexes.kodeToko]) || null;
+        const namaToko = normalizeCell(row[indexes.namaToko]) || null;
+        const cabang = normalizeCell(row[indexes.cabang]) || null;
+        const folderLink = normalizeCell(row[indexes.folderLink]) || null;
+
+        if (!fileLinks) {
+            result.emptyFileRows += 1;
+            continue;
+        }
+
+        result.rowsWithFiles += 1;
+        const parsedLinks = parseFileLinks(fileLinks);
+        if (parsedLinks.length === 0) {
+            result.unparsedRows.push({ rowNumber: i + 1, kode_toko: kodeToko, reason: "file_links tidak cocok format kategori|nama|link" });
+            continue;
+        }
+
+        for (const parsed of parsedLinks) {
+            const item: PenyimpananDokumenMigrationItem = {
+                kode_toko: kodeToko,
+                nama_toko: namaToko,
+                cabang,
+                kategori_dokumen: parsed.kategori,
+                nama_dokumen: parsed.nama,
+                drive_file_id: extractDriveFileId(parsed.link),
+                drive_folder_id: extractDriveFolderId(folderLink),
+                link_dokumen: parsed.link,
+                link_folder: folderLink,
+                source_timestamp: indexes.timestamp >= 0 ? parseExcelDate(row[indexes.timestamp]) : null,
+                source_last_edit: indexes.lastEdit >= 0 ? parseExcelDate(row[indexes.lastEdit]) : null
+            };
+            result.items.push(item);
+            result.parsedDocuments += 1;
+            result.categoryCounts[item.kategori_dokumen] = (result.categoryCounts[item.kategori_dokumen] ?? 0) + 1;
+            result.sourceCategoryCounts[parsed.sourceCategory] = (result.sourceCategoryCounts[parsed.sourceCategory] ?? 0) + 1;
+        }
+    }
+
+    result.sample = result.items.slice(0, 20);
+    return result;
+};
+
+const ensureSuperHuman = (role: string) => {
+    if (!role.toUpperCase().includes("BUILDING & MAINTENANCE SUPER HUMAN")) {
+        throw new AppError("Hanya Super Human yang dapat melakukan migrasi dokumen", 403);
+    }
+};
 
 const splitDokumenFiles = (files: UploadedDokumenFile[]) => {
     const itemFiles: DokumenItemFile[] = [];
@@ -191,6 +361,10 @@ const resolveFolderIdForUpdate = async (row: PenyimpananDokumenRow, folderName?:
         return { id: existingFolderId, link: row.link_folder ?? buildFolderLink(existingFolderId) };
     }
 
+    if (!row.id_toko) {
+        throw new AppError("Dokumen migrasi tanpa id toko tidak bisa diganti file langsung", 400);
+    }
+
     const toko = await penyimpananDokumenRepository.findTokoById(row.id_toko);
     const folderId = await resolveFolderId(toko, row.id_toko, folderName);
     return { id: folderId, link: buildFolderLink(folderId) };
@@ -230,6 +404,31 @@ export const penyimpananDokumenService = {
 
     async list(query: PenyimpananDokumenListQueryInput) {
         return penyimpananDokumenRepository.list(query);
+    },
+
+    async previewMigration(actorRole: string, files: UploadedDokumenFile[]) {
+        ensureSuperHuman(actorRole);
+        const parsed = parseMigrationWorkbook(files[0]);
+        const { items: _items, ...summary } = parsed;
+        return summary;
+    },
+
+    async commitMigration(actorRole: string, files: UploadedDokumenFile[]) {
+        ensureSuperHuman(actorRole);
+        const parsed = parseMigrationWorkbook(files[0]);
+        const result = await penyimpananDokumenRepository.insertMigratedDocuments(parsed.items);
+        return {
+            totalRows: parsed.totalRows,
+            rowsWithFiles: parsed.rowsWithFiles,
+            emptyFileRows: parsed.emptyFileRows,
+            parsedDocuments: parsed.parsedDocuments,
+            inserted: result.inserted,
+            skippedDuplicates: parsed.parsedDocuments - result.inserted,
+            unparsedRows: parsed.unparsedRows,
+            categoryCounts: parsed.categoryCounts,
+            sourceCategoryCounts: parsed.sourceCategoryCounts,
+            sample: parsed.sample
+        };
     },
 
     async getDetail(id: number): Promise<PenyimpananDokumenRow> {

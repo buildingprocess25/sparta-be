@@ -4,6 +4,7 @@ import {
     penyimpananDokumenCreateSchema,
     penyimpananDokumenIdParamSchema,
     penyimpananDokumenListQuerySchema,
+    penyimpananDokumenMigrationSchema,
     penyimpananDokumenUpdateSchema
 } from "./document.schema";
 import { penyimpananDokumenService, type UploadedDokumenFile } from "./document.service";
@@ -32,6 +33,30 @@ export const listPenyimpananDokumen = asyncHandler(async (req: Request, res: Res
 
     res.json({
         status: "success",
+        data
+    });
+});
+
+export const previewPenyimpananDokumenMigration = asyncHandler(async (req: Request, res: Response) => {
+    const payload = penyimpananDokumenMigrationSchema.parse(req.body);
+    const files = getUploadedFiles(req);
+    const data = await penyimpananDokumenService.previewMigration(payload.actor_role, files);
+
+    res.json({
+        status: "success",
+        message: "Preview migrasi berhasil dibuat",
+        data
+    });
+});
+
+export const commitPenyimpananDokumenMigration = asyncHandler(async (req: Request, res: Response) => {
+    const payload = penyimpananDokumenMigrationSchema.parse(req.body);
+    const files = getUploadedFiles(req);
+    const data = await penyimpananDokumenService.commitMigration(payload.actor_role, files);
+
+    res.json({
+        status: "success",
+        message: "Migrasi dokumen berhasil diproses",
         data
     });
 });

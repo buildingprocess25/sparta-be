@@ -12,7 +12,14 @@ export const penyimpananDokumenUpdateSchema = z.object({
 
 export const penyimpananDokumenListQuerySchema = z.object({
     id_toko: z.coerce.number().int().positive().optional(),
-    nama_dokumen: z.string().trim().min(1).optional()
+    nama_dokumen: z.string().trim().min(1).optional(),
+    kode_toko: z.string().trim().min(1).optional(),
+    nama_toko: z.string().trim().min(1).optional(),
+    cabang: z.string().trim().min(1).optional()
+});
+
+export const penyimpananDokumenMigrationSchema = z.object({
+    actor_role: z.string().trim().min(1)
 });
 
 export const penyimpananDokumenIdParamSchema = z.object({
