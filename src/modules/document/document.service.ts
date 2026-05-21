@@ -10,6 +10,7 @@ import {
     type TokoRow
 } from "./document.repository";
 import type {
+    PenyimpananDokumenArchiveStoreCreateInput,
     PenyimpananDokumenCreateInput,
     PenyimpananDokumenListQueryInput,
     PenyimpananDokumenUpdateInput
@@ -302,14 +303,19 @@ const splitDokumenFiles = (files: UploadedDokumenFile[]) => {
     return { itemFiles, bulkFiles };
 };
 
-const resolveFolderName = (toko: TokoRow | null, idToko: number, override?: string): string => {
+const resolveFolderName = (
+    toko: TokoRow | null,
+    input: Pick<PenyimpananDokumenCreateInput, "id_toko" | "kode_toko" | "nama_toko" | "cabang" | "folder_name">,
+    override?: string
+): string => {
     if (override && override.trim()) {
-        return sanitizeFilenamePart(override, `TOKO_${idToko}`);
+        return sanitizeFilenamePart(override, `TOKO_${input.id_toko ?? input.kode_toko ?? "DOKUMEN"}`);
     }
 
-    const namaToko = sanitizeFilenamePart(toko?.nama_toko ?? undefined, "TOKO");
-    const cabang = sanitizeFilenamePart(toko?.cabang ?? undefined, "CABANG");
-    return `${namaToko}_${cabang}_${idToko}`;
+    const namaToko = sanitizeFilenamePart(input.nama_toko ?? toko?.nama_toko ?? undefined, "TOKO");
+    const cabang = sanitizeFilenamePart(input.cabang ?? toko?.cabang ?? undefined, "CABANG");
+    const kode = sanitizeFilenamePart(input.kode_toko ?? toko?.kode_toko ?? input.id_toko?.toString(), "DOKUMEN");
+    return `${namaToko}_${cabang}_${kode}`;
 };
 
 const ensureDocDriveReady = () => {
@@ -321,9 +327,13 @@ const ensureDocDriveReady = () => {
     return { gp: GoogleProvider.instance, root };
 };
 
-const resolveFolderId = async (toko: TokoRow | null, idToko: number, folderName?: string): Promise<string> => {
+const resolveFolderId = async (
+    toko: TokoRow | null,
+    input: Pick<PenyimpananDokumenCreateInput, "id_toko" | "kode_toko" | "nama_toko" | "cabang" | "folder_name">,
+    folderName?: string
+): Promise<string> => {
     const { gp, root } = ensureDocDriveReady();
-    const name = resolveFolderName(toko, idToko, folderName);
+    const name = resolveFolderName(toko, input, folderName);
     return gp.getOrCreateFolder(name, root);
 };
 
@@ -339,11 +349,12 @@ const uploadDokumenFiles = async (
     const { gp } = ensureDocDriveReady();
     const items: Array<{ link: string; driveFileId?: string }> = [];
     const safeNama = sanitizeFilenamePart(input.nama_dokumen, "DOKUMEN");
+    const safeOwner = sanitizeFilenamePart(input.kode_toko ?? input.id_toko?.toString(), "TOKO");
     const batchTimestamp = Date.now();
 
     const results = await runWithConcurrency(files, MAX_UPLOAD_CONCURRENCY, async (file, index) => {
         const ext = resolveFileExtension(file);
-        const filename = `${safeNama}_${input.id_toko}_${batchTimestamp}_${index + 1}${ext}`;
+        const filename = `${safeNama}_${safeOwner}_${batchTimestamp}_${index + 1}${ext}`;
         const mimeType = file.mimetype || "application/octet-stream";
         const useResumable = (file.size ?? 0) >= RESUMABLE_THRESHOLD_BYTES;
         const uploaded = useResumable
@@ -380,20 +391,42 @@ const resolveFolderIdForUpdate = async (row: PenyimpananDokumenRow, folderName?:
         return { id: existingFolderId, link: row.link_folder ?? buildFolderLink(existingFolderId) };
     }
 
-    if (!row.id_toko) {
-        throw new AppError("Dokumen migrasi tanpa id toko tidak bisa diganti file langsung", 400);
-    }
-
-    const toko = await penyimpananDokumenRepository.findTokoById(row.id_toko);
-    const folderId = await resolveFolderId(toko, row.id_toko, folderName);
+    const toko = row.id_toko ? await penyimpananDokumenRepository.findTokoById(row.id_toko) : null;
+    const folderId = await resolveFolderId(toko, {
+        id_toko: row.id_toko ?? undefined,
+        kode_toko: row.kode_toko ?? undefined,
+        nama_toko: row.nama_toko ?? undefined,
+        cabang: row.cabang ?? undefined
+    }, folderName);
     return { id: folderId, link: buildFolderLink(folderId) };
 };
 
 export const penyimpananDokumenService = {
     async create(input: PenyimpananDokumenCreateInput, files: UploadedDokumenFile[]) {
-        const toko = await penyimpananDokumenRepository.findTokoById(input.id_toko);
-        if (!toko) {
-            throw new AppError("Toko tidak ditemukan", 404);
+        let toko: TokoRow | null = null;
+        let payload: PenyimpananDokumenCreateInput = { ...input };
+
+        if (input.id_toko) {
+            toko = await penyimpananDokumenRepository.findTokoById(input.id_toko);
+            if (!toko) {
+                throw new AppError("Toko tidak ditemukan", 404);
+            }
+
+            payload = {
+                ...payload,
+                kode_toko: payload.kode_toko ?? toko.kode_toko ?? undefined,
+                nama_toko: payload.nama_toko ?? toko.nama_toko ?? undefined,
+                cabang: payload.cabang ?? toko.cabang ?? undefined
+            };
+        } else {
+            if (!input.kode_toko || !input.nama_toko || !input.cabang) {
+                throw new AppError("kode_toko, nama_toko, dan cabang wajib diisi", 400);
+            }
+            await penyimpananDokumenRepository.upsertArchiveStore({
+                kode_toko: input.kode_toko,
+                nama_toko: input.nama_toko,
+                cabang: input.cabang
+            });
         }
 
         const uploadFiles = resolveUploadFiles(files);
@@ -401,12 +434,12 @@ export const penyimpananDokumenService = {
             throw new AppError("Dokumen wajib diupload", 400);
         }
 
-        const folderId = await resolveFolderId(toko, input.id_toko, input.folder_name);
+        const folderId = await resolveFolderId(toko, payload, payload.folder_name);
         const folderLink = buildFolderLink(folderId);
 
-        const items = await uploadDokumenFiles(input, uploadFiles, folderId);
+        const items = await uploadDokumenFiles(payload, uploadFiles, folderId);
         const rows = await penyimpananDokumenRepository.createBulk(
-            input,
+            payload,
             folderLink,
             folderId,
             items
@@ -427,6 +460,10 @@ export const penyimpananDokumenService = {
 
     async listArchiveStores(search?: string) {
         return penyimpananDokumenRepository.listArchiveStores(search);
+    },
+
+    async createArchiveStore(input: PenyimpananDokumenArchiveStoreCreateInput) {
+        return penyimpananDokumenRepository.upsertArchiveStore(input);
     },
 
     async previewMigration(actorRole: string, files: UploadedDokumenFile[]) {
@@ -486,8 +523,9 @@ export const penyimpananDokumenService = {
             const uploadFile = resolveUploadFiles(files)[0];
             const folderInfo = await resolveFolderIdForUpdate(existing, undefined);
             const safeNama = sanitizeFilenamePart(input.nama_dokumen ?? existing.nama_dokumen, "DOKUMEN");
+            const safeOwner = sanitizeFilenamePart(existing.kode_toko ?? existing.id_toko?.toString(), "TOKO");
             const ext = resolveFileExtension(uploadFile);
-            const filename = `${safeNama}_${existing.id_toko}_${Date.now()}${ext}`;
+            const filename = `${safeNama}_${safeOwner}_${Date.now()}${ext}`;
 
             const { gp } = ensureDocDriveReady();
             const mimeType = uploadFile.mimetype || "application/octet-stream";

@@ -1,5 +1,6 @@
 import { pool, withTransaction } from "../../db/pool";
 import type {
+    PenyimpananDokumenArchiveStoreCreateInput,
     PenyimpananDokumenCreateInput,
     PenyimpananDokumenListQueryInput,
     PenyimpananDokumenUpdateInput
@@ -92,22 +93,30 @@ export const penyimpananDokumenRepository = {
         return withTransaction(async (client) => {
             const values: Array<number | string | null> = [];
             const placeholders = items.map((item, index) => {
-                const base = index * 6;
+                const base = index * 10;
                 values.push(
-                    input.id_toko,
+                    input.id_toko ?? null,
+                    input.kode_toko ?? null,
+                    input.nama_toko ?? null,
+                    input.cabang ?? null,
+                    input.nama_dokumen,
                     input.nama_dokumen,
                     item.driveFileId ?? null,
                     driveFolderId,
                     item.link,
                     linkFolder
                 );
-                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6})`;
+                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10})`;
             });
 
             const result = await client.query<PenyimpananDokumenRow>(
                 `
                 INSERT INTO penyimpanan_dokumen (
                     id_toko,
+                    kode_toko,
+                    nama_toko,
+                    cabang,
+                    kategori_dokumen,
                     nama_dokumen,
                     drive_file_id,
                     drive_folder_id,
@@ -120,8 +129,49 @@ export const penyimpananDokumenRepository = {
                 values
             );
 
-            return result.rows;
+                return result.rows;
         });
+    },
+
+    async upsertArchiveStore(input: PenyimpananDokumenArchiveStoreCreateInput): Promise<PenyimpananDokumenArchiveStoreRow> {
+        await pool.query(
+            `
+            INSERT INTO penyimpanan_dokumen_toko (
+                kode_toko, nama_toko, cabang, folder_link, migrated_at
+            )
+            VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+            ON CONFLICT DO NOTHING
+            `,
+            [
+                input.kode_toko,
+                input.nama_toko,
+                input.cabang,
+                input.folder_link || null
+            ]
+        );
+
+        const result = await pool.query<PenyimpananDokumenArchiveStoreRow>(
+            `
+            SELECT
+                s.kode_toko,
+                s.nama_toko,
+                s.cabang,
+                COUNT(pd.id)::int AS jumlah_dokumen,
+                MAX(COALESCE(pd.created_at, s.created_at))::text AS last_created_at
+            FROM penyimpanan_dokumen_toko s
+            LEFT JOIN penyimpanan_dokumen pd
+              ON LOWER(COALESCE(pd.kode_toko, '')) = LOWER(COALESCE(s.kode_toko, ''))
+             AND LOWER(COALESCE(pd.nama_toko, '')) = LOWER(COALESCE(s.nama_toko, ''))
+             AND LOWER(COALESCE(pd.cabang, '')) = LOWER(COALESCE(s.cabang, ''))
+            WHERE LOWER(COALESCE(s.kode_toko, '')) = LOWER($1)
+              AND LOWER(COALESCE(s.nama_toko, '')) = LOWER($2)
+              AND LOWER(COALESCE(s.cabang, '')) = LOWER($3)
+            GROUP BY s.kode_toko, s.nama_toko, s.cabang
+            `,
+            [input.kode_toko, input.nama_toko, input.cabang]
+        );
+
+        return result.rows[0];
     },
 
     async list(query: PenyimpananDokumenListQueryInput): Promise<PenyimpananDokumenRow[]> {
