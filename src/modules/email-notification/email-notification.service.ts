@@ -2,6 +2,7 @@ import { AppError } from "../../common/app-error";
 import { GoogleProvider } from "../../common/google";
 import { renderHtmlTemplate, resolveTemplatePath } from "../../common/html-pdf";
 import { env } from "../../config/env";
+import { rabRepository } from "../rab/rab.repository";
 import { userCabangRepository } from "../user-cabang/user-cabang.repository";
 import type { SendEmailNotificationInput } from "./email-notification.schema";
 
@@ -22,6 +23,11 @@ const TEMPLATE_MAP: Record<string, EmailTemplateConfig> = {
     "notification-spk-has-approve": {
         template: "send-notification-spk-has-approve.njk",
         subject: "SPARTA Building - SPK Disetujui",
+        targetJabatan: "KONTRAKTOR"
+    },
+    "notification-spk-has-reject": {
+        template: "send-notification-spk-has-reject.njk",
+        subject: "SPARTA Building - SPK Ditolak",
         targetJabatan: "KONTRAKTOR"
     }
 };
@@ -65,6 +71,14 @@ const wrapBase64 = (value: string, lineLength = 76) => {
     return chunks.join("\r\n");
 };
 
+const normalizeEmailList = (emails: Array<string | null | undefined>) => {
+    const cleaned = emails
+        .map((email) => (email ?? "").trim())
+        .filter(Boolean);
+
+    return Array.from(new Set(cleaned));
+};
+
 const buildRawEmail = (input: { from: string; to: string; cc?: string; subject: string; html: string }) => {
     const encodedHtml = wrapBase64(Buffer.from(input.html, "utf-8").toString("base64"));
     const message = [
@@ -96,21 +110,31 @@ export const emailNotificationService = {
         }
 
         const isKontraktorTarget = templateConfig.targetJabatan.toUpperCase() === "KONTRAKTOR";
-        const targetUsers = isKontraktorTarget
+        const shouldUseRabEmails =
+            Boolean(payload.id_toko) &&
+            (payload.flag === "notification-spk-has-approve" || payload.flag === "notification-spk-has-reject");
+        const rabData = shouldUseRabEmails
+            ? await rabRepository.findLatestByTokoId(payload.id_toko as number)
+            : null;
+        if (shouldUseRabEmails && !rabData) {
+            throw new AppError(`RAB untuk id_toko ${payload.id_toko} tidak ditemukan`, 404);
+        }
+
+        const targetUsers = !shouldUseRabEmails && isKontraktorTarget
             ? await userCabangRepository.findAll({ cabang: payload.cabang, jabatan: templateConfig.targetJabatan })
             : [];
-        const targetUser = isKontraktorTarget
-            ? null
-            : await userCabangRepository.findByCabangAndJabatan(payload.cabang, templateConfig.targetJabatan);
+        const targetUser = !shouldUseRabEmails && !isKontraktorTarget
+            ? await userCabangRepository.findByCabangAndJabatan(payload.cabang, templateConfig.targetJabatan)
+            : null;
 
-        if (!targetUser && targetUsers.length === 0) {
+        if (!shouldUseRabEmails && !targetUser && targetUsers.length === 0) {
             throw new AppError(
                 `User dengan jabatan "${templateConfig.targetJabatan}" untuk cabang tersebut tidak ditemukan`,
                 404
             );
         }
 
-        const ccUser = templateConfig.ccJabatan
+        const ccUser = !shouldUseRabEmails && templateConfig.ccJabatan
             ? await userCabangRepository.findByCabangAndJabatan(payload.cabang, templateConfig.ccJabatan)
             : null;
 
@@ -135,21 +159,30 @@ export const emailNotificationService = {
             throw new AppError("Google Gmail belum terkonfigurasi", 500);
         }
 
-        const rawTargetEmails = isKontraktorTarget
-            ? targetUsers.map((user) => user.email_sat)
-            : [targetUser?.email_sat].filter((email): email is string => Boolean(email));
-        const targetEmails = Array.from(new Set(rawTargetEmails.map((email) => email.trim()).filter(Boolean)));
+        const targetEmails = shouldUseRabEmails
+            ? normalizeEmailList([rabData?.email_pembuat])
+            : normalizeEmailList(
+                  isKontraktorTarget
+                      ? targetUsers.map((user) => user.email_sat)
+                      : [targetUser?.email_sat]
+              );
 
         if (targetEmails.length === 0) {
             throw new AppError(
-                `User dengan jabatan "${templateConfig.targetJabatan}" untuk cabang tersebut tidak ditemukan`,
+                shouldUseRabEmails
+                    ? `Email pembuat RAB untuk id_toko ${payload.id_toko} tidak ditemukan`
+                    : `User dengan jabatan "${templateConfig.targetJabatan}" untuk cabang tersebut tidak ditemukan`,
                 404
             );
         }
 
-        const ccEmail = ccUser?.email_sat && !targetEmails.includes(ccUser.email_sat)
-            ? ccUser.email_sat
-            : undefined;
+        const ccEmailList = shouldUseRabEmails
+            ? normalizeEmailList([
+                  rabData?.pemberi_persetujuan_koordinator,
+                  rabData?.pemberi_persetujuan_manager
+              ]).filter((email) => !targetEmails.includes(email))
+            : normalizeEmailList([ccUser?.email_sat]).filter((email) => !targetEmails.includes(email));
+        const ccEmail = ccEmailList.length > 0 ? ccEmailList.join(", ") : undefined;
 
         const raw = buildRawEmail({
             from: env.EMAIL_USER,
