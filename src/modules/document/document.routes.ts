@@ -2,10 +2,12 @@ import { Router } from "express";
 import multer from "multer";
 import {
     commitPenyimpananDokumenMigration,
+    createPenyimpananDokumenArchiveStore,
     createPenyimpananDokumen,
     deletePenyimpananDokumen,
     getPenyimpananDokumenDetail,
     listPenyimpananDokumen,
+    listPenyimpananDokumenArchiveStores,
     previewPenyimpananDokumenMigration,
     updatePenyimpananDokumen
 } from "./document.controller";
@@ -26,6 +28,16 @@ documentRouter.post(
 );
 
 documentRouter.get("/penyimpanan-dokumen", listPenyimpananDokumen);
+
+documentRouter.get(
+    "/penyimpanan-dokumen/archive-stores",
+    listPenyimpananDokumenArchiveStores
+);
+
+documentRouter.post(
+    "/penyimpanan-dokumen/archive-stores",
+    createPenyimpananDokumenArchiveStore
+);
 
 documentRouter.post(
     "/penyimpanan-dokumen/migration-preview",

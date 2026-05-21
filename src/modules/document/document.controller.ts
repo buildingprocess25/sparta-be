@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { asyncHandler } from "../../common/async-handler";
 import {
     penyimpananDokumenCreateSchema,
+    penyimpananDokumenArchiveStoreCreateSchema,
     penyimpananDokumenIdParamSchema,
     penyimpananDokumenListQuerySchema,
     penyimpananDokumenMigrationSchema,
@@ -33,6 +34,26 @@ export const listPenyimpananDokumen = asyncHandler(async (req: Request, res: Res
 
     res.json({
         status: "success",
+        data
+    });
+});
+
+export const listPenyimpananDokumenArchiveStores = asyncHandler(async (req: Request, res: Response) => {
+    const data = await penyimpananDokumenService.listArchiveStores(String(req.query.search ?? ""));
+
+    res.json({
+        status: "success",
+        data
+    });
+});
+
+export const createPenyimpananDokumenArchiveStore = asyncHandler(async (req: Request, res: Response) => {
+    const payload = penyimpananDokumenArchiveStoreCreateSchema.parse(req.body);
+    const data = await penyimpananDokumenService.createArchiveStore(payload);
+
+    res.json({
+        status: "success",
+        message: "Data toko berhasil disimpan",
         data
     });
 });

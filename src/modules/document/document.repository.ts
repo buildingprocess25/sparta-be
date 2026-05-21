@@ -1,5 +1,6 @@
 import { pool, withTransaction } from "../../db/pool";
 import type {
+    PenyimpananDokumenArchiveStoreCreateInput,
     PenyimpananDokumenCreateInput,
     PenyimpananDokumenListQueryInput,
     PenyimpananDokumenUpdateInput
@@ -35,6 +36,25 @@ export type PenyimpananDokumenMigrationItem = {
     link_folder: string | null;
     source_timestamp: Date | null;
     source_last_edit: Date | null;
+};
+
+export type PenyimpananDokumenMigrationStoreItem = {
+    kode_toko: string | null;
+    nama_toko: string | null;
+    cabang: string | null;
+    folder_link: string | null;
+    source_timestamp: Date | null;
+    source_last_edit: Date | null;
+};
+
+export type PenyimpananDokumenArchiveStoreRow = {
+    nomor_ulok: string | null;
+    kode_toko: string | null;
+    nama_toko: string | null;
+    cabang: string | null;
+    proyek: string | null;
+    jumlah_dokumen: number;
+    last_created_at: string | null;
 };
 
 export type TokoRow = {
@@ -75,22 +95,30 @@ export const penyimpananDokumenRepository = {
         return withTransaction(async (client) => {
             const values: Array<number | string | null> = [];
             const placeholders = items.map((item, index) => {
-                const base = index * 6;
+                const base = index * 10;
                 values.push(
-                    input.id_toko,
+                    input.id_toko ?? null,
+                    input.kode_toko ?? null,
+                    input.nama_toko ?? null,
+                    input.cabang ?? null,
+                    input.nama_dokumen,
                     input.nama_dokumen,
                     item.driveFileId ?? null,
                     driveFolderId,
                     item.link,
                     linkFolder
                 );
-                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6})`;
+                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10})`;
             });
 
             const result = await client.query<PenyimpananDokumenRow>(
                 `
                 INSERT INTO penyimpanan_dokumen (
                     id_toko,
+                    kode_toko,
+                    nama_toko,
+                    cabang,
+                    kategori_dokumen,
                     nama_dokumen,
                     drive_file_id,
                     drive_folder_id,
@@ -103,8 +131,53 @@ export const penyimpananDokumenRepository = {
                 values
             );
 
-            return result.rows;
+                return result.rows;
         });
+    },
+
+    async upsertArchiveStore(input: PenyimpananDokumenArchiveStoreCreateInput): Promise<PenyimpananDokumenArchiveStoreRow> {
+        await pool.query(
+            `
+            INSERT INTO penyimpanan_dokumen_toko (
+                nomor_ulok, kode_toko, nama_toko, cabang, proyek, folder_link, migrated_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
+            ON CONFLICT DO NOTHING
+            `,
+            [
+                input.nomor_ulok || input.kode_toko,
+                input.kode_toko,
+                input.nama_toko,
+                input.cabang,
+                input.proyek || "Penyimpanan Dokumen",
+                input.folder_link || null
+            ]
+        );
+
+        const result = await pool.query<PenyimpananDokumenArchiveStoreRow>(
+            `
+            SELECT
+                s.nomor_ulok,
+                s.kode_toko,
+                s.nama_toko,
+                s.cabang,
+                s.proyek,
+                COUNT(pd.id)::int AS jumlah_dokumen,
+                MAX(COALESCE(pd.created_at, s.created_at))::text AS last_created_at
+            FROM penyimpanan_dokumen_toko s
+            LEFT JOIN penyimpanan_dokumen pd
+              ON LOWER(COALESCE(pd.kode_toko, '')) = LOWER(COALESCE(s.kode_toko, ''))
+             AND LOWER(COALESCE(pd.nama_toko, '')) = LOWER(COALESCE(s.nama_toko, ''))
+             AND LOWER(COALESCE(pd.cabang, '')) = LOWER(COALESCE(s.cabang, ''))
+            WHERE LOWER(COALESCE(s.kode_toko, '')) = LOWER($1)
+              AND LOWER(COALESCE(s.nama_toko, '')) = LOWER($2)
+              AND LOWER(COALESCE(s.cabang, '')) = LOWER($3)
+            GROUP BY s.nomor_ulok, s.kode_toko, s.nama_toko, s.cabang, s.proyek
+            `,
+            [input.kode_toko, input.nama_toko, input.cabang]
+        );
+
+        return result.rows[0];
     },
 
     async list(query: PenyimpananDokumenListQueryInput): Promise<PenyimpananDokumenRow[]> {
@@ -150,6 +223,47 @@ export const penyimpananDokumenRepository = {
             FROM penyimpanan_dokumen
             ${whereClause}
             ORDER BY created_at DESC, id DESC
+            `,
+            values
+        );
+
+        return result.rows;
+    },
+
+    async listArchiveStores(search?: string): Promise<PenyimpananDokumenArchiveStoreRow[]> {
+        const trimmedSearch = String(search ?? "").trim();
+        const conditions = [
+            "(s.kode_toko IS NOT NULL OR s.nama_toko IS NOT NULL)"
+        ];
+        const values: string[] = [];
+
+        if (trimmedSearch.length >= 2) {
+            values.push(`%${trimmedSearch}%`);
+            conditions.push(`(
+                s.kode_toko ILIKE $${values.length}
+                OR s.nama_toko ILIKE $${values.length}
+                OR s.cabang ILIKE $${values.length}
+            )`);
+        }
+
+        const result = await pool.query<PenyimpananDokumenArchiveStoreRow>(
+            `
+            SELECT
+                s.nomor_ulok,
+                s.kode_toko,
+                s.nama_toko,
+                s.cabang,
+                s.proyek,
+                COUNT(pd.id)::int AS jumlah_dokumen,
+                MAX(COALESCE(pd.created_at, s.created_at))::text AS last_created_at
+            FROM penyimpanan_dokumen_toko s
+            LEFT JOIN penyimpanan_dokumen pd
+              ON LOWER(COALESCE(pd.kode_toko, '')) = LOWER(COALESCE(s.kode_toko, ''))
+             AND LOWER(COALESCE(pd.nama_toko, '')) = LOWER(COALESCE(s.nama_toko, ''))
+             AND LOWER(COALESCE(pd.cabang, '')) = LOWER(COALESCE(s.cabang, ''))
+            WHERE ${conditions.join(" AND ")}
+            GROUP BY s.nomor_ulok, s.kode_toko, s.nama_toko, s.cabang, s.proyek
+            ORDER BY s.nama_toko ASC, s.kode_toko ASC
             `,
             values
         );
@@ -223,6 +337,48 @@ export const penyimpananDokumenRepository = {
         );
 
         return result.rows[0] ?? null;
+    },
+
+    async insertMigratedStores(items: PenyimpananDokumenMigrationStoreItem[]): Promise<{ inserted: number }> {
+        if (items.length === 0) return { inserted: 0 };
+
+        const chunkSize = 500;
+        let inserted = 0;
+
+        for (let offset = 0; offset < items.length; offset += chunkSize) {
+            const chunk = items.slice(offset, offset + chunkSize);
+            const values: Array<string | Date | null> = [];
+            const placeholders = chunk.map((item, index) => {
+                const base = index * 8;
+                values.push(
+                    item.kode_toko,
+                    item.kode_toko,
+                    item.nama_toko,
+                    item.cabang,
+                    "Penyimpanan Dokumen",
+                    item.folder_link,
+                    item.source_timestamp,
+                    item.source_last_edit
+                );
+                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, CURRENT_TIMESTAMP)`;
+            });
+
+            const result = await pool.query<{ id: number }>(
+                `
+                INSERT INTO penyimpanan_dokumen_toko (
+                    nomor_ulok, kode_toko, nama_toko, cabang, proyek, folder_link,
+                    source_timestamp, source_last_edit, migrated_at
+                )
+                VALUES ${placeholders.join(", ")}
+                ON CONFLICT DO NOTHING
+                RETURNING id
+                `,
+                values
+            );
+            inserted += result.rowCount ?? 0;
+        }
+
+        return { inserted };
     },
 
     async insertMigratedDocuments(items: PenyimpananDokumenMigrationItem[]): Promise<{ inserted: number }> {
