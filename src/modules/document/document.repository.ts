@@ -54,6 +54,7 @@ export type PenyimpananDokumenArchiveStoreRow = {
     cabang: string | null;
     proyek: string | null;
     jumlah_dokumen: number;
+    kategori_counts: Record<string, number>;
     last_created_at: string | null;
 };
 
@@ -163,12 +164,27 @@ export const penyimpananDokumenRepository = {
                 s.cabang,
                 s.proyek,
                 COUNT(pd.id)::int AS jumlah_dokumen,
+                COALESCE(
+                    jsonb_object_agg(
+                        COALESCE(pd.kategori_dokumen, pd.nama_dokumen),
+                        kategori_summary.jumlah
+                    ) FILTER (WHERE COALESCE(pd.kategori_dokumen, pd.nama_dokumen) IS NOT NULL),
+                    '{}'::jsonb
+                ) AS kategori_counts,
                 MAX(COALESCE(pd.created_at, s.created_at))::text AS last_created_at
             FROM penyimpanan_dokumen_toko s
             LEFT JOIN penyimpanan_dokumen pd
               ON LOWER(COALESCE(pd.kode_toko, '')) = LOWER(COALESCE(s.kode_toko, ''))
              AND LOWER(COALESCE(pd.nama_toko, '')) = LOWER(COALESCE(s.nama_toko, ''))
              AND LOWER(COALESCE(pd.cabang, '')) = LOWER(COALESCE(s.cabang, ''))
+            LEFT JOIN LATERAL (
+                SELECT COUNT(*)::int AS jumlah
+                FROM penyimpanan_dokumen pd2
+                WHERE LOWER(COALESCE(pd2.kode_toko, '')) = LOWER(COALESCE(s.kode_toko, ''))
+                  AND LOWER(COALESCE(pd2.nama_toko, '')) = LOWER(COALESCE(s.nama_toko, ''))
+                  AND LOWER(COALESCE(pd2.cabang, '')) = LOWER(COALESCE(s.cabang, ''))
+                  AND COALESCE(pd2.kategori_dokumen, pd2.nama_dokumen) = COALESCE(pd.kategori_dokumen, pd.nama_dokumen)
+            ) kategori_summary ON TRUE
             WHERE LOWER(COALESCE(s.kode_toko, '')) = LOWER($1)
               AND LOWER(COALESCE(s.nama_toko, '')) = LOWER($2)
               AND LOWER(COALESCE(s.cabang, '')) = LOWER($3)
@@ -255,12 +271,27 @@ export const penyimpananDokumenRepository = {
                 s.cabang,
                 s.proyek,
                 COUNT(pd.id)::int AS jumlah_dokumen,
+                COALESCE(
+                    jsonb_object_agg(
+                        COALESCE(pd.kategori_dokumen, pd.nama_dokumen),
+                        kategori_summary.jumlah
+                    ) FILTER (WHERE COALESCE(pd.kategori_dokumen, pd.nama_dokumen) IS NOT NULL),
+                    '{}'::jsonb
+                ) AS kategori_counts,
                 MAX(COALESCE(pd.created_at, s.created_at))::text AS last_created_at
             FROM penyimpanan_dokumen_toko s
             LEFT JOIN penyimpanan_dokumen pd
               ON LOWER(COALESCE(pd.kode_toko, '')) = LOWER(COALESCE(s.kode_toko, ''))
              AND LOWER(COALESCE(pd.nama_toko, '')) = LOWER(COALESCE(s.nama_toko, ''))
              AND LOWER(COALESCE(pd.cabang, '')) = LOWER(COALESCE(s.cabang, ''))
+            LEFT JOIN LATERAL (
+                SELECT COUNT(*)::int AS jumlah
+                FROM penyimpanan_dokumen pd2
+                WHERE LOWER(COALESCE(pd2.kode_toko, '')) = LOWER(COALESCE(s.kode_toko, ''))
+                  AND LOWER(COALESCE(pd2.nama_toko, '')) = LOWER(COALESCE(s.nama_toko, ''))
+                  AND LOWER(COALESCE(pd2.cabang, '')) = LOWER(COALESCE(s.cabang, ''))
+                  AND COALESCE(pd2.kategori_dokumen, pd2.nama_dokumen) = COALESCE(pd.kategori_dokumen, pd.nama_dokumen)
+            ) kategori_summary ON TRUE
             WHERE ${conditions.join(" AND ")}
             GROUP BY s.nomor_ulok, s.kode_toko, s.nama_toko, s.cabang, s.proyek
             ORDER BY s.nama_toko ASC, s.kode_toko ASC
