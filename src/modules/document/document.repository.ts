@@ -167,9 +167,21 @@ export const penyimpananDokumenRepository = {
 
     async listArchiveStores(search?: string): Promise<PenyimpananDokumenArchiveStoreRow[]> {
         const trimmedSearch = String(search ?? "").trim();
-        if (trimmedSearch.length < 2) return [];
+        const conditions = [
+            "pd.id_toko IS NULL",
+            "(pd.kode_toko IS NOT NULL OR pd.nama_toko IS NOT NULL)"
+        ];
+        const values: string[] = [];
 
-        const keyword = `%${trimmedSearch}%`;
+        if (trimmedSearch.length >= 2) {
+            values.push(`%${trimmedSearch}%`);
+            conditions.push(`(
+                pd.kode_toko ILIKE $${values.length}
+                OR pd.nama_toko ILIKE $${values.length}
+                OR pd.cabang ILIKE $${values.length}
+            )`);
+        }
+
         const result = await pool.query<PenyimpananDokumenArchiveStoreRow>(
             `
             SELECT
@@ -179,18 +191,11 @@ export const penyimpananDokumenRepository = {
                 COUNT(*)::int AS jumlah_dokumen,
                 MAX(pd.created_at)::text AS last_created_at
             FROM penyimpanan_dokumen pd
-            WHERE pd.id_toko IS NULL
-              AND (pd.kode_toko IS NOT NULL OR pd.nama_toko IS NOT NULL)
-              AND (
-                  pd.kode_toko ILIKE $1
-                  OR pd.nama_toko ILIKE $1
-                  OR pd.cabang ILIKE $1
-              )
+            WHERE ${conditions.join(" AND ")}
             GROUP BY pd.kode_toko, pd.nama_toko, pd.cabang
             ORDER BY jumlah_dokumen DESC, pd.nama_toko ASC
-            LIMIT 100
             `,
-            [keyword]
+            values
         );
 
         return result.rows;
