@@ -5,6 +5,7 @@ import * as XLSX from "xlsx";
 import {
     penyimpananDokumenRepository,
     type PenyimpananDokumenMigrationItem,
+    type PenyimpananDokumenMigrationStoreItem,
     type PenyimpananDokumenRow,
     type TokoRow
 } from "./document.repository";
@@ -30,7 +31,9 @@ type MigrationParseResult = {
     categoryCounts: Record<string, number>;
     sourceCategoryCounts: Record<string, number>;
     sample: PenyimpananDokumenMigrationItem[];
+    storeSample: PenyimpananDokumenMigrationStoreItem[];
     items: PenyimpananDokumenMigrationItem[];
+    stores: PenyimpananDokumenMigrationStoreItem[];
 };
 
 const MAX_UPLOAD_CONCURRENCY = 3;
@@ -203,7 +206,9 @@ const parseMigrationWorkbook = (file: UploadedDokumenFile): MigrationParseResult
         categoryCounts: {},
         sourceCategoryCounts: {},
         sample: [],
-        items: []
+        storeSample: [],
+        items: [],
+        stores: []
     };
 
     for (let i = 1; i < rows.length; i += 1) {
@@ -213,6 +218,19 @@ const parseMigrationWorkbook = (file: UploadedDokumenFile): MigrationParseResult
         const namaToko = normalizeCell(row[indexes.namaToko]) || null;
         const cabang = normalizeCell(row[indexes.cabang]) || null;
         const folderLink = normalizeCell(row[indexes.folderLink]) || null;
+        const sourceTimestamp = indexes.timestamp >= 0 ? parseExcelDate(row[indexes.timestamp]) : null;
+        const sourceLastEdit = indexes.lastEdit >= 0 ? parseExcelDate(row[indexes.lastEdit]) : null;
+
+        if (kodeToko || namaToko || cabang) {
+            result.stores.push({
+                kode_toko: kodeToko,
+                nama_toko: namaToko,
+                cabang,
+                folder_link: folderLink,
+                source_timestamp: sourceTimestamp,
+                source_last_edit: sourceLastEdit
+            });
+        }
 
         if (!fileLinks) {
             result.emptyFileRows += 1;
@@ -237,8 +255,8 @@ const parseMigrationWorkbook = (file: UploadedDokumenFile): MigrationParseResult
                 drive_folder_id: extractDriveFolderId(folderLink),
                 link_dokumen: parsed.link,
                 link_folder: folderLink,
-                source_timestamp: indexes.timestamp >= 0 ? parseExcelDate(row[indexes.timestamp]) : null,
-                source_last_edit: indexes.lastEdit >= 0 ? parseExcelDate(row[indexes.lastEdit]) : null
+                source_timestamp: sourceTimestamp,
+                source_last_edit: sourceLastEdit
             };
             result.items.push(item);
             result.parsedDocuments += 1;
@@ -248,6 +266,7 @@ const parseMigrationWorkbook = (file: UploadedDokumenFile): MigrationParseResult
     }
 
     result.sample = result.items.slice(0, 20);
+    result.storeSample = result.stores.slice(0, 20);
     return result;
 };
 
@@ -413,25 +432,33 @@ export const penyimpananDokumenService = {
     async previewMigration(actorRole: string, files: UploadedDokumenFile[]) {
         ensureSuperHuman(actorRole);
         const parsed = parseMigrationWorkbook(files[0]);
-        const { items: _items, ...summary } = parsed;
-        return summary;
+        const { items: _items, stores: _stores, ...summary } = parsed;
+        return {
+            ...summary,
+            parsedStores: parsed.stores.length
+        };
     },
 
     async commitMigration(actorRole: string, files: UploadedDokumenFile[]) {
         ensureSuperHuman(actorRole);
         const parsed = parseMigrationWorkbook(files[0]);
+        const storeResult = await penyimpananDokumenRepository.insertMigratedStores(parsed.stores);
         const result = await penyimpananDokumenRepository.insertMigratedDocuments(parsed.items);
         return {
             totalRows: parsed.totalRows,
             rowsWithFiles: parsed.rowsWithFiles,
             emptyFileRows: parsed.emptyFileRows,
+            parsedStores: parsed.stores.length,
             parsedDocuments: parsed.parsedDocuments,
+            insertedStores: storeResult.inserted,
+            skippedStoreDuplicates: parsed.stores.length - storeResult.inserted,
             inserted: result.inserted,
             skippedDuplicates: parsed.parsedDocuments - result.inserted,
             unparsedRows: parsed.unparsedRows,
             categoryCounts: parsed.categoryCounts,
             sourceCategoryCounts: parsed.sourceCategoryCounts,
-            sample: parsed.sample
+            sample: parsed.sample,
+            storeSample: parsed.storeSample
         };
     },
 
