@@ -1,6 +1,7 @@
 import { AppError } from "../../common/app-error";
 import { tokoRepository } from "../toko/toko.repository";
 import { picPengawasanService } from "../pic-pengawasan/pic-pengawasan.service";
+import { rabRepository } from "../rab/rab.repository";
 import { GANTT_STATUS } from "./gantt.constants";
 import { ganttRepository } from "./gantt.repository";
 import type {
@@ -71,6 +72,16 @@ const normalizeUpdatePengawasan = (
 
 export const ganttService = {
     async submit(payload: SubmitGanttInput) {
+        const releaseRabApproval = async (tokoId: number) => {
+            const releasedCount = await rabRepository.releaseWaitingGanttByTokoId(tokoId);
+            if (releasedCount > 0) {
+                console.log("[GANTT SUBMIT] RAB masuk antrean approval setelah Gantt dibuat", {
+                    tokoId,
+                    releasedCount
+                });
+            }
+        };
+
         // 1. Jika sudah ada gantt aktif untuk ULOK ini, lakukan replace data (bukan create baru)
         const existingToko = await tokoRepository.findByNomorUlokAndLingkup(
             payload.nomor_ulok,
@@ -99,6 +110,8 @@ export const ganttService = {
                     throw new AppError("Gantt Chart tidak ditemukan setelah update", 500);
                 }
 
+                await releaseRabApproval(existingToko.id);
+
                 return {
                     ...refreshed.gantt,
                     toko_id: refreshed.gantt.id_toko,
@@ -124,6 +137,8 @@ export const ganttService = {
             pengawasan: payload.pengawasan,
             dependencies: payload.dependencies
         });
+
+        await releaseRabApproval(gantt.toko_id);
 
         return gantt;
     },

@@ -1,7 +1,7 @@
 import type { PoolClient } from "pg";
 import { pool, withTransaction } from "../../db/pool";
 import type { ApprovalActionInput } from "../approval/approval.schema";
-import { ACTIVE_RAB_STATUSES, REJECTED_RAB_STATUSES, type RabStatus } from "./rab.constants";
+import { ACTIVE_RAB_STATUSES, RAB_STATUS, REJECTED_RAB_STATUSES, type RabStatus } from "./rab.constants";
 import type { DetailItemInput } from "./rab.schema";
 
 // ---------------------------------------------------------------------------
@@ -253,6 +253,54 @@ export const rabRepository = {
         );
 
         return result.rows[0] ?? null;
+    },
+
+    async existsGanttByRabId(rabId: string | number): Promise<boolean> {
+        const result = await pool.query<{ exists: boolean }>(
+            `SELECT EXISTS(
+                SELECT 1
+                FROM rab r
+                JOIN gantt_chart g ON g.id_toko = r.id_toko
+                WHERE r.id = $1
+            ) AS exists`,
+            [rabId]
+        );
+
+        return result.rows[0]?.exists ?? false;
+    },
+
+    async releaseWaitingGanttByTokoId(tokoId: number): Promise<number> {
+        const result = await pool.query<{ id: number }>(
+            `UPDATE rab
+             SET status = $1
+             WHERE id_toko = $2
+               AND status = $3
+             RETURNING id`,
+            [RAB_STATUS.WAITING_FOR_DIREKTUR, tokoId, RAB_STATUS.WAITING_FOR_GANTT]
+        );
+
+        return result.rowCount ?? 0;
+    },
+
+    async resetToWaitingGantt(rabId: string | number): Promise<void> {
+        await pool.query(
+            `UPDATE rab
+             SET status = $1,
+                 pemberi_persetujuan_direktur = NULL,
+                 nama_persetujuan_direktur = NULL,
+                 waktu_persetujuan_direktur = NULL,
+                 pemberi_persetujuan_koordinator = NULL,
+                 nama_persetujuan_koordinator = NULL,
+                 waktu_persetujuan_koordinator = NULL,
+                 pemberi_persetujuan_manager = NULL,
+                 nama_persetujuan_manager = NULL,
+                 waktu_persetujuan_manager = NULL,
+                 alasan_penolakan = NULL,
+                 waktu_penolakan = NULL,
+                 ditolak_oleh = NULL
+             WHERE id = $2`,
+            [RAB_STATUS.WAITING_FOR_GANTT, rabId]
+        );
     },
 
     async replaceRejectedWithDetails(

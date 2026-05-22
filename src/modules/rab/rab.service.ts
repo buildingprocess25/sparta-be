@@ -864,7 +864,7 @@ export const rabService = {
             // rab fields
             email_pembuat: payload.email_pembuat,
             nama_pt: payload.nama_pt,
-            status: RAB_STATUS.WAITING_FOR_DIREKTUR,
+            status: RAB_STATUS.WAITING_FOR_GANTT,
             logo: logoLink,
             durasi_pekerjaan: payload.durasi_pekerjaan,
             kategori_lokasi: payload.kategori_lokasi,
@@ -940,6 +940,15 @@ export const rabService = {
         const data = await rabRepository.findById(id);
         if (!data) {
             throw new AppError("Pengajuan RAB tidak ditemukan", 404);
+        }
+
+        if (data.rab.status === RAB_STATUS.WAITING_FOR_GANTT) {
+            throw new AppError("Gantt Chart wajib dibuat sebelum RAB masuk proses approval", 409);
+        }
+
+        const hasGanttChart = await rabRepository.existsGanttByRabId(id);
+        if (!hasGanttChart) {
+            throw new AppError("Gantt Chart wajib dibuat sebelum RAB masuk proses approval", 409);
         }
 
         const tokoStableFields = {
@@ -1141,6 +1150,24 @@ export const rabService = {
 
         // Tentukan apakah status termasuk penolakan
         const isRejection = REJECTED_RAB_STATUSES.includes(status as RabStatus);
+
+        if (status === RAB_STATUS.WAITING_FOR_GANTT) {
+            await rabRepository.resetToWaitingGantt(id_rab);
+            logRab("STATUS", "RAB dikembalikan ke tahap Menunggu Gantt Chart", {
+                id_rab,
+                id_toko,
+                status
+            });
+
+            return {
+                id_rab,
+                id_toko,
+                old_status: rabData.rab.status,
+                new_status: status,
+                ditolak_oleh: null,
+                jabatan_penolak: null
+            };
+        }
 
         if (!isRejection) {
             throw new AppError(
@@ -1416,4 +1443,3 @@ export const rabService = {
         };
     }
 };
-
