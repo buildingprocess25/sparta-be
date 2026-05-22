@@ -137,59 +137,78 @@ const spartaPdfCss = () => `
       text-transform: uppercase;
     }
 
-    .info-table, .meta, .meta-table, .summary, .grand-total-table {
+    .info-table, .meta, .meta-table, .summary, .summary-table, .grand-total-table {
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 14px;
     }
 
-    .info-table td, .meta td, .meta-table td, .summary td, .grand-total-table td {
+    .info-table td, .meta td, .meta-table td, .summary td, .summary-table td, .grand-total-table td {
+      border: 1px solid #d8dee6;
       padding: 5px 8px;
       vertical-align: top;
     }
 
-    .info-table .label, .meta .label, .meta-table .label, .summary .label {
+    .info-table .label, .meta .label, .meta-table .label, .summary .label, .summary-table .label {
       font-weight: 700;
-      color: #4b5563;
-      background: #fafafa;
+      color: #374151;
+      background: #f8fafc;
       width: 160px;
     }
 
     .data-table, .price-table, .items {
       width: 100%;
       border-collapse: collapse;
-      margin: 8px 0 14px;
-      font-size: 9px;
+      margin: 8px 0 16px;
+      font-size: 8.8px;
+      table-layout: fixed;
     }
 
     .data-table th, .data-table td,
     .price-table th, .price-table td,
     .items th, .items td {
-      border: 1px solid #e5e7eb;
-      padding: 5px 7px;
+      border: 1px solid #d8dee6;
+      padding: 5px 6px;
       vertical-align: top;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+      word-break: normal;
     }
 
     .data-table th, .price-table th, .items th {
-      background-color: #fef2f2;
-      color: #dc2626;
-      text-align: left;
+      background-color: #fff6f6;
+      color: #b91c1c;
+      text-align: center;
       font-weight: 700;
       text-transform: none;
+      border-top: 1.4px solid #ef4444;
+      border-bottom: 1.4px solid #ef4444;
+    }
+
+    .data-table tbody tr:nth-child(even),
+    .price-table tbody tr:nth-child(even),
+    .items tbody tr:nth-child(even) {
+      background-color: rgba(248, 250, 252, 0.55);
     }
 
     .data-table td.label-col, .label-col {
       width: 40%;
-      background-color: #fafafa;
+      background-color: #f8fafc;
     }
 
-    .text-left { text-align: left; }
-    .text-right, .num { text-align: right; white-space: nowrap; }
-    .center { text-align: center; }
+    .text-left, .col-work, .work-col, td.work-col { text-align: left; }
+    .text-right, .num, .money-col { text-align: right; white-space: nowrap; }
+    .center, .no-col, .unit-col, .volume-col { text-align: center; }
+    .no-col { width: 28px; }
+    .unit-col { width: 44px; }
+    .volume-col { width: 52px; }
+    .money-col { width: 76px; }
+    .note-col { width: 90px; }
+    .work-col { width: auto; }
 
     .sub-total-row td {
       font-weight: 700;
-      background-color: #f9fafb;
+      background-color: #f8fafc;
     }
 
     .grand-total-table {
@@ -200,24 +219,24 @@ const spartaPdfCss = () => `
     }
 
     .grand-total-table td {
-      border: 1px solid #e5e7eb;
+      border: 1px solid #d8dee6;
       text-align: right;
       font-weight: 700;
     }
 
     .grand-total-table td:first-child {
-      background: #fafafa;
-      color: #4b5563;
+      background: #f8fafc;
+      color: #374151;
     }
 
     .total-amount-cell {
-      background-color: #fef2f2;
-      color: #991b1b;
+      background-color: #fff7ed;
+      color: #9a3412;
     }
 
     .approval-table {
       width: 100%;
-      margin-top: 30px;
+      margin-top: 28px;
       border-collapse: separate;
       border-spacing: 8px 0;
       text-align: center;
@@ -229,7 +248,7 @@ const spartaPdfCss = () => `
       font-weight: 700;
       color: #ffffff;
       background: #dc2626;
-      padding: 6px;
+      padding: 6px 5px;
       border-radius: 4px 4px 0 0;
       text-transform: uppercase;
       text-align: center;
@@ -237,24 +256,27 @@ const spartaPdfCss = () => `
 
     .approval-box {
       border-top: 0;
-      background: #f9fafb;
+      background: #f8fafc;
       padding: 10px;
       border-radius: 0 0 4px 4px;
-      min-height: 90px;
+      min-height: 98px;
       text-align: center;
+      border: 1px solid #edf0f4;
+      border-top: 0;
     }
 
     .approval-name {
       font-weight: 700;
-      margin-top: 28px;
+      margin-top: 22px;
       font-size: 10px;
       text-align: center;
+      color: #1f2937;
     }
 
     .approval-date {
       font-size: 8px;
-      color: #888;
-      margin-top: 4px;
+      color: #6b7280;
+      margin-top: 6px;
       font-style: italic;
       text-align: center;
       white-space: nowrap;
@@ -262,9 +284,9 @@ const spartaPdfCss = () => `
 
     .approval-role {
       font-size: 9px;
-      color: #555;
+      color: #4b5563;
       margin-top: 10px;
-      border-top: 1px solid #eee;
+      border-top: 1px solid #e5e7eb;
       padding-top: 5px;
       text-align: center;
     }
@@ -272,8 +294,12 @@ const spartaPdfCss = () => `
     .approval-details {
       font-size: 9px;
       line-height: 1.4;
-      color: #555;
+      color: #4b5563;
       text-align: center;
+      min-height: 70px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
     }
 
     .signatures {
@@ -305,7 +331,7 @@ const spartaPdfCss = () => `
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #f9fafb;
+      background: #f8fafc;
       position: relative;
     }
 
@@ -313,9 +339,9 @@ const spartaPdfCss = () => `
 
     .signature-box > p:last-child {
       margin: 0;
-      background: #f9fafb;
-      color: #555;
-      border-top: 1px solid #eee;
+      background: #f8fafc;
+      color: #4b5563;
+      border-top: 1px solid #e5e7eb;
       padding: 6px;
       min-height: 22px;
     }

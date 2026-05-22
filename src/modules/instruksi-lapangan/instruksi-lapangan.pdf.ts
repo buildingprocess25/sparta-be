@@ -38,9 +38,9 @@ const formatDateTimeIndonesia = (value?: string | null): string => {
 const approvalDetails = (nameOrEmail?: string | null, approvedAt?: string | null): string => {
     const identity = (nameOrEmail ?? "").trim();
     if (!identity) {
-        return "<div class='approval-details'><strong>( _________________ )</strong></div>";
+        return "<div class='approval-details'><div class='approval-date'>&nbsp;</div><div class='approval-name'>( _________________ )</div></div>";
     }
-    return `<div class="approval-details"><strong>( ${identity} )</strong><br>Disetujui pada: ${formatDateTimeIndonesia(approvedAt)}</div>`;
+    return `<div class="approval-details"><div class="approval-date">${formatDateTimeIndonesia(approvedAt)}</div><div class="approval-name">( ${identity} )</div></div>`;
 };
 
 const formatNomorUlok = (raw?: string | null): string => {
