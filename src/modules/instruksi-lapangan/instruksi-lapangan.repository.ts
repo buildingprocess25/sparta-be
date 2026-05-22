@@ -136,6 +136,14 @@ export const instruksiLapanganRepository = {
         return res.rows[0] || null;
     },
 
+    async getApprovedByTokoId(idToko: number): Promise<InstruksiLapanganRow[]> {
+        const res = await pool.query(
+            "SELECT * FROM instruksi_lapangan WHERE id_toko = $1 AND status = 'Disetujui' ORDER BY created_at ASC, id ASC",
+            [idToko]
+        );
+        return res.rows;
+    },
+
     async replaceRejectedWithDetails(
         idIL: number,
         input: SubmitInstruksiLapanganInput,
@@ -159,6 +167,7 @@ export const instruksiLapanganRepository = {
             });
 
             // Update header
+            const params: any[] = [idIL, grandTotal.toString(), input.tanggal_mulai, input.tanggal_selesai];
             const updateFields = [
                 "status = 'Menunggu Persetujuan Koordinator'",
                 "alasan_penolakan = NULL",
@@ -169,16 +178,14 @@ export const instruksiLapanganRepository = {
                 "pemberi_persetujuan_kontraktor = NULL",
                 "waktu_persetujuan_kontraktor = NULL",
                 "created_at = timezone('Asia/Jakarta', now())",
-                `grand_total = '${grandTotal.toString()}'`,
-                `tanggal_mulai = '${input.tanggal_mulai}'`,
-                `tanggal_selesai = '${input.tanggal_selesai}'`
+                "grand_total = $2",
+                "tanggal_mulai = $3",
+                "tanggal_selesai = $4"
             ];
-            
-            const params: any[] = [idIL];
-            
+
             if (lampiranPath !== undefined) {
                 params.push(lampiranPath || null);
-                updateFields.push(`link_lampiran = $2`);
+                updateFields.push(`link_lampiran = $${params.length}`);
             }
 
             await client.query(`

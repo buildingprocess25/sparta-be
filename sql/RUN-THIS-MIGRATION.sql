@@ -182,3 +182,11 @@ UPDATE instruksi_lapangan
 SET status = 'Disetujui'
 WHERE status = 'Menunggu Persetujuan Kontraktor'
   AND pemberi_persetujuan_manager IS NOT NULL;
+
+-- ============================================================
+-- [5] MULTI INSTRUKSI LAPANGAN PER TOKO
+--     File asal: 2026-05-22-allow-multiple-instruksi-lapangan.sql
+--     Tambah index untuk lookup multi-IL per toko/status.
+-- ============================================================
+CREATE INDEX IF NOT EXISTS idx_instruksi_lapangan_toko_status_created
+    ON instruksi_lapangan(id_toko, status, created_at DESC);

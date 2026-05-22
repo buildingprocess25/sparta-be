@@ -995,6 +995,8 @@ ALTER TABLE instruksi_lapangan
     ADD COLUMN IF NOT EXISTS tanggal_selesai DATE;
 
 CREATE INDEX IF NOT EXISTS idx_instruksi_lapangan_id_toko ON instruksi_lapangan(id_toko);
+CREATE INDEX IF NOT EXISTS idx_instruksi_lapangan_toko_status_created
+    ON instruksi_lapangan(id_toko, status, created_at DESC);
 
 -- 15) INSTRUKSI_LAPANGAN_ITEM
 CREATE TABLE IF NOT EXISTS instruksi_lapangan_item (

@@ -122,12 +122,15 @@ const uploadPdfToDrive = async (buffer: Buffer, filename: string): Promise<strin
 };
 
 const loadInstruksiLapanganItems = async (idToko: number) => {
-    const latestInstruksi = await instruksiLapanganRepository.getLatestByTokoId(idToko);
-    if (!latestInstruksi) {
+    const approvedInstruksi = await instruksiLapanganRepository.getApprovedByTokoId(idToko);
+    if (approvedInstruksi.length === 0) {
         return [];
     }
 
-    return instruksiLapanganRepository.getItems(latestInstruksi.id);
+    const itemGroups = await Promise.all(
+        approvedInstruksi.map((instruksi) => instruksiLapanganRepository.getItems(instruksi.id))
+    );
+    return itemGroups.flat();
 };
 
 const loadRabData = async (idToko: number) => {

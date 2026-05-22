@@ -18,6 +18,9 @@ Base URL: `/api/instruksi-lapangan`
 | `tanggal_selesai` | string (date) | Yes      | Tanggal selesai pekerjaan (format `YYYY-MM-DD`).          |
 | `lampiran`        | file          | No       | File lampiran PDF/Gambar (maks 10MB).                     |
 | `detail_items`    | string (JSON) | Yes      | Array of object yang di-stringify. Detail lihat di bawah. |
+| `id_instruksi_lapangan_revisi` | number | No | ID IL berstatus `Ditolak` yang ingin direvisi. Jika kosong, sistem membuat IL baru meskipun toko sudah pernah memiliki IL. |
+
+Instruksi Lapangan dapat dibuat lebih dari satu kali untuk toko/ULOK yang sama. Submit baru tidak lagi diblokir oleh IL aktif atau IL yang sudah disetujui. Revisi hanya mengganti data IL lama jika `id_instruksi_lapangan_revisi` dikirim, ID tersebut milik toko yang sama, dan statusnya `Ditolak`.
 
 #### Format `detail_items` (JSON String):
 

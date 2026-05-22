@@ -122,6 +122,7 @@
       font-weight: 700;
       text-decoration: underline;
     }
+    {{ sparta_pdf_css() | safe }}
   </style>
 </head>
 <body>
@@ -130,63 +131,63 @@
   {% endif %}
 
   <div class="content">
-  <div class="top-bar">
-    <div class="brand-group">
-      {% if logo_alfamart %}
-      <img class="logo-alfamart" src="{{ logo_alfamart }}" alt="Alfamart" />
-      {% endif %}
-    </div>
-    <div class="header-location">{{ cabang_label }}, {{ tanggal_surat }}</div>
-  </div>
+  {{ sparta_header("Form Permintaan Perpanjangan SPK", cabang_label ~ ", " ~ tanggal_surat) | safe }}
 
-  <h1 class="title">FORMULIR PERMINTAAN PERPANJANGAN SURAT PERINTAH KERJA (SPK)</h1>
+  <div class="section-title">Informasi Perpanjangan SPK</div>
 
   <p class="lead">Dengan hormat,</p>
   <p class="lead">Bersama ini kami sampaikan detail pengajuan perpanjangan Surat Perintah Kerja (SPK) sebagai berikut:</p>
 
-  <table>
+  <table class="info-table">
     <tr>
       <td class="label">Nomor ULOK</td>
-      <td>{{ nomor_ulok }}</td>
+      <td>: {{ nomor_ulok }}</td>
     </tr>
     <tr>
       <td class="label">Nomor SPK</td>
-      <td>{{ nomor_spk }}</td>
+      <td>: {{ nomor_spk }}</td>
     </tr>
     <tr>
       <td class="label">Tanggal SPK Akhir</td>
-      <td>{{ tanggal_spk_akhir }}</td>
+      <td>: {{ tanggal_spk_akhir }}</td>
     </tr>
     <tr>
       <td class="label">Pertambahan Hari</td>
-      <td>{{ pertambahan_hari }}</td>
+      <td>: {{ pertambahan_hari }}</td>
     </tr>
     <tr>
       <td class="label">Tanggal SPK Akhir (Setelah Perpanjangan)</td>
-      <td>{{ tanggal_spk_akhir_setelah_perpanjangan }}</td>
+      <td>: {{ tanggal_spk_akhir_setelah_perpanjangan }}</td>
     </tr>
     <tr>
       <td class="label">Alasan Pertambahan</td>
-      <td>{{ alasan_perpanjangan }}</td>
+      <td>: {{ alasan_perpanjangan }}</td>
     </tr>
   </table>
 
   <p class="closing">Demikian formulir permintaan ini kami sampaikan. Atas perhatian dan kerja samanya kami ucapkan terima kasih.</p>
 
-  <div class="signature-wrapper">
-    <div class="signature-block">
-      <div>Dibuat oleh,</div>
-      <div class="signature-title">Branch Building &amp; Maintenance Manager</div>
-      <div class="timestamp">Dibuat pada: {{ dibuat_pada }}</div>
-      <div class="signer">{{ dibuat_oleh }}</div>
-    </div>
-    <div class="signature-block">
-      <div>Disetujui oleh,</div>
-      <div class="signature-title">Branch Manager</div>
-      <div class="timestamp">Disetujui pada: {{ disetujui_pada }}</div>
-      <div class="signer">{{ disetujui_oleh }}</div>
-    </div>
-  </div>
+  <table class="approval-table">
+    <tr>
+      <td style="width:50%; vertical-align: top;">
+        <div class="approval-title">DIBUAT</div>
+        <div class="approval-box">
+          <div class="approval-date">Dibuat pada: {{ dibuat_pada }}</div>
+          <div class="approval-name">{{ dibuat_oleh }}</div>
+          <div class="approval-role">Branch Building &amp; Maintenance Manager</div>
+        </div>
+      </td>
+      <td style="width:50%; vertical-align: top;">
+        <div class="approval-title">DISETUJUI</div>
+        <div class="approval-box">
+          <div class="approval-date">Disetujui pada: {{ disetujui_pada }}</div>
+          <div class="approval-name">{{ disetujui_oleh }}</div>
+          <div class="approval-role">Branch Manager</div>
+        </div>
+      </td>
+    </tr>
+  </table>
+  <div class="footer">Dokumen ini di-generate otomatis oleh sistem SPARTA Building pada {{ tanggal_surat }}</div>
   </div>
 </body>
 </html>

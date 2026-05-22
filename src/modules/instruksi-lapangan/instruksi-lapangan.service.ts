@@ -64,18 +64,25 @@ export const instruksiLapanganService = {
             lampiranPath = await saveUploadToTemp(files.lampiranFile);
         }
 
-        const latestIL = await instruksiLapanganRepository.getLatestByTokoId(toko.id);
-
         let idInstruksiLapangan: number;
 
-        if (latestIL && latestIL.status.toUpperCase() === "DITOLAK") {
+        if (payload.id_instruksi_lapangan_revisi) {
+            const existing = await instruksiLapanganRepository.getHeaderAndToko(payload.id_instruksi_lapangan_revisi);
+            if (!existing) {
+                throw new AppError("Instruksi Lapangan revisi tidak ditemukan", 404);
+            }
+            if (existing.instruksiLapangan.id_toko !== toko.id) {
+                throw new AppError("Instruksi Lapangan revisi tidak sesuai dengan ULOK yang dipilih", 409);
+            }
+            if (existing.instruksiLapangan.status.toUpperCase() !== "DITOLAK") {
+                throw new AppError("Hanya Instruksi Lapangan berstatus Ditolak yang dapat direvisi", 409);
+            }
+
             idInstruksiLapangan = await instruksiLapanganRepository.replaceRejectedWithDetails(
-                latestIL.id,
+                existing.instruksiLapangan.id,
                 payload,
                 lampiranPath
             );
-        } else if (latestIL && latestIL.status.toUpperCase() !== "DISETUJUI") {
-            throw new AppError(`Instruksi Lapangan aktif untuk ULOK ${payload.nomor_ulok} sudah ada`, 409);
         } else {
             idInstruksiLapangan = await instruksiLapanganRepository.insertWithItems(
                 payload,

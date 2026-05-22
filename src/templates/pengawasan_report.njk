@@ -183,6 +183,7 @@
       border-radius: 4px;
       object-fit: contain;
     }
+    {{ sparta_pdf_css() | safe }}
   </style>
 </head>
 <body>
@@ -190,10 +191,9 @@
   <img class="watermark" src="{{ logo_watermark }}" alt="Watermark" />
   {% endif %}
 
-  <div class="header">
-    <h1 class="title">Memo Pengawasan</h1>
-  </div>
+  {{ sparta_header("Memo Pengawasan", tanggal_pengawasan) | safe }}
 
+  <div class="section-title">Informasi Pengawasan</div>
   <table class="meta-table">
     <tr>
       <td class="label">PIC Pengawasan</td>
@@ -251,8 +251,8 @@
   <p style="text-align:center;color:#888;margin:30px 0;">Belum ada data pengawasan untuk tanggal ini.</p>
   {% endif %}
 
+  <div class="section-title">Ringkasan Status</div>
   <div class="summary">
-    <strong>Ringkasan Status:</strong>
     <table class="summary-table">
       <tr>
         <td>Progress</td>
@@ -270,7 +270,7 @@
   </div>
 
   <div class="footer">
-    Dokumen ini dibuat secara otomatis oleh sistem SPARTA &mdash; {{ generated_at }}
+    Dokumen ini di-generate otomatis oleh sistem SPARTA Building pada {{ generated_at }}
   </div>
 </body>
 </html>

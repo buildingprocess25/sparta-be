@@ -145,6 +145,7 @@
       color: #6b7280;
       text-align: right;
     }
+    {{ sparta_pdf_css() | safe }}
   </style>
 </head>
 <body>
@@ -153,10 +154,9 @@
   {% endif %}
 
   <div class="content">
-  <div class="header">
-    <h1 class="title">Berita Acara Serah Terima</h1>
-  </div>
+  {{ sparta_header("Berita Acara Serah Terima", toko.nomor_ulok ~ " - " ~ (toko.nama_toko or '-')) | safe }}
 
+  <div class="section-title">Informasi Serah Terima</div>
   <table class="meta">
     <tr>
       <td class="label">Nomor ULOK</td>
@@ -232,7 +232,7 @@
   {% endif %}
 
   <div class="footer">
-    Digenerate otomatis oleh sistem SPARTA pada {{ generated_at }}
+    Dokumen ini di-generate otomatis oleh sistem SPARTA Building pada {{ generated_at }}
   </div>
   </div>
 </body>

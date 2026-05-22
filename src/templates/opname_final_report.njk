@@ -195,28 +195,16 @@
       height: 1px;
       background-color: #333;
     }
+    {{ sparta_pdf_css() | safe }}
   </style>
 </head>
 <body>
   {% if watermark_logo_path %}
   <img src="{{ watermark_logo_path }}" class="watermark" alt="watermark" />
   {% endif %}
-  <div class="header-bar">
-    <div class="header-left">
-      {% if header_left_logo_path %}
-      <img src="{{ header_left_logo_path }}" class="header-logo" alt="logo" />
-      {% endif %}
-      <div>
-        <div class="header-title">SPARTA</div>
-        <div class="header-subtitle">Building</div>
-      </div>
-    </div>
-    {% if header_right_logo_path %}
-    <img src="{{ header_right_logo_path }}" class="header-right-logo" alt="logo" />
-    {% endif %}
-  </div>
+  {{ sparta_header("Laporan Opname Final", toko.nomor_ulok ~ " - " ~ (toko.nama_toko or '-')) | safe }}
 
-  <p class="section-title">Laporan Opname Final</p>
+  <div class="section-title">Informasi Opname Final</div>
 
   <table class="meta">
     <tr>
@@ -302,6 +290,7 @@
   </table>
 
   <div class="page-break"></div>
+  {{ sparta_header("Lampiran RAB Item", toko.nomor_ulok ~ " - " ~ (toko.nama_toko or '-')) | safe }}
   <p class="section-title">Daftar RAB Item</p>
 
   {% for group in rab_grouped_items_list %}
@@ -351,6 +340,7 @@
   {% endif %}
 
   <div class="page-break"></div>
+  {{ sparta_header("Rekap Total Keseluruhan", toko.nomor_ulok ~ " - " ~ (toko.nama_toko or '-')) | safe }}
   <p class="section-title">Rekap Total Keseluruhan</p>
 
   <table class="summary">
@@ -373,6 +363,7 @@
   </table>
 
   <div class="page-break"></div>
+  {{ sparta_header("Daftar Instruksi Lapangan", toko.nomor_ulok ~ " - " ~ (toko.nama_toko or '-')) | safe }}
   <p class="section-title">Daftar Instruksi Lapangan</p>
 
   {% for group in instruksi_lapangan_groups %}
@@ -417,6 +408,7 @@
   {% endif %}
 
   <div class="page-break"></div>
+  {{ sparta_header("Kerja Tambah", toko.nomor_ulok ~ " - " ~ (toko.nama_toko or '-')) | safe }}
   <p class="section-title">Kerja Tambah</p>
 
   {% for group in kerja_tambah_groups %}
@@ -461,6 +453,7 @@
   {% endif %}
 
   <div class="page-break"></div>
+  {{ sparta_header("Kerja Kurang", toko.nomor_ulok ~ " - " ~ (toko.nama_toko or '-')) | safe }}
   <p class="section-title">Kerja Kurang</p>
 
   {% for group in kerja_kurang_groups %}
@@ -505,6 +498,7 @@
   {% endif %}
 
   <div class="page-break"></div>
+  {{ sparta_header("Tanda Tangan Opname Final", toko.nomor_ulok ~ " - " ~ (toko.nama_toko or '-')) | safe }}
   <p class="section-title">Tanda Tangan</p>
 
   <div class="signatures">

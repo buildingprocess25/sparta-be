@@ -179,6 +179,7 @@
       color: #64748b;
       text-align: right;
     }
+    {{ sparta_pdf_css() | safe }}
   </style>
 </head>
 <body>
@@ -187,31 +188,9 @@
   {% endif %}
 
   <div class="content">
-    <div class="header">
-      <div class="topbar">
-        <div class="topbar-left">
-          {% if alfamart_logo_path %}
-          <img src="{{ alfamart_logo_path }}" class="brand-logo" alt="Alfamart" />
-          {% endif %}
-        </div>
-        <div class="topbar-divider"></div>
-        <div class="topbar-right">
-          {% if building_logo_path %}
-          <img src="{{ building_logo_path }}" class="sparta-logo" alt="Sparta" />
-          {% endif %}
-          <div>
-            <div class="sparta-text">SPARTA</div>
-            <div class="sparta-subtext">Building</div>
-          </div>
-        </div>
-      </div>
-      <div class="header-text">
-        <h1 class="title">Dokumentasi Bangunan</h1>
-        <div class="subtitle">Generated: {{ generated_at }}</div>
-        <div class="title-rule"></div>
-      </div>
-    </div>
+    {{ sparta_header("Dokumentasi Bangunan", dokumentasi.nomor_ulok ~ " - " ~ (dokumentasi.nama_toko or '-')) | safe }}
 
+    <div class="section-title">Informasi Dokumentasi Bangunan</div>
     <table class="meta">
       <tr>
         <td class="label">Nomor ULOK</td>
@@ -257,7 +236,7 @@
       </tr>
     </table>
 
-    <div class="section-title">Foto Dokumentasi</div>
+    <div class="section-title">Lampiran Foto Dokumentasi</div>
 
     {% if photo_items.length == 0 %}
       <div>Tidak ada foto dokumentasi.</div>
@@ -278,7 +257,7 @@
       {% endfor %}
     </div>
 
-    <div class="footer">Dokumentasi Bangunan - {{ dokumentasi.kode_toko or '-' }}</div>
+    <div class="footer">Dokumen ini di-generate otomatis oleh sistem SPARTA Building pada {{ generated_at }}</div>
   </div>
 </body>
 </html>

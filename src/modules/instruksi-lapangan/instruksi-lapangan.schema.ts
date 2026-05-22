@@ -14,6 +14,7 @@ export const submitInstruksiLapanganSchema = z.object({
     email_pembuat: z.string().email(),
     tanggal_mulai: z.string().min(1),
     tanggal_selesai: z.string().min(1),
+    id_instruksi_lapangan_revisi: z.coerce.number().int().positive().optional(),
     
     // Optional file from frontend
     lampiran: z.string().optional(),

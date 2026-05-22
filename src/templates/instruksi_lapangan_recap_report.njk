@@ -65,6 +65,7 @@
 
         .grand-total-table td:first-child { border: none; }
         .total-amount-cell { background-color: #e0ffff; }
+        {{ sparta_pdf_css() | safe }}
     </style>
 </head>
 <body>
@@ -72,23 +73,15 @@
     <img src="{{ watermark_logo_path }}" class="watermark" alt="watermark" />
     {% endif %}
 
-    <div class="header-company">
-        <p>{{ nama_pt }}</p>
-        <p>Cabang {{ data.Cabang }}</p>
-    </div>
+    {{ sparta_header("Rekapitulasi Instruksi Lapangan", nama_pt ~ " - Cabang " ~ data.Cabang) | safe }}
 
-    <div class="header-title">
-        <h1>REKAPITULASI INSTRUKSI LAPANGAN</h1>
-    </div>
-
+    <div class="section-title">Informasi Rekapitulasi</div>
     <div class="section-info">
-        <table>
-            <tr><td style="width:30%;">NOMOR ULOK</td><td style="width:2%;">:</td><td>{{ data.NomorUlok }}</td></tr>
-            <tr><td>NAMA TOKO</td><td>:</td><td>{{ data.nama_toko }}</td></tr>
-            <tr><td>PROYEK</td><td>:</td><td>{{ data.Proyek }}</td></tr>
-            <tr><td>ALAMAT TOKO</td><td>:</td><td>{{ data.Alamat }}</td></tr>
-            <tr><td>LINGKUP PEKERJAAN</td><td>:</td><td>{{ data.LingkupPekerjaan }}</td></tr>
-            <tr><td>TANGGAL PENGAJUAN</td><td>:</td><td>{{ tanggal_pengajuan }}</td></tr>
+        <table class="info-table">
+            <tr><td class="label">Nomor ULOK</td><td>: {{ data.NomorUlok }}</td><td class="label">Tanggal Pengajuan</td><td>: {{ tanggal_pengajuan }}</td></tr>
+            <tr><td class="label">Nama Toko</td><td>: {{ data.nama_toko }}</td><td class="label">Cabang</td><td>: {{ data.Cabang }}</td></tr>
+            <tr><td class="label">Proyek</td><td>: {{ data.Proyek }}</td><td class="label">Lingkup Pekerjaan</td><td>: {{ data.LingkupPekerjaan }}</td></tr>
+            <tr><td class="label">Alamat Toko</td><td colspan="3">: {{ data.Alamat }}</td></tr>
         </table>
     </div>
 
@@ -123,5 +116,7 @@
             <tr><td>GRAND TOTAL (Rp)</td><td class="total-amount-cell">{{ final_total_formatted }}</td></tr>
         </tbody>
     </table>
+    <div style="clear:both;"></div>
+    <div class="footer">Dokumen ini di-generate otomatis oleh sistem SPARTA Building pada {{ tanggal_pengajuan }}</div>
 </body>
 </html>
