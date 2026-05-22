@@ -158,6 +158,13 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
             });
         }
 
+        if (error.code === "LIMIT_FIELD_VALUE") {
+            return res.status(400).json({
+                status: "error",
+                message: "Data form upload melebihi batas maksimal 10MB. Kurangi jumlah item RAB atau ukuran lampiran teks."
+            });
+        }
+
         if (error.code === "LIMIT_UNEXPECTED_FILE") {
             return res.status(400).json({
                 status: "error",

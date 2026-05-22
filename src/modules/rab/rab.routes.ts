@@ -15,10 +15,12 @@ import {
 } from "./rab.controller";
 
 const rabRouter = Router();
+const RAB_UPLOAD_LIMIT_BYTES = 10 * 1024 * 1024;
 const rabUpload = multer({
 	storage: multer.memoryStorage(),
 	limits: {
-		fileSize: 10 * 1024 * 1024
+		fileSize: RAB_UPLOAD_LIMIT_BYTES,
+		fieldSize: RAB_UPLOAD_LIMIT_BYTES,
 	}
 });
 
