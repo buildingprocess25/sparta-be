@@ -157,10 +157,16 @@
 
   <table class="meta">
     <tr>
-      <td class="label">Tanggal Dokumen</td>
+      <td class="label">Tanggal Opname Final</td>
       <td>{{ created_at_formatted }}</td>
       <td class="label">Email Pembuat</td>
       <td>{{ opname_final.email_pembuat or '-' }}</td>
+    </tr>
+    <tr>
+      <td class="label">Tanggal Generate PDF</td>
+      <td>{{ generated_at }}</td>
+      <td class="label">ID Opname Final</td>
+      <td>{{ opname_final.id }}</td>
     </tr>
     <tr>
       <td class="label">Status Opname Final</td>
@@ -193,8 +199,8 @@
         <th class="volume-col">Volume RAB</th>
         <th class="volume-col">Volume Akhir</th>
         <th class="volume-col">Selisih Vol</th>
-        <th class="money-col">Total RAB</th>
-        <th class="money-col">Total Selisih</th>
+        <th class="amount-col">Total RAB</th>
+        <th class="amount-col">Total Selisih</th>
         <th class="note-col">Catatan</th>
       </tr>
     </thead>
@@ -207,8 +213,8 @@
         <td class="volume-col">{{ item.volume_rab }}</td>
         <td class="volume-col">{{ item.volume_akhir }}</td>
         <td class="volume-col">{{ item.selisih_volume }}</td>
-        <td class="money-col">{{ item.total_harga_rab_formatted }}</td>
-        <td class="money-col">{{ item.total_selisih_formatted }}</td>
+        <td class="amount-col">{{ item.total_harga_rab_formatted }}</td>
+        <td class="amount-col">{{ item.total_selisih_formatted }}</td>
         <td>{{ item.catatan or '-' }}</td>
       </tr>
       {% endfor %}
@@ -348,8 +354,8 @@
         <th class="volume-col">Volume RAB</th>
         <th class="volume-col">Volume Akhir</th>
         <th class="volume-col">Selisih Vol</th>
-        <th class="money-col">Total RAB</th>
-        <th class="money-col">Total Selisih</th>
+        <th class="amount-col">Total RAB</th>
+        <th class="amount-col">Total Selisih</th>
         <th class="note-col">Catatan</th>
       </tr>
     </thead>
@@ -362,8 +368,8 @@
         <td class="volume-col">{{ item.volume_rab }}</td>
         <td class="volume-col">{{ item.volume_akhir }}</td>
         <td class="volume-col">{{ item.selisih_volume }}</td>
-        <td class="money-col">{{ item.total_harga_rab_formatted }}</td>
-        <td class="money-col">{{ item.total_selisih_formatted }}</td>
+        <td class="amount-col">{{ item.total_harga_rab_formatted }}</td>
+        <td class="amount-col">{{ item.total_selisih_formatted }}</td>
         <td>{{ item.catatan or '-' }}</td>
       </tr>
       {% endfor %}
@@ -393,8 +399,8 @@
         <th class="volume-col">Volume RAB</th>
         <th class="volume-col">Volume Akhir</th>
         <th class="volume-col">Selisih Vol</th>
-        <th class="money-col">Total RAB</th>
-        <th class="money-col">Total Selisih</th>
+        <th class="amount-col">Total RAB</th>
+        <th class="amount-col">Total Selisih</th>
         <th class="note-col">Catatan</th>
       </tr>
     </thead>
@@ -407,8 +413,8 @@
         <td class="volume-col">{{ item.volume_rab }}</td>
         <td class="volume-col">{{ item.volume_akhir }}</td>
         <td class="volume-col">{{ item.selisih_volume }}</td>
-        <td class="money-col">{{ item.total_harga_rab_formatted }}</td>
-        <td class="money-col">{{ item.total_selisih_formatted }}</td>
+        <td class="amount-col">{{ item.total_harga_rab_formatted }}</td>
+        <td class="amount-col">{{ item.total_selisih_formatted }}</td>
         <td>{{ item.catatan or '-' }}</td>
       </tr>
       {% endfor %}

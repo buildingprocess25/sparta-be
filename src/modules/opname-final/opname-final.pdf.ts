@@ -184,8 +184,17 @@ const formatDateTimeIndonesia = (value?: string | null): string => {
     return `${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}, ${hh}:${mm} WIB`;
 };
 
-const approvalDetails = (nameOrEmail?: string | null, approvedAt?: string | null): string => {
-    const identity = (nameOrEmail ?? "").trim();
+const displayName = (name?: string | null, email?: string | null): string => {
+    const explicitName = (name ?? "").trim();
+    if (explicitName) return explicitName;
+
+    const identity = (email ?? "").trim();
+    if (!identity) return "";
+    return identity.includes("@") ? identity.split("@")[0] : identity;
+};
+
+const approvalDetails = (name?: string | null, email?: string | null, approvedAt?: string | null): string => {
+    const identity = displayName(name, email);
     if (!identity) {
         return "<div class=\"approval-details\"><div class=\"approval-date\">&nbsp;</div><div class=\"approval-name\">( _________________ )</div></div>";
     }
@@ -269,16 +278,23 @@ export const buildOpnameFinalPdfBuffer = async (
         grand_total_kerja_tambah_formatted: rupiah(grandTotalKerjaTambah),
         grand_total_kerja_kurang_formatted: rupiah(grandTotalKerjaKurang),
         created_at_formatted: formatDateIndonesia(detail.opname_final.created_at),
-        creator_details: approvalDetails(detail.opname_final.email_pembuat, detail.opname_final.created_at),
+        creator_details: approvalDetails(
+            detail.opname_final.nama_pembuat,
+            detail.opname_final.email_pembuat,
+            detail.opname_final.created_at
+        ),
         coordinator_approval_details: approvalDetails(
+            detail.opname_final.nama_persetujuan_koordinator,
             detail.opname_final.pemberi_persetujuan_koordinator,
             detail.opname_final.waktu_persetujuan_koordinator
         ),
         manager_approval_details: approvalDetails(
+            detail.opname_final.nama_persetujuan_manager,
             detail.opname_final.pemberi_persetujuan_manager,
             detail.opname_final.waktu_persetujuan_manager
         ),
         director_approval_details: approvalDetails(
+            detail.opname_final.nama_persetujuan_direktur,
             detail.opname_final.pemberi_persetujuan_direktur,
             detail.opname_final.waktu_persetujuan_direktur
         )

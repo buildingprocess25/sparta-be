@@ -169,20 +169,20 @@ const spartaPdfCss = () => `
     .items th, .items td {
       border: 1px solid #d8dee6;
       padding: 5px 6px;
-      vertical-align: top;
+      vertical-align: middle;
       line-height: 1.25;
       overflow-wrap: anywhere;
       word-break: normal;
     }
 
     .data-table th, .price-table th, .items th {
-      background-color: #fff6f6;
-      color: #b91c1c;
+      background-color: #f8fafc;
+      color: #374151;
       text-align: center;
       font-weight: 700;
       text-transform: none;
-      border-top: 1.4px solid #ef4444;
-      border-bottom: 1.4px solid #ef4444;
+      border-top: 1.2px solid #cbd5e1;
+      border-bottom: 1.2px solid #cbd5e1;
     }
 
     .data-table tbody tr:nth-child(even),
@@ -198,11 +198,12 @@ const spartaPdfCss = () => `
 
     .text-left, .col-work, .work-col, td.work-col { text-align: left; }
     .text-right, .num, .money-col { text-align: right; white-space: nowrap; }
-    .center, .no-col, .unit-col, .volume-col { text-align: center; }
+    .center, .no-col, .unit-col, .volume-col, .amount-col { text-align: center; }
     .no-col { width: 28px; }
     .unit-col { width: 44px; }
     .volume-col { width: 52px; }
     .money-col { width: 76px; }
+    .amount-col { width: 76px; white-space: nowrap; }
     .note-col { width: 90px; }
     .work-col { width: auto; }
 

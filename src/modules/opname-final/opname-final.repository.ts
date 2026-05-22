@@ -10,11 +10,15 @@ export type OpnameFinalRow = {
     status_opname_final: OpnameFinalStatus;
     link_pdf_opname: string | null;
     email_pembuat: string | null;
+    nama_pembuat: string | null;
     pemberi_persetujuan_direktur: string | null;
+    nama_persetujuan_direktur: string | null;
     waktu_persetujuan_direktur: string | null;
     pemberi_persetujuan_koordinator: string | null;
+    nama_persetujuan_koordinator: string | null;
     waktu_persetujuan_koordinator: string | null;
     pemberi_persetujuan_manager: string | null;
+    nama_persetujuan_manager: string | null;
     waktu_persetujuan_manager: string | null;
     alasan_penolakan: string | null;
     grand_total_opname: string | null;
@@ -97,11 +101,15 @@ const OPNAME_FINAL_COLUMNS = `
     ofn.status_opname_final,
     ofn.link_pdf_opname,
     ofn.email_pembuat,
+    creator_user.nama_lengkap AS nama_pembuat,
     ofn.pemberi_persetujuan_direktur,
+    director_user.nama_lengkap AS nama_persetujuan_direktur,
     ofn.waktu_persetujuan_direktur,
     ofn.pemberi_persetujuan_koordinator,
+    coordinator_user.nama_lengkap AS nama_persetujuan_koordinator,
     ofn.waktu_persetujuan_koordinator,
     ofn.pemberi_persetujuan_manager,
+    manager_user.nama_lengkap AS nama_persetujuan_manager,
     ofn.waktu_persetujuan_manager,
     ofn.alasan_penolakan,
     ofn.grand_total_opname,
@@ -146,13 +154,37 @@ export const opnameFinalRepository = {
         const result = await pool.query<OpnameFinalListRow>(
             `
             SELECT ${OPNAME_FINAL_COLUMNS},
-                t.nomor_ulok,
-                t.nama_toko,
-                t.proyek,
-                t.cabang
-            FROM opname_final ofn
+                  t.nomor_ulok,
+                  t.nama_toko,
+                  t.proyek,
+                  t.cabang
+              FROM opname_final ofn
             JOIN toko t ON t.id = ofn.id_toko
-            ${whereClause}
+            LEFT JOIN LATERAL (
+                SELECT uc.nama_lengkap FROM user_cabang uc
+                WHERE LOWER(uc.email_sat) = LOWER(ofn.email_pembuat)
+                ORDER BY CASE WHEN UPPER(uc.cabang) = UPPER(t.cabang) THEN 0 ELSE 1 END, uc.id
+                LIMIT 1
+            ) creator_user ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT uc.nama_lengkap FROM user_cabang uc
+                WHERE LOWER(uc.email_sat) = LOWER(ofn.pemberi_persetujuan_direktur)
+                ORDER BY CASE WHEN UPPER(uc.cabang) = UPPER(t.cabang) THEN 0 ELSE 1 END, uc.id
+                LIMIT 1
+            ) director_user ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT uc.nama_lengkap FROM user_cabang uc
+                WHERE LOWER(uc.email_sat) = LOWER(ofn.pemberi_persetujuan_koordinator)
+                ORDER BY CASE WHEN UPPER(uc.cabang) = UPPER(t.cabang) THEN 0 ELSE 1 END, uc.id
+                LIMIT 1
+            ) coordinator_user ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT uc.nama_lengkap FROM user_cabang uc
+                WHERE LOWER(uc.email_sat) = LOWER(ofn.pemberi_persetujuan_manager)
+                ORDER BY CASE WHEN UPPER(uc.cabang) = UPPER(t.cabang) THEN 0 ELSE 1 END, uc.id
+                LIMIT 1
+            ) manager_user ON TRUE
+              ${whereClause}
             ORDER BY ofn.created_at DESC, ofn.id DESC
             `,
             values
@@ -172,15 +204,39 @@ export const opnameFinalRepository = {
         }>(
             `
             SELECT ${OPNAME_FINAL_COLUMNS},
-                t.nomor_ulok,
-                t.nama_toko,
-                t.proyek,
-                t.cabang,
-                t.alamat,
-                t.lingkup_pekerjaan
-            FROM opname_final ofn
+                  t.nomor_ulok,
+                  t.nama_toko,
+                  t.proyek,
+                  t.cabang,
+                  t.alamat,
+                  t.lingkup_pekerjaan
+              FROM opname_final ofn
             JOIN toko t ON t.id = ofn.id_toko
-            WHERE ofn.id = $1
+            LEFT JOIN LATERAL (
+                SELECT uc.nama_lengkap FROM user_cabang uc
+                WHERE LOWER(uc.email_sat) = LOWER(ofn.email_pembuat)
+                ORDER BY CASE WHEN UPPER(uc.cabang) = UPPER(t.cabang) THEN 0 ELSE 1 END, uc.id
+                LIMIT 1
+            ) creator_user ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT uc.nama_lengkap FROM user_cabang uc
+                WHERE LOWER(uc.email_sat) = LOWER(ofn.pemberi_persetujuan_direktur)
+                ORDER BY CASE WHEN UPPER(uc.cabang) = UPPER(t.cabang) THEN 0 ELSE 1 END, uc.id
+                LIMIT 1
+            ) director_user ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT uc.nama_lengkap FROM user_cabang uc
+                WHERE LOWER(uc.email_sat) = LOWER(ofn.pemberi_persetujuan_koordinator)
+                ORDER BY CASE WHEN UPPER(uc.cabang) = UPPER(t.cabang) THEN 0 ELSE 1 END, uc.id
+                LIMIT 1
+            ) coordinator_user ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT uc.nama_lengkap FROM user_cabang uc
+                WHERE LOWER(uc.email_sat) = LOWER(ofn.pemberi_persetujuan_manager)
+                ORDER BY CASE WHEN UPPER(uc.cabang) = UPPER(t.cabang) THEN 0 ELSE 1 END, uc.id
+                LIMIT 1
+            ) manager_user ON TRUE
+              WHERE ofn.id = $1
             `,
             [id]
         );
@@ -255,11 +311,15 @@ export const opnameFinalRepository = {
                 status_opname_final: header.status_opname_final,
                 link_pdf_opname: header.link_pdf_opname,
                 email_pembuat: header.email_pembuat,
+                nama_pembuat: header.nama_pembuat,
                 pemberi_persetujuan_direktur: header.pemberi_persetujuan_direktur,
+                nama_persetujuan_direktur: header.nama_persetujuan_direktur,
                 waktu_persetujuan_direktur: header.waktu_persetujuan_direktur,
                 pemberi_persetujuan_koordinator: header.pemberi_persetujuan_koordinator,
+                nama_persetujuan_koordinator: header.nama_persetujuan_koordinator,
                 waktu_persetujuan_koordinator: header.waktu_persetujuan_koordinator,
                 pemberi_persetujuan_manager: header.pemberi_persetujuan_manager,
+                nama_persetujuan_manager: header.nama_persetujuan_manager,
                 waktu_persetujuan_manager: header.waktu_persetujuan_manager,
                 alasan_penolakan: header.alasan_penolakan,
                 grand_total_opname: header.grand_total_opname,
