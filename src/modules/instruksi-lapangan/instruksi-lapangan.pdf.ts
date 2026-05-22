@@ -150,10 +150,6 @@ export const buildInstruksiLapanganPdfBuffer = async (input: BuildInstruksiLapan
             input.instruksiLapangan.pemberi_persetujuan_manager,
             input.instruksiLapangan.waktu_persetujuan_manager,
         ),
-        contractor_approval_details: approvalDetails(
-            input.instruksiLapangan.pemberi_persetujuan_kontraktor,
-            input.instruksiLapangan.waktu_persetujuan_kontraktor,
-        ),
     });
 
     return renderPdfFromHtml(html);

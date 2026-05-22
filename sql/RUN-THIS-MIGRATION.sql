@@ -172,3 +172,13 @@ CREATE INDEX IF NOT EXISTS idx_auth_otp_lookup
 CREATE INDEX IF NOT EXISTS idx_auth_otp_active
     ON auth_otp (email_sat, cabang, expires_at)
     WHERE consumed_at IS NULL;
+
+-- ============================================================
+-- [4] UPDATE FLOW APPROVAL Instruksi Lapangan
+--     File asal: 2026-05-22-update-instruksi-lapangan-approval-flow.sql
+--     Manager menjadi approver final, tahap kontraktor dihapus dari IL.
+-- ============================================================
+UPDATE instruksi_lapangan
+SET status = 'Disetujui'
+WHERE status = 'Menunggu Persetujuan Kontraktor'
+  AND pemberi_persetujuan_manager IS NOT NULL;

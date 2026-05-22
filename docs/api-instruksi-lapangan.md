@@ -150,7 +150,7 @@ Men-download file lampiran original yang diunggah saat submit.
 ```json
 {
   "approver_email": "manager@alfamart.com",
-  "jabatan": "MANAGER", // KOORDINATOR | MANAGER | DIREKTUR | KONTRAKTOR
+  "jabatan": "MANAGER", // KOORDINATOR | MANAGER
   "tindakan": "APPROVE", // atau "REJECT"
   "alasan_penolakan": "Opsional, wajib jika REJECT"
 }
@@ -158,7 +158,9 @@ Men-download file lampiran original yang diunggah saat submit.
 
 ### Flow Status:
 
-`Menunggu Persetujuan Koordinator` -> `Menunggu Persetujuan Manager` -> `Menunggu Persetujuan Kontraktor` -> `Disetujui`
+`Menunggu Persetujuan Koordinator` -> `Menunggu Persetujuan Manager` -> `Disetujui`
+
+Jika `REJECT`, status menjadi `Ditolak` dan pembuat IL (`Branch Building Support`) dapat melakukan revisi/resubmit. Resubmit mengembalikan status ke `Menunggu Persetujuan Koordinator`.
 
 ### Response:
 

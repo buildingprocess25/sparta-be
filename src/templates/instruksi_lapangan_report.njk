@@ -251,8 +251,8 @@
     </table>
     <div style="clear:both;"></div>
 
-    <div class="signatures{% if is_batam_branch %} batam-two-cols{% endif %}">
-        <div class="signature-box" style="width: 25%;">
+    <div class="signatures">
+        <div class="signature-box">
             <p>Dibuat</p>
             <div class="signature-content">
                 {{ creator_details | safe }}
@@ -268,23 +268,13 @@
             </div>
             <p>BRANCH BUILDING COORDINATOR</p>
         </div>
-        {% if not is_batam_branch %}
-        <div class="signature-box" style="width: 25%;">
-            <p>Mengetahui</p>
+        <div class="signature-box">
+            <p>Disetujui</p>
             <div class="signature-content">
                 {{ manager_approval_details | safe }}
                 <div class="signature-line"></div>
             </div>
             <p>BRANCH BUILDING &amp; MAINTENANCE MANAGER</p>
-        </div>
-        {% endif %}
-        <div class="signature-box" style="width: 25%;">
-            <p>Menyetujui</p>
-            <div class="signature-content">
-                {{ contractor_approval_details | safe }}
-                <div class="signature-line"></div>
-            </div>
-            <p>KONTRAKTOR</p>
         </div>
     </div>
 </body>

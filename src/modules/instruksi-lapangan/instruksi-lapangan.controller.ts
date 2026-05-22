@@ -82,6 +82,10 @@ export const downloadInstruksiLapanganLampiran = asyncHandler(async (req: Reques
 
 export const handleInstruksiLapanganApproval = asyncHandler(async (req: Request, res: Response) => {
     const action = approvalActionSchema.parse(req.body);
+    if (action.jabatan !== "KOORDINATOR" && action.jabatan !== "MANAGER") {
+        throw new AppError("Approval Instruksi Lapangan hanya dapat diproses oleh Koordinator atau Manager", 403);
+    }
+
     const result = await instruksiLapanganService.handleApproval(req.params.id, action);
 
     res.json({

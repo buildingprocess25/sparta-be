@@ -234,6 +234,10 @@ export const instruksiLapanganService = {
 
         if (action.tindakan === "APPROVE") {
             if (currentStatus === "Menunggu Persetujuan Koordinator") {
+                if (action.jabatan !== "KOORDINATOR") {
+                    throw new AppError("Instruksi Lapangan saat ini menunggu approval Koordinator", 403);
+                }
+
                 await instruksiLapanganRepository.updateApproval(
                     id,
                     "Menunggu Persetujuan Manager",
@@ -241,17 +245,14 @@ export const instruksiLapanganService = {
                     action.approver_email
                 );
             } else if (currentStatus === "Menunggu Persetujuan Manager") {
-                await instruksiLapanganRepository.updateApproval(
-                    id,
-                    "Menunggu Persetujuan Kontraktor",
-                    "manager",
-                    action.approver_email
-                );
-            } else if (currentStatus === "Menunggu Persetujuan Kontraktor") {
+                if (action.jabatan !== "MANAGER") {
+                    throw new AppError("Instruksi Lapangan saat ini menunggu approval Manager", 403);
+                }
+
                 await instruksiLapanganRepository.updateApproval(
                     id,
                     "Disetujui",
-                    "kontraktor",
+                    "manager",
                     action.approver_email
                 );
             } else {
@@ -260,7 +261,18 @@ export const instruksiLapanganService = {
         } else if (action.tindakan === "REJECT") {
             const role = currentStatus === "Menunggu Persetujuan Koordinator" ? "koordinator"
                 : currentStatus === "Menunggu Persetujuan Manager" ? "manager"
-                : "kontraktor";
+                : null;
+
+            if (!role) {
+                throw new AppError(`Status tidak dapat di-reject dari state saat ini: ${currentStatus}`, 400);
+            }
+
+            if (
+                (role === "koordinator" && action.jabatan !== "KOORDINATOR") ||
+                (role === "manager" && action.jabatan !== "MANAGER")
+            ) {
+                throw new AppError(`Instruksi Lapangan saat ini menunggu approval ${role === "koordinator" ? "Koordinator" : "Manager"}`, 403);
+            }
             
             await instruksiLapanganRepository.updateApproval(
                 id,
