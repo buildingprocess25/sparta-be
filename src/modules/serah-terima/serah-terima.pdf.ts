@@ -89,28 +89,31 @@ const buildAssessmentSummary = (items: SerahTerimaDetail["items"]) => {
     const desainSesuai = countMatching(items, (item) => item.desain, "Sesuai");
     const kualitasBaik = countMatching(items, (item) => item.kualitas, "Baik");
     const spesifikasiSesuai = countMatching(items, (item) => item.spesifikasi, "Sesuai");
-    const dokumentasiAda = items.filter((item) => Boolean(String(item.foto ?? "").trim())).length;
+    const nilaiDesain = total > 0 ? (desainSesuai / total) * 30 : 0;
+    const nilaiKualitas = total > 0 ? (kualitasBaik / total) * 35 : 0;
+    const nilaiSpesifikasi = total > 0 ? (spesifikasiSesuai / total) * 35 : 0;
+    const nilaiToko = nilaiDesain + nilaiKualitas + nilaiSpesifikasi;
 
     return [
         {
             label: "Desain Sesuai",
             value: `${desainSesuai} dari ${total}`,
-            detail: total > 0 ? `${Math.round((desainSesuai / total) * 100)}% sesuai` : "Belum ada item"
+            detail: total > 0 ? `Nilai ${nilaiDesain.toFixed(1)} dari bobot 30` : "Belum ada item"
         },
         {
             label: "Kualitas Baik",
             value: `${kualitasBaik} dari ${total}`,
-            detail: total > 0 ? `${Math.round((kualitasBaik / total) * 100)}% baik` : "Belum ada item"
+            detail: total > 0 ? `Nilai ${nilaiKualitas.toFixed(1)} dari bobot 35` : "Belum ada item"
         },
         {
             label: "Spesifikasi Sesuai",
             value: `${spesifikasiSesuai} dari ${total}`,
-            detail: total > 0 ? `${Math.round((spesifikasiSesuai / total) * 100)}% sesuai` : "Belum ada item"
+            detail: total > 0 ? `Nilai ${nilaiSpesifikasi.toFixed(1)} dari bobot 35` : "Belum ada item"
         },
         {
-            label: "Dokumentasi Tersedia",
-            value: `${dokumentasiAda} dari ${total}`,
-            detail: total > 0 ? `${Math.round((dokumentasiAda / total) * 100)}% tersedia` : "Belum ada item"
+            label: "Nilai Toko",
+            value: `${nilaiToko.toFixed(1)} / 100`,
+            detail: "Bobot: desain 30, kualitas 35, spesifikasi 35"
         },
     ];
 };

@@ -222,17 +222,6 @@
     </tr>
   </table>
 
-  <div class="section-title">Rekap Penilaian Serah Terima</div>
-  <div class="assessment-grid">
-    {% for item in assessment_summary %}
-    <div class="assessment-card">
-      <div class="assessment-label">{{ item.label }}</div>
-      <div class="assessment-value">{{ item.value }}</div>
-      <div class="assessment-detail">{{ item.detail }}</div>
-    </div>
-    {% endfor %}
-  </div>
-
   <div class="section-title">Daftar Pekerjaan</div>
 
   {% for group in grouped_items_list %}
@@ -275,6 +264,17 @@
     </tr>
   </table>
   {% endif %}
+
+  <div class="section-title">Rekap Penilaian Serah Terima</div>
+  <div class="assessment-grid">
+    {% for item in assessment_summary %}
+    <div class="assessment-card">
+      <div class="assessment-label">{{ item.label }}</div>
+      <div class="assessment-value">{{ item.value }}</div>
+      <div class="assessment-detail">{{ item.detail }}</div>
+    </div>
+    {% endfor %}
+  </div>
 
   <div class="footer">
     Dokumen ini di-generate otomatis oleh sistem SPARTA Building pada {{ generated_at }}
