@@ -129,8 +129,8 @@
     }
 
     .category-summary .label {
-      background: #eef6ff;
-      color: #1e3a8a;
+      background: #f8fafc;
+      color: #1f2937;
       font-weight: 700;
       text-align: left;
     }
@@ -142,7 +142,7 @@
     }
 
     .category-summary .grand td {
-      background: #dbeafe;
+      background: #f1f5f9;
       color: #0f172a;
       font-weight: 800;
     }
@@ -158,6 +158,7 @@
       margin: 0 0 6px;
       font-size: 14px;
       font-weight: 700;
+      color: #d71920;
       text-transform: uppercase;
       letter-spacing: 0.4px;
     }
@@ -165,9 +166,10 @@
     .category-header {
       font-size: 12px;
       font-weight: 700;
+      color: #d71920;
       margin-top: 14px;
       padding: 6px 0 4px;
-      border-bottom: 1px solid #aeb4bc;
+      border-bottom: 1px solid #d71920;
       text-transform: uppercase;
     }
 
@@ -179,6 +181,27 @@
   </style>
 </head>
 <body>
+  {% macro financial_summary(summary) %}
+  <table class="category-summary">
+    <tr>
+      <td class="label">Total</td>
+      <td class="amount">{{ summary.total_formatted }}</td>
+    </tr>
+    <tr>
+      <td class="label">Pembulatan</td>
+      <td class="amount">{{ summary.pembulatan_formatted }}</td>
+    </tr>
+    <tr>
+      <td class="label">PPN 11%</td>
+      <td class="amount">{{ summary.ppn_formatted }}</td>
+    </tr>
+    <tr class="grand">
+      <td class="label">Grand Total</td>
+      <td class="amount">{{ summary.grand_total_formatted }}</td>
+    </tr>
+  </table>
+  {% endmacro %}
+
   {% if watermark_logo_path %}
   <img src="{{ watermark_logo_path }}" class="watermark" alt="watermark" />
   {% endif %}
@@ -251,25 +274,10 @@
       {% endfor %}
     </tbody>
   </table>
-  <table class="category-summary">
-    <tr>
-      <td class="label">Total</td>
-      <td class="amount">{{ group.summary.total_formatted }}</td>
-    </tr>
-    <tr>
-      <td class="label">Pembulatan</td>
-      <td class="amount">{{ group.summary.pembulatan_formatted }}</td>
-    </tr>
-    <tr>
-      <td class="label">PPN 11%</td>
-      <td class="amount">{{ group.summary.ppn_formatted }}</td>
-    </tr>
-    <tr class="grand">
-      <td class="label">Grand Total</td>
-      <td class="amount">{{ group.summary.grand_total_formatted }}</td>
-    </tr>
-  </table>
   {% endfor %}
+  {% if grouped_items_list.length > 0 %}
+  {{ financial_summary(opname_summary) }}
+  {% endif %}
   {% if grouped_items_list.length === 0 %}
   <table class="items">
     <tr>
@@ -334,25 +342,10 @@
       {% endfor %}
     </tbody>
   </table>
-  <table class="category-summary">
-    <tr>
-      <td class="label">Total</td>
-      <td class="amount">{{ group.summary.total_formatted }}</td>
-    </tr>
-    <tr>
-      <td class="label">Pembulatan</td>
-      <td class="amount">{{ group.summary.pembulatan_formatted }}</td>
-    </tr>
-    <tr>
-      <td class="label">PPN 11%</td>
-      <td class="amount">{{ group.summary.ppn_formatted }}</td>
-    </tr>
-    <tr class="grand">
-      <td class="label">Grand Total</td>
-      <td class="amount">{{ group.summary.grand_total_formatted }}</td>
-    </tr>
-  </table>
   {% endfor %}
+  {% if rab_grouped_items_list.length > 0 %}
+  {{ financial_summary(rab_summary) }}
+  {% endif %}
   {% if rab_grouped_items_list.length === 0 %}
   <table class="items">
     <tr>
@@ -397,25 +390,10 @@
       {% endfor %}
     </tbody>
   </table>
-  <table class="category-summary">
-    <tr>
-      <td class="label">Total</td>
-      <td class="amount">{{ group.summary.total_formatted }}</td>
-    </tr>
-    <tr>
-      <td class="label">Pembulatan</td>
-      <td class="amount">{{ group.summary.pembulatan_formatted }}</td>
-    </tr>
-    <tr>
-      <td class="label">PPN 11%</td>
-      <td class="amount">{{ group.summary.ppn_formatted }}</td>
-    </tr>
-    <tr class="grand">
-      <td class="label">Grand Total</td>
-      <td class="amount">{{ group.summary.grand_total_formatted }}</td>
-    </tr>
-  </table>
   {% endfor %}
+  {% if instruksi_lapangan_groups.length > 0 %}
+  {{ financial_summary(instruksi_lapangan_summary) }}
+  {% endif %}
   {% if instruksi_lapangan_groups.length === 0 %}
   <table class="items">
     <tr>
@@ -460,25 +438,10 @@
       {% endfor %}
     </tbody>
   </table>
-  <table class="category-summary">
-    <tr>
-      <td class="label">Total</td>
-      <td class="amount">{{ group.summary.total_formatted }}</td>
-    </tr>
-    <tr>
-      <td class="label">Pembulatan</td>
-      <td class="amount">{{ group.summary.pembulatan_formatted }}</td>
-    </tr>
-    <tr>
-      <td class="label">PPN 11%</td>
-      <td class="amount">{{ group.summary.ppn_formatted }}</td>
-    </tr>
-    <tr class="grand">
-      <td class="label">Grand Total</td>
-      <td class="amount">{{ group.summary.grand_total_formatted }}</td>
-    </tr>
-  </table>
   {% endfor %}
+  {% if kerja_tambah_groups.length > 0 %}
+  {{ financial_summary(kerja_tambah_summary) }}
+  {% endif %}
   {% if kerja_tambah_groups.length === 0 %}
   <table class="items">
     <tr>
@@ -523,25 +486,10 @@
       {% endfor %}
     </tbody>
   </table>
-  <table class="category-summary">
-    <tr>
-      <td class="label">Total</td>
-      <td class="amount">{{ group.summary.total_formatted }}</td>
-    </tr>
-    <tr>
-      <td class="label">Pembulatan</td>
-      <td class="amount">{{ group.summary.pembulatan_formatted }}</td>
-    </tr>
-    <tr>
-      <td class="label">PPN 11%</td>
-      <td class="amount">{{ group.summary.ppn_formatted }}</td>
-    </tr>
-    <tr class="grand">
-      <td class="label">Grand Total</td>
-      <td class="amount">{{ group.summary.grand_total_formatted }}</td>
-    </tr>
-  </table>
   {% endfor %}
+  {% if kerja_kurang_groups.length > 0 %}
+  {{ financial_summary(kerja_kurang_summary) }}
+  {% endif %}
   {% if kerja_kurang_groups.length === 0 %}
   <table class="items">
     <tr>

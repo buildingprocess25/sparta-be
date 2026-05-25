@@ -59,6 +59,18 @@ type GroupSummary = ReturnType<typeof buildFinancialSummary>;
 
 type GroupedItems<T> = Array<{ category: string; items: T[]; summary: GroupSummary }>;
 
+const sumOpnameTotalSelisih = (items: OpnameFinalItemRow[]): number => {
+    return items.reduce((acc, item) => acc + toNumber(item.total_selisih), 0);
+};
+
+const sumRabTotalHarga = (items: RabItemRow[]): number => {
+    return items.reduce((acc, item) => acc + toNumber(item.total_harga), 0);
+};
+
+const sumInstruksiLapanganTotalHarga = (items: InstruksiLapanganItemRow[]): number => {
+    return items.reduce((acc, item) => acc + toNumber(item.total_harga), 0);
+};
+
 type OpnameItemView = {
     jenis_pekerjaan: string;
     satuan: string;
@@ -294,18 +306,11 @@ export const buildOpnameFinalPdfBuffer = async (
     const rabGrandTotal = rabGrandTotalRaw !== null && typeof rabGrandTotalRaw !== "undefined"
         ? toNumber(rabGrandTotalRaw)
         : rabItems.reduce((acc, item) => acc + toNumber(item.total_harga), 0);
-    const grandTotalIl = instruksiLapanganItems.reduce(
-        (acc, item) => acc + toNumber(item.total_harga),
-        0
-    );
-    const grandTotalKerjaTambah = kerjaTambahItems.reduce(
-        (acc, item) => acc + toNumber(item.total_selisih),
-        0
-    );
-    const grandTotalKerjaKurang = kerjaKurangItems.reduce(
-        (acc, item) => acc + toNumber(item.total_selisih),
-        0
-    );
+    const totalOpnameSelisih = sumOpnameTotalSelisih(opnameItems);
+    const totalRabItems = sumRabTotalHarga(rabItems);
+    const grandTotalIl = sumInstruksiLapanganTotalHarga(instruksiLapanganItems);
+    const grandTotalKerjaTambah = sumOpnameTotalSelisih(kerjaTambahItems);
+    const grandTotalKerjaKurang = sumOpnameTotalSelisih(kerjaKurangItems);
 
     const html = await renderHtmlTemplate(templatePath, {
         generated_at: formatDateIndonesia(new Date().toISOString()),
@@ -319,6 +324,11 @@ export const buildOpnameFinalPdfBuffer = async (
         instruksi_lapangan_groups: buildInstruksiLapanganGroups(instruksiLapanganItems),
         kerja_tambah_groups: buildOpnameGroupedItems(kerjaTambahItems),
         kerja_kurang_groups: buildOpnameGroupedItems(kerjaKurangItems),
+        opname_summary: buildFinancialSummary(totalOpnameSelisih, "up"),
+        rab_summary: buildFinancialSummary(totalRabItems, "down"),
+        instruksi_lapangan_summary: buildFinancialSummary(grandTotalIl, "up"),
+        kerja_tambah_summary: buildFinancialSummary(grandTotalKerjaTambah, "up"),
+        kerja_kurang_summary: buildFinancialSummary(grandTotalKerjaKurang, "up"),
         grand_total_opname_formatted: rupiah(grandTotalOpname),
         grand_total_rab_formatted: rupiah(grandTotalRab),
         selisih_total_formatted: rupiah(grandTotalOpname - grandTotalRab),

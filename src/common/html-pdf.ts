@@ -125,8 +125,8 @@ const spartaPdfCss = () => `
     .section-title, .category-header {
       font-size: 13px;
       font-weight: 700;
-      color: #1d4ed8;
-      border-bottom: 1.6px solid #2563eb;
+      color: #dc2626;
+      border-bottom: 1.6px solid #dc2626;
       padding-bottom: 4px;
       margin: 18px 0 9px;
       text-transform: none;
@@ -177,7 +177,7 @@ const spartaPdfCss = () => `
 
     .data-table th, .price-table th, .items th {
       background-color: #eef6ff;
-      color: #1e3a8a;
+      color: #111827;
       text-align: center;
       font-weight: 800;
       text-transform: none;
