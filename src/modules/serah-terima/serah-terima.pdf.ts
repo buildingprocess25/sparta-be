@@ -71,6 +71,50 @@ const groupItemsByCategory = (items: SerahTerimaDetail["items"]) => {
     return groups;
 };
 
+const normalizeText = (value?: string | null): string => {
+    return String(value ?? "").trim().replace(/\s+/g, " ").toUpperCase();
+};
+
+const countMatching = (
+    items: SerahTerimaDetail["items"],
+    selector: (item: SerahTerimaDetail["items"][number]) => string | null,
+    expected: string
+): number => {
+    const normalizedExpected = normalizeText(expected);
+    return items.filter((item) => normalizeText(selector(item)) === normalizedExpected).length;
+};
+
+const buildAssessmentSummary = (items: SerahTerimaDetail["items"]) => {
+    const total = items.length;
+    const desainSesuai = countMatching(items, (item) => item.desain, "Sesuai");
+    const kualitasBaik = countMatching(items, (item) => item.kualitas, "Baik");
+    const spesifikasiSesuai = countMatching(items, (item) => item.spesifikasi, "Sesuai");
+    const dokumentasiAda = items.filter((item) => Boolean(String(item.foto ?? "").trim())).length;
+
+    return [
+        {
+            label: "Desain Sesuai",
+            value: `${desainSesuai} dari ${total}`,
+            detail: total > 0 ? `${Math.round((desainSesuai / total) * 100)}% sesuai` : "Belum ada item"
+        },
+        {
+            label: "Kualitas Baik",
+            value: `${kualitasBaik} dari ${total}`,
+            detail: total > 0 ? `${Math.round((kualitasBaik / total) * 100)}% baik` : "Belum ada item"
+        },
+        {
+            label: "Spesifikasi Sesuai",
+            value: `${spesifikasiSesuai} dari ${total}`,
+            detail: total > 0 ? `${Math.round((spesifikasiSesuai / total) * 100)}% sesuai` : "Belum ada item"
+        },
+        {
+            label: "Dokumentasi Tersedia",
+            value: `${dokumentasiAda} dari ${total}`,
+            detail: total > 0 ? `${Math.round((dokumentasiAda / total) * 100)}% tersedia` : "Belum ada item"
+        },
+    ];
+};
+
 export const buildSerahTerimaPdfBuffer = async (detail: SerahTerimaDetail): Promise<Buffer> => {
     const templatePath = await resolveTemplatePath("serah_terima_report.njk");
 
@@ -96,6 +140,8 @@ export const buildSerahTerimaPdfBuffer = async (detail: SerahTerimaDetail): Prom
                 total_harga_opname_formatted: rupiah(item.total_harga_opname),
             })),
         })),
+        assessment_summary: buildAssessmentSummary(detail.items),
+        total_item_count: detail.items.length,
         grand_total_opname_formatted: rupiah(grandTotalOpname),
         grand_total_rab_formatted: rupiah(grandTotalRab),
         selisih_total_formatted: rupiah(grandTotalOpname - grandTotalRab),

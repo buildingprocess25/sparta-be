@@ -316,6 +316,10 @@ export const buildOpnameFinalPdfBuffer = async (
     const kerjaTambahSummary = buildFinancialSummary(grandTotalKerjaTambah, "up");
     const kerjaKurangSummary = buildFinancialSummary(grandTotalKerjaKurang, "up");
     const selisihKerjaTambahKurang = kerjaTambahSummary.grand_total - Math.abs(kerjaKurangSummary.grand_total);
+    const totalOpnameFinal = rabSummary.grand_total
+        + instruksiLapanganSummary.grand_total
+        + kerjaTambahSummary.grand_total
+        - Math.abs(kerjaKurangSummary.grand_total);
 
     const html = await renderHtmlTemplate(templatePath, {
         generated_at: formatDateIndonesia(new Date().toISOString()),
@@ -342,6 +346,7 @@ export const buildOpnameFinalPdfBuffer = async (
         grand_total_kerja_tambah_formatted: kerjaTambahSummary.grand_total_formatted,
         grand_total_kerja_kurang_formatted: kerjaKurangSummary.grand_total_formatted,
         selisih_kerja_tambah_kurang_formatted: rupiah(selisihKerjaTambahKurang),
+        total_opname_final_formatted: rupiah(totalOpnameFinal),
         created_at_formatted: formatDateIndonesia(detail.opname_final.created_at),
         creator_details: approvalDetails(
             detail.opname_final.nama_pembuat,

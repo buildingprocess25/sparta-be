@@ -23,3 +23,12 @@ export const createPdfSerahTerima = asyncHandler(async (req: Request, res: Respo
         data,
     });
 });
+
+export const downloadBerkasSerahTerimaPdf = asyncHandler(async (req: Request, res: Response) => {
+    const id = Number(req.params.id);
+    const { buffer, filename } = await serahTerimaService.downloadPdfByBerkasId(id);
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(buffer);
+});

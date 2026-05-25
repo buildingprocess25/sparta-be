@@ -183,6 +183,20 @@ export const serahTerimaRepository = {
         return result.rows[0] ?? null;
     },
 
+    async findBerkasSerahTerimaById(id: number): Promise<BerkasSerahTerimaRow | null> {
+        const result = await pool.query<BerkasSerahTerimaRow>(
+            `
+            SELECT id, id_toko, link_pdf, created_at
+            FROM berkas_serah_terima
+            WHERE id = $1
+            LIMIT 1
+            `,
+            [id]
+        );
+
+        return result.rows[0] ?? null;
+    },
+
     async listBerkasSerahTerima(filter: { id_toko?: number; nomor_ulok?: string } = {}): Promise<BerkasSerahTerimaWithTokoRow[]> {
         const values: Array<number | string> = [];
         const conditions: string[] = [];

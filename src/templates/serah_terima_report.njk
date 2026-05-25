@@ -107,10 +107,44 @@
     }
 
     .items th {
-      background: #e30613;
-      color: #ffffff;
+      background: #eef6ff;
+      color: #111827;
       font-weight: 600;
       text-transform: uppercase;
+    }
+
+    .assessment-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin: 10px 0 16px;
+    }
+
+    .assessment-card {
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 9px 10px;
+      background: #f8fafc;
+    }
+
+    .assessment-label {
+      font-size: 9px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+
+    .assessment-value {
+      font-size: 16px;
+      font-weight: 800;
+      color: #111827;
+      margin-bottom: 2px;
+    }
+
+    .assessment-detail {
+      font-size: 9px;
+      color: #475569;
     }
 
     .num {
@@ -187,6 +221,17 @@
       <td>{{ toko.lingkup_pekerjaan or '-' }}</td>
     </tr>
   </table>
+
+  <div class="section-title">Rekap Penilaian Serah Terima</div>
+  <div class="assessment-grid">
+    {% for item in assessment_summary %}
+    <div class="assessment-card">
+      <div class="assessment-label">{{ item.label }}</div>
+      <div class="assessment-value">{{ item.value }}</div>
+      <div class="assessment-detail">{{ item.detail }}</div>
+    </div>
+    {% endfor %}
+  </div>
 
   <div class="section-title">Daftar Pekerjaan</div>
 

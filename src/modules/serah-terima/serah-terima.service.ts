@@ -28,6 +28,21 @@ const uploadPdfToDrive = async (buffer: Buffer, filename: string): Promise<strin
     return result.webViewLink ?? `https://drive.google.com/file/d/${result.id}/view`;
 };
 
+const buildDetailByTokoId = async (idToko: number) => {
+    const toko = await serahTerimaRepository.findTokoById(idToko);
+    if (!toko) {
+        throw new AppError("Data toko tidak ditemukan", 404);
+    }
+
+    const opnameFinal = await serahTerimaRepository.findOpnameFinalByIdToko(idToko);
+    if (!opnameFinal) {
+        throw new AppError("Data opname_final tidak ditemukan untuk toko ini", 404);
+    }
+
+    const items = await serahTerimaRepository.findOpnameItemsByOpnameFinalId(opnameFinal.id);
+    return { toko, opnameFinal, items };
+};
+
 export const serahTerimaService = {
     async list(filter: { id_toko?: number; nomor_ulok?: string } = {}) {
         const rows = await serahTerimaRepository.listBerkasSerahTerima({
@@ -55,22 +70,8 @@ export const serahTerimaService = {
     },
 
     async createPdfSerahTerima(idToko: number) {
-        // 1. Cari data toko
-        const toko = await serahTerimaRepository.findTokoById(idToko);
-        if (!toko) {
-            throw new AppError("Data toko tidak ditemukan", 404);
-        }
+        const { toko, opnameFinal, items } = await buildDetailByTokoId(idToko);
 
-        // 2. Cari opname_final berdasarkan id_toko
-        const opnameFinal = await serahTerimaRepository.findOpnameFinalByIdToko(idToko);
-        if (!opnameFinal) {
-            throw new AppError("Data opname_final tidak ditemukan untuk toko ini", 404);
-        }
-
-        // 3. Cari opname_item berdasarkan id opname_final
-        const items = await serahTerimaRepository.findOpnameItemsByOpnameFinalId(opnameFinal.id);
-
-        // 4. Build PDF
         const detail = { toko, opname_final: opnameFinal, items };
         const pdfBuffer = await buildSerahTerimaPdfBuffer(detail);
 
@@ -92,6 +93,23 @@ export const serahTerimaService = {
             item_count: items.length,
             created_at: berkas.created_at,
             toko,
+        };
+    },
+
+    async downloadPdfByBerkasId(id: number) {
+        const berkas = await serahTerimaRepository.findBerkasSerahTerimaById(id);
+        if (!berkas) {
+            throw new AppError("Berkas serah terima tidak ditemukan", 404);
+        }
+
+        const { toko, opnameFinal, items } = await buildDetailByTokoId(berkas.id_toko);
+        const buffer = await buildSerahTerimaPdfBuffer({ toko, opname_final: opnameFinal, items });
+        const proyek = sanitizeFilenamePart(toko.proyek ?? undefined, "PROYEK");
+        const nomorUlok = sanitizeFilenamePart(toko.nomor_ulok ?? undefined, "ULOK");
+
+        return {
+            buffer,
+            filename: `SERAH_TERIMA_${proyek}_${nomorUlok}_${opnameFinal.id}.pdf`,
         };
     },
 };
