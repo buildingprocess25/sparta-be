@@ -311,6 +311,11 @@ export const buildOpnameFinalPdfBuffer = async (
     const grandTotalIl = sumInstruksiLapanganTotalHarga(instruksiLapanganItems);
     const grandTotalKerjaTambah = sumOpnameTotalSelisih(kerjaTambahItems);
     const grandTotalKerjaKurang = sumOpnameTotalSelisih(kerjaKurangItems);
+    const rabSummary = buildFinancialSummary(totalRabItems, "down");
+    const instruksiLapanganSummary = buildFinancialSummary(grandTotalIl, "up");
+    const kerjaTambahSummary = buildFinancialSummary(grandTotalKerjaTambah, "up");
+    const kerjaKurangSummary = buildFinancialSummary(grandTotalKerjaKurang, "up");
+    const selisihKerjaTambahKurang = kerjaTambahSummary.grand_total - Math.abs(kerjaKurangSummary.grand_total);
 
     const html = await renderHtmlTemplate(templatePath, {
         generated_at: formatDateIndonesia(new Date().toISOString()),
@@ -325,17 +330,18 @@ export const buildOpnameFinalPdfBuffer = async (
         kerja_tambah_groups: buildOpnameGroupedItems(kerjaTambahItems),
         kerja_kurang_groups: buildOpnameGroupedItems(kerjaKurangItems),
         opname_summary: buildFinancialSummary(totalOpnameSelisih, "up"),
-        rab_summary: buildFinancialSummary(totalRabItems, "down"),
-        instruksi_lapangan_summary: buildFinancialSummary(grandTotalIl, "up"),
-        kerja_tambah_summary: buildFinancialSummary(grandTotalKerjaTambah, "up"),
-        kerja_kurang_summary: buildFinancialSummary(grandTotalKerjaKurang, "up"),
+        rab_summary: rabSummary,
+        instruksi_lapangan_summary: instruksiLapanganSummary,
+        kerja_tambah_summary: kerjaTambahSummary,
+        kerja_kurang_summary: kerjaKurangSummary,
         grand_total_opname_formatted: rupiah(grandTotalOpname),
         grand_total_rab_formatted: rupiah(grandTotalRab),
         selisih_total_formatted: rupiah(grandTotalOpname - grandTotalRab),
-        grand_total_final_rab_formatted: buildFinancialSummary(totalRabItems, "down").grand_total_formatted,
-        grand_total_il_formatted: buildFinancialSummary(grandTotalIl, "up").grand_total_formatted,
-        grand_total_kerja_tambah_formatted: buildFinancialSummary(grandTotalKerjaTambah, "up").grand_total_formatted,
-        grand_total_kerja_kurang_formatted: buildFinancialSummary(grandTotalKerjaKurang, "up").grand_total_formatted,
+        grand_total_final_rab_formatted: rabSummary.grand_total_formatted,
+        grand_total_il_formatted: instruksiLapanganSummary.grand_total_formatted,
+        grand_total_kerja_tambah_formatted: kerjaTambahSummary.grand_total_formatted,
+        grand_total_kerja_kurang_formatted: kerjaKurangSummary.grand_total_formatted,
+        selisih_kerja_tambah_kurang_formatted: rupiah(selisihKerjaTambahKurang),
         created_at_formatted: formatDateIndonesia(detail.opname_final.created_at),
         creator_details: approvalDetails(
             detail.opname_final.nama_pembuat,

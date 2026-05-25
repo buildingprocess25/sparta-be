@@ -287,8 +287,8 @@
   {% endif %}
 
   <div class="page-break"></div>
-  {{ sparta_header("Lampiran RAB Item", toko.nomor_ulok ~ " - " ~ (toko.nama_toko or '-')) | safe }}
-  <p class="section-title">Daftar RAB Item</p>
+  {{ sparta_header("Lampiran RAB (Penawaran)", toko.nomor_ulok ~ " - " ~ (toko.nama_toko or '-')) | safe }}
+  <p class="section-title">Daftar RAB (Penawaran)</p>
 
   {% for group in rab_grouped_items_list %}
   <div class="category-header">{{ loop.index }}. {{ group.category }}</div>
@@ -503,6 +503,10 @@
     <tr>
       <td class="label">Grand Total Kerja Kurang</td>
       <td class="num">{{ grand_total_kerja_kurang_formatted }}</td>
+    </tr>
+    <tr>
+      <td class="label">Selisih Kerja Tambah - Kerja Kurang</td>
+      <td class="num">{{ selisih_kerja_tambah_kurang_formatted }}</td>
     </tr>
   </table>
 
