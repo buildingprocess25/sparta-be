@@ -286,21 +286,6 @@
   </table>
   {% endif %}
 
-  <table class="summary">
-    <tr>
-      <td class="label">Grand Total Opname</td>
-      <td class="num">{{ grand_total_opname_formatted }}</td>
-    </tr>
-    <tr>
-      <td class="label">Grand Total RAB</td>
-      <td class="num">{{ grand_total_rab_formatted }}</td>
-    </tr>
-    <tr>
-      <td class="label">Selisih Total</td>
-      <td class="num">{{ selisih_total_formatted }}</td>
-    </tr>
-  </table>
-
   <div class="page-break"></div>
   {{ sparta_header("Lampiran RAB Item", toko.nomor_ulok ~ " - " ~ (toko.nama_toko or '-')) | safe }}
   <p class="section-title">Daftar RAB Item</p>
