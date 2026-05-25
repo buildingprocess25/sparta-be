@@ -9,6 +9,38 @@ const rupiah = (value: number): string => {
     return new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(Number(value) || 0);
 };
 
+const roundDownTenThousand = (value: number): number => {
+    const numeric = Number(value) || 0;
+    const sign = numeric < 0 ? -1 : 1;
+    return sign * Math.floor(Math.abs(numeric) / 10000) * 10000;
+};
+
+const roundUpTenThousand = (value: number): number => {
+    const numeric = Number(value) || 0;
+    if (numeric === 0) return 0;
+    const sign = numeric < 0 ? -1 : 1;
+    return sign * Math.ceil(Math.abs(numeric) / 10000) * 10000;
+};
+
+const buildFinancialSummary = (total: number, direction: "down" | "up") => {
+    const pembulatan = direction === "down"
+        ? roundDownTenThousand(total)
+        : roundUpTenThousand(total);
+    const ppn = Math.round(pembulatan * 0.11);
+    const grandTotal = pembulatan + ppn;
+
+    return {
+        total,
+        total_formatted: rupiah(total),
+        pembulatan,
+        pembulatan_formatted: rupiah(pembulatan),
+        ppn,
+        ppn_formatted: rupiah(ppn),
+        grand_total: grandTotal,
+        grand_total_formatted: rupiah(grandTotal)
+    };
+};
+
 const formatVolume = (value: number | string | null | undefined): string => {
     const raw = String(value ?? "").trim();
     if (!raw) return "0";
@@ -23,7 +55,9 @@ const toNumber = (value: string | number | null | undefined): number => {
     return Number.isFinite(parsed) ? parsed : 0;
 };
 
-type GroupedItems<T> = Array<{ category: string; items: T[] }>;
+type GroupSummary = ReturnType<typeof buildFinancialSummary>;
+
+type GroupedItems<T> = Array<{ category: string; items: T[]; summary: GroupSummary }>;
 
 type OpnameItemView = {
     jenis_pekerjaan: string;
@@ -77,10 +111,12 @@ const resolveOpnameSatuan = (item: OpnameFinalItemRow): string => {
 
 const buildOpnameGroupedItems = (items: OpnameFinalItemRow[]): GroupedItems<OpnameItemView> => {
     const grouped = new Map<string, OpnameItemView[]>();
+    const totals = new Map<string, number>();
 
     for (const item of items) {
         const category = resolveOpnameCategory(item);
         const totalHargaRab = toNumber(item.total_harga_rab ?? item.rab_item?.total_harga ?? 0);
+        const totalSelisih = toNumber(item.total_selisih);
         const view: OpnameItemView = {
             jenis_pekerjaan: resolveOpnameJenis(item),
             satuan: resolveOpnameSatuan(item),
@@ -88,19 +124,22 @@ const buildOpnameGroupedItems = (items: OpnameFinalItemRow[]): GroupedItems<Opna
             volume_akhir: toNumber(item.volume_akhir),
             selisih_volume: toNumber(item.selisih_volume),
             total_harga_rab_formatted: rupiah(totalHargaRab),
-            total_selisih_formatted: rupiah(toNumber(item.total_selisih)),
+            total_selisih_formatted: rupiah(totalSelisih),
             catatan: item.catatan
         };
 
         if (!grouped.has(category)) {
             grouped.set(category, []);
+            totals.set(category, 0);
         }
         grouped.get(category)!.push(view);
+        totals.set(category, (totals.get(category) ?? 0) + totalSelisih);
     }
 
     return Array.from(grouped.entries()).map(([category, groupedItems]) => ({
         category,
-        items: groupedItems
+        items: groupedItems,
+        summary: buildFinancialSummary(totals.get(category) ?? 0, "up")
     }));
 };
 
@@ -108,9 +147,11 @@ const buildInstruksiLapanganGroups = (
     items: InstruksiLapanganItemRow[]
 ): GroupedItems<InstruksiLapanganItemView> => {
     const grouped = new Map<string, InstruksiLapanganItemView[]>();
+    const totals = new Map<string, number>();
 
     for (const item of items) {
         const category = String(item.kategori_pekerjaan ?? "").trim().toUpperCase() || "LAIN-LAIN";
+        const totalHarga = toNumber(item.total_harga);
         const view: InstruksiLapanganItemView = {
             jenis_pekerjaan: String(item.jenis_pekerjaan ?? "").trim() || "-",
             satuan: String(item.satuan ?? "").trim() || "-",
@@ -119,26 +160,31 @@ const buildInstruksiLapanganGroups = (
             harga_upah_formatted: rupiah(toNumber(item.harga_upah)),
             total_material_formatted: rupiah(toNumber(item.total_material)),
             total_upah_formatted: rupiah(toNumber(item.total_upah)),
-            total_harga_formatted: rupiah(toNumber(item.total_harga)),
+            total_harga_formatted: rupiah(totalHarga),
         };
 
         if (!grouped.has(category)) {
             grouped.set(category, []);
+            totals.set(category, 0);
         }
         grouped.get(category)!.push(view);
+        totals.set(category, (totals.get(category) ?? 0) + totalHarga);
     }
 
     return Array.from(grouped.entries()).map(([category, groupedItems]) => ({
         category,
-        items: groupedItems
+        items: groupedItems,
+        summary: buildFinancialSummary(totals.get(category) ?? 0, "up")
     }));
 };
 
 const buildRabGroupedItems = (items: RabItemRow[]): GroupedItems<RabItemView> => {
     const grouped = new Map<string, RabItemView[]>();
+    const totals = new Map<string, number>();
 
     for (const item of items) {
         const category = String(item.kategori_pekerjaan ?? "").trim().toUpperCase() || "LAIN-LAIN";
+        const totalHarga = toNumber(item.total_harga);
         const view: RabItemView = {
             jenis_pekerjaan: String(item.jenis_pekerjaan ?? "").trim() || "-",
             satuan: String(item.satuan ?? "").trim() || "-",
@@ -147,19 +193,22 @@ const buildRabGroupedItems = (items: RabItemRow[]): GroupedItems<RabItemView> =>
             harga_upah_formatted: rupiah(toNumber(item.harga_upah)),
             total_material_formatted: rupiah(toNumber(item.total_material)),
             total_upah_formatted: rupiah(toNumber(item.total_upah)),
-            total_harga_formatted: rupiah(toNumber(item.total_harga)),
+            total_harga_formatted: rupiah(totalHarga),
             catatan: item.catatan
         };
 
         if (!grouped.has(category)) {
             grouped.set(category, []);
+            totals.set(category, 0);
         }
         grouped.get(category)!.push(view);
+        totals.set(category, (totals.get(category) ?? 0) + totalHarga);
     }
 
     return Array.from(grouped.entries()).map(([category, groupedItems]) => ({
         category,
-        items: groupedItems
+        items: groupedItems,
+        summary: buildFinancialSummary(totals.get(category) ?? 0, "down")
     }));
 };
 

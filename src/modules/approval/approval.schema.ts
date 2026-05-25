@@ -1,6 +1,12 @@
 import { z } from "zod";
 
-const jabatanSchema = z.enum(["KOORDINATOR", "MANAGER", "DIREKTUR", "KONTRAKTOR"]);
+const jabatanSchema = z.preprocess((value) => {
+    const normalized = String(value ?? "").trim().toUpperCase();
+    if (normalized === "DIREKTUR KONTRAKTOR" || normalized === "DIREKTUR_KONTRAKTOR") {
+        return "DIREKTUR";
+    }
+    return normalized;
+}, z.enum(["KOORDINATOR", "MANAGER", "DIREKTUR", "KONTRAKTOR"]));
 const tindakanSchema = z.enum(["APPROVE", "REJECT"]);
 
 export const approvalActionSchema = z

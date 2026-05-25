@@ -116,6 +116,37 @@
       font-weight: 600;
     }
 
+    .category-summary {
+      width: 42%;
+      margin: 8px 0 18px auto;
+      border-collapse: collapse;
+      font-size: 9px;
+    }
+
+    .category-summary td {
+      border: 1.2px solid #cbd5e1;
+      padding: 5px 7px;
+    }
+
+    .category-summary .label {
+      background: #eef6ff;
+      color: #1e3a8a;
+      font-weight: 700;
+      text-align: left;
+    }
+
+    .category-summary .amount {
+      text-align: right;
+      white-space: nowrap;
+      font-weight: 700;
+    }
+
+    .category-summary .grand td {
+      background: #dbeafe;
+      color: #0f172a;
+      font-weight: 800;
+    }
+
     .footer {
       margin-top: 14px;
       font-size: 10px;
@@ -220,6 +251,24 @@
       {% endfor %}
     </tbody>
   </table>
+  <table class="category-summary">
+    <tr>
+      <td class="label">Total</td>
+      <td class="amount">{{ group.summary.total_formatted }}</td>
+    </tr>
+    <tr>
+      <td class="label">Pembulatan</td>
+      <td class="amount">{{ group.summary.pembulatan_formatted }}</td>
+    </tr>
+    <tr>
+      <td class="label">PPN 11%</td>
+      <td class="amount">{{ group.summary.ppn_formatted }}</td>
+    </tr>
+    <tr class="grand">
+      <td class="label">Grand Total</td>
+      <td class="amount">{{ group.summary.grand_total_formatted }}</td>
+    </tr>
+  </table>
   {% endfor %}
   {% if grouped_items_list.length === 0 %}
   <table class="items">
@@ -271,11 +320,11 @@
         <td class="work-col">{{ item.jenis_pekerjaan }}</td>
         <td class="unit-col">{{ item.satuan }}</td>
         <td class="volume-col">{{ item.volume_formatted }}</td>
-        <td class="money-col">{{ item.harga_material_formatted }}</td>
-        <td class="money-col">{{ item.harga_upah_formatted }}</td>
-        <td class="money-col">{{ item.total_material_formatted }}</td>
-        <td class="money-col">{{ item.total_upah_formatted }}</td>
-        <td class="money-col">{{ item.total_harga_formatted }}</td>
+        <td class="money-col rab-money-col">{{ item.harga_material_formatted }}</td>
+        <td class="money-col rab-money-col">{{ item.harga_upah_formatted }}</td>
+        <td class="money-col rab-money-col">{{ item.total_material_formatted }}</td>
+        <td class="money-col rab-money-col">{{ item.total_upah_formatted }}</td>
+        <td class="money-col rab-money-col">{{ item.total_harga_formatted }}</td>
       </tr>
       {% if item.catatan %}
       <tr>
@@ -284,6 +333,24 @@
       {% endif %}
       {% endfor %}
     </tbody>
+  </table>
+  <table class="category-summary">
+    <tr>
+      <td class="label">Total</td>
+      <td class="amount">{{ group.summary.total_formatted }}</td>
+    </tr>
+    <tr>
+      <td class="label">Pembulatan</td>
+      <td class="amount">{{ group.summary.pembulatan_formatted }}</td>
+    </tr>
+    <tr>
+      <td class="label">PPN 11%</td>
+      <td class="amount">{{ group.summary.ppn_formatted }}</td>
+    </tr>
+    <tr class="grand">
+      <td class="label">Grand Total</td>
+      <td class="amount">{{ group.summary.grand_total_formatted }}</td>
+    </tr>
   </table>
   {% endfor %}
   {% if rab_grouped_items_list.length === 0 %}
@@ -330,6 +397,24 @@
       {% endfor %}
     </tbody>
   </table>
+  <table class="category-summary">
+    <tr>
+      <td class="label">Total</td>
+      <td class="amount">{{ group.summary.total_formatted }}</td>
+    </tr>
+    <tr>
+      <td class="label">Pembulatan</td>
+      <td class="amount">{{ group.summary.pembulatan_formatted }}</td>
+    </tr>
+    <tr>
+      <td class="label">PPN 11%</td>
+      <td class="amount">{{ group.summary.ppn_formatted }}</td>
+    </tr>
+    <tr class="grand">
+      <td class="label">Grand Total</td>
+      <td class="amount">{{ group.summary.grand_total_formatted }}</td>
+    </tr>
+  </table>
   {% endfor %}
   {% if instruksi_lapangan_groups.length === 0 %}
   <table class="items">
@@ -374,6 +459,24 @@
       </tr>
       {% endfor %}
     </tbody>
+  </table>
+  <table class="category-summary">
+    <tr>
+      <td class="label">Total</td>
+      <td class="amount">{{ group.summary.total_formatted }}</td>
+    </tr>
+    <tr>
+      <td class="label">Pembulatan</td>
+      <td class="amount">{{ group.summary.pembulatan_formatted }}</td>
+    </tr>
+    <tr>
+      <td class="label">PPN 11%</td>
+      <td class="amount">{{ group.summary.ppn_formatted }}</td>
+    </tr>
+    <tr class="grand">
+      <td class="label">Grand Total</td>
+      <td class="amount">{{ group.summary.grand_total_formatted }}</td>
+    </tr>
   </table>
   {% endfor %}
   {% if kerja_tambah_groups.length === 0 %}
@@ -420,6 +523,24 @@
       {% endfor %}
     </tbody>
   </table>
+  <table class="category-summary">
+    <tr>
+      <td class="label">Total</td>
+      <td class="amount">{{ group.summary.total_formatted }}</td>
+    </tr>
+    <tr>
+      <td class="label">Pembulatan</td>
+      <td class="amount">{{ group.summary.pembulatan_formatted }}</td>
+    </tr>
+    <tr>
+      <td class="label">PPN 11%</td>
+      <td class="amount">{{ group.summary.ppn_formatted }}</td>
+    </tr>
+    <tr class="grand">
+      <td class="label">Grand Total</td>
+      <td class="amount">{{ group.summary.grand_total_formatted }}</td>
+    </tr>
+  </table>
   {% endfor %}
   {% if kerja_kurang_groups.length === 0 %}
   <table class="items">
@@ -462,7 +583,7 @@
         <div class="approval-title">DIBUAT</div>
         <div class="approval-box">
           {{ creator_details | safe }}
-          <div class="approval-role">Kontraktor</div>
+          <div class="approval-role">Branch Building Support</div>
         </div>
       </td>
       <td style="width:25%; vertical-align: top;">
@@ -483,7 +604,7 @@
         <div class="approval-title">MENYETUJUI</div>
         <div class="approval-box">
           {{ director_approval_details | safe }}
-          <div class="approval-role">Direktur</div>
+          <div class="approval-role">Direktur Kontraktor</div>
         </div>
       </td>
     </tr>

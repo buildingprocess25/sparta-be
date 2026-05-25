@@ -1,11 +1,11 @@
 export const OPNAME_FINAL_STATUS = {
-    WAITING_FOR_DIREKTUR: "Menunggu Persetujuan Direktur",
+    WAITING_FOR_DIREKTUR: "Menunggu Persetujuan Direktur Kontraktor",
     WAITING_FOR_COORDINATOR: "Menunggu Persetujuan Koordinator",
     WAITING_FOR_MANAGER: "Menunggu Persetujuan Manajer",
     APPROVED: "Disetujui",
     REJECTED_BY_COORDINATOR: "Ditolak oleh Koordinator",
     REJECTED_BY_MANAGER: "Ditolak oleh Manajer",
-    REJECTED_BY_DIREKTUR: "Ditolak oleh Direktur"
+    REJECTED_BY_DIREKTUR: "Ditolak oleh Direktur Kontraktor"
 } as const;
 
 export type OpnameFinalStatus = (typeof OPNAME_FINAL_STATUS)[keyof typeof OPNAME_FINAL_STATUS];

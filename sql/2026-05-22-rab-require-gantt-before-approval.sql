@@ -15,7 +15,7 @@ SET status = 'Menunggu Gantt Chart',
     nama_persetujuan_manager = NULL,
     waktu_persetujuan_manager = NULL
 WHERE r.status IN (
-    'Menunggu Persetujuan Direktur',
+    'Menunggu Persetujuan Direktur Kontraktor',
     'Menunggu Persetujuan Koordinator',
     'Menunggu Persetujuan Manajer'
 )

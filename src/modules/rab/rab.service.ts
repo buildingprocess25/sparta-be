@@ -1199,7 +1199,9 @@ export const rabService = {
             ? ["BRANCH BUILDING COORDINATOR", "KOORDINATOR"]
             : jabatanPenolak === "BRANCH BUILDING & MAINTENANCE MANAGER"
                 ? ["BRANCH BUILDING & MAINTENANCE MANAGER", "MANAGER"]
-                : [jabatanPenolak];
+                : jabatanPenolak === "DIREKTUR"
+                    ? ["Direktur Kontraktor", "DIREKTUR KONTRAKTOR", "DIREKTUR"]
+                    : [jabatanPenolak];
 
         let userPenolak = null;
         let matchedJabatan = jabatanCandidates[0];

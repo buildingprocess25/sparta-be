@@ -125,8 +125,8 @@ const spartaPdfCss = () => `
     .section-title, .category-header {
       font-size: 13px;
       font-weight: 700;
-      color: #dc2626;
-      border-bottom: 1px solid #dc2626;
+      color: #1d4ed8;
+      border-bottom: 1.6px solid #2563eb;
       padding-bottom: 4px;
       margin: 18px 0 9px;
       text-transform: none;
@@ -167,7 +167,7 @@ const spartaPdfCss = () => `
     .data-table th, .data-table td,
     .price-table th, .price-table td,
     .items th, .items td {
-      border: 1px solid #d8dee6;
+      border: 1.2px solid #cbd5e1;
       padding: 5px 6px;
       vertical-align: middle;
       line-height: 1.25;
@@ -176,13 +176,13 @@ const spartaPdfCss = () => `
     }
 
     .data-table th, .price-table th, .items th {
-      background-color: #f8fafc;
-      color: #374151;
+      background-color: #eef6ff;
+      color: #1e3a8a;
       text-align: center;
-      font-weight: 700;
+      font-weight: 800;
       text-transform: none;
-      border-top: 1.2px solid #cbd5e1;
-      border-bottom: 1.2px solid #cbd5e1;
+      border-top: 1.6px solid #93c5fd;
+      border-bottom: 1.6px solid #93c5fd;
     }
 
     .data-table tbody tr:nth-child(even),
@@ -198,6 +198,7 @@ const spartaPdfCss = () => `
 
     .text-left, .col-work, .work-col, td.work-col { text-align: left; }
     .text-right, .num, .money-col { text-align: right; white-space: nowrap; }
+    .rab-money-col { text-align: center; }
     .center, .no-col, .unit-col, .volume-col, .amount-col { text-align: center; }
     .no-col { width: 28px; }
     .unit-col { width: 44px; }
