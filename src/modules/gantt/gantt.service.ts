@@ -70,18 +70,18 @@ const normalizeUpdatePengawasan = (
     return pengawasan;
 };
 
+const releaseRabApprovalAfterGantt = async (tokoId: number, source: string) => {
+    const releasedCount = await rabRepository.releaseWaitingGanttByTokoId(tokoId);
+    if (releasedCount > 0) {
+        console.log(`[GANTT ${source}] RAB masuk antrean approval setelah Gantt tersedia`, {
+            tokoId,
+            releasedCount
+        });
+    }
+};
+
 export const ganttService = {
     async submit(payload: SubmitGanttInput) {
-        const releaseRabApproval = async (tokoId: number) => {
-            const releasedCount = await rabRepository.releaseWaitingGanttByTokoId(tokoId);
-            if (releasedCount > 0) {
-                console.log("[GANTT SUBMIT] RAB masuk antrean approval setelah Gantt dibuat", {
-                    tokoId,
-                    releasedCount
-                });
-            }
-        };
-
         // 1. Jika sudah ada gantt aktif untuk ULOK ini, lakukan replace data (bukan create baru)
         const existingToko = await tokoRepository.findByNomorUlokAndLingkup(
             payload.nomor_ulok,
@@ -110,7 +110,7 @@ export const ganttService = {
                     throw new AppError("Gantt Chart tidak ditemukan setelah update", 500);
                 }
 
-                await releaseRabApproval(existingToko.id);
+                await releaseRabApprovalAfterGantt(existingToko.id, "SUBMIT");
 
                 return {
                     ...refreshed.gantt,
@@ -138,7 +138,7 @@ export const ganttService = {
             dependencies: payload.dependencies
         });
 
-        await releaseRabApproval(gantt.toko_id);
+        await releaseRabApprovalAfterGantt(gantt.toko_id, "SUBMIT");
 
         return gantt;
     },
@@ -209,6 +209,8 @@ export const ganttService = {
         } finally {
             await ganttRepository.restoreTokoStableFieldsByGanttId(id, tokoStableFields);
         }
+
+        await releaseRabApprovalAfterGantt(data.gantt.id_toko, "LOCK");
 
         return {
             id,
