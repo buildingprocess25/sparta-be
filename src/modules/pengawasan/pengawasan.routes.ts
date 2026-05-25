@@ -4,6 +4,7 @@ import {
     createBulkPengawasan,
     createPengawasan,
     deletePengawasan,
+    downloadPengawasanPdf,
     getPengawasanById,
     listPengawasan,
     updateBulkPengawasan,
@@ -34,6 +35,7 @@ pengawasanRouter.post(
     createBulkPengawasan
 );
 pengawasanRouter.get("/", listPengawasan);
+pengawasanRouter.get("/:id/pdf", downloadPengawasanPdf);
 pengawasanRouter.get("/:id", getPengawasanById);
 pengawasanRouter.put(
     "/bulk",

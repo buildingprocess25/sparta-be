@@ -104,3 +104,12 @@ export const createDokumentasiBangunanPdf = asyncHandler(async (req: Request, re
         data
     });
 });
+
+export const downloadDokumentasiBangunanPdf = asyncHandler(async (req: Request, res: Response) => {
+    const params = dokumentasiBangunanIdParamSchema.parse(req.params);
+    const { buffer, filename } = await dokumentasiBangunanService.downloadPdf(params.id);
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(buffer);
+});

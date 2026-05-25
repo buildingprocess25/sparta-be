@@ -28,6 +28,12 @@ export type PicPengawasanDisplayRow = {
     plc_building_support: string | null;
 };
 
+export type PengawasanGanttInfoRow = {
+    id: number;
+    id_gantt: number;
+    tanggal_pengawasan: string;
+};
+
 export type PengawasanRowWithBerkas = PengawasanRow & {
     berkas_pengawasan: BerkasPengawasanRow | null;
 };
@@ -297,6 +303,19 @@ export const pengawasanRepository = {
             SELECT id, id_pengawasan_gantt, link_pdf_pengawasan, created_at
             FROM berkas_pengawasan
             WHERE id_pengawasan_gantt = $1
+            `,
+            [idPengawasanGantt]
+        );
+
+        return result.rows[0] ?? null;
+    },
+
+    async findPengawasanGanttInfoById(idPengawasanGantt: number): Promise<PengawasanGanttInfoRow | null> {
+        const result = await pool.query<PengawasanGanttInfoRow>(
+            `
+            SELECT id, id_gantt, tanggal_pengawasan
+            FROM pengawasan_gantt
+            WHERE id = $1
             `,
             [idPengawasanGantt]
         );

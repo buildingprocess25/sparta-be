@@ -187,43 +187,49 @@ const staticAssetPath = (filenameCandidates: string[]): string => {
  * upload ke Google Drive, lalu upsert link-nya ke tabel berkas_pengawasan.
  * Dipanggil setiap kali ada create pengawasan baru (akan menimpa PDF lama).
  */
+const buildPengawasanPdfBuffer = async (
+    idGantt: number,
+    idPengawasanGantt: number,
+    tanggalPengawasan: string
+): Promise<Buffer> => {
+    const items = await pengawasanRepository.findAllPengawasanByGanttId(idPengawasanGantt);
+    if (items.length === 0) {
+        throw new AppError("Data pengawasan belum memiliki item", 404);
+    }
+
+    let countProgress = 0;
+    let countSelesai = 0;
+    let countTerlambat = 0;
+    for (const item of items) {
+        if (item.status === "progress") countProgress++;
+        else if (item.status === "selesai") countSelesai++;
+        else if (item.status === "terlambat") countTerlambat++;
+    }
+
+    const picPengawasan = await pengawasanRepository.findPicPengawasanByPengawasanGanttId(idPengawasanGantt);
+    const templatePath = await resolveTemplatePath("pengawasan_report.njk");
+    const html = await renderHtmlTemplate(templatePath, {
+        id_gantt: idGantt,
+        pic_pengawasan_nama: picPengawasan?.plc_building_support ?? null,
+        tanggal_pengawasan: tanggalPengawasan,
+        items,
+        count_progress: countProgress,
+        count_selesai: countSelesai,
+        count_terlambat: countTerlambat,
+        generated_at: formatJakartaTimestamp(),
+        logo_watermark: staticAssetPath(["building-logo.png", "Building-Logo.png"])
+    });
+
+    return renderPdfFromHtml(html);
+};
+
 const generateAndUploadPengawasanPdf = async (
     idGantt: number,
     idPengawasanGantt: number,
     tanggalPengawasan: string
 ): Promise<void> => {
     try {
-        // 1. Ambil semua item pengawasan untuk id_pengawasan_gantt ini
-        const items = await pengawasanRepository.findAllPengawasanByGanttId(idPengawasanGantt);
-
-        // 2. Hitung ringkasan status
-        let countProgress = 0;
-        let countSelesai = 0;
-        let countTerlambat = 0;
-        for (const item of items) {
-            if (item.status === "progress") countProgress++;
-            else if (item.status === "selesai") countSelesai++;
-            else if (item.status === "terlambat") countTerlambat++;
-        }
-
-        const picPengawasan = await pengawasanRepository.findPicPengawasanByPengawasanGanttId(idPengawasanGantt);
-
-        // 3. Render HTML dari template
-        const templatePath = await resolveTemplatePath("pengawasan_report.njk");
-        const html = await renderHtmlTemplate(templatePath, {
-            id_gantt: idGantt,
-            pic_pengawasan_nama: picPengawasan?.plc_building_support ?? null,
-            tanggal_pengawasan: tanggalPengawasan,
-            items,
-            count_progress: countProgress,
-            count_selesai: countSelesai,
-            count_terlambat: countTerlambat,
-            generated_at: formatJakartaTimestamp(),
-            logo_watermark: staticAssetPath(["building-logo.png", "Building-Logo.png"])
-        });
-
-        // 4. Render PDF dari HTML
-        const pdfBuffer = await renderPdfFromHtml(html);
+        const pdfBuffer = await buildPengawasanPdfBuffer(idGantt, idPengawasanGantt, tanggalPengawasan);
 
         // 5. Upload ke Google Drive (timpa berdasarkan nama unik per id_pengawasan_gantt)
         const gp = GoogleProvider.instance;
@@ -453,6 +459,22 @@ export const pengawasanService = {
         }
 
         return pengawasanRepository.findAll(query);
+    },
+
+    async downloadPdf(idPengawasanGantt: number) {
+        const info = await pengawasanRepository.findPengawasanGanttInfoById(idPengawasanGantt);
+        if (!info) {
+            throw new AppError("Data pengawasan tidak ditemukan", 404);
+        }
+
+        const buffer = await buildPengawasanPdfBuffer(
+            info.id_gantt,
+            info.id,
+            info.tanggal_pengawasan
+        );
+        const filename = `PENGAWASAN_REPORT_GANTT${info.id_gantt}_PG${info.id}.pdf`;
+
+        return { buffer, filename };
     },
 
     async getById(id: string) {

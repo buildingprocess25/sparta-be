@@ -347,5 +347,23 @@ export const dokumentasiBangunanService = {
             filename,
             item_count: detail.items.length
         };
+    },
+
+    async downloadPdf(id: number) {
+        const detail = await dokumentasiBangunanRepository.getDetail(id);
+        if (!detail) {
+            throw new AppError("Dokumentasi bangunan tidak ditemukan", 404);
+        }
+
+        const folderId = await resolveDokumentasiFolderId(detail.dokumentasi);
+        const pdfBuffer = await buildDokumentasiBangunanPdfBuffer(detail);
+        const kodeToko = sanitizeFilenamePart(detail.dokumentasi.kode_toko ?? undefined, "TOKO");
+        const nomorUlok = sanitizeFilenamePart(detail.dokumentasi.nomor_ulok ?? undefined, "ULOK");
+        const filename = `DOKUMENTASI_BANGUNAN_${kodeToko}_${nomorUlok}_${detail.dokumentasi.id}.pdf`;
+
+        const linkPdf = await uploadPdfToDrive(folderId, pdfBuffer, filename);
+        await dokumentasiBangunanRepository.updatePdfLink(id, linkPdf);
+
+        return { buffer: pdfBuffer, filename };
     }
 };

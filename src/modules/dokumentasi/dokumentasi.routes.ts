@@ -6,6 +6,7 @@ import {
     createDokumentasiBangunanPdf,
     deleteDokumentasiBangunan,
     deleteDokumentasiBangunanItem,
+    downloadDokumentasiBangunanPdf,
     getDokumentasiBangunanDetail,
     listDokumentasiBangunan,
     updateDokumentasiBangunan
@@ -52,6 +53,11 @@ dokumentasiRouter.delete(
 dokumentasiRouter.post(
     "/bangunan/:id/pdf",
     createDokumentasiBangunanPdf
+);
+
+dokumentasiRouter.get(
+    "/bangunan/:id/pdf/download",
+    downloadDokumentasiBangunanPdf
 );
 
 export { dokumentasiRouter };

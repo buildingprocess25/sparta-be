@@ -123,6 +123,18 @@ export const getPengawasanById = asyncHandler(async (req: Request, res: Response
     res.json({ status: "success", data });
 });
 
+export const downloadPengawasanPdf = asyncHandler(async (req: Request, res: Response) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+        throw new AppError("ID pengawasan tidak valid", 400);
+    }
+
+    const { buffer, filename } = await pengawasanService.downloadPdf(id);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(buffer);
+});
+
 export const updatePengawasan = asyncHandler(async (req: Request, res: Response) => {
     const uploadedFiles = req.files as UploadedFilesMap | undefined;
     const uploadedDokumentasi = getUploadedFile(uploadedFiles, "rev_file_dokumentasi");
