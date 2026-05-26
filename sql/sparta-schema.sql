@@ -357,6 +357,10 @@ CREATE TABLE IF NOT EXISTS opname_final (
     alasan_penolakan VARCHAR(255),
     grand_total_opname VARCHAR(255),
     grand_total_rab VARCHAR(255),
+    hari_denda INTEGER NOT NULL DEFAULT 0,
+    nilai_denda NUMERIC(18,2) NOT NULL DEFAULT 0,
+    tanggal_akhir_spk_denda DATE,
+    tanggal_serah_terima_denda DATE,
     created_at TIMESTAMP NOT NULL DEFAULT timezone('Asia/Jakarta', now()),
     CONSTRAINT fk_opname_final_toko FOREIGN KEY (id_toko) REFERENCES toko(id) ON DELETE CASCADE
 );
@@ -380,6 +384,12 @@ WHERE aksi IS NULL OR aksi NOT IN ('active', 'terkunci');
 ALTER TABLE opname_final
     ALTER COLUMN aksi SET DEFAULT 'active',
     ALTER COLUMN aksi SET NOT NULL;
+
+ALTER TABLE opname_final
+    ADD COLUMN IF NOT EXISTS hari_denda INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS nilai_denda NUMERIC(18,2) NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS tanggal_akhir_spk_denda DATE,
+    ADD COLUMN IF NOT EXISTS tanggal_serah_terima_denda DATE;
 
 -- 8c) OPNAME_ITEM (rename dari tabel opname lama)
 DO $$

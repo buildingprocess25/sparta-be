@@ -509,6 +509,14 @@
       <td class="num">{{ selisih_kerja_tambah_kurang_formatted }}</td>
     </tr>
     <tr>
+      <td class="label">Denda Keterlambatan</td>
+      <td class="num">{{ nilai_denda_formatted }}{% if hari_denda > 0 %} ({{ hari_denda }} hari){% endif %}</td>
+    </tr>
+    <tr>
+      <td class="label">Periode Denda</td>
+      <td class="num">Akhir SPK: {{ tanggal_akhir_spk_denda_formatted }} | ST: {{ tanggal_serah_terima_denda_formatted }}</td>
+    </tr>
+    <tr>
       <td class="label">Total Opname Final</td>
       <td class="num">{{ total_opname_final_formatted }}</td>
     </tr>

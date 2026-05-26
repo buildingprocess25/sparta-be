@@ -1,6 +1,7 @@
 import { AppError } from "../../common/app-error";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
+import { opnameFinalService } from "../opname-final/opname-final.service";
 import { buildSerahTerimaPdfBuffer } from "./serah-terima.pdf";
 import { serahTerimaRepository } from "./serah-terima.repository";
 
@@ -84,12 +85,14 @@ export const serahTerimaService = {
 
         // 6. Simpan link di tabel berkas_serah_terima
         const berkas = await serahTerimaRepository.upsertBerkasSerahTerima(idToko, linkPdf);
+        const refreshedOpnameFinal = await opnameFinalService.refreshDendaAndPdfById(String(opnameFinal.id));
 
         return {
             id: berkas.id,
             id_toko: idToko,
             link_pdf: linkPdf,
             opname_final_id: opnameFinal.id,
+            link_pdf_opname: refreshedOpnameFinal.link_pdf_opname,
             item_count: items.length,
             created_at: berkas.created_at,
             toko,

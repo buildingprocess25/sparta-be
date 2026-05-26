@@ -1,0 +1,5 @@
+ALTER TABLE opname_final
+    ADD COLUMN IF NOT EXISTS hari_denda INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS nilai_denda NUMERIC(18,2) NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS tanggal_akhir_spk_denda DATE,
+    ADD COLUMN IF NOT EXISTS tanggal_serah_terima_denda DATE;

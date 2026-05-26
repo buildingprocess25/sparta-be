@@ -34,6 +34,10 @@ export type OpnameFinalRow = {
     alasan_penolakan: string | null;
     grand_total_opname: string | null;
     grand_total_rab: string | null;
+    hari_denda: number | null;
+    nilai_denda: string | null;
+    tanggal_akhir_spk_denda: string | null;
+    tanggal_serah_terima_denda: string | null;
     created_at: string;
 };
 
@@ -121,6 +125,10 @@ export const serahTerimaRepository = {
                 alasan_penolakan,
                 grand_total_opname,
                 grand_total_rab,
+                hari_denda,
+                nilai_denda,
+                tanggal_akhir_spk_denda,
+                tanggal_serah_terima_denda,
                 created_at
             FROM opname_final
             WHERE id_toko = $1

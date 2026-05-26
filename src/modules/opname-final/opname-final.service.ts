@@ -2,6 +2,7 @@ import { AppError } from "../../common/app-error";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
 import type { ApprovalActionInput } from "../approval/approval.schema";
+import { calculateDendaByTokoId } from "../denda/denda-keterlambatan";
 import { instruksiLapanganRepository } from "../instruksi-lapangan/instruksi-lapangan.repository";
 import { rabRepository } from "../rab/rab.repository";
 import { buildOpnameFinalPdfBuffer } from "./opname-final.pdf";
@@ -143,6 +144,12 @@ const loadRabData = async (idToko: number) => {
     return { header: latestRab, items };
 };
 
+const refreshDenda = async (opnameFinalId: string, idToko: number) => {
+    const denda = await calculateDendaByTokoId(idToko);
+    await opnameFinalRepository.updateDenda(opnameFinalId, denda);
+    return denda;
+};
+
 const regeneratePdfAndUpload = async (opnameFinalId: string): Promise<string> => {
     const detail = await opnameFinalRepository.findById(opnameFinalId);
     if (!detail) {
@@ -188,6 +195,7 @@ export const opnameFinalService = {
 
         await opnameFinalRepository.updateApproval(id, newStatus, action);
         await opnameFinalRepository.updateTotals(id);
+        await refreshDenda(id, detail.toko.id);
 
         const linkPdf = await regeneratePdfAndUpload(id);
         await opnameFinalRepository.updatePdfLink(id, linkPdf);
@@ -206,11 +214,17 @@ export const opnameFinalService = {
             throw new AppError("Data opname_final tidak ditemukan", 404);
         }
 
-        const instruksiLapanganItems = await loadInstruksiLapanganItems(detail.toko.id);
-        const rabData = await loadRabData(detail.toko.id);
-        const pdfBuffer = await buildOpnameFinalPdfBuffer(detail, instruksiLapanganItems, rabData);
-        const proyek = sanitizeFilenamePart(detail.toko.proyek ?? undefined, "PROYEK");
-        const nomorUlok = sanitizeFilenamePart(detail.toko.nomor_ulok ?? undefined, "ULOK");
+        await refreshDenda(id, detail.toko.id);
+        const refreshedDetail = await opnameFinalRepository.findById(id);
+        if (!refreshedDetail) {
+            throw new AppError("Data opname_final tidak ditemukan", 404);
+        }
+
+        const instruksiLapanganItems = await loadInstruksiLapanganItems(refreshedDetail.toko.id);
+        const rabData = await loadRabData(refreshedDetail.toko.id);
+        const pdfBuffer = await buildOpnameFinalPdfBuffer(refreshedDetail, instruksiLapanganItems, rabData);
+        const proyek = sanitizeFilenamePart(refreshedDetail.toko.proyek ?? undefined, "PROYEK");
+        const nomorUlok = sanitizeFilenamePart(refreshedDetail.toko.nomor_ulok ?? undefined, "ULOK");
 
         return {
             filename: `OPNAME_FINAL_${proyek}_${nomorUlok}_${id}.pdf`,
@@ -225,6 +239,7 @@ export const opnameFinalService = {
                 throw new AppError("Data opname_final tidak ditemukan", 404);
             }
 
+            await refreshDenda(id, payload.id_toko);
             const linkPdf = await regeneratePdfAndUpload(id);
             await opnameFinalRepository.updatePdfLink(id, linkPdf);
 
@@ -243,5 +258,21 @@ export const opnameFinalService = {
 
             return mapPgError(error);
         }
+    },
+
+    async refreshDendaAndPdfById(id: string) {
+        const detail = await opnameFinalRepository.findById(id);
+        if (!detail) {
+            throw new AppError("Data opname_final tidak ditemukan", 404);
+        }
+
+        await refreshDenda(id, detail.toko.id);
+        const linkPdf = await regeneratePdfAndUpload(id);
+        await opnameFinalRepository.updatePdfLink(id, linkPdf);
+
+        return {
+            id: Number(id),
+            link_pdf_opname: linkPdf
+        };
     }
 };

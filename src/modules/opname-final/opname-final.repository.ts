@@ -23,6 +23,10 @@ export type OpnameFinalRow = {
     alasan_penolakan: string | null;
     grand_total_opname: string | null;
     grand_total_rab: string | null;
+    hari_denda: number | null;
+    nilai_denda: string | null;
+    tanggal_akhir_spk_denda: string | null;
+    tanggal_serah_terima_denda: string | null;
     created_at: string;
 };
 
@@ -114,6 +118,10 @@ const OPNAME_FINAL_COLUMNS = `
     ofn.alasan_penolakan,
     ofn.grand_total_opname,
     ofn.grand_total_rab,
+    ofn.hari_denda,
+    ofn.nilai_denda,
+    ofn.tanggal_akhir_spk_denda,
+    ofn.tanggal_serah_terima_denda,
     ofn.created_at
 `;
 
@@ -324,6 +332,10 @@ export const opnameFinalRepository = {
                 alasan_penolakan: header.alasan_penolakan,
                 grand_total_opname: header.grand_total_opname,
                 grand_total_rab: header.grand_total_rab,
+                hari_denda: header.hari_denda,
+                nilai_denda: header.nilai_denda,
+                tanggal_akhir_spk_denda: header.tanggal_akhir_spk_denda,
+                tanggal_serah_terima_denda: header.tanggal_serah_terima_denda,
                 created_at: header.created_at
             },
             toko: {
@@ -394,6 +406,31 @@ export const opnameFinalRepository = {
         await pool.query(
             `UPDATE opname_final SET link_pdf_opname = $1 WHERE id = $2`,
             [linkPdf, opnameFinalId]
+        );
+    },
+
+    async updateDenda(opnameFinalId: string, payload: {
+        hari_denda: number;
+        nilai_denda: number;
+        tanggal_akhir_spk: string | null;
+        tanggal_serah_terima: string | null;
+    }): Promise<void> {
+        await pool.query(
+            `
+            UPDATE opname_final
+            SET hari_denda = $1,
+                nilai_denda = $2,
+                tanggal_akhir_spk_denda = $3,
+                tanggal_serah_terima_denda = $4
+            WHERE id = $5
+            `,
+            [
+                payload.hari_denda,
+                payload.nilai_denda,
+                payload.tanggal_akhir_spk,
+                payload.tanggal_serah_terima,
+                opnameFinalId
+            ]
         );
     },
 

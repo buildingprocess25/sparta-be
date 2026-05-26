@@ -311,6 +311,8 @@ export const buildOpnameFinalPdfBuffer = async (
     const grandTotalIl = sumInstruksiLapanganTotalHarga(instruksiLapanganItems);
     const grandTotalKerjaTambah = sumOpnameTotalSelisih(kerjaTambahItems);
     const grandTotalKerjaKurang = sumOpnameTotalSelisih(kerjaKurangItems);
+    const nilaiDenda = toNumber(detail.opname_final.nilai_denda);
+    const hariDenda = Number(detail.opname_final.hari_denda ?? 0) || 0;
     const rabSummary = buildFinancialSummary(totalRabItems, "down");
     const instruksiLapanganSummary = buildFinancialSummary(grandTotalIl, "up");
     const kerjaTambahSummary = buildFinancialSummary(grandTotalKerjaTambah, "up");
@@ -319,7 +321,8 @@ export const buildOpnameFinalPdfBuffer = async (
     const totalOpnameFinal = rabSummary.grand_total
         + instruksiLapanganSummary.grand_total
         + kerjaTambahSummary.grand_total
-        - Math.abs(kerjaKurangSummary.grand_total);
+        - Math.abs(kerjaKurangSummary.grand_total)
+        - nilaiDenda;
 
     const html = await renderHtmlTemplate(templatePath, {
         generated_at: formatDateIndonesia(new Date().toISOString()),
@@ -346,6 +349,10 @@ export const buildOpnameFinalPdfBuffer = async (
         grand_total_kerja_tambah_formatted: kerjaTambahSummary.grand_total_formatted,
         grand_total_kerja_kurang_formatted: kerjaKurangSummary.grand_total_formatted,
         selisih_kerja_tambah_kurang_formatted: rupiah(selisihKerjaTambahKurang),
+        hari_denda: hariDenda,
+        nilai_denda_formatted: rupiah(nilaiDenda),
+        tanggal_akhir_spk_denda_formatted: formatDateIndonesia(detail.opname_final.tanggal_akhir_spk_denda),
+        tanggal_serah_terima_denda_formatted: formatDateIndonesia(detail.opname_final.tanggal_serah_terima_denda),
         total_opname_final_formatted: rupiah(totalOpnameFinal),
         created_at_formatted: formatDateIndonesia(detail.opname_final.created_at),
         creator_details: approvalDetails(
