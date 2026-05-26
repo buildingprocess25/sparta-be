@@ -33,6 +33,22 @@ function processPriceValue(rawValue: unknown): PriceValue {
     return safeToFloat(rawValue);
 }
 
+function normalizeCabangInput(value: string): string {
+    return value
+        .trim()
+        .toUpperCase()
+        .replace(/^CAB(?:ANG)?\.?\s+/, "")
+        .replace(/^CABANG\s+/, "")
+        .trim();
+}
+
+function normalizeLingkupInput(value: string): "ME" | "SIPIL" {
+    const normalized = value.trim().toUpperCase();
+    if (normalized.includes("SIPIL")) return "SIPIL";
+    if (normalized.includes("ME")) return "ME";
+    return normalized as "ME" | "SIPIL";
+}
+
 async function getFirstSheetName(sheets: sheets_v4.Sheets, spreadsheetId: string): Promise<string> {
     const meta = await sheets.spreadsheets.get({
         spreadsheetId,
@@ -138,8 +154,8 @@ function processSboSheet(records: Record<string, string>[], cabangKode: string, 
 
 export const priceRabService = {
     async getData(cabangRaw: string, lingkupRaw: string): Promise<PriceResult> {
-        const cabang = cabangRaw.toUpperCase();
-        const lingkup = lingkupRaw.toUpperCase() as "ME" | "SIPIL";
+        const cabang = normalizeCabangInput(cabangRaw);
+        const lingkup = normalizeLingkupInput(lingkupRaw);
 
         if (!SPREADSHEET_IDS[cabang] || !SPREADSHEET_IDS[cabang][lingkup]) {
             throw new AppError("Invalid 'cabang' or 'lingkup' parameter", 404);

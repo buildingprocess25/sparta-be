@@ -175,10 +175,6 @@ const buildPriceLookup = (priceData: PriceResult): Map<string, NumericPrice> => 
     return lookup;
 };
 
-const sameText = (left?: string | null, right?: string | null): boolean => {
-    return String(left ?? "").trim().toUpperCase() === String(right ?? "").trim().toUpperCase();
-};
-
 const hasSuperHumanRole = (role?: string | null): boolean => {
     return String(role ?? "").trim().toUpperCase().includes("SUPER HUMAN");
 };
@@ -208,7 +204,13 @@ const syncDetailItemsWithBranchPrices = async (
     const cabangKey = normalizeCabangForPrice(cabang);
     const lingkup = normalizeLingkupForPrice(lingkupPekerjaan);
 
-    if (!cabangKey || !lingkup) return detailItems;
+    if (!cabangKey || !lingkup) {
+        if (requirePriceSync) {
+            throw new AppError("Cabang dan lingkup pekerjaan wajib valid untuk sinkron harga RAB.", 422);
+        }
+
+        return detailItems;
+    }
 
     try {
         const priceData = await priceRabService.getData(cabangKey, lingkup);
@@ -885,10 +887,7 @@ export const rabService = {
             }
         }
 
-        const requirePriceSync = isRevisionSubmit
-            || (existingTokoByCombination?.cabang
-                ? !sameText(existingTokoByCombination.cabang, payload.cabang)
-                : false);
+        const requirePriceSync = true;
         const detailItems = await syncDetailItemsWithBranchPrices(
             payload.detail_items,
             payload.cabang,
