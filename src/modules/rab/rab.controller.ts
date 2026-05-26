@@ -231,3 +231,13 @@ export const replaceRabItems = asyncHandler(async (req: Request, res: Response) 
         data
     });
 });
+
+export const syncRabItemsWithBranchPrices = asyncHandler(async (req: Request, res: Response) => {
+    const data = await rabService.syncRabItemsWithBranchPrices(req.params.id);
+
+    res.json({
+        status: "success",
+        message: `Harga ${data.updated_items} item RAB berhasil disinkronkan dengan master cabang`,
+        data
+    });
+});

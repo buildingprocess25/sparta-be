@@ -9,6 +9,7 @@ import {
 	handleRabApproval,
 	listRab,
 	replaceRabItems,
+	syncRabItemsWithBranchPrices,
 	submitRab,
 	updateRabItemsBulk,
 	updateRabStatus,
@@ -37,6 +38,7 @@ rabRouter.get("/", listRab);
 rabRouter.get("/:id", getRabById);
 rabRouter.put("/:id/items", updateRabItemsBulk);
 rabRouter.put("/:id/items/replace", replaceRabItems);
+rabRouter.post("/:id/sync-branch-prices", syncRabItemsWithBranchPrices);
 rabRouter.delete("/:id/items", deleteRabItems);
 rabRouter.get("/:id/pdf", downloadRabPdf);
 rabRouter.get("/:id/logo", downloadRabLogo);
