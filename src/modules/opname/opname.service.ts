@@ -1,6 +1,8 @@
 import { AppError } from "../../common/app-error";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
+import { calculateDendaByTokoId } from "../denda/denda-keterlambatan";
+import { opnameFinalRepository } from "../opname-final/opname-final.repository";
 import { opnameRepository, type OpnameRow, type TokoSummaryRow } from "./opname.repository";
 import type {
     CreateBulkOpnameItemData,
@@ -172,6 +174,22 @@ const uploadFotoOpnameToDrive = async (
     throw new AppError("Upload foto opname ke Google Drive gagal", 500);
 };
 
+const refreshOpnameFinalDenda = async (opnameFinalId: number, idToko: number) => {
+    const denda = await calculateDendaByTokoId(idToko);
+    await opnameFinalRepository.updateDenda(String(opnameFinalId), denda);
+    return denda;
+};
+
+const mapBulkCreateResponse = (created: Awaited<ReturnType<typeof opnameRepository.createBulkWithFinal>>) => ({
+    opname_final: {
+        id: created.opnameFinal.id,
+        id_toko: created.opnameFinal.id_toko,
+        aksi: created.opnameFinal.aksi,
+        status_opname_final: created.opnameFinal.status_opname_final
+    },
+    items: created.items.map((item) => normalizeOpnameFotoLink(item))
+});
+
 export const opnameService = {
     async create(
         input: CreateOpnameInput,
@@ -187,6 +205,7 @@ export const opnameService = {
                 : input;
 
             const created = await opnameRepository.create(payload);
+            await refreshOpnameFinalDenda(created.id_opname_final, created.id_toko);
             return normalizeOpnameFotoLink(created);
         } catch (error) {
             return mapPgError(error);
@@ -222,15 +241,8 @@ export const opnameService = {
                     items
                 });
 
-                return {
-                    opname_final: {
-                        id: created.opnameFinal.id,
-                        id_toko: created.opnameFinal.id_toko,
-                        aksi: created.opnameFinal.aksi,
-                        status_opname_final: created.opnameFinal.status_opname_final
-                    },
-                    items: created.items.map((item) => normalizeOpnameFotoLink(item))
-                };
+                await refreshOpnameFinalDenda(created.opnameFinal.id, created.opnameFinal.id_toko);
+                return mapBulkCreateResponse(created);
             }
 
             if (uploadedFotoOpnameIndexes && uploadedFotoOpnameIndexes.length > 0) {
@@ -276,15 +288,8 @@ export const opnameService = {
                     items: payloadWithFoto
                 });
 
-                return {
-                    opname_final: {
-                        id: created.opnameFinal.id,
-                        id_toko: created.opnameFinal.id_toko,
-                        aksi: created.opnameFinal.aksi,
-                        status_opname_final: created.opnameFinal.status_opname_final
-                    },
-                    items: created.items.map((item) => normalizeOpnameFotoLink(item))
-                };
+                await refreshOpnameFinalDenda(created.opnameFinal.id, created.opnameFinal.id_toko);
+                return mapBulkCreateResponse(created);
             }
 
             if (uploadedFotoOpnameFiles.length !== 1 && uploadedFotoOpnameFiles.length !== items.length) {
@@ -321,15 +326,8 @@ export const opnameService = {
                 items: payloadWithFoto
             });
 
-            return {
-                opname_final: {
-                    id: created.opnameFinal.id,
-                    id_toko: created.opnameFinal.id_toko,
-                    aksi: created.opnameFinal.aksi,
-                    status_opname_final: created.opnameFinal.status_opname_final
-                },
-                items: created.items.map((item) => normalizeOpnameFotoLink(item))
-            };
+            await refreshOpnameFinalDenda(created.opnameFinal.id, created.opnameFinal.id_toko);
+            return mapBulkCreateResponse(created);
         } catch (error) {
             return mapPgError(error);
         }
@@ -382,6 +380,7 @@ export const opnameService = {
                 throw new AppError("Data opname tidak ditemukan", 404);
             }
 
+            await refreshOpnameFinalDenda(data.id_opname_final, data.id_toko);
             return normalizeOpnameFotoLink(data);
         } catch (error) {
             if (error instanceof AppError) {

@@ -16,6 +16,12 @@ type SerahTerimaPenaltyRow = {
     created_at: string | null;
 };
 
+type PenaltyScopeRow = {
+    id: number;
+    nomor_ulok: string | null;
+    cabang: string | null;
+};
+
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 const startOfLocalDay = (date: Date): Date => {
@@ -85,6 +91,41 @@ export const calculateDendaNominal = (hariDenda: number): number => {
     return Math.min((hariPertama * 1_000_000) + (hariBerikutnya * 500_000), 10_000_000);
 };
 
+const resolvePenaltyScopeByTokoId = async (idToko: number): Promise<{ tokoIds: number[]; nomorUlok: string | null }> => {
+    const targetResult = await pool.query<PenaltyScopeRow>(
+        `
+        SELECT id, nomor_ulok, cabang
+        FROM toko
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [idToko]
+    );
+
+    const target = targetResult.rows[0];
+    if (!target?.nomor_ulok) {
+        return { tokoIds: [idToko], nomorUlok: target?.nomor_ulok ?? null };
+    }
+
+    const peerResult = await pool.query<PenaltyScopeRow>(
+        `
+        SELECT id, nomor_ulok, cabang
+        FROM toko
+        WHERE nomor_ulok = $1
+          AND (
+              $2::text IS NULL
+              OR cabang IS NULL
+              OR UPPER(cabang) = UPPER($2::text)
+          )
+        ORDER BY id ASC
+        `,
+        [target.nomor_ulok, target.cabang]
+    );
+
+    const tokoIds = peerResult.rows.map((row) => row.id);
+    return { tokoIds: tokoIds.length > 0 ? tokoIds : [idToko], nomorUlok: target.nomor_ulok };
+};
+
 export const calculateDendaFromDates = (
     tanggalAkhirSpk: Date | null,
     tanggalSerahTerima: Date | null
@@ -110,20 +151,25 @@ export const calculateDendaFromDates = (
 };
 
 export const calculateDendaByTokoId = async (idToko: number): Promise<DendaKeterlambatanResult> => {
+    const scope = await resolvePenaltyScopeByTokoId(idToko);
+
     const spkResult = await pool.query<SpkPenaltySourceRow>(
         `
         SELECT
             ps.waktu_selesai,
             MAX(pt.tanggal_spk_akhir_setelah_perpanjangan) FILTER (
-                WHERE UPPER(COALESCE(pt.status_persetujuan, '')) = 'APPROVED'
+                WHERE UPPER(COALESCE(pt.status_persetujuan, '')) IN ('APPROVED', 'DISETUJUI', 'DISETUJUI BM')
             ) AS tanggal_spk_akhir_setelah_perpanjangan
         FROM pengajuan_spk ps
         LEFT JOIN pertambahan_spk pt ON pt.id_spk = ps.id
-        WHERE ps.id_toko = $1
+        WHERE (
+              ps.id_toko = ANY($1::int[])
+              OR ($2::text IS NOT NULL AND ps.nomor_ulok = $2::text)
+          )
           AND UPPER(COALESCE(ps.status, '')) IN ('SPK_APPROVED', 'APPROVED', 'DISETUJUI', 'AKTIF', 'ACTIVE', 'SELESAI')
         GROUP BY ps.id, ps.waktu_selesai
         `,
-        [idToko]
+        [scope.tokoIds, scope.nomorUlok]
     );
 
     const latestAkhirSpk = spkResult.rows
@@ -135,11 +181,11 @@ export const calculateDendaByTokoId = async (idToko: number): Promise<DendaKeter
         `
         SELECT created_at
         FROM berkas_serah_terima
-        WHERE id_toko = $1
+        WHERE id_toko = ANY($1::int[])
         ORDER BY created_at DESC, id DESC
         LIMIT 1
         `,
-        [idToko]
+        [scope.tokoIds]
     );
 
     const tanggalSerahTerima = parseDateValue(stResult.rows[0]?.created_at ?? null);

@@ -150,6 +150,12 @@ const refreshDenda = async (opnameFinalId: string, idToko: number) => {
     return denda;
 };
 
+const refreshDendaByTokoScope = async (idToko: number) => {
+    const rows = await opnameFinalRepository.listIdsByPenaltyScope(idToko);
+    await Promise.all(rows.map((row) => refreshDenda(String(row.id), row.id_toko)));
+    return rows.length;
+};
+
 const regeneratePdfAndUpload = async (opnameFinalId: string): Promise<string> => {
     const detail = await opnameFinalRepository.findById(opnameFinalId);
     if (!detail) {
@@ -273,6 +279,15 @@ export const opnameFinalService = {
         return {
             id: Number(id),
             link_pdf_opname: linkPdf
+        };
+    },
+
+    async refreshDendaByTokoId(idToko: number) {
+        const updatedCount = await refreshDendaByTokoScope(idToko);
+
+        return {
+            id_toko: idToko,
+            updated_count: updatedCount
         };
     }
 };

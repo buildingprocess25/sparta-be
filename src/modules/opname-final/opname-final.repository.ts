@@ -98,6 +98,11 @@ export type OpnameFinalDetail = {
     items: OpnameFinalItemRow[];
 };
 
+export type OpnameFinalIdRow = {
+    id: number;
+    id_toko: number;
+};
+
 const OPNAME_FINAL_COLUMNS = `
     ofn.id,
     ofn.id_toko,
@@ -349,6 +354,27 @@ export const opnameFinalRepository = {
             },
             items
         };
+    },
+
+    async listIdsByPenaltyScope(idToko: number): Promise<OpnameFinalIdRow[]> {
+        const result = await pool.query<OpnameFinalIdRow>(
+            `
+            SELECT ofn.id, ofn.id_toko
+            FROM opname_final ofn
+            JOIN toko peer_toko ON peer_toko.id = ofn.id_toko
+            JOIN toko target_toko ON target_toko.id = $1
+            WHERE peer_toko.nomor_ulok = target_toko.nomor_ulok
+              AND (
+                  target_toko.cabang IS NULL
+                  OR peer_toko.cabang IS NULL
+                  OR UPPER(peer_toko.cabang) = UPPER(target_toko.cabang)
+              )
+            ORDER BY ofn.created_at DESC, ofn.id DESC
+            `,
+            [idToko]
+        );
+
+        return result.rows;
     },
 
     async updateApproval(

@@ -1,6 +1,7 @@
 import { AppError } from "../../common/app-error";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
+import { opnameFinalService } from "../opname-final/opname-final.service";
 import { tokoRepository } from "../toko/toko.repository";
 import { SPK_STATUS, getCabangCode } from "./spk.constants";
 import { buildSpkPdfBuffer } from "./spk.pdf";
@@ -203,6 +204,8 @@ export const spkService = {
         await spkRepository.updateStatusAndInsertLog(id, newStatus, action);
 
         if (action.tindakan === "APPROVE") {
+            await opnameFinalService.refreshDendaByTokoId(data.pengajuan.id_toko);
+
             try {
                 const linkPdf = await regenerateSpkPdfAndUpload(id, {
                     proyek: data.pengajuan.proyek,
@@ -243,6 +246,7 @@ export const spkService = {
         }
 
         await spkRepository.interveneStatusAndInsertLog(id, currentStatus, targetStatus, action);
+        await opnameFinalService.refreshDendaByTokoId(data.pengajuan.id_toko);
 
         if (targetStatus === SPK_STATUS.SPK_APPROVED) {
             try {

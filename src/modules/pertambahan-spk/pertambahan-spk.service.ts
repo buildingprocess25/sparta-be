@@ -1,6 +1,7 @@
 import { AppError } from "../../common/app-error";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
+import { opnameFinalService } from "../opname-final/opname-final.service";
 import { spkRepository } from "../spk/spk.repository";
 import { tokoRepository } from "../toko/toko.repository";
 import { buildPertambahanSpkPdfBuffer } from "./pertambahan-spk.pdf";
@@ -312,6 +313,8 @@ export const pertambahanSpkService = {
             throw new AppError("Data pertambahan SPK tidak ditemukan", 404);
         }
 
+        await opnameFinalService.refreshDendaByTokoId(spk.pengajuan.id_toko);
+
         return updated;
     },
 
@@ -343,6 +346,9 @@ export const pertambahanSpkService = {
         if (!updated) {
             throw new AppError("Data pertambahan SPK tidak ditemukan", 404);
         }
+
+        const spk = await ensureSpkExists(Number(updated.id_spk));
+        await opnameFinalService.refreshDendaByTokoId(spk.pengajuan.id_toko);
 
         return updated;
     },
