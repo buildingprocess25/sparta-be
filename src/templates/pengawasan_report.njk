@@ -183,6 +183,16 @@
       border-radius: 4px;
       object-fit: contain;
     }
+
+    .item-photo-missing {
+      display: inline-block;
+      padding: 8px 10px;
+      border: 1px dashed #cbd5e1;
+      border-radius: 4px;
+      color: #64748b;
+      font-size: 10px;
+      background: #f8fafc;
+    }
     {{ sparta_pdf_css() | safe }}
   </style>
 </head>
@@ -235,12 +245,20 @@
         </td>
         <td>{{ item.catatan or '-' }}</td>
       </tr>
-      {% if item.dokumentasi %}
+      {% if item.dokumentasi_base64 %}
       <tr class="item-photo-row">
         <td></td>
         <td colspan="4">
           <div class="item-photo-label">Foto Dokumentasi</div>
-          <img class="item-photo" src="{{ item.dokumentasi_base64 or item.dokumentasi }}" alt="Foto dokumentasi item {{ loop.index }}" />
+          <img class="item-photo" src="{{ item.dokumentasi_base64 }}" alt="Foto dokumentasi item {{ loop.index }}" />
+        </td>
+      </tr>
+      {% elif item.dokumentasi %}
+      <tr class="item-photo-row">
+        <td></td>
+        <td colspan="4">
+          <div class="item-photo-label">Foto Dokumentasi</div>
+          <div class="item-photo-missing">Foto belum bisa dimuat ke PDF. Buka lampiran melalui aplikasi.</div>
         </td>
       </tr>
       {% endif %}

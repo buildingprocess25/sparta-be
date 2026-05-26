@@ -146,7 +146,7 @@ export const penyimpananDokumenRepository = {
             ON CONFLICT DO NOTHING
             `,
             [
-                input.nomor_ulok || input.kode_toko,
+                input.nomor_ulok ?? null,
                 input.kode_toko,
                 input.nama_toko,
                 input.cabang,

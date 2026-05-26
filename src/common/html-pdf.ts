@@ -467,6 +467,22 @@ export const renderPdfFromHtml = async (html: string): Promise<Buffer> => {
             waitUntil: "domcontentloaded",
             timeout: navigationTimeoutMs,
         });
+        await page.evaluate(async () => {
+            const images = Array.from(document.images);
+            await Promise.all(images.map(async (image) => {
+                if (image.complete && image.naturalWidth > 0) return;
+
+                try {
+                    await image.decode();
+                } catch {
+                    await new Promise<void>((resolve) => {
+                        image.addEventListener("load", () => resolve(), { once: true });
+                        image.addEventListener("error", () => resolve(), { once: true });
+                        setTimeout(resolve, 5000);
+                    });
+                }
+            }));
+        });
         const pdf = await page.pdf({
             format: "A4",
             printBackground: true,

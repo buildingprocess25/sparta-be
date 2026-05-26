@@ -4,6 +4,7 @@ import { renderHtmlTemplate, renderPdfFromHtml, resolveTemplatePath } from "../.
 import { env } from "../../config/env";
 import fs from "fs";
 import path from "path";
+import sharp from "sharp";
 import { pengawasanRepository, type PengawasanRow } from "./pengawasan.repository";
 import type {
     BulkUpdatePengawasanItemInput,
@@ -118,24 +119,77 @@ const extractGdriveFileId = (url: string | null | undefined): string | null => {
     return null;
 };
 
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+const detectImageMime = (buffer: Buffer, fallback?: string | null): string | null => {
+    const head = buffer.slice(0, 12);
+    if (head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff) return "image/jpeg";
+    if (head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4e && head[3] === 0x47) return "image/png";
+    if (head[0] === 0x47 && head[1] === 0x49 && head[2] === 0x46) return "image/gif";
+    if (head.toString("ascii", 0, 4) === "RIFF" && head.toString("ascii", 8, 12) === "WEBP") return "image/webp";
+    if (fallback?.startsWith("image/")) return fallback;
+    return null;
+};
+
+const imageBufferToPdfDataUrl = async (buffer: Buffer, mimeType?: string | null): Promise<string | null> => {
+    const detectedMime = detectImageMime(buffer, mimeType);
+    if (!detectedMime) return null;
+
+    try {
+        const normalized = await sharp(buffer, { failOn: "none" })
+            .rotate()
+            .jpeg({ quality: 84, mozjpeg: true })
+            .toBuffer();
+
+        return `data:image/jpeg;base64,${normalized.toString("base64")}`;
+    } catch (error) {
+        console.error("[berkas_pengawasan] Gagal konversi foto pengawasan:", error);
+        return `data:${detectedMime};base64,${buffer.toString("base64")}`;
+    }
+};
+
+const getDriveFileBufferWithRetry = async (
+    drive: NonNullable<GoogleProvider["spartaDrive"]>,
+    fileId: string
+): Promise<Buffer | null> => {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+        const buffer = await GoogleProvider.instance.getFileBufferById(drive, fileId);
+        if (buffer) return buffer;
+        if (attempt < 2) await sleep(450 * (attempt + 1));
+    }
+
+    return null;
+};
+
 const gdriveImageToBase64 = async (url: string | null | undefined): Promise<string | null> => {
+    if (url?.startsWith("data:image/")) return url;
+
     const fileId = extractGdriveFileId(url);
     if (!fileId) return null;
 
     try {
-        const drive = GoogleProvider.instance.spartaDrive;
-        if (!drive) return null;
+        const gp = GoogleProvider.instance;
+        const drives = [gp.spartaDrive, gp.docDrive].filter(Boolean);
 
-        const buffer = await GoogleProvider.instance.getFileBufferById(drive, fileId);
-        if (!buffer) return null;
+        for (const drive of drives) {
+            if (!drive) continue;
 
-        const head = buffer.slice(0, 4);
-        let mime = "image/jpeg";
-        if (head[0] === 0x89 && head[1] === 0x50) mime = "image/png";
-        else if (head[0] === 0x47 && head[1] === 0x49) mime = "image/gif";
-        else if (head[0] === 0x52 && head[1] === 0x49) mime = "image/webp";
+            const buffer = await getDriveFileBufferWithRetry(drive, fileId);
+            if (!buffer) continue;
 
-        return `data:${mime};base64,${buffer.toString("base64")}`;
+            let mimeType: string | null | undefined;
+            try {
+                const meta = await drive.files.get({ fileId, fields: "mimeType" });
+                mimeType = meta.data.mimeType;
+            } catch {
+                mimeType = null;
+            }
+
+            const dataUrl = await imageBufferToPdfDataUrl(buffer, mimeType);
+            if (dataUrl) return dataUrl;
+        }
+
+        return null;
     } catch (error) {
         console.error("[berkas_pengawasan] Gagal membaca foto pengawasan:", error);
         return null;

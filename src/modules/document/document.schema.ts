@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+const optionalTrimmedString = z.preprocess(
+    (value) => typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.string().trim().min(1).optional()
+);
+
 export const penyimpananDokumenCreateSchema = z.object({
     id_toko: z.coerce.number().int().positive().optional(),
     kode_toko: z.string().trim().min(1).optional(),
@@ -18,12 +23,12 @@ export const penyimpananDokumenCreateSchema = z.object({
 });
 
 export const penyimpananDokumenArchiveStoreCreateSchema = z.object({
-    nomor_ulok: z.string().trim().min(1).optional(),
+    nomor_ulok: optionalTrimmedString,
     kode_toko: z.string().trim().min(1),
     nama_toko: z.string().trim().min(1),
     cabang: z.string().trim().min(1),
-    proyek: z.string().trim().min(1).optional(),
-    folder_link: z.string().trim().optional()
+    proyek: optionalTrimmedString,
+    folder_link: optionalTrimmedString
 });
 
 export const penyimpananDokumenUpdateSchema = z.object({
