@@ -13,6 +13,7 @@ export type PengawasanRow = {
     jenis_pekerjaan: string;
     catatan: string | null;
     dokumentasi: string | null;
+    dokumentasi_base64: string | null;
     status: string;
     created_at: string;
 };
@@ -42,9 +43,9 @@ export const pengawasanRepository = {
     async create(input: CreatePengawasanData): Promise<PengawasanRow> {
         const result = await pool.query<PengawasanRow>(
             `
-            INSERT INTO pengawasan (id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, status)
-            VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, 'progress'))
-            RETURNING id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, status, created_at
+            INSERT INTO pengawasan (id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, dokumentasi_base64, status)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE($8, 'progress'))
+            RETURNING id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, dokumentasi_base64, status, created_at
             `,
             [
                 input.id_gantt,
@@ -53,6 +54,7 @@ export const pengawasanRepository = {
                 input.jenis_pekerjaan,
                 input.catatan ?? null,
                 input.dokumentasi ?? null,
+                input.dokumentasi_base64 ?? null,
                 input.status ?? null
             ]
         );
@@ -64,7 +66,7 @@ export const pengawasanRepository = {
         return withTransaction(async (client) => {
             const values: Array<number | string | null> = [];
             const placeholders = items.map((item, index) => {
-                const base = index * 7;
+                const base = index * 8;
                 values.push(
                     item.id_gantt,
                     item.id_pengawasan_gantt,
@@ -72,16 +74,17 @@ export const pengawasanRepository = {
                     item.jenis_pekerjaan,
                     item.catatan ?? null,
                     item.dokumentasi ?? null,
+                    item.dokumentasi_base64 ?? null,
                     item.status ?? null
                 );
-                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, COALESCE($${base + 7}, 'progress'))`;
+                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, COALESCE($${base + 8}, 'progress'))`;
             });
 
             const result = await client.query<PengawasanRow>(
                 `
-                INSERT INTO pengawasan (id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, status)
+                INSERT INTO pengawasan (id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, dokumentasi_base64, status)
                 VALUES ${placeholders.join(", ")}
-                RETURNING id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, status, created_at
+                RETURNING id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, dokumentasi_base64, status, created_at
                 `,
                 values
             );
@@ -103,7 +106,7 @@ export const pengawasanRepository = {
             SELECT
                 p.id, p.id_gantt, p.id_pengawasan_gantt,
                 p.kategori_pekerjaan, p.jenis_pekerjaan,
-                p.catatan, p.dokumentasi, p.status, p.created_at,
+                p.catatan, p.dokumentasi, p.dokumentasi_base64, p.status, p.created_at,
                 bp.id AS bp_id,
                 bp.id_pengawasan_gantt AS bp_id_pengawasan_gantt,
                 bp.link_pdf_pengawasan AS bp_link_pdf_pengawasan,
@@ -178,7 +181,7 @@ export const pengawasanRepository = {
             SELECT
                 p.id, p.id_gantt, p.id_pengawasan_gantt,
                 p.kategori_pekerjaan, p.jenis_pekerjaan,
-                p.catatan, p.dokumentasi, p.status, p.created_at,
+                p.catatan, p.dokumentasi, p.dokumentasi_base64, p.status, p.created_at,
                 bp.id AS bp_id,
                 bp.id_pengawasan_gantt AS bp_id_pengawasan_gantt,
                 bp.link_pdf_pengawasan AS bp_link_pdf_pengawasan,
@@ -231,6 +234,11 @@ export const pengawasanRepository = {
             setClauses.push(`dokumentasi = $${values.length}`);
         }
 
+        if (typeof input.dokumentasi_base64 !== "undefined") {
+            values.push(input.dokumentasi_base64);
+            setClauses.push(`dokumentasi_base64 = $${values.length}`);
+        }
+
         if (typeof input.status !== "undefined") {
             values.push(input.status);
             setClauses.push(`status = $${values.length}`);
@@ -243,12 +251,23 @@ export const pengawasanRepository = {
             UPDATE pengawasan
             SET ${setClauses.join(", ")}
             WHERE id = $${values.length}
-            RETURNING id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, status, created_at
+            RETURNING id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, dokumentasi_base64, status, created_at
             `,
             values
         );
 
         return result.rows[0] ?? null;
+    },
+
+    async updateDokumentasiBase64(id: number, dokumentasiBase64: string): Promise<void> {
+        await pool.query(
+            `
+            UPDATE pengawasan
+            SET dokumentasi_base64 = $1
+            WHERE id = $2
+            `,
+            [dokumentasiBase64, id]
+        );
     },
 
     async deleteById(id: string): Promise<boolean> {
@@ -326,7 +345,7 @@ export const pengawasanRepository = {
     async findAllPengawasanByGanttId(idPengawasanGantt: number): Promise<PengawasanRow[]> {
         const result = await pool.query<PengawasanRow>(
             `
-            SELECT id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, status, created_at
+            SELECT id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, dokumentasi_base64, status, created_at
             FROM pengawasan
             WHERE id_pengawasan_gantt = $1
             ORDER BY id ASC

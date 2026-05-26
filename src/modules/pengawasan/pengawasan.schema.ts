@@ -20,6 +20,7 @@ const updatePengawasanFieldsSchema = z.object({
     jenis_pekerjaan: z.string().trim().min(1).optional(),
     catatan: z.string().trim().min(1).optional(),
     dokumentasi: z.string().trim().min(1).optional(),
+    dokumentasi_base64: z.string().trim().min(1).optional(),
     status: pengawasanStatusSchema.optional()
 });
 
@@ -46,6 +47,7 @@ export type CreatePengawasanInput = z.infer<typeof createPengawasanSchema>;
 export type CreatePengawasanData = Omit<CreatePengawasanInput, "tanggal_pengawasan"> & {
     id_pengawasan_gantt: number;
     dokumentasi?: string;
+    dokumentasi_base64?: string;
 };
 export type BulkCreatePengawasanInput = z.infer<typeof bulkCreatePengawasanSchema>;
 export type UpdatePengawasanInput = z.infer<typeof updatePengawasanSchema>;

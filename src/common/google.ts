@@ -286,7 +286,7 @@ export class GoogleProvider {
         const drive = this.ensureDocDrive();
         const safeName = name.replace(/'/g, "\\'");
         const query = `name='${safeName}' and '${parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
-        const res = await drive.files.list({ q: query, fields: "files(id)" });
+        const res = await drive.files.list({ q: query, fields: "files(id)", supportsAllDrives: true, includeItemsFromAllDrives: true });
         const items = res.data.files || [];
         if (items.length > 0) return items[0].id!;
 
@@ -297,6 +297,7 @@ export class GoogleProvider {
                 parents: [parentId],
             },
             fields: "id",
+            supportsAllDrives: true,
         });
         return folder.data.id!;
     }
@@ -308,6 +309,7 @@ export class GoogleProvider {
                 fileId,
                 requestBody: { type: "anyone", role: "reader" },
                 fields: "id",
+                supportsAllDrives: true,
             });
         } catch (_) {
             // ignore
@@ -331,6 +333,7 @@ export class GoogleProvider {
                     requestBody: { name: filename, parents: [folderId] },
                     media: { mimeType, body: Readable.from(buffer) },
                     fields: "id, webViewLink, thumbnailLink, name, mimeType",
+                    supportsAllDrives: true,
                 });
 
                 await this.setPublicPermission(drive, uploaded.data.id ?? undefined);
@@ -373,6 +376,7 @@ export class GoogleProvider {
                     media: { mimeType, body: Readable.from(buffer) },
                     fields: "id, webViewLink, thumbnailLink, name, mimeType",
                     uploadType: "resumable",
+                    supportsAllDrives: true,
                 });
 
                 await this.setPublicPermission(drive, uploaded.data.id ?? undefined);
@@ -401,7 +405,7 @@ export class GoogleProvider {
     async deleteDriveFile(fileId: string): Promise<void> {
         const drive = this.ensureDocDrive();
         try {
-            await drive.files.delete({ fileId });
+            await drive.files.delete({ fileId, supportsAllDrives: true });
         } catch (e) {
             console.error(`Gagal hapus file ${fileId}:`, e);
         }
@@ -411,7 +415,7 @@ export class GoogleProvider {
     async listFolderFiles(folderId: string): Promise<{ id: string; name: string }[]> {
         const drive = this.ensureDocDrive();
         const query = `'${folderId}' in parents and trashed = false`;
-        const res = await drive.files.list({ q: query, fields: "files(id, name)" });
+        const res = await drive.files.list({ q: query, fields: "files(id, name)", supportsAllDrives: true, includeItemsFromAllDrives: true });
         return (res.data.files || []).map((f: any) => ({ id: f.id!, name: f.name! }));
     }
 
@@ -419,7 +423,7 @@ export class GoogleProvider {
     async listSubFolders(parentId: string): Promise<{ id: string; name: string }[]> {
         const drive = this.ensureDocDrive();
         const query = `'${parentId}' in parents and trashed = false and mimeType = 'application/vnd.google-apps.folder'`;
-        const res = await drive.files.list({ q: query, fields: "files(id, name)" });
+        const res = await drive.files.list({ q: query, fields: "files(id, name)", supportsAllDrives: true, includeItemsFromAllDrives: true });
         return (res.data.files || []).map((f: any) => ({ id: f.id!, name: f.name! }));
     }
 
@@ -428,7 +432,7 @@ export class GoogleProvider {
         const drive = this.ensureDocDrive();
         const safeName = filename.replace(/'/g, "\\'");
         const query = `name='${safeName}' and '${folderId}' in parents and trashed=false`;
-        const res = await drive.files.list({ q: query, fields: "files(id)" });
+        const res = await drive.files.list({ q: query, fields: "files(id)", supportsAllDrives: true, includeItemsFromAllDrives: true });
         return (res.data.files || []).map((f: any) => ({ id: f.id! }));
     }
 
@@ -436,11 +440,13 @@ export class GoogleProvider {
     async getFileBufferById(drive: drive_v3.Drive, fileId: string): Promise<Buffer | null> {
         try {
             const resp = await drive.files.get(
-                { fileId, alt: "media" },
+                { fileId, alt: "media", supportsAllDrives: true },
                 { responseType: "arraybuffer" },
             );
             return Buffer.from(resp.data as ArrayBuffer);
-        } catch {
+        } catch (error: any) {
+            const status = error?.code ?? error?.response?.status;
+            console.error("[google] Gagal membaca file Drive via API", { fileId, status, message: error?.message });
             return null;
         }
     }
