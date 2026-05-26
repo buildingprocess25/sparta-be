@@ -133,6 +133,11 @@ type NumericPrice = {
     hargaUpah: number | null;
 };
 
+type PriceLookup = {
+    byJob: Map<string, NumericPrice>;
+    byCategoryAndJob: Map<string, NumericPrice>;
+};
+
 const normalizePriceLookupKey = (value: string): string => {
     return value
         .toLowerCase()
@@ -153,26 +158,30 @@ const priceValueToNumberOrNull = (value: unknown): number | null => {
     return null;
 };
 
-const buildPriceLookup = (priceData: PriceResult): Map<string, NumericPrice> => {
-    const lookup = new Map<string, NumericPrice>();
+const buildPriceLookup = (priceData: PriceResult): PriceLookup => {
+    const byJob = new Map<string, NumericPrice>();
+    const byCategoryAndJob = new Map<string, NumericPrice>();
 
     for (const [category, items] of Object.entries(priceData)) {
         for (const item of items) {
             const jenisPekerjaan = item["Jenis Pekerjaan"] ?? "";
             const key = normalizePriceLookupKey(jenisPekerjaan);
-            if (!key || lookup.has(key)) continue;
+            if (!key) continue;
 
-            lookup.set(key, {
+            const price = {
                 category,
                 jenisPekerjaan,
                 satuan: item["Satuan"] ?? "",
                 hargaMaterial: priceValueToNumberOrNull(item["Harga Material"]),
                 hargaUpah: priceValueToNumberOrNull(item["Harga Upah"])
-            });
+            };
+
+            byCategoryAndJob.set(`${normalizePriceLookupKey(category)}|${key}`, price);
+            if (!byJob.has(key)) byJob.set(key, price);
         }
     }
 
-    return lookup;
+    return { byJob, byCategoryAndJob };
 };
 
 const hasSuperHumanRole = (role?: string | null): boolean => {
@@ -218,7 +227,10 @@ const syncDetailItemsWithBranchPrices = async (
         let matchedCount = 0;
 
         const syncedItems = detailItems.map((item) => {
-            const price = lookup.get(normalizePriceLookupKey(item.jenis_pekerjaan));
+            const itemCategoryKey = normalizePriceLookupKey(item.kategori_pekerjaan);
+            const itemJobKey = normalizePriceLookupKey(item.jenis_pekerjaan);
+            const price = lookup.byCategoryAndJob.get(`${itemCategoryKey}|${itemJobKey}`)
+                ?? lookup.byJob.get(itemJobKey);
             if (!price) return item;
 
             const hargaMaterial = price.hargaMaterial ?? item.harga_material;
@@ -229,7 +241,6 @@ const syncDetailItemsWithBranchPrices = async (
 
             return {
                 ...item,
-                kategori_pekerjaan: price.category || item.kategori_pekerjaan,
                 satuan: price.satuan || item.satuan,
                 harga_material: hargaMaterial,
                 harga_upah: hargaUpah,
