@@ -283,24 +283,40 @@ export const rabRepository = {
     },
 
     async resetToWaitingGantt(rabId: string | number): Promise<void> {
-        await pool.query(
-            `UPDATE rab
-             SET status = $1,
-                 pemberi_persetujuan_direktur = NULL,
-                 nama_persetujuan_direktur = NULL,
-                 waktu_persetujuan_direktur = NULL,
-                 pemberi_persetujuan_koordinator = NULL,
-                 nama_persetujuan_koordinator = NULL,
-                 waktu_persetujuan_koordinator = NULL,
-                 pemberi_persetujuan_manager = NULL,
-                 nama_persetujuan_manager = NULL,
-                 waktu_persetujuan_manager = NULL,
-                 alasan_penolakan = NULL,
-                 waktu_penolakan = NULL,
-                 ditolak_oleh = NULL
-             WHERE id = $2`,
-            [RAB_STATUS.WAITING_FOR_GANTT, rabId]
-        );
+        await withTransaction(async (client) => {
+            await client.query(
+                `UPDATE rab
+                 SET status = $1,
+                     pemberi_persetujuan_direktur = NULL,
+                     nama_persetujuan_direktur = NULL,
+                     waktu_persetujuan_direktur = NULL,
+                     pemberi_persetujuan_koordinator = NULL,
+                     nama_persetujuan_koordinator = NULL,
+                     waktu_persetujuan_koordinator = NULL,
+                     pemberi_persetujuan_manager = NULL,
+                     nama_persetujuan_manager = NULL,
+                     waktu_persetujuan_manager = NULL,
+                     alasan_penolakan = NULL,
+                     waktu_penolakan = NULL,
+                     ditolak_oleh = NULL
+                 WHERE id = $2`,
+                [RAB_STATUS.WAITING_FOR_GANTT, rabId]
+            );
+
+            await client.query(
+                `UPDATE gantt_chart
+                 SET status = 'active'
+                 WHERE id = (
+                    SELECT g.id
+                    FROM gantt_chart g
+                    JOIN rab r ON r.id_toko = g.id_toko
+                    WHERE r.id = $1
+                    ORDER BY g.id DESC
+                    LIMIT 1
+                 )`,
+                [rabId]
+            );
+        });
     },
 
     async replaceRejectedWithDetails(
@@ -431,6 +447,21 @@ export const rabRepository = {
                     rabId
                 ]
             );
+
+            if (payload.status === RAB_STATUS.WAITING_FOR_GANTT) {
+                await client.query(
+                    `UPDATE gantt_chart
+                     SET status = 'active'
+                     WHERE id = (
+                        SELECT id
+                        FROM gantt_chart
+                        WHERE id_toko = $1
+                        ORDER BY id DESC
+                        LIMIT 1
+                     )`,
+                    [currentRab.id_toko]
+                );
+            }
 
             await client.query(`DELETE FROM rab_item WHERE id_rab = $1`, [rabId]);
             await insertRabItems(client, rabId, payload.detail_items);
