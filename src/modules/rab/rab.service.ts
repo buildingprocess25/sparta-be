@@ -1180,7 +1180,31 @@ export const rabService = {
             throw new AppError("Pengajuan RAB tidak ditemukan", 404);
         }
 
-        const rawLink = data.rab.link_pdf_gabungan?.trim();
+        let rawLink = data.rab.link_pdf_gabungan?.trim();
+        try {
+            const links = await regenerateRabPdfs(id, {
+                proyek: data.toko.proyek,
+                nomorUlok: data.toko.nomor_ulok
+            });
+
+            if (links) {
+                await rabRepository.updatePdfLinks(id, {
+                    link_pdf_gabungan: links.link_pdf_gabungan,
+                    link_pdf_non_sbo: links.link_pdf_non_sbo,
+                    link_pdf_rekapitulasi: links.link_pdf_rekapitulasi
+                });
+
+                if (links.link_pdf_sph) {
+                    await rabRepository.updateSphPdfLink(id, links.link_pdf_sph);
+                }
+
+                rawLink = links.link_pdf_gabungan.trim();
+                logRab("DOWNLOAD", "PDF gabungan diregenerate sebelum download", { rabId: id });
+            }
+        } catch (err) {
+            console.error("Warning: Gagal regenerate PDF RAB sebelum download, memakai link lama:", err);
+        }
+
         if (!rawLink) {
             throw new AppError("Link PDF gabungan belum tersedia", 404);
         }
