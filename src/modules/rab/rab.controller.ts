@@ -233,11 +233,5 @@ export const replaceRabItems = asyncHandler(async (req: Request, res: Response) 
 });
 
 export const syncRabItemsWithBranchPrices = asyncHandler(async (req: Request, res: Response) => {
-    const data = await rabService.syncRabItemsWithBranchPrices(req.params.id);
-
-    res.json({
-        status: "success",
-        message: `Harga ${data.updated_items} item RAB berhasil disinkronkan dengan master cabang`,
-        data
-    });
+    throw new AppError("Sinkron harga cabang RAB dinonaktifkan agar kategori dan harga tetap sesuai input user.", 410);
 });

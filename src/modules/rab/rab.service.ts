@@ -898,13 +898,7 @@ export const rabService = {
             }
         }
 
-        const requirePriceSync = true;
-        const detailItems = await syncDetailItemsWithBranchPrices(
-            payload.detail_items,
-            payload.cabang,
-            payload.lingkup_pekerjaan,
-            requirePriceSync
-        );
+        const detailItems = payload.detail_items;
 
         // 2. Hitung totals
         const totals = computeTotals(detailItems);
@@ -1573,77 +1567,7 @@ export const rabService = {
             throw new AppError("id_rab tidak valid", 400);
         }
 
-        const rabData = await rabRepository.findById(String(rabIdNumber));
-        if (!rabData) {
-            throw new AppError("Pengajuan RAB tidak ditemukan", 404);
-        }
-
-        const originalItems = rabData.items.map((item) => ({
-            id: item.id,
-            kategori_pekerjaan: item.kategori_pekerjaan,
-            jenis_pekerjaan: item.jenis_pekerjaan,
-            satuan: item.satuan,
-            volume: Number(item.volume) || 0,
-            harga_material: Number(item.harga_material) || 0,
-            harga_upah: Number(item.harga_upah) || 0,
-            total_material: Number(item.total_material) || 0,
-            total_upah: Number(item.total_upah) || 0,
-            total_harga: Number(item.total_harga) || 0,
-            catatan: item.catatan ?? undefined
-        }));
-
-        const syncedDetailItems = await syncDetailItemsWithBranchPrices(
-            originalItems,
-            rabData.toko.cabang,
-            rabData.toko.lingkup_pekerjaan,
-            true
-        );
-
-        const syncedItems = syncedDetailItems.map((item, index) => ({
-            ...item,
-            id: originalItems[index].id
-        }));
-
-        const updatedItems = await rabRepository.updateItemsBulk(rabIdNumber, syncedItems);
-        const refreshedItems = await rabRepository.listItemsByRabId(rabIdNumber);
-        const totals = computeTotals(normalizeDetailItems(refreshedItems));
-
-        await rabRepository.updateRabTotals(rabIdNumber, {
-            grand_total: String(totals.grandTotal),
-            grand_total_non_sbo: String(totals.totalNonSbo),
-            grand_total_final: String(totals.finalGrandTotal)
-        });
-
-        let links: Awaited<ReturnType<typeof regenerateRabPdfs>> | null = null;
-        try {
-            links = await regenerateRabPdfs(String(rabIdNumber), {
-                proyek: rabData.toko.proyek,
-                nomorUlok: rabData.toko.nomor_ulok
-            });
-
-            if (links) {
-                await rabRepository.updatePdfLinks(String(rabIdNumber), {
-                    link_pdf_gabungan: links.link_pdf_gabungan,
-                    link_pdf_non_sbo: links.link_pdf_non_sbo,
-                    link_pdf_rekapitulasi: links.link_pdf_rekapitulasi
-                });
-
-                if (links.link_pdf_sph) {
-                    await rabRepository.updateSphPdfLink(String(rabIdNumber), links.link_pdf_sph);
-                }
-            }
-        } catch (err) {
-            console.error("Warning: Gagal regenerate PDF RAB setelah sync harga cabang:", err);
-        }
-
-        return {
-            id_rab: rabIdNumber,
-            cabang: rabData.toko.cabang,
-            lingkup_pekerjaan: rabData.toko.lingkup_pekerjaan,
-            updated_items: updatedItems.length,
-            totals,
-            links
-        };
+        throw new AppError("Sinkron harga cabang RAB dinonaktifkan agar kategori dan harga tetap sesuai input user.", 410);
     },
 
     async deleteRabItems(rabId: string, input: DeleteRabItemsInput) {
