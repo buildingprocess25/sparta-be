@@ -39,7 +39,8 @@ export const penyimpananDokumenListQuerySchema = z.object({
 });
 
 export const penyimpananDokumenMigrationSchema = z.object({
-    actor_role: z.string().trim().min(1)
+    actor_role: z.string().trim().min(1),
+    actor_email: z.string().email().optional()
 });
 
 export const penyimpananDokumenIdParamSchema = z.object({

@@ -1,6 +1,7 @@
 import { AppError } from "../../common/app-error";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
+import { activityLogRepository } from "../activity-log/activity-log.repository";
 import * as XLSX from "xlsx";
 import {
     penyimpananDokumenRepository,
@@ -476,11 +477,32 @@ export const penyimpananDokumenService = {
         };
     },
 
-    async commitMigration(actorRole: string, files: UploadedDokumenFile[]) {
+    async commitMigration(actorRole: string, files: UploadedDokumenFile[], actorEmail?: string) {
         ensureSuperHuman(actorRole);
         const parsed = parseMigrationWorkbook(files[0]);
         const storeResult = await penyimpananDokumenRepository.insertMigratedStores(parsed.stores);
         const result = await penyimpananDokumenRepository.insertMigratedDocuments(parsed.items);
+        await activityLogRepository.insert({
+            entity_type: "PENYIMPANAN_DOKUMEN",
+            entity_id: 0,
+            actor_email: actorEmail ?? null,
+            actor_role: actorRole,
+            action: "SUPER_HUMAN_MIGRATION",
+            status_before: null,
+            status_after: "MIGRATION_COMMITTED",
+            reason: "Migrasi penyimpanan dokumen dari file Excel",
+            metadata: {
+                total_rows: parsed.totalRows,
+                rows_with_files: parsed.rowsWithFiles,
+                parsed_stores: parsed.stores.length,
+                parsed_documents: parsed.parsedDocuments,
+                inserted_stores: storeResult.inserted,
+                skipped_store_duplicates: parsed.stores.length - storeResult.inserted,
+                inserted_documents: result.inserted,
+                skipped_document_duplicates: parsed.parsedDocuments - result.inserted
+            }
+        });
+
         return {
             totalRows: parsed.totalRows,
             rowsWithFiles: parsed.rowsWithFiles,

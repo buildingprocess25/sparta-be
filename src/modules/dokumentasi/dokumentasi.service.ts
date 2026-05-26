@@ -92,7 +92,7 @@ const uploadFotoItemsBulk = async (
 
     const gp = GoogleProvider.instance;
     const folderId = await resolveDokumentasiFolderId(dokumentasi);
-    const items: { link_foto: string; sudut_foto?: string | null }[] = [];
+    const items: { link_foto: string; sudut_foto?: string | null; item_index?: number | null }[] = [];
 
     for (let i = 0; i < files.length; i++) {
         const file = files[i];
@@ -111,7 +111,8 @@ const uploadFotoItemsBulk = async (
         if (link) {
             items.push({
                 link_foto: link,
-                sudut_foto: sudutFotoItems[i] ?? null
+                sudut_foto: sudutFotoItems[i] ?? null,
+                item_index: i + 1
             });
         }
     }
@@ -129,7 +130,7 @@ const uploadFotoItemsByIndex = async (
 
     const gp = GoogleProvider.instance;
     const folderId = await resolveDokumentasiFolderId(dokumentasi);
-    const items: { link_foto: string; sudut_foto?: string | null }[] = [];
+    const items: { link_foto: string; sudut_foto?: string | null; item_index?: number | null }[] = [];
     const safeKode = sanitizeFilenamePart(dokumentasi.kode_toko ?? undefined, "TOKO");
 
     const ordered = [...itemFiles].sort((a, b) => a.itemIndex - b.itemIndex);
@@ -150,7 +151,8 @@ const uploadFotoItemsByIndex = async (
             const sudutFoto = sudutFotoByIndex.get(entry.itemIndex) ?? sudutFotoFallback[index] ?? null;
             items.push({
                 link_foto: link,
-                sudut_foto: sudutFoto
+                sudut_foto: sudutFoto,
+                item_index: entry.itemIndex
             });
         }
     }

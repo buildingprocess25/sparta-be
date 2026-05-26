@@ -29,6 +29,7 @@ export type DokumentasiBangunanRow = {
 export type DokumentasiBangunanItemRow = {
     id: number;
     id_dokumentasi_bangunan: number;
+    item_index: number | null;
     link_foto: string | null;
     sudut_foto: string | null;
     created_at: string;
@@ -266,10 +267,10 @@ export const dokumentasiBangunanRepository = {
     async getItems(idDokumentasi: number): Promise<DokumentasiBangunanItemRow[]> {
         const result = await pool.query<DokumentasiBangunanItemRow>(
             `
-            SELECT id, id_dokumentasi_bangunan, link_foto, sudut_foto, created_at
+            SELECT id, id_dokumentasi_bangunan, item_index, link_foto, sudut_foto, created_at
             FROM dokumentasi_bangunan_item
             WHERE id_dokumentasi_bangunan = $1
-            ORDER BY id ASC
+            ORDER BY COALESCE(item_index, id) ASC, id ASC
             `,
             [idDokumentasi]
         );
@@ -279,23 +280,23 @@ export const dokumentasiBangunanRepository = {
 
     async createItemsBulk(
         idDokumentasi: number,
-        items: { link_foto: string; sudut_foto?: string | null }[]
+        items: { link_foto: string; sudut_foto?: string | null; item_index?: number | null }[]
     ): Promise<DokumentasiBangunanItemRow[]> {
         if (items.length === 0) return [];
 
         return withTransaction(async (client) => {
             const values: Array<number | string | null> = [];
             const placeholders = items.map((item, index) => {
-                const base = index * 3;
-                values.push(idDokumentasi, item.link_foto, item.sudut_foto ?? null);
-                return `($${base + 1}, $${base + 2}, $${base + 3})`;
+                const base = index * 4;
+                values.push(idDokumentasi, item.item_index ?? null, item.link_foto, item.sudut_foto ?? null);
+                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4})`;
             });
 
             const result = await client.query<DokumentasiBangunanItemRow>(
                 `
-                INSERT INTO dokumentasi_bangunan_item (id_dokumentasi_bangunan, link_foto, sudut_foto)
+                INSERT INTO dokumentasi_bangunan_item (id_dokumentasi_bangunan, item_index, link_foto, sudut_foto)
                 VALUES ${placeholders.join(", ")}
-                RETURNING id, id_dokumentasi_bangunan, link_foto, sudut_foto, created_at
+                RETURNING id, id_dokumentasi_bangunan, item_index, link_foto, sudut_foto, created_at
                 `,
                 values
             );
@@ -309,7 +310,7 @@ export const dokumentasiBangunanRepository = {
             `
             DELETE FROM dokumentasi_bangunan_item
             WHERE id = $1
-            RETURNING id, id_dokumentasi_bangunan, link_foto, sudut_foto, created_at
+            RETURNING id, id_dokumentasi_bangunan, item_index, link_foto, sudut_foto, created_at
             `,
             [itemId]
         );

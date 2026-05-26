@@ -65,7 +65,10 @@ export const rabListQuerySchema = z.object({
 export const updateRabStatusSchema = z.object({
     id_toko: z.coerce.number().int().positive(),
     id_rab: z.coerce.number().int().positive(),
-    status: z.string().min(1)
+    status: z.string().min(1),
+    actor_email: z.string().email().optional(),
+    actor_role: z.string().trim().optional(),
+    alasan_intervensi: z.string().trim().optional()
 });
 
 export const updateRabItemSchema = detailItemSchema.extend({

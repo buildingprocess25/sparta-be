@@ -88,6 +88,7 @@ export const buildDokumentasiBangunanPdfBuffer = async (
             const base64 = await gdriveUrlToBase64(link);
             return {
                 index: index + 1,
+                item_index: item.item_index ?? index + 1,
                 link_foto: link,
                 base64,
                 sudut_foto: item.sudut_foto || ""

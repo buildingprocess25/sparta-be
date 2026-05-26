@@ -73,7 +73,7 @@ export const previewPenyimpananDokumenMigration = asyncHandler(async (req: Reque
 export const commitPenyimpananDokumenMigration = asyncHandler(async (req: Request, res: Response) => {
     const payload = penyimpananDokumenMigrationSchema.parse(req.body);
     const files = getUploadedFiles(req);
-    const data = await penyimpananDokumenService.commitMigration(payload.actor_role, files);
+    const data = await penyimpananDokumenService.commitMigration(payload.actor_role, files, payload.actor_email);
 
     res.json({
         status: "success",

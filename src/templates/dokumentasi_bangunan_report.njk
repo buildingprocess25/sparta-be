@@ -246,7 +246,7 @@
       {% for photo in photo_items %}
       <div class="photo-item">
         <div class="photo-item-title">
-          {{ photo.sudut_foto or ('Foto ' ~ photo.index) }}
+          {{ photo.item_index or photo.index }}. {{ photo.sudut_foto or ('Foto ' ~ (photo.item_index or photo.index)) }}
         </div>
         {% if photo.base64 %}
           <img src="{{ photo.base64 }}" alt="foto" />

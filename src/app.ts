@@ -24,6 +24,7 @@ import { getKontraktor, loginUserCabang, verifyLoginOtp } from "./modules/toko/t
 import { dashboardRouter } from "./modules/dashboard/dashboard.routes";
 import { emailNotificationRouter } from "./modules/email-notification/email-notification.routes";
 import { projekPlanningRouter } from "./modules/project-planning/project-planning.routes";
+import { activityLogRouter } from "./modules/activity-log/activity-log.routes";
 
 
 
@@ -131,6 +132,7 @@ app.use("/api/instruksi-lapangan", instruksiLapanganRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/project-planning", projekPlanningRouter);
 app.use("/api/projek-planning", projekPlanningRouter);
+app.use("/api/activity-log", activityLogRouter);
 app.use("/api", emailNotificationRouter);
 app.use("/api", serahTerimaRouter);
 app.use("/", priceRabRouter);

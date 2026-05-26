@@ -109,6 +109,39 @@ const uploadDokumentasiToDrive = async (
     throw new AppError("Upload dokumentasi ke Google Drive gagal", 500);
 };
 
+const extractGdriveFileId = (url: string | null | undefined): string | null => {
+    if (!url) return null;
+    const byPath = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if (byPath) return byPath[1];
+    const byQuery = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (byQuery) return byQuery[1];
+    return null;
+};
+
+const gdriveImageToBase64 = async (url: string | null | undefined): Promise<string | null> => {
+    const fileId = extractGdriveFileId(url);
+    if (!fileId) return null;
+
+    try {
+        const drive = GoogleProvider.instance.spartaDrive;
+        if (!drive) return null;
+
+        const buffer = await GoogleProvider.instance.getFileBufferById(drive, fileId);
+        if (!buffer) return null;
+
+        const head = buffer.slice(0, 4);
+        let mime = "image/jpeg";
+        if (head[0] === 0x89 && head[1] === 0x50) mime = "image/png";
+        else if (head[0] === 0x47 && head[1] === 0x49) mime = "image/gif";
+        else if (head[0] === 0x52 && head[1] === 0x49) mime = "image/webp";
+
+        return `data:${mime};base64,${buffer.toString("base64")}`;
+    } catch (error) {
+        console.error("[berkas_pengawasan] Gagal membaca foto pengawasan:", error);
+        return null;
+    }
+};
+
 const normalizeTanggalPengawasan = (value: string): string => {
     const trimmed = value.trim();
 
@@ -192,7 +225,14 @@ const buildPengawasanPdfBuffer = async (
     idPengawasanGantt: number,
     tanggalPengawasan: string
 ): Promise<Buffer> => {
-    const items = await pengawasanRepository.findAllPengawasanByGanttId(idPengawasanGantt);
+    const rawItems = await pengawasanRepository.findAllPengawasanByGanttId(idPengawasanGantt);
+    const items = await Promise.all(
+        rawItems.map(async (item) => ({
+            ...item,
+            dokumentasi_base64: await gdriveImageToBase64(item.dokumentasi)
+        }))
+    );
+
     if (items.length === 0) {
         throw new AppError("Data pengawasan belum memiliki item", 404);
     }
@@ -277,6 +317,14 @@ const generateAndUploadPengawasanPdf = async (
         // Jangan sampai error PDF generation menggagalkan create pengawasan
         console.error("[berkas_pengawasan] Gagal generate/upload PDF:", error);
     }
+};
+
+const regeneratePengawasanPdfForRow = async (row: Pick<PengawasanRow, "id_gantt" | "id_pengawasan_gantt">): Promise<void> => {
+    const info = await pengawasanRepository.findPengawasanGanttInfoById(row.id_pengawasan_gantt);
+    if (!info) return;
+
+    generateAndUploadPengawasanPdf(row.id_gantt, row.id_pengawasan_gantt, info.tanggal_pengawasan)
+        .catch((err) => console.error("[berkas_pengawasan] background error:", err));
 };
 
 const hasAnyUpdateField = (input: UpdatePengawasanInput): boolean =>
@@ -514,6 +562,8 @@ export const pengawasanService = {
                 throw new AppError("Data pengawasan tidak ditemukan", 404);
             }
 
+            await regeneratePengawasanPdfForRow(data);
+
             return data;
         } catch (error) {
             if (error instanceof AppError) {
@@ -613,6 +663,8 @@ export const pengawasanService = {
                 if (!data) {
                     throw new AppError(`Data pengawasan tidak ditemukan pada items[${index}] (id=${id})`, 404);
                 }
+
+                await regeneratePengawasanPdfForRow(data);
 
                 updatedRows.push(data);
             }

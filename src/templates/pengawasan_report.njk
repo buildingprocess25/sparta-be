@@ -240,7 +240,7 @@
         <td></td>
         <td colspan="4">
           <div class="item-photo-label">Foto Dokumentasi</div>
-          <img class="item-photo" src="{{ item.dokumentasi }}" alt="Foto dokumentasi item {{ loop.index }}" />
+          <img class="item-photo" src="{{ item.dokumentasi_base64 or item.dokumentasi }}" alt="Foto dokumentasi item {{ loop.index }}" />
         </td>
       </tr>
       {% endif %}

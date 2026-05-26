@@ -4,6 +4,8 @@ import { env } from "../../config/env";
 import { tokoRepository } from "../toko/toko.repository";
 import { userCabangRepository } from "../user-cabang/user-cabang.repository";
 import type { ApprovalActionInput } from "../approval/approval.schema";
+import { activityLogRepository } from "../activity-log/activity-log.repository";
+import { priceRabService, type PriceResult } from "../price-rab/price-rab.service";
 import { RAB_STATUS, REJECTED_RAB_STATUSES, type RabStatus } from "./rab.constants";
 import { buildRabPdfBuffer, buildRecapPdfBuffer, mergePdfBuffers, generateSphPdf } from "./rab.pdf";
 import { rabRepository } from "./rab.repository";
@@ -121,6 +123,139 @@ const normalizeDetailItems = (items: RabItemRow[]): DetailItemInput[] => {
         total_harga: Number(item.total_harga) || 0,
         catatan: item.catatan ?? undefined
     }));
+};
+
+type NumericPrice = {
+    category: string;
+    jenisPekerjaan: string;
+    satuan: string;
+    hargaMaterial: number | null;
+    hargaUpah: number | null;
+};
+
+const normalizePriceLookupKey = (value: string): string => {
+    return value
+        .toLowerCase()
+        .replace(/\s+/g, " ")
+        .replace(/[^\p{L}\p{N}\s]/gu, "")
+        .trim();
+};
+
+const priceValueToNumberOrNull = (value: unknown): number | null => {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (typeof value === "string") {
+        const trimmed = value.trim();
+        if (!trimmed || /^(kondisional|sbo)$/i.test(trimmed)) return null;
+        const parsed = Number(trimmed.replace(/[.,](?=\d{3}(\D|$))/g, "").replace(",", "."));
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    return null;
+};
+
+const buildPriceLookup = (priceData: PriceResult): Map<string, NumericPrice> => {
+    const lookup = new Map<string, NumericPrice>();
+
+    for (const [category, items] of Object.entries(priceData)) {
+        for (const item of items) {
+            const jenisPekerjaan = item["Jenis Pekerjaan"] ?? "";
+            const key = normalizePriceLookupKey(jenisPekerjaan);
+            if (!key || lookup.has(key)) continue;
+
+            lookup.set(key, {
+                category,
+                jenisPekerjaan,
+                satuan: item["Satuan"] ?? "",
+                hargaMaterial: priceValueToNumberOrNull(item["Harga Material"]),
+                hargaUpah: priceValueToNumberOrNull(item["Harga Upah"])
+            });
+        }
+    }
+
+    return lookup;
+};
+
+const sameText = (left?: string | null, right?: string | null): boolean => {
+    return String(left ?? "").trim().toUpperCase() === String(right ?? "").trim().toUpperCase();
+};
+
+const hasSuperHumanRole = (role?: string | null): boolean => {
+    return String(role ?? "").trim().toUpperCase().includes("SUPER HUMAN");
+};
+
+const normalizeLingkupForPrice = (value?: string | null): "ME" | "SIPIL" | null => {
+    const normalized = String(value ?? "").trim().toUpperCase();
+    if (normalized.includes("SIPIL")) return "SIPIL";
+    if (normalized.includes("ME")) return "ME";
+    return null;
+};
+
+const normalizeCabangForPrice = (value?: string | null): string => {
+    return String(value ?? "")
+        .trim()
+        .toUpperCase()
+        .replace(/^CAB(?:ANG)?\.?\s+/, "")
+        .replace(/^CABANG\s+/, "")
+        .trim();
+};
+
+const syncDetailItemsWithBranchPrices = async (
+    detailItems: DetailItemInput[],
+    cabang?: string | null,
+    lingkupPekerjaan?: string | null,
+    requirePriceSync = false
+): Promise<DetailItemInput[]> => {
+    const cabangKey = normalizeCabangForPrice(cabang);
+    const lingkup = normalizeLingkupForPrice(lingkupPekerjaan);
+
+    if (!cabangKey || !lingkup) return detailItems;
+
+    try {
+        const priceData = await priceRabService.getData(cabangKey, lingkup);
+        const lookup = buildPriceLookup(priceData);
+        let matchedCount = 0;
+
+        const syncedItems = detailItems.map((item) => {
+            const price = lookup.get(normalizePriceLookupKey(item.jenis_pekerjaan));
+            if (!price) return item;
+
+            const hargaMaterial = price.hargaMaterial ?? item.harga_material;
+            const hargaUpah = price.hargaUpah ?? item.harga_upah;
+            const totalMaterial = roundCurrency(item.volume * hargaMaterial);
+            const totalUpah = roundCurrency(item.volume * hargaUpah);
+            matchedCount += 1;
+
+            return {
+                ...item,
+                kategori_pekerjaan: price.category || item.kategori_pekerjaan,
+                satuan: price.satuan || item.satuan,
+                harga_material: hargaMaterial,
+                harga_upah: hargaUpah,
+                total_material: totalMaterial,
+                total_upah: totalUpah,
+                total_harga: totalMaterial + totalUpah
+            };
+        });
+
+        logRab("PRICE_SYNC", "Harga item diselaraskan dengan cabang", {
+            cabang: cabangKey,
+            lingkup,
+            total_items: detailItems.length,
+            matched_items: matchedCount
+        });
+
+        return syncedItems;
+    } catch (error) {
+        if (requirePriceSync) {
+            throw new AppError(
+                `Gagal mengambil harga satuan cabang ${cabangKey} untuk lingkup ${lingkup}. Perubahan cabang belum bisa disimpan agar harga tidak salah.`,
+                502
+            );
+        }
+
+        console.warn("[RAB][PRICE_SYNC] Gagal sinkron harga cabang, memakai harga dari payload:", error);
+        return detailItems;
+    }
 };
 
 // ---------------------------------------------------------------------------
@@ -750,8 +885,19 @@ export const rabService = {
             }
         }
 
+        const requirePriceSync = isRevisionSubmit
+            || (existingTokoByCombination?.cabang
+                ? !sameText(existingTokoByCombination.cabang, payload.cabang)
+                : false);
+        const detailItems = await syncDetailItemsWithBranchPrices(
+            payload.detail_items,
+            payload.cabang,
+            payload.lingkup_pekerjaan,
+            requirePriceSync
+        );
+
         // 2. Hitung totals
-        const totals = computeTotals(payload.detail_items);
+        const totals = computeTotals(detailItems);
         logRab("SUBMIT", "Totals dihitung", {
             grand_total: totals.grandTotal,
             grand_total_non_sbo: totals.totalNonSbo,
@@ -880,7 +1026,7 @@ export const rabService = {
             grand_total: String(totals.grandTotal),
             grand_total_non_sbo: String(totals.totalNonSbo),
             grand_total_final: String(totals.finalGrandTotal),
-            detail_items: payload.detail_items
+            detail_items: detailItems
         };
 
         const rab = rejectedRabToReplaceId !== null
@@ -1153,6 +1299,21 @@ export const rabService = {
 
         if (status === RAB_STATUS.WAITING_FOR_GANTT) {
             await rabRepository.resetToWaitingGantt(id_rab);
+
+            if (hasSuperHumanRole(input.actor_role)) {
+                await activityLogRepository.insert({
+                    entity_type: "RAB",
+                    entity_id: id_rab,
+                    actor_email: input.actor_email ?? null,
+                    actor_role: input.actor_role ?? null,
+                    action: "SUPER_HUMAN_INTERVENTION",
+                    status_before: rabData.rab.status,
+                    status_after: status,
+                    reason: input.alasan_intervensi?.trim() || null,
+                    metadata: { id_toko }
+                });
+            }
+
             logRab("STATUS", "RAB dikembalikan ke tahap Menunggu Gantt Chart", {
                 id_rab,
                 id_toko,
@@ -1229,6 +1390,25 @@ export const rabService = {
             status as RabStatus,
             emailPenolak
         );
+
+        if (hasSuperHumanRole(input.actor_role)) {
+            await activityLogRepository.insert({
+                entity_type: "RAB",
+                entity_id: id_rab,
+                actor_email: input.actor_email ?? null,
+                actor_role: input.actor_role ?? null,
+                action: "SUPER_HUMAN_INTERVENTION",
+                status_before: rabData.rab.status,
+                status_after: status,
+                reason: input.alasan_intervensi?.trim() || null,
+                metadata: {
+                    id_toko,
+                    ditolak_oleh: emailPenolak,
+                    jabatan_penolak: matchedJabatan
+                }
+            });
+        }
+
         logRab("STATUS", "Update status RAB selesai", {
             id_rab,
             id_toko,

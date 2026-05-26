@@ -1,4 +1,5 @@
 import { pool, withTransaction } from "../../db/pool";
+import { activityLogRepository } from "../activity-log/activity-log.repository";
 import { ACTIVE_SPK_STATUSES, type SpkStatus } from "./spk.constants";
 import type { SpkApprovalInput, SpkInterventionInput } from "./spk.schema";
 
@@ -452,6 +453,20 @@ export const spkRepository = {
         `,
                 [pengajuanSpkId, action.actor_email, logAction, logReason]
             );
+
+            await activityLogRepository.insert({
+                entity_type: "SPK",
+                entity_id: Number(pengajuanSpkId),
+                actor_email: action.actor_email,
+                actor_role: action.actor_role,
+                action: "SUPER_HUMAN_INTERVENTION",
+                status_before: oldStatus,
+                status_after: targetStatus,
+                reason: customReason || null,
+                metadata: {
+                    legacy_log_reason: logReason
+                }
+            }, client);
         });
     },
 
