@@ -25,6 +25,7 @@ import { dashboardRouter } from "./modules/dashboard/dashboard.routes";
 import { emailNotificationRouter } from "./modules/email-notification/email-notification.routes";
 import { projekPlanningRouter } from "./modules/project-planning/project-planning.routes";
 import { activityLogRouter } from "./modules/activity-log/activity-log.routes";
+import { dcDevelopmentRouter } from "./modules/dc-development/dc-development.routes";
 
 
 
@@ -133,6 +134,7 @@ app.use("/api/dashboard", dashboardRouter);
 app.use("/api/project-planning", projekPlanningRouter);
 app.use("/api/projek-planning", projekPlanningRouter);
 app.use("/api/activity-log", activityLogRouter);
+app.use("/api/dc-development", dcDevelopmentRouter);
 app.use("/api", emailNotificationRouter);
 app.use("/api", serahTerimaRouter);
 app.use("/", priceRabRouter);

@@ -11,7 +11,8 @@ export type ActivityLogEntityType =
     | "INSTRUKSI_LAPANGAN"
     | "PROJECT_PLANNING"
     | "DOKUMENTASI_BANGUNAN"
-    | "PENYIMPANAN_DOKUMEN";
+    | "PENYIMPANAN_DOKUMEN"
+    | "DC_DEVELOPMENT";
 
 export type ActivityLogRow = {
     id: number;
