@@ -20,6 +20,12 @@ const TEMPLATE_MAP: Record<string, EmailTemplateConfig> = {
         targetJabatan: "Branch Manager",
         ccJabatan: "BRANCH BUILDING & MAINTENANCE MANAGER"
     },
+    "send-notification-pertambahan-spk": {
+        template: "send-notification-pertambahan-spk.njk",
+        subject: "SPARTA Building - Notifikasi Approval Pertambahan Hari SPK",
+        targetJabatan: "Branch Manager",
+        ccJabatan: "BRANCH BUILDING & MAINTENANCE MANAGER"
+    },
     "notification-spk-has-approve": {
         template: "send-notification-spk-has-approve.njk",
         subject: "SPARTA Building - SPK Disetujui",
