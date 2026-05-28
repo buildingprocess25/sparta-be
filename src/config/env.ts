@@ -14,6 +14,7 @@ const envSchema = z.object({
     SPREADSHEET_ID: z.string().default("1LA1TlhgltT2bqSN3H-LYasq9PtInVlqq98VPru8txoo"),
     DOC_SPREADSHEET_ID: z.string().default("1bEslAY1gGm1QgYl_ZL88_rt5z-errU7HU3GkqbWcNOw"),
     DOC_DRIVE_ROOT_ID: z.string().default("14hjuP33ez1v1WDxkTi7A3k-XfKOZKVTc"),
+    DC_DOC_DRIVE_ROOT_ID: z.string().optional(),
     PROJECT_PLANNING_DRIVE_FOLDER_ID: z.string().default("1BBZQZtHJV0dN6rQMp0EQ7aLpG5kcPPCF"),
     DOC_SHEET_NAME: z.string().default("penyimpanan_dokumen"),
 

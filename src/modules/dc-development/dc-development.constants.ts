@@ -72,5 +72,18 @@ export const DC_ROLES = {
     SUPER_HUMAN: "BUILDING & MAINTENANCE SUPER HUMAN"
 } as const;
 
+export const DC_MEMBER_ACCESS_LEVEL = {
+    VIEW: "VIEW",
+    UPLOAD: "UPLOAD",
+    MANAGE: "MANAGE"
+} as const;
+
+export const DC_MEMBER_TYPE = {
+    INTERNAL: "INTERNAL",
+    VENDOR: "VENDOR",
+    APPROVER: "APPROVER"
+} as const;
+
 export type DcProjectStatus = (typeof DC_PROJECT_STATUS)[keyof typeof DC_PROJECT_STATUS];
 export type DcTenderType = (typeof DC_TENDER_TYPE)[keyof typeof DC_TENDER_TYPE];
+export type DcMemberAccessLevel = (typeof DC_MEMBER_ACCESS_LEVEL)[keyof typeof DC_MEMBER_ACCESS_LEVEL];

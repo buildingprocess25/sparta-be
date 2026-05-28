@@ -9,7 +9,9 @@ export const dcProjectListQuerySchema = z.object({
     status: z.string().optional(),
     current_stage: z.string().optional(),
     branch_name: z.string().optional(),
-    search: z.string().optional()
+    search: z.string().optional(),
+    actor_email: z.string().email().optional(),
+    actor_role: z.string().trim().optional()
 });
 
 export const createDcProjectSchema = z.object({
@@ -65,8 +67,38 @@ export const dcApprovalListQuerySchema = z.object({
 export const dcDocumentListQuerySchema = z.object({
     project_id: z.coerce.number().int().positive().optional(),
     tender_id: z.coerce.number().int().positive().optional(),
+    participant_id: z.coerce.number().int().positive().optional(),
     document_type: z.string().optional(),
-    entity_type: z.string().optional()
+    entity_type: z.string().optional(),
+    stage: z.string().optional(),
+    actor_email: z.string().email(),
+    actor_role: z.string().trim().min(1)
+});
+
+export const createDcDocumentSchema = z.object({
+    project_id: z.coerce.number().int().positive(),
+    tender_id: z.coerce.number().int().positive().optional(),
+    participant_id: z.coerce.number().int().positive().optional(),
+    entity_type: z.string().trim().min(1).default("DC_PROJECT"),
+    entity_id: z.coerce.number().int().positive().optional(),
+    document_type: z.string().trim().min(1),
+    stage: z.string().trim().optional(),
+    notes: z.string().trim().optional(),
+    actor_email: z.string().email(),
+    actor_role: z.string().trim().min(1)
+});
+
+export const updateDcDocumentSchema = z.object({
+    document_type: z.string().trim().min(1).optional(),
+    stage: z.string().trim().optional(),
+    notes: z.string().trim().optional(),
+    actor_email: z.string().email(),
+    actor_role: z.string().trim().min(1)
+});
+
+export const dcDocumentActorQuerySchema = z.object({
+    actor_email: z.string().email(),
+    actor_role: z.string().trim().min(1)
 });
 
 export type DcProjectListQuery = z.infer<typeof dcProjectListQuerySchema>;
@@ -77,3 +109,6 @@ export type CreateDcVendorUserInput = z.infer<typeof createDcVendorUserSchema>;
 export type CreateDcTenderInput = z.infer<typeof createDcTenderSchema>;
 export type DcApprovalListQuery = z.infer<typeof dcApprovalListQuerySchema>;
 export type DcDocumentListQuery = z.infer<typeof dcDocumentListQuerySchema>;
+export type CreateDcDocumentInput = z.infer<typeof createDcDocumentSchema>;
+export type UpdateDcDocumentInput = z.infer<typeof updateDcDocumentSchema>;
+export type DcDocumentActorQuery = z.infer<typeof dcDocumentActorQuerySchema>;

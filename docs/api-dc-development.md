@@ -22,8 +22,12 @@ Modul ini mengelola proyek Development Center: project lifecycle, vendor, tender
 | `POST` | `/api/dc-development/vendors/:id/users` | Buat user vendor DC. |
 | `GET` | `/api/dc-development/approvals` | List approval DC. |
 | `GET` | `/api/dc-development/documents` | List dokumen DC. |
-| `GET` | `/api/dc-development/documents/:id/view` | Placeholder/proxy view dokumen. |
-| `GET` | `/api/dc-development/documents/:id/download` | Placeholder/proxy download dokumen. |
+| `POST` | `/api/dc-development/documents` | Upload dokumen DC ke Google Drive. |
+| `GET` | `/api/dc-development/documents/:id` | Detail dokumen DC. |
+| `PUT` | `/api/dc-development/documents/:id` | Update metadata atau upload versi baru. |
+| `DELETE` | `/api/dc-development/documents/:id` | Soft delete dokumen DC. |
+| `GET` | `/api/dc-development/documents/:id/view` | View dokumen DC setelah cek akses. |
+| `GET` | `/api/dc-development/documents/:id/download` | Download dokumen DC setelah cek akses. |
 
 ---
 
@@ -173,13 +177,37 @@ Query opsional:
 | --- | --- |
 | `project_id` | Filter project. |
 | `tender_id` | Filter tender. |
+| `participant_id` | Filter participant tender. |
 | `document_type` | Filter tipe dokumen. |
 | `entity_type` | Filter entity pemilik dokumen. |
+| `stage` | Filter stage dokumen. |
+| `actor_email` | Email aktor, wajib untuk cek akses. |
+| `actor_role` | Role aktor, wajib untuk cek akses. |
+
+Dokumen hanya dikembalikan jika aktor terdaftar di `dc_project_member`, kecuali role `BUILDING & MAINTENANCE SUPER HUMAN`.
+
+### POST /api/dc-development/documents
+
+Request `multipart/form-data`:
+
+| Field | Keterangan |
+| --- | --- |
+| `project_id` | Wajib. |
+| `tender_id` | Opsional. |
+| `participant_id` | Opsional. |
+| `entity_type` | Default `DC_PROJECT`. |
+| `entity_id` | Opsional. |
+| `document_type` | Wajib. |
+| `stage` | Opsional. |
+| `notes` | Opsional. |
+| `actor_email` | Wajib. |
+| `actor_role` | Wajib. |
+| `dokumen` / `dokumen_1..n` | File upload. |
 
 ### GET /api/dc-development/documents/:id/view
 
-Endpoint placeholder/proxy untuk view dokumen.
+Endpoint view dokumen. Backend mengecek akses actor lebih dulu, lalu stream file dari Google Drive atau redirect ke link Drive jika streaming tidak tersedia.
 
 ### GET /api/dc-development/documents/:id/download
 
-Endpoint placeholder/proxy untuk download dokumen.
+Endpoint download dokumen. Query wajib: `actor_email` dan `actor_role`.

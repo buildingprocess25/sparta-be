@@ -6,11 +6,19 @@ import {
     createDcTenderSchema,
     createDcVendorSchema,
     createDcVendorUserSchema,
+    createDcDocumentSchema,
+    dcDocumentActorQuerySchema,
     dcApprovalListQuerySchema,
     dcDocumentListQuerySchema,
-    dcProjectListQuerySchema
+    dcProjectListQuerySchema,
+    updateDcDocumentSchema
 } from "./dc-development.schema";
-import { dcDevelopmentService } from "./dc-development.service";
+import { dcDevelopmentService, type UploadedDcDocumentFile } from "./dc-development.service";
+
+const getUploadedFiles = (req: Request): UploadedDcDocumentFile[] => {
+    const files = req.files as UploadedDcDocumentFile[] | undefined;
+    return files ?? [];
+};
 
 export const listDcProjects = asyncHandler(async (req: Request, res: Response) => {
     const query = dcProjectListQuerySchema.parse(req.query);
@@ -90,12 +98,70 @@ export const listDcDocuments = asyncHandler(async (req: Request, res: Response) 
     res.json({ status: "success", data });
 });
 
+export const createDcDocument = asyncHandler(async (req: Request, res: Response) => {
+    const input = createDcDocumentSchema.parse(req.body);
+    const data = await dcDevelopmentService.createDocument(input, getUploadedFiles(req));
+    res.status(201).json({
+        status: "success",
+        message: "Dokumen DC berhasil disimpan",
+        data
+    });
+});
+
+export const getDcDocumentDetail = asyncHandler(async (req: Request, res: Response) => {
+    const actor = dcDocumentActorQuerySchema.parse(req.query);
+    const data = await dcDevelopmentService.getDocumentDetail(req.params.id, actor);
+    res.json({ status: "success", data });
+});
+
+export const updateDcDocument = asyncHandler(async (req: Request, res: Response) => {
+    const input = updateDcDocumentSchema.parse(req.body);
+    const data = await dcDevelopmentService.updateDocument(req.params.id, input, getUploadedFiles(req));
+    res.json({
+        status: "success",
+        message: "Dokumen DC berhasil diperbarui",
+        data
+    });
+});
+
+export const deleteDcDocument = asyncHandler(async (req: Request, res: Response) => {
+    const actor = dcDocumentActorQuerySchema.parse(req.query);
+    const data = await dcDevelopmentService.deleteDocument(req.params.id, actor);
+    res.json({
+        status: "success",
+        message: "Dokumen DC berhasil dihapus",
+        data
+    });
+});
+
 export const viewDcDocument = asyncHandler(async (req: Request, res: Response) => {
-    dcDevelopmentService.getDocumentProxyPlaceholder(req.params.id, "view");
-    res.end();
+    const actor = dcDocumentActorQuerySchema.parse(req.query);
+    const file = await dcDevelopmentService.getDocumentFile(req.params.id, actor);
+    if (!file.buffer && file.link) {
+        res.redirect(file.link);
+        return;
+    }
+    if (!file.buffer) {
+        res.status(404).json({ status: "error", message: "File dokumen DC tidak ditemukan" });
+        return;
+    }
+    res.setHeader("Content-Type", file.document.mime_type || "application/octet-stream");
+    res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(file.document.file_name || "dokumen-dc")}"`);
+    res.send(file.buffer);
 });
 
 export const downloadDcDocument = asyncHandler(async (req: Request, res: Response) => {
-    dcDevelopmentService.getDocumentProxyPlaceholder(req.params.id, "download");
-    res.end();
+    const actor = dcDocumentActorQuerySchema.parse(req.query);
+    const file = await dcDevelopmentService.getDocumentFile(req.params.id, actor);
+    if (!file.buffer && file.link) {
+        res.redirect(file.link);
+        return;
+    }
+    if (!file.buffer) {
+        res.status(404).json({ status: "error", message: "File dokumen DC tidak ditemukan" });
+        return;
+    }
+    res.setHeader("Content-Type", file.document.mime_type || "application/octet-stream");
+    res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(file.document.file_name || "dokumen-dc")}"`);
+    res.send(file.buffer);
 });
