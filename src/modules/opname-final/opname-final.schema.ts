@@ -11,8 +11,8 @@ export const opnameFinalListQuerySchema = z.object({
 export const lockOpnameFinalItemSchema = z.object({
     id_rab_item: z.coerce.number().int().positive(),
     status: z.enum(["pending", "disetujui", "ditolak"]).optional(),
-    volume_akhir: z.coerce.number().int(),
-    selisih_volume: z.coerce.number().int(),
+    volume_akhir: z.coerce.number(),
+    selisih_volume: z.coerce.number(),
     total_selisih: z.coerce.number().int(),
     total_harga_opname: z.coerce.number().int().optional().default(0),
     desain: z.string().trim().min(1).optional(),
