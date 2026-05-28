@@ -1,6 +1,12 @@
 # Dokumentasi API Project Planning — sparta-api
 
-Base URL: `/api/project-planning`
+Terakhir diperbarui: 2026-05-28
+
+Base URL utama: `/api/project-planning`
+
+Alias aktif: `/api/projek-planning`
+
+Frontend saat ini memakai `/api/projek-planning`, sementara backend tetap menyediakan `/api/project-planning` untuk kompatibilitas.
 
 > Catatan: Modul ini menggunakan tabel `projek_planning` dan `projek_planning_log`.
 
@@ -21,6 +27,9 @@ Base URL: `/api/project-planning`
 | 9   | `POST` | `/api/project-planning/:id/pp-approval-2` | Approve/Reject oleh PP Specialist (Setelah RAB) |
 | 10  | `POST` | `/api/project-planning/:id/pp-manager-approval` | Approve/Reject oleh PP Manager (Final)          |
 | 11  | `GET`  | `/api/project-planning/:id/logs`        | Ambil audit trail                                |
+| 12  | `GET`  | `/api/project-planning/task-counts`     | Ringkasan jumlah task FPD                        |
+| 13  | `GET`  | `/api/project-planning/:id/pdf`         | Download PDF FPD                                 |
+| 14  | `GET`  | `/api/project-planning/:id/proxy-file`  | View/download file lampiran FPD                  |
 
 ---
 

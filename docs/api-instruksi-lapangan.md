@@ -1,5 +1,7 @@
 # API Documentation: Instruksi Lapangan
 
+Terakhir diperbarui: 2026-05-28
+
 Base URL: `/api/instruksi-lapangan`
 
 ## 1. Submit Instruksi Lapangan

@@ -1,5 +1,7 @@
 # Dokumentasi API Email Notification - sparta-api
 
+Terakhir diperbarui: 2026-05-28
+
 Base URL: /api
 
 ---
@@ -23,8 +25,15 @@ Mengirim email notifikasi berdasarkan cabang dan flag template.
 Flag yang tersedia:
 
 - `send-notification-spk` -> target: Branch Manager (cc: Branch Building & Maintenance Manager)
+- `send-notification-pertambahan-spk` -> target: Branch Manager (cc: Branch Building & Maintenance Manager)
 - `notification-spk-has-approve` -> target: semua user KONTRAKTOR pada cabang terkait
 - `notification-spk-has-reject` -> target: semua user KONTRAKTOR pada cabang terkait
+
+Catatan untuk `send-notification-spk` dan `send-notification-pertambahan-spk`:
+
+- Email tujuan diambil dari tabel user cabang berdasarkan `cabang` dan jabatan `Branch Manager`.
+- CC diambil dari user cabang dengan jabatan `BRANCH BUILDING & MAINTENANCE MANAGER`.
+- `id_toko` boleh dikirim dari frontend untuk konsistensi payload, tetapi tidak dipakai untuk menentukan penerima pada dua flag ini.
 
 Catatan untuk `notification-spk-has-approve` dan `notification-spk-has-reject`:
 
@@ -49,10 +58,10 @@ Catatan untuk `notification-spk-has-approve` dan `notification-spk-has-reject`:
   "data": {
     "message_id": "18c7a8f0d2",
     "cabang": "BATAM",
-    "flag": "send-notification-spk",
+    "flag": "send-notification-pertambahan-spk",
     "to": "manager.batam@alfamart.co.id",
     "cc": "building.manager@alfamart.co.id",
-    "subject": "SPARTA Building - Notifikasi Approval SPK"
+    "subject": "SPARTA Building - Notifikasi Approval Pertambahan Hari SPK"
   }
 }
 ```

@@ -1,5 +1,7 @@
 # Dokumentasi API Pertambahan SPK - sparta-api
 
+Terakhir diperbarui: 2026-05-28
+
 Base URL: `/api/pertambahan-spk`
 
 > Catatan relasi ERD: pada ERD relasi ditulis ke tabel `spk`, sedangkan pada implementasi backend ini relasi diarahkan ke tabel `pengajuan_spk` melalui field `id_spk`.
@@ -61,6 +63,7 @@ Catatan proses otomatis pada backend:
 
 - Field `link_pdf` di-generate otomatis dari data request, dibuat menjadi PDF, di-upload ke Google Drive, lalu URL hasil upload disimpan ke `link_pdf`.
 - Jika request menyertakan file `file_lampiran_pendukung`, file di-upload ke Google Drive dan URL hasil upload disimpan ke `link_lampiran_pendukung`.
+- API ini tidak mengirim email langsung. Frontend `/tambahspk` mengirim notifikasi melalui `POST /api/send-email-notification` dengan flag `send-notification-pertambahan-spk` setelah create/revisi berhasil.
 
 ### Request Body
 
