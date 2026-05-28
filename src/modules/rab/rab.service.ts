@@ -125,6 +125,20 @@ const normalizeDetailItems = (items: RabItemRow[]): DetailItemInput[] => {
     }));
 };
 
+const numericCurrencyValue = (value: number | string | null | undefined): number => {
+    if (value === null || value === undefined) return 0;
+    const numeric = Number(String(value).trim().replace(/\./g, "").replace(",", "."));
+    return Number.isFinite(numeric) ? numeric : 0;
+};
+
+const hasRenderableRabValue = (data: { rab: { grand_total?: string | null; grand_total_non_sbo?: string | null; grand_total_final?: string | null }; items: RabItemRow[] }): boolean => {
+    const itemTotal = data.items.reduce((acc, item) => acc + numericCurrencyValue(item.total_harga), 0);
+    return itemTotal > 0
+        || numericCurrencyValue(data.rab.grand_total) > 0
+        || numericCurrencyValue(data.rab.grand_total_non_sbo) > 0
+        || numericCurrencyValue(data.rab.grand_total_final) > 0;
+};
+
 type NumericPrice = {
     category: string;
     jenisPekerjaan: string;
@@ -1182,6 +1196,11 @@ export const rabService = {
 
         let rawLink = data.rab.link_pdf_gabungan?.trim();
         try {
+            if (!hasRenderableRabValue(data)) {
+                logRab("DOWNLOAD", "Regenerate PDF dilewati karena item dan nilai header kosong", { rabId: id });
+                throw new AppError("Data RAB tidak memiliki nilai untuk regenerate PDF", 422);
+            }
+
             const links = await regenerateRabPdfs(id, {
                 proyek: data.toko.proyek,
                 nomorUlok: data.toko.nomor_ulok

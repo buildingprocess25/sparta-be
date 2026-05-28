@@ -16,6 +16,13 @@ const rupiah = (value: number | string | null | undefined): string => {
     return new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(Number.isFinite(numeric) ? numeric : 0);
 };
 
+const numericValue = (value: number | string | null | undefined): number => {
+    if (value === null || value === undefined) return 0;
+    const raw = String(value).trim().replace(/\./g, "").replace(",", ".");
+    const numeric = Number(raw);
+    return Number.isFinite(numeric) ? numeric : 0;
+};
+
 const formatVolume = (value: number | string | null | undefined): string => {
     const raw = String(value ?? "").trim();
     if (!raw) return "0";
@@ -221,10 +228,37 @@ const computeRecapTotals = (nonSboTotal: number, cabang?: string | null) => {
     return { roundedDown, ppn, finalTotal };
 };
 
+const resolvePdfTotals = (input: BuildRabPdfInput, itemTotal: number) => {
+    if (itemTotal > 0) {
+        return {
+            sourceTotal: itemTotal,
+            ...computeRecapTotals(itemTotal, input.toko.cabang),
+        };
+    }
+
+    const headerTotal = numericValue(input.rab.grand_total);
+    const headerNonSbo = numericValue(input.rab.grand_total_non_sbo);
+    const headerFinal = numericValue(input.rab.grand_total_final);
+    const sourceTotal = headerTotal || headerNonSbo || headerFinal;
+    const roundedDown = headerNonSbo > 0
+        ? Math.floor(headerNonSbo / 10000) * 10000
+        : Math.floor(sourceTotal / 10000) * 10000;
+    const computedPpn = isBatamBranch(input.toko.cabang) ? 0 : roundedDown * 0.11;
+    const finalTotal = headerFinal || (roundedDown + computedPpn);
+    const ppn = Math.max(0, finalTotal - roundedDown);
+
+    return {
+        sourceTotal,
+        roundedDown,
+        ppn,
+        finalTotal,
+    };
+};
+
 /** PDF detail item (Non-SBO atau semua, tergantung items yang dikirim). */
 export const buildRabPdfBuffer = async (input: BuildRabPdfInput): Promise<Buffer> => {
     const total = input.items.reduce((acc, item) => acc + Number(item.total_harga || 0), 0);
-    const recap = computeRecapTotals(total, input.toko.cabang);
+    const recap = resolvePdfTotals(input, total);
     const templatePath = await resolveTemplatePath("rab_report.njk");
     const isBatam = isBatamBranch(input.toko.cabang);
     const isBogor = isBogorBranch(input.toko.cabang);
@@ -247,7 +281,7 @@ export const buildRabPdfBuffer = async (input: BuildRabPdfInput): Promise<Buffer
             LuasTerbangun: input.rab.luas_terbangun ?? "",
         },
         grouped_items_list: buildGroupedItems(input.items),
-        grand_total: rupiah(total),
+        grand_total: rupiah(recap.sourceTotal),
         pembulatan: rupiah(recap.roundedDown),
         ppn: rupiah(recap.ppn),
         final_grand_total: rupiah(recap.finalTotal),
@@ -294,8 +328,18 @@ export const buildRecapPdfBuffer = async (input: BuildRabPdfInput): Promise<Buff
         totalRaw: value.total,
     }));
 
-    const grandTotal = category_totals_list.reduce((acc, row) => acc + row.totalRaw, 0);
-    const recap = computeRecapTotals(grandTotal, input.toko.cabang);
+    const itemGrandTotal = category_totals_list.reduce((acc, row) => acc + row.totalRaw, 0);
+    const recap = resolvePdfTotals(input, itemGrandTotal);
+    const hasFallbackTotal = category_totals_list.length === 0 && recap.sourceTotal > 0;
+    const resolvedCategoryTotals = hasFallbackTotal
+        ? [{
+            name: "TOTAL RAB",
+            materialFormatted: rupiah(0),
+            upahFormatted: rupiah(0),
+            totalFormatted: rupiah(recap.sourceTotal),
+            totalRaw: recap.sourceTotal,
+        }]
+        : category_totals_list;
 
     const html = await renderHtmlTemplate(templatePath, {
         data: {
@@ -308,8 +352,8 @@ export const buildRecapPdfBuffer = async (input: BuildRabPdfInput): Promise<Buff
             DurasiPekerjaan: input.rab.durasi_pekerjaan ?? "",
             KategoriLokasi: input.rab.kategori_lokasi ?? "",
         },
-        category_totals_list,
-        grand_total_formatted: rupiah(grandTotal),
+        category_totals_list: resolvedCategoryTotals,
+        grand_total_formatted: rupiah(recap.sourceTotal),
         pembulatan_formatted: rupiah(recap.roundedDown),
         ppn_formatted: rupiah(recap.ppn),
         final_total_formatted: rupiah(recap.finalTotal),
@@ -327,7 +371,7 @@ export const generateSphPdf = async (
     const templatePath = await resolveTemplatePath("rab_sph_report.njk");
 
     const total = input.items.reduce((acc, item) => acc + Number(item.total_harga || 0), 0);
-    const recap = computeRecapTotals(total, input.toko.cabang);
+    const recap = resolvePdfTotals(input, total);
     const finalTotal = recap.finalTotal;
 
     const referenceDate = input.rab.waktu_persetujuan_direktur || input.rab.created_at;
