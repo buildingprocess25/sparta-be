@@ -146,9 +146,26 @@ const loadRabData = async (idToko: number) => {
 
 const refreshDenda = async (opnameFinalId: string, idToko: number) => {
     const denda = await calculateDendaByTokoId(idToko);
+
+    // Safety guard: jangan overwrite denda valid jika perhitungan baru gagal (return 0)
+    if (denda.hari_denda === 0 && denda.tanggal_akhir_spk === null) {
+        const existing = await opnameFinalRepository.findById(opnameFinalId);
+        const existingHari = Number(existing?.opname_final.hari_denda ?? 0);
+        if (existingHari > 0) {
+            console.warn(`[DENDA] Skip update opname_final ${opnameFinalId}: calculated=0 but existing=${existingHari}. Keeping existing data.`);
+            return {
+                hari_denda: existingHari,
+                nilai_denda: Number(existing!.opname_final.nilai_denda ?? 0),
+                tanggal_akhir_spk: existing!.opname_final.tanggal_akhir_spk_denda ?? null,
+                tanggal_serah_terima: existing!.opname_final.tanggal_serah_terima_denda ?? null,
+            };
+        }
+    }
+
     await opnameFinalRepository.updateDenda(opnameFinalId, denda);
     return denda;
 };
+
 
 const refreshDendaByTokoScope = async (idToko: number) => {
     const rows = await opnameFinalRepository.listIdsByPenaltyScope(idToko);

@@ -152,13 +152,14 @@ export const calculateDendaFromDates = (
 
 export const calculateDendaByTokoId = async (idToko: number): Promise<DendaKeterlambatanResult> => {
     const scope = await resolvePenaltyScopeByTokoId(idToko);
+    console.log(`[DENDA] Toko ${idToko} → scope tokoIds=${JSON.stringify(scope.tokoIds)}, nomorUlok=${scope.nomorUlok}`);
 
     const spkResult = await pool.query<SpkPenaltySourceRow>(
         `
         SELECT
             ps.waktu_selesai,
             MAX(pt.tanggal_spk_akhir_setelah_perpanjangan) FILTER (
-                WHERE UPPER(COALESCE(pt.status_persetujuan, '')) IN ('APPROVED', 'DISETUJUI', 'DISETUJUI BM')
+                WHERE UPPER(TRIM(COALESCE(pt.status_persetujuan, ''))) IN ('APPROVED', 'DISETUJUI', 'DISETUJUI BM')
             ) AS tanggal_spk_akhir_setelah_perpanjangan
         FROM pengajuan_spk ps
         LEFT JOIN pertambahan_spk pt ON pt.id_spk = ps.id
@@ -166,16 +167,23 @@ export const calculateDendaByTokoId = async (idToko: number): Promise<DendaKeter
               ps.id_toko = ANY($1::int[])
               OR ($2::text IS NOT NULL AND ps.nomor_ulok = $2::text)
           )
-          AND UPPER(COALESCE(ps.status, '')) IN ('SPK_APPROVED', 'APPROVED', 'DISETUJUI', 'AKTIF', 'ACTIVE', 'SELESAI')
+          AND UPPER(TRIM(COALESCE(ps.status, ''))) IN ('SPK_APPROVED', 'APPROVED', 'DISETUJUI', 'AKTIF', 'ACTIVE', 'SELESAI')
         GROUP BY ps.id, ps.waktu_selesai
         `,
         [scope.tokoIds, scope.nomorUlok]
     );
 
+    console.log(`[DENDA] Toko ${idToko} → SPK rows found: ${spkResult.rows.length}`);
+    spkResult.rows.forEach((row, i) => {
+        console.log(`[DENDA]   SPK[${i}] waktu_selesai=${row.waktu_selesai}, perpanjangan=${row.tanggal_spk_akhir_setelah_perpanjangan}`);
+    });
+
     const latestAkhirSpk = spkResult.rows
         .map((row) => parseDateValue(row.tanggal_spk_akhir_setelah_perpanjangan) ?? parseDateValue(row.waktu_selesai))
         .filter((date): date is Date => Boolean(date))
         .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+
+    console.log(`[DENDA] Toko ${idToko} → latestAkhirSpk=${latestAkhirSpk?.toISOString() ?? 'NULL'}`);
 
     const stResult = await pool.query<SerahTerimaPenaltyRow>(
         `
@@ -189,5 +197,9 @@ export const calculateDendaByTokoId = async (idToko: number): Promise<DendaKeter
     );
 
     const tanggalSerahTerima = parseDateValue(stResult.rows[0]?.created_at ?? null);
-    return calculateDendaFromDates(latestAkhirSpk, tanggalSerahTerima);
+    console.log(`[DENDA] Toko ${idToko} → tanggalSerahTerima=${tanggalSerahTerima?.toISOString() ?? 'NULL'}`);
+
+    const result = calculateDendaFromDates(latestAkhirSpk, tanggalSerahTerima);
+    console.log(`[DENDA] Toko ${idToko} → hari_denda=${result.hari_denda}, nilai_denda=${result.nilai_denda}`);
+    return result;
 };
