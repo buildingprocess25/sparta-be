@@ -2,6 +2,7 @@ import { Router } from "express";
 import multer from "multer";
 import {
     advanceDcProjectStage,
+    createDcArchiveProject,
     createDcProject,
     createDcDocument,
     createDcTender,
@@ -11,6 +12,7 @@ import {
     downloadDcDocument,
     getDcDocumentDetail,
     getDcProjectById,
+    listDcArchiveProjects,
     listDcApprovals,
     listDcDocuments,
     listDcProjects,
@@ -32,6 +34,9 @@ dcDevelopmentRouter.post("/projects", createDcProject);
 dcDevelopmentRouter.get("/projects/:id", getDcProjectById);
 dcDevelopmentRouter.post("/projects/:id/advance-stage", advanceDcProjectStage);
 dcDevelopmentRouter.post("/projects/:id/tenders", createDcTender);
+
+dcDevelopmentRouter.get("/archive-projects", listDcArchiveProjects);
+dcDevelopmentRouter.post("/archive-projects", createDcArchiveProject);
 
 dcDevelopmentRouter.get("/vendors", listDcVendors);
 dcDevelopmentRouter.post("/vendors", createDcVendor);

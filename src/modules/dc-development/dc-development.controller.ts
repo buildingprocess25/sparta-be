@@ -3,12 +3,14 @@ import { asyncHandler } from "../../common/async-handler";
 import {
     advanceDcProjectStageSchema,
     createDcProjectSchema,
+    createDcArchiveProjectSchema,
     createDcTenderSchema,
     createDcVendorSchema,
     createDcVendorUserSchema,
     createDcDocumentSchema,
     dcDocumentActorQuerySchema,
     dcApprovalListQuerySchema,
+    dcArchiveProjectListQuerySchema,
     dcDocumentListQuerySchema,
     dcProjectListQuerySchema,
     updateDcDocumentSchema
@@ -24,6 +26,22 @@ export const listDcProjects = asyncHandler(async (req: Request, res: Response) =
     const query = dcProjectListQuerySchema.parse(req.query);
     const data = await dcDevelopmentService.listProjects(query);
     res.json({ status: "success", data });
+});
+
+export const listDcArchiveProjects = asyncHandler(async (req: Request, res: Response) => {
+    const query = dcArchiveProjectListQuerySchema.parse(req.query);
+    const data = await dcDevelopmentService.listArchiveProjects(query);
+    res.json({ status: "success", data });
+});
+
+export const createDcArchiveProject = asyncHandler(async (req: Request, res: Response) => {
+    const input = createDcArchiveProjectSchema.parse(req.body);
+    const data = await dcDevelopmentService.createArchiveProject(input);
+    res.status(201).json({
+        status: "success",
+        message: "Data arsip dokumen DC berhasil dibuat",
+        data
+    });
 });
 
 export const createDcProject = asyncHandler(async (req: Request, res: Response) => {

@@ -101,6 +101,26 @@ export const dcDocumentActorQuerySchema = z.object({
     actor_role: z.string().trim().min(1)
 });
 
+export const dcArchiveProjectListQuerySchema = z.object({
+    search: z.string().trim().optional(),
+    branch_name: z.string().trim().optional(),
+    status: z.enum(["all", "lengkap", "belum"]).optional(),
+    actor_email: z.string().email(),
+    actor_role: z.string().trim().min(1)
+});
+
+export const createDcArchiveProjectSchema = z.object({
+    archive_code: z.string().trim().min(1),
+    archive_name: z.string().trim().min(1),
+    branch_name: z.string().trim().min(1),
+    location_name: z.string().trim().optional(),
+    project_type: z.string().trim().min(1),
+    address: z.string().trim().optional(),
+    notes: z.string().trim().optional(),
+    actor_email: z.string().email(),
+    actor_role: z.string().trim().min(1)
+});
+
 export type DcProjectListQuery = z.infer<typeof dcProjectListQuerySchema>;
 export type CreateDcProjectInput = z.infer<typeof createDcProjectSchema>;
 export type AdvanceDcProjectStageInput = z.infer<typeof advanceDcProjectStageSchema>;
@@ -112,3 +132,5 @@ export type DcDocumentListQuery = z.infer<typeof dcDocumentListQuerySchema>;
 export type CreateDcDocumentInput = z.infer<typeof createDcDocumentSchema>;
 export type UpdateDcDocumentInput = z.infer<typeof updateDcDocumentSchema>;
 export type DcDocumentActorQuery = z.infer<typeof dcDocumentActorQuerySchema>;
+export type DcArchiveProjectListQuery = z.infer<typeof dcArchiveProjectListQuerySchema>;
+export type CreateDcArchiveProjectInput = z.infer<typeof createDcArchiveProjectSchema>;

@@ -10,11 +10,13 @@ import {
     type DcProjectStatus
 } from "./dc-development.constants";
 import type {
+    CreateDcArchiveProjectInput,
     CreateDcProjectInput,
     CreateDcTenderInput,
     CreateDcVendorInput,
     CreateDcVendorUserInput,
     DcApprovalListQuery,
+    DcArchiveProjectListQuery,
     DcDocumentListQuery,
     DcProjectListQuery
 } from "./dc-development.schema";
@@ -108,6 +110,24 @@ export type DcDocumentRow = {
     project_name: string | null;
 };
 
+export type DcArchiveProjectRow = {
+    id: number;
+    project_id: number;
+    archive_code: string;
+    archive_name: string;
+    branch_name: string;
+    location_name: string | null;
+    project_type: string;
+    address: string | null;
+    notes: string | null;
+    created_by_email: string | null;
+    created_by_role: string | null;
+    created_at: string;
+    updated_at: string;
+    jumlah_dokumen: number;
+    kategori_counts: Record<string, number>;
+};
+
 export type DcUploadedDocumentVersion = {
     drive_file_id: string;
     drive_folder_id: string | null;
@@ -147,6 +167,20 @@ const DC_DOCUMENT_SELECT = `
     p.project_name
 `;
 
+const REQUIRED_ARCHIVE_DOCUMENT_CATEGORIES = [
+    "fotoExisting",
+    "fotoRenovasi",
+    "me",
+    "sipil",
+    "sketsaAwal",
+    "spk",
+    "rab",
+    "instruksiLapangan",
+    "pengawasan",
+    "aanwijzing",
+    "kerjaTambahKurang"
+];
+
 const insertActivityLog = async (
     client: PoolClient,
     input: {
@@ -183,6 +217,157 @@ const insertActivityLog = async (
 };
 
 export const dcDevelopmentRepository = {
+    async listArchiveProjects(filter: DcArchiveProjectListQuery, bypassAccess = false): Promise<DcArchiveProjectRow[]> {
+        const conditions: string[] = [];
+        const values: unknown[] = [];
+        const joins: string[] = [];
+
+        if (!bypassAccess) {
+            values.push(filter.actor_email);
+            joins.push(`JOIN dc_project_member m ON m.project_id = a.project_id AND LOWER(m.email) = LOWER($${values.length})`);
+        }
+        if (filter.branch_name) {
+            values.push(filter.branch_name);
+            conditions.push(`a.branch_name = $${values.length}`);
+        }
+        if (filter.search) {
+            values.push(`%${filter.search}%`);
+            conditions.push(`(
+                a.archive_code ILIKE $${values.length}
+                OR a.archive_name ILIKE $${values.length}
+                OR COALESCE(a.location_name, '') ILIKE $${values.length}
+                OR a.branch_name ILIKE $${values.length}
+            )`);
+        }
+
+        const requiredCategoryList = REQUIRED_ARCHIVE_DOCUMENT_CATEGORIES.map((category) => `'${category}'`).join(",");
+        if (filter.status && filter.status !== "all") {
+            const comparator = filter.status === "lengkap" ? "=" : "<";
+            conditions.push(`(
+                SELECT COUNT(DISTINCT d.document_type)
+                FROM dc_document d
+                WHERE d.entity_type = 'DC_ARCHIVE_PROJECT'
+                  AND d.entity_id = a.id
+                  AND d.status <> 'DELETED'
+                  AND d.document_type IN (${requiredCategoryList})
+            ) ${comparator} ${REQUIRED_ARCHIVE_DOCUMENT_CATEGORIES.length}`);
+        }
+
+        const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+        const result = await pool.query<DcArchiveProjectRow>(
+            `SELECT
+                a.id,
+                a.project_id,
+                a.archive_code,
+                a.archive_name,
+                a.branch_name,
+                a.location_name,
+                a.project_type,
+                a.address,
+                a.notes,
+                a.created_by_email,
+                a.created_by_role,
+                a.created_at,
+                a.updated_at,
+                COUNT(d.id)::int AS jumlah_dokumen,
+                COALESCE(
+                    jsonb_object_agg(d.document_type, doc_counts.total) FILTER (WHERE d.document_type IS NOT NULL),
+                    '{}'::jsonb
+                ) AS kategori_counts
+             FROM dc_archive_project a
+             ${joins.join("\n")}
+             LEFT JOIN (
+                SELECT entity_id, document_type, COUNT(*)::int AS total
+                FROM dc_document
+                WHERE entity_type = 'DC_ARCHIVE_PROJECT'
+                  AND status <> 'DELETED'
+                GROUP BY entity_id, document_type
+             ) doc_counts ON doc_counts.entity_id = a.id
+             LEFT JOIN dc_document d
+                ON d.entity_type = 'DC_ARCHIVE_PROJECT'
+               AND d.entity_id = a.id
+               AND d.status <> 'DELETED'
+               AND d.document_type = doc_counts.document_type
+             ${whereClause}
+             GROUP BY a.id
+             ORDER BY a.updated_at DESC, a.id DESC`,
+            values
+        );
+
+        return result.rows;
+    },
+
+    async createArchiveProject(input: CreateDcArchiveProjectInput): Promise<DcArchiveProjectRow> {
+        return withTransaction(async (client) => {
+            const projectResult = await client.query<DcProjectRow>(
+                `INSERT INTO dc_project (
+                    project_code, project_name, location_name, branch_name, address,
+                    area_size, status, current_stage, created_by_email, created_by_role,
+                    created_at, updated_at
+                ) VALUES ($1,$2,$3,$4,$5,NULL,$6,$6,$7,$8, timezone('Asia/Jakarta', now()), timezone('Asia/Jakarta', now()))
+                RETURNING ${DC_PROJECT_COLUMNS}`,
+                [
+                    input.archive_code,
+                    input.archive_name,
+                    input.location_name ?? null,
+                    input.branch_name,
+                    input.address ?? null,
+                    DC_PROJECT_STATUS.LEGACY_ARCHIVE,
+                    input.actor_email,
+                    input.actor_role
+                ]
+            );
+            const project = projectResult.rows[0];
+
+            const archiveResult = await client.query<DcArchiveProjectRow>(
+                `INSERT INTO dc_archive_project (
+                    project_id, archive_code, archive_name, branch_name, location_name,
+                    project_type, address, notes, created_by_email, created_by_role,
+                    created_at, updated_at
+                ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, timezone('Asia/Jakarta', now()), timezone('Asia/Jakarta', now()))
+                RETURNING id, project_id, archive_code, archive_name, branch_name, location_name,
+                    project_type, address, notes, created_by_email, created_by_role,
+                    created_at, updated_at, 0::int AS jumlah_dokumen, '{}'::jsonb AS kategori_counts`,
+                [
+                    project.id,
+                    input.archive_code,
+                    input.archive_name,
+                    input.branch_name,
+                    input.location_name ?? null,
+                    input.project_type,
+                    input.address ?? null,
+                    input.notes ?? null,
+                    input.actor_email,
+                    input.actor_role
+                ]
+            );
+            const archive = archiveResult.rows[0];
+
+            await this.upsertProjectMember(client, {
+                project_id: project.id,
+                email: input.actor_email,
+                role: input.actor_role,
+                member_type: DC_MEMBER_TYPE.INTERNAL,
+                access_level: DC_MEMBER_ACCESS_LEVEL.MANAGE,
+                source_entity_type: "DC_ARCHIVE_PROJECT",
+                source_entity_id: archive.id
+            });
+
+            await insertActivityLog(client, {
+                project_id: project.id,
+                entity_type: "DC_ARCHIVE_PROJECT",
+                entity_id: archive.id,
+                actor_email: input.actor_email,
+                actor_role: input.actor_role,
+                action: "CREATE_ARCHIVE_PROJECT",
+                status_after: "LEGACY_ARCHIVE",
+                metadata: { archive_code: input.archive_code, project_type: input.project_type }
+            });
+
+            return archive;
+        });
+    },
+
     async listProjects(filter: DcProjectListQuery): Promise<DcProjectRow[]> {
         const conditions: string[] = [];
         const values: unknown[] = [];
@@ -304,11 +489,15 @@ export const dcDevelopmentRepository = {
             const current = currentRes.rows[0];
             if (!current) throw new Error(`DC project dengan id ${input.id} tidak ditemukan`);
 
-            const currentIndex = DC_PROJECT_STAGE_SEQUENCE.indexOf(current.current_stage);
+            const stageSequence = DC_PROJECT_STAGE_SEQUENCE as readonly string[];
+            const currentIndex = stageSequence.indexOf(current.current_stage);
+            if (currentIndex < 0) {
+                throw new Error("Arsip legacy tidak dapat diproses lewat workflow stage project aktif");
+            }
             const nextStage = input.target_stage ?? DC_PROJECT_STAGE_SEQUENCE[currentIndex + 1];
             if (!nextStage) return current;
 
-            const targetIndex = DC_PROJECT_STAGE_SEQUENCE.indexOf(nextStage);
+            const targetIndex = stageSequence.indexOf(nextStage);
             const isNextStage = targetIndex === currentIndex + 1;
             if (!isNextStage && !input.is_intervention) {
                 throw new Error("Perubahan stage tidak berurutan wajib memakai intervensi");

@@ -5,12 +5,14 @@ import { DC_MEMBER_ACCESS_LEVEL, DC_PROJECT_STAGE_SEQUENCE, DC_ROLES, type DcMem
 import { dcDevelopmentRepository, type DcDocumentRow } from "./dc-development.repository";
 import type {
     AdvanceDcProjectStageInput,
+    CreateDcArchiveProjectInput,
     CreateDcDocumentInput,
     CreateDcProjectInput,
     CreateDcTenderInput,
     CreateDcVendorInput,
     CreateDcVendorUserInput,
     DcApprovalListQuery,
+    DcArchiveProjectListQuery,
     DcDocumentActorQuery,
     DcDocumentListQuery,
     DcProjectListQuery,
@@ -30,6 +32,13 @@ const accessRank: Record<DcMemberAccessLevel, number> = {
 
 const hasSuperHumanRole = (role?: string | null): boolean =>
     String(role ?? "").toUpperCase().includes(DC_ROLES.SUPER_HUMAN);
+
+const canCreateArchiveProject = (role?: string | null): boolean => {
+    const normalized = String(role ?? "").toUpperCase();
+    return hasSuperHumanRole(normalized)
+        || normalized.includes(DC_ROLES.DC_MANAGER)
+        || normalized.includes(DC_ROLES.DC_SPECIALIST);
+};
 
 const sanitizeFilenamePart = (value: string | null | undefined, fallback: string): string => {
     const normalized = String(value ?? "").trim().replace(/[^a-zA-Z0-9_-]+/g, "_");
@@ -150,6 +159,26 @@ const uploadFilesToDrive = async (
 };
 
 export const dcDevelopmentService = {
+    listArchiveProjects(filter: DcArchiveProjectListQuery) {
+        return dcDevelopmentRepository.listArchiveProjects(filter, hasSuperHumanRole(filter.actor_role));
+    },
+
+    async createArchiveProject(input: CreateDcArchiveProjectInput) {
+        if (!canCreateArchiveProject(input.actor_role)) {
+            throw new AppError("Hanya Super Human, DC Manager, atau DC Specialist yang dapat menambah data arsip DC", 403);
+        }
+
+        try {
+            return await dcDevelopmentRepository.createArchiveProject(input);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Gagal membuat arsip dokumen DC";
+            if (message.includes("duplicate key")) {
+                throw new AppError("Kode arsip/project DC sudah terdaftar", 409);
+            }
+            throw new AppError(message, 400);
+        }
+    },
+
     listProjects(filter: DcProjectListQuery) {
         if (hasSuperHumanRole(filter.actor_role)) {
             return dcDevelopmentRepository.listProjects({ ...filter, actor_email: undefined });
