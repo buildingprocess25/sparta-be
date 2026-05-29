@@ -70,7 +70,7 @@ export const serahTerimaService = {
         }));
     },
 
-    async createPdfSerahTerima(idToko: number) {
+    async createPdfSerahTerima(idToko: number, tanggalAktual?: string) {
         const { toko, opnameFinal, items } = await buildDetailByTokoId(idToko);
 
         const detail = { toko, opname_final: opnameFinal, items };
@@ -84,7 +84,7 @@ export const serahTerimaService = {
         const linkPdf = await uploadPdfToDrive(pdfBuffer, filename);
 
         // 6. Simpan link di tabel berkas_serah_terima
-        const berkas = await serahTerimaRepository.upsertBerkasSerahTerima(idToko, linkPdf);
+        const berkas = await serahTerimaRepository.upsertBerkasSerahTerima(idToko, linkPdf, tanggalAktual);
         const refreshedOpnameFinal = await opnameFinalService.refreshDendaAndPdfById(String(opnameFinal.id));
 
         return {

@@ -247,7 +247,7 @@ export const serahTerimaRepository = {
         return result.rows;
     },
 
-    async upsertBerkasSerahTerima(idToko: number, linkPdf: string): Promise<BerkasSerahTerimaRow> {
+    async upsertBerkasSerahTerima(idToko: number, linkPdf: string, tanggalAktual?: string): Promise<BerkasSerahTerimaRow> {
         const existing = await pool.query<BerkasSerahTerimaRow>(
             `
             SELECT id FROM berkas_serah_terima
@@ -262,11 +262,11 @@ export const serahTerimaRepository = {
             const updated = await pool.query<BerkasSerahTerimaRow>(
                 `
                 UPDATE berkas_serah_terima
-                SET link_pdf = $1
+                SET link_pdf = $1, created_at = COALESCE($3, created_at)
                 WHERE id = $2
                 RETURNING id, id_toko, link_pdf, created_at
                 `,
-                [linkPdf, existing.rows[0].id]
+                [linkPdf, existing.rows[0].id, tanggalAktual || null]
             );
 
             return updated.rows[0];
@@ -274,11 +274,11 @@ export const serahTerimaRepository = {
 
         const inserted = await pool.query<BerkasSerahTerimaRow>(
             `
-            INSERT INTO berkas_serah_terima (id_toko, link_pdf)
-            VALUES ($1, $2)
+            INSERT INTO berkas_serah_terima (id_toko, link_pdf, created_at)
+            VALUES ($1, $2, COALESCE($3, CURRENT_TIMESTAMP))
             RETURNING id, id_toko, link_pdf, created_at
             `,
-            [idToko, linkPdf]
+            [idToko, linkPdf, tanggalAktual || null]
         );
 
         return inserted.rows[0];
