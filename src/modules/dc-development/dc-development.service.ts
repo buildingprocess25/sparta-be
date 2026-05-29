@@ -1,6 +1,7 @@
 import { AppError } from "../../common/app-error";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
+import { pool } from "../../db/pool";
 import { DC_MEMBER_ACCESS_LEVEL, DC_PROJECT_STAGE_SEQUENCE, DC_ROLES, type DcMemberAccessLevel } from "./dc-development.constants";
 import { dcDevelopmentRepository, type DcDocumentRow } from "./dc-development.repository";
 import type {
@@ -239,6 +240,216 @@ export const dcDevelopmentService = {
             }
             throw new AppError(message, 400);
         }
+    },
+
+    async listTenders(filter: { project_id?: number; tender_type?: string; status?: string }) {
+        return dcDevelopmentRepository.listTenders(filter);
+    },
+
+    async getTenderById(id: string) {
+        const tenderId = Number(id);
+        if (!Number.isInteger(tenderId) || tenderId <= 0) {
+            throw new AppError("ID tender DC tidak valid", 400);
+        }
+        const tender = await dcDevelopmentRepository.getTenderById(tenderId);
+        if (!tender) throw new AppError("Tender DC tidak ditemukan", 404);
+        
+        const participants = await dcDevelopmentRepository.listTenderParticipants(tenderId);
+        const submissions = await dcDevelopmentRepository.listTenderSubmissions(tenderId);
+
+        return {
+            tender,
+            participants: participants.map(p => ({
+                ...p,
+                submissions: submissions.filter(s => s.participant_id === p.id)
+            }))
+        };
+    },
+
+    async inviteTenderParticipant(tenderIdRaw: string, input: any) {
+        const tenderId = Number(tenderIdRaw);
+        if (!Number.isInteger(tenderId) || tenderId <= 0) {
+            throw new AppError("ID tender DC tidak valid", 400);
+        }
+
+        const tender = await dcDevelopmentRepository.getTenderById(tenderId);
+        if (!tender) throw new AppError("Tender DC tidak ditemukan", 404);
+        if (tender.status === 'COMPLETED') throw new AppError("Tender sudah selesai", 400);
+
+        try {
+            return await dcDevelopmentRepository.inviteTenderParticipant(tenderId, input.vendor_company_id, input.invited_by_email);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Gagal mengundang vendor";
+            if (message.includes("duplicate key")) {
+                throw new AppError("Vendor ini sudah diundang ke tender ini", 409);
+            }
+            throw new AppError(message, 400);
+        }
+    },
+
+    async submitTenderSubmission(tenderIdRaw: string, input: any) {
+        const tenderId = Number(tenderIdRaw);
+        if (!Number.isInteger(tenderId) || tenderId <= 0) {
+            throw new AppError("ID tender DC tidak valid", 400);
+        }
+
+        const tender = await dcDevelopmentRepository.getTenderById(tenderId);
+        if (!tender) throw new AppError("Tender DC tidak ditemukan", 404);
+        if (tender.status === 'COMPLETED') throw new AppError("Tender sudah selesai", 400);
+
+        // If participant_id is provided directly, use it (for internal user / testing)
+        if (input.participant_id) {
+            const partResult = await pool.query(
+                `SELECT id FROM dc_tender_participant WHERE id = $1 AND tender_id = $2`,
+                [input.participant_id, tenderId]
+            );
+            if (partResult.rows.length === 0) throw new AppError("Participant tidak valid", 400);
+            return await dcDevelopmentRepository.submitTenderSubmission(input.participant_id, tender, input);
+        }
+
+        // Find participant via vendor user email
+        if (!input.submitted_by_email) throw new AppError("Email wajib diisi", 400);
+
+        const vendorResult = await pool.query(
+            `SELECT vendor_company_id FROM dc_vendor_user WHERE LOWER(email) = LOWER($1)`,
+            [input.submitted_by_email]
+        );
+
+        if (vendorResult.rows.length === 0) {
+            throw new AppError("User vendor tidak ditemukan", 404);
+        }
+
+        const vendorCompanyId = vendorResult.rows[0].vendor_company_id;
+        const participantResult = await pool.query(
+            `SELECT id FROM dc_tender_participant WHERE tender_id = $1 AND vendor_company_id = $2`,
+            [tenderId, vendorCompanyId]
+        );
+
+        if (participantResult.rows.length === 0) {
+            throw new AppError("Vendor belum diundang ke tender ini", 403);
+        }
+
+        const participantId = participantResult.rows[0].id;
+        return await dcDevelopmentRepository.submitTenderSubmission(participantId, tender, input);
+    },
+
+    async setTenderWinner(tenderIdRaw: string, input: any) {
+        const tenderId = Number(tenderIdRaw);
+        if (!Number.isInteger(tenderId) || tenderId <= 0) {
+            throw new AppError("ID tender DC tidak valid", 400);
+        }
+
+        const tender = await dcDevelopmentRepository.getTenderById(tenderId);
+        if (!tender) throw new AppError("Tender DC tidak ditemukan", 404);
+        if (tender.status === 'COMPLETED') throw new AppError("Tender sudah selesai", 400);
+
+        return await dcDevelopmentRepository.setTenderWinner(tenderId, input.participant_id, input.actor_email, input.actor_role);
+    },
+
+    async listProjectTimelines(projectIdRaw: string) {
+        const projectId = Number(projectIdRaw);
+        if (!Number.isInteger(projectId) || projectId <= 0) {
+            throw new AppError("ID project DC tidak valid", 400);
+        }
+        return await dcDevelopmentRepository.listProjectTimelines(projectId);
+    },
+
+    async addProjectTimeline(projectIdRaw: string, input: any) {
+        const projectId = Number(projectIdRaw);
+        if (!Number.isInteger(projectId) || projectId <= 0) {
+            throw new AppError("ID project DC tidak valid", 400);
+        }
+        const project = await dcDevelopmentRepository.findProjectById(projectId);
+        if (!project) throw new AppError("Project DC tidak ditemukan", 404);
+
+        return await dcDevelopmentRepository.addProjectTimeline(projectId, input);
+    },
+
+    async updateProjectTimeline(taskIdRaw: string, input: any) {
+        const taskId = Number(taskIdRaw);
+        if (!Number.isInteger(taskId) || taskId <= 0) {
+            throw new AppError("ID task timeline tidak valid", 400);
+        }
+        return await dcDevelopmentRepository.updateProjectTimeline(taskId, input);
+    },
+
+    async listProjectIssues(projectIdRaw: string) {
+        const projectId = Number(projectIdRaw);
+        if (!Number.isInteger(projectId) || projectId <= 0) {
+            throw new AppError("ID project DC tidak valid", 400);
+        }
+        return await dcDevelopmentRepository.listProjectIssues(projectId);
+    },
+
+    async addProjectIssue(projectIdRaw: string, input: any) {
+        const projectId = Number(projectIdRaw);
+        if (!Number.isInteger(projectId) || projectId <= 0) {
+            throw new AppError("ID project DC tidak valid", 400);
+        }
+        const project = await dcDevelopmentRepository.findProjectById(projectId);
+        if (!project) throw new AppError("Project DC tidak ditemukan", 404);
+
+        return await dcDevelopmentRepository.addProjectIssue(projectId, input);
+    },
+
+    async updateProjectIssue(issueIdRaw: string, input: any) {
+        const issueId = Number(issueIdRaw);
+        if (!Number.isInteger(issueId) || issueId <= 0) {
+            throw new AppError("ID issue tidak valid", 400);
+        }
+        return await dcDevelopmentRepository.updateProjectIssue(issueId, input);
+    },
+
+    async listProjectBast(projectIdRaw: string) {
+        const projectId = Number(projectIdRaw);
+        if (!Number.isInteger(projectId) || projectId <= 0) {
+            throw new AppError("ID project DC tidak valid", 400);
+        }
+        return await dcDevelopmentRepository.listProjectBast(projectId);
+    },
+
+    async createProjectBast(projectIdRaw: string, input: any) {
+        const projectId = Number(projectIdRaw);
+        if (!Number.isInteger(projectId) || projectId <= 0) {
+            throw new AppError("ID project DC tidak valid", 400);
+        }
+        const project = await dcDevelopmentRepository.findProjectById(projectId);
+        if (!project) throw new AppError("Project DC tidak ditemukan", 404);
+
+        return await dcDevelopmentRepository.createProjectBast(projectId, input);
+    },
+
+    async updateProjectBast(bastIdRaw: string, input: any) {
+        const bastId = Number(bastIdRaw);
+        if (!Number.isInteger(bastId) || bastId <= 0) {
+            throw new AppError("ID BAST tidak valid", 400);
+        }
+        return await dcDevelopmentRepository.updateProjectBast(bastId, input);
+    },
+
+    async listParticipantTerms(participantIdRaw: string) {
+        const participantId = Number(participantIdRaw);
+        if (!Number.isInteger(participantId) || participantId <= 0) {
+            throw new AppError("ID participant tidak valid", 400);
+        }
+        return await dcDevelopmentRepository.listParticipantTerms(participantId);
+    },
+
+    async addTermSchedule(participantIdRaw: string, input: any) {
+        const participantId = Number(participantIdRaw);
+        if (!Number.isInteger(participantId) || participantId <= 0) {
+            throw new AppError("ID participant tidak valid", 400);
+        }
+        // In real app, might want to validate total percentage doesn't exceed 100%
+        return await dcDevelopmentRepository.addTermSchedule(participantId, input);
+    },
+
+    async submitTermClaim(termIdRaw: string, input: any) {
+        const termId = Number(termIdRaw);
+        if (!Number.isInteger(termId) || termId <= 0) {
+            throw new AppError("ID term schedule tidak valid", 400);
+        }
+        return await dcDevelopmentRepository.submitTermClaim(termId, input);
     },
 
     listVendors() {

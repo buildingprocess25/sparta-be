@@ -66,6 +66,31 @@ export type DcTenderRow = {
     updated_at: string;
 };
 
+export type DcTenderParticipantRow = {
+    id: number;
+    tender_id: number;
+    vendor_company_id: number;
+    status: string;
+    invited_by_email: string | null;
+    invited_at: string;
+    last_note: string | null;
+    company_name?: string;
+};
+
+export type DcTenderSubmissionRow = {
+    id: number;
+    participant_id: number;
+    submission_type: string;
+    status: string;
+    submitted_offer_amount: string | null;
+    offer_vs_oe_percent: string | null;
+    oe_review_required: boolean;
+    oe_review_status: string | null;
+    notes: string | null;
+    submitted_by_email: string | null;
+    submitted_at: string;
+};
+
 export type DcProjectMemberRow = {
     id: number;
     project_id: number;
@@ -110,6 +135,35 @@ export type DcDocumentRow = {
     project_name: string | null;
 };
 
+export type DcProjectTimelineRow = {
+    id: number;
+    project_id: number;
+    task_name: string;
+    start_date: string;
+    end_date: string;
+    progress_percent: string;
+    status: string;
+    assigned_to_email: string | null;
+    created_at: string;
+    updated_at: string;
+};
+
+export type DcIssueRow = {
+    id: number;
+    project_id: number;
+    issue_type: string;
+    title: string;
+    description: string;
+    status: string;
+    severity: string;
+    reported_by_email: string | null;
+    assigned_to_email: string | null;
+    resolved_at: string | null;
+    resolution_notes: string | null;
+    created_at: string;
+    updated_at: string;
+};
+
 export type DcArchiveProjectRow = {
     id: number;
     project_id: number;
@@ -139,6 +193,39 @@ export type DcUploadedDocumentVersion = {
     notes?: string | null;
     uploaded_by_email: string;
     uploaded_by_role: string;
+};
+
+export type DcBastRow = {
+    id: number;
+    project_id: number;
+    participant_id: number | null;
+    bast_type: string;
+    notes: string | null;
+    status: string;
+    checklist: unknown | null;
+    created_at: string;
+    updated_at: string;
+};
+
+export type DcTermScheduleRow = {
+    id: number;
+    participant_id: number;
+    term_no: number;
+    percentage: string | null;
+    amount: string | null;
+    requirements: string | null;
+    status: string;
+    created_at: string;
+};
+
+export type DcTermClaimRow = {
+    id: number;
+    term_schedule_id: number;
+    claimed_amount: string | null;
+    status: string;
+    submitted_by_email: string | null;
+    submitted_at: string;
+    updated_at: string;
 };
 
 const DC_PROJECT_COLUMNS = `
@@ -566,6 +653,447 @@ export const dcDevelopmentRepository = {
             });
 
             return tender;
+        });
+    },
+
+    async listTenders(filter: { project_id?: number; tender_type?: string; status?: string }): Promise<(DcTenderRow & { project_code?: string; project_name?: string })[]> {
+        const conditions: string[] = [];
+        const values: unknown[] = [];
+        if (filter.project_id) {
+            values.push(filter.project_id);
+            conditions.push(`t.project_id = $${values.length}`);
+        }
+        if (filter.tender_type) {
+            values.push(filter.tender_type);
+            conditions.push(`t.tender_type = $${values.length}`);
+        }
+        if (filter.status) {
+            values.push(filter.status);
+            conditions.push(`t.status = $${values.length}`);
+        }
+        const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+
+        const result = await pool.query(
+            `SELECT t.*, p.project_code, p.project_name
+             FROM dc_tender t
+             LEFT JOIN dc_project p ON p.id = t.project_id
+             ${whereClause}
+             ORDER BY t.created_at DESC`
+        , values);
+        return result.rows;
+    },
+
+    async getTenderById(tenderId: number): Promise<DcTenderRow | null> {
+        const result = await pool.query<DcTenderRow>(
+            `SELECT * FROM dc_tender WHERE id = $1`, [tenderId]
+        );
+        return result.rows[0] ?? null;
+    },
+
+    async listTenderParticipants(tenderId: number): Promise<DcTenderParticipantRow[]> {
+        const result = await pool.query<DcTenderParticipantRow>(
+            `SELECT tp.*, vc.company_name
+             FROM dc_tender_participant tp
+             JOIN dc_vendor_company vc ON vc.id = tp.vendor_company_id
+             WHERE tp.tender_id = $1
+             ORDER BY tp.invited_at DESC`,
+            [tenderId]
+        );
+        return result.rows;
+    },
+
+    async listTenderSubmissions(tenderId: number): Promise<DcTenderSubmissionRow[]> {
+        const result = await pool.query<DcTenderSubmissionRow>(
+            `SELECT ts.*
+             FROM dc_tender_submission ts
+             JOIN dc_tender_participant tp ON tp.id = ts.participant_id
+             WHERE tp.tender_id = $1
+             ORDER BY ts.submitted_at DESC`,
+            [tenderId]
+        );
+        return result.rows;
+    },
+
+    async inviteTenderParticipant(tenderId: number, vendorId: number, email?: string): Promise<DcTenderParticipantRow> {
+        return withTransaction(async (client) => {
+            const result = await client.query<DcTenderParticipantRow>(
+                `INSERT INTO dc_tender_participant (tender_id, vendor_company_id, status, invited_by_email, invited_at)
+                 VALUES ($1, $2, 'INVITED', $3, timezone('Asia/Jakarta', now()))
+                 RETURNING *`,
+                [tenderId, vendorId, email ?? null]
+            );
+            
+            await client.query(
+                `UPDATE dc_tender SET status = 'IN_PROGRESS', updated_at = timezone('Asia/Jakarta', now())
+                 WHERE id = $1 AND status = 'DRAFT'`,
+                [tenderId]
+            );
+
+            await insertActivityLog(client, {
+                entity_type: "DC_TENDER",
+                entity_id: tenderId,
+                actor_email: email,
+                action: "INVITE_PARTICIPANT",
+                metadata: { vendor_company_id: vendorId }
+            });
+
+            return result.rows[0];
+        });
+    },
+
+    async submitTenderSubmission(participantId: number, tender: DcTenderRow, input: any): Promise<DcTenderSubmissionRow> {
+        return withTransaction(async (client) => {
+            let oeReviewRequired = false;
+            let offerVsOePercent = null;
+
+            if (tender.owner_estimate_amount && input.submitted_offer_amount) {
+                const oe = Number(tender.owner_estimate_amount);
+                const offer = Number(input.submitted_offer_amount);
+                if (oe > 0) {
+                    offerVsOePercent = ((offer - oe) / oe) * 100;
+                    const tolerance = Number(tender.oe_tolerance_percent);
+                    if (offerVsOePercent > tolerance || offerVsOePercent < -tolerance) {
+                        oeReviewRequired = true;
+                    }
+                }
+            }
+
+            const result = await client.query<DcTenderSubmissionRow>(
+                `INSERT INTO dc_tender_submission (
+                    participant_id, submission_type, status, submitted_offer_amount,
+                    offer_vs_oe_percent, oe_review_required, oe_review_status, notes,
+                    submitted_by_email, submitted_at
+                ) VALUES ($1, $2, 'SUBMITTED', $3, $4, $5, $6, $7, $8, timezone('Asia/Jakarta', now()))
+                RETURNING *`,
+                [
+                    participantId,
+                    input.submission_type,
+                    input.submitted_offer_amount ?? null,
+                    offerVsOePercent,
+                    oeReviewRequired,
+                    oeReviewRequired ? 'PENDING' : null,
+                    input.notes ?? null,
+                    input.submitted_by_email ?? null
+                ]
+            );
+
+            await client.query(
+                `UPDATE dc_tender_participant SET status = 'SUBMITTED' WHERE id = $1`,
+                [participantId]
+            );
+
+            await insertActivityLog(client, {
+                entity_type: "DC_TENDER_PARTICIPANT",
+                entity_id: participantId,
+                actor_email: input.submitted_by_email,
+                action: "SUBMIT_OFFER",
+                metadata: { offer_amount: input.submitted_offer_amount, requires_oe_review: oeReviewRequired }
+            });
+
+            return result.rows[0];
+        });
+    },
+
+    async setTenderWinner(tenderId: number, participantId: number, actorEmail: string, actorRole: string): Promise<DcTenderRow> {
+        return withTransaction(async (client) => {
+            const result = await client.query<DcTenderRow>(
+                `UPDATE dc_tender
+                 SET winner_participant_id = $1,
+                     status = 'COMPLETED',
+                     updated_at = timezone('Asia/Jakarta', now())
+                 WHERE id = $2
+                 RETURNING *`,
+                [participantId, tenderId]
+            );
+
+            await client.query(
+                `UPDATE dc_tender_participant SET status = 'WON' WHERE id = $1`,
+                [participantId]
+            );
+
+            await client.query(
+                `UPDATE dc_tender_participant SET status = 'LOST' WHERE tender_id = $1 AND id != $2`,
+                [tenderId, participantId]
+            );
+
+            const tender = result.rows[0];
+
+            await insertActivityLog(client, {
+                project_id: tender.project_id,
+                entity_type: "DC_TENDER",
+                entity_id: tenderId,
+                actor_email: actorEmail,
+                actor_role: actorRole,
+                action: "SET_WINNER",
+                status_after: 'COMPLETED',
+                metadata: { winner_participant_id: participantId }
+            });
+
+            return tender;
+        });
+    },
+
+    async listProjectTimelines(projectId: number): Promise<DcProjectTimelineRow[]> {
+        const result = await pool.query<DcProjectTimelineRow>(
+            `SELECT * FROM dc_project_timeline
+             WHERE project_id = $1
+             ORDER BY start_date ASC, id ASC`,
+            [projectId]
+        );
+        return result.rows;
+    },
+
+    async addProjectTimeline(projectId: number, input: any): Promise<DcProjectTimelineRow> {
+        return withTransaction(async (client) => {
+            const result = await client.query<DcProjectTimelineRow>(
+                `INSERT INTO dc_project_timeline (
+                    project_id, task_name, start_date, end_date, progress_percent, status, assigned_to_email, created_at, updated_at
+                ) VALUES ($1, $2, $3, $4, 0, 'NOT_STARTED', $5, timezone('Asia/Jakarta', now()), timezone('Asia/Jakarta', now()))
+                RETURNING *`,
+                [projectId, input.task_name, input.start_date, input.end_date, input.assigned_to_email ?? null]
+            );
+
+            await insertActivityLog(client, {
+                project_id: projectId,
+                entity_type: "DC_PROJECT_TIMELINE",
+                entity_id: result.rows[0].id,
+                actor_email: input.actor_email,
+                action: "ADD_TIMELINE_TASK",
+                metadata: { task_name: input.task_name, start_date: input.start_date, end_date: input.end_date }
+            });
+
+            return result.rows[0];
+        });
+    },
+
+    async updateProjectTimeline(taskId: number, input: any): Promise<DcProjectTimelineRow> {
+        return withTransaction(async (client) => {
+            const currentRes = await client.query(`SELECT project_id, status FROM dc_project_timeline WHERE id = $1`, [taskId]);
+            const current = currentRes.rows[0];
+
+            let updateSql = `UPDATE dc_project_timeline SET updated_at = timezone('Asia/Jakarta', now())`;
+            const params: any[] = [taskId];
+            let paramIndex = 2;
+
+            if (input.progress_percent !== undefined) {
+                updateSql += `, progress_percent = $${paramIndex++}`;
+                params.push(input.progress_percent);
+            }
+            if (input.status) {
+                updateSql += `, status = $${paramIndex++}`;
+                params.push(input.status);
+            }
+
+            updateSql += ` WHERE id = $1 RETURNING *`;
+            
+            const result = await client.query<DcProjectTimelineRow>(updateSql, params);
+
+            await insertActivityLog(client, {
+                project_id: current.project_id,
+                entity_type: "DC_PROJECT_TIMELINE",
+                entity_id: taskId,
+                actor_email: input.actor_email,
+                action: "UPDATE_TIMELINE_TASK",
+                status_before: current.status,
+                status_after: input.status,
+                metadata: { progress_percent: input.progress_percent }
+            });
+
+            return result.rows[0];
+        });
+    },
+
+    async listProjectIssues(projectId: number): Promise<DcIssueRow[]> {
+        const result = await pool.query<DcIssueRow>(
+            `SELECT * FROM dc_issue
+             WHERE project_id = $1
+             ORDER BY created_at DESC`,
+            [projectId]
+        );
+        return result.rows;
+    },
+
+    async addProjectIssue(projectId: number, input: any): Promise<DcIssueRow> {
+        return withTransaction(async (client) => {
+            const result = await client.query<DcIssueRow>(
+                `INSERT INTO dc_issue (
+                    project_id, issue_type, title, description, status, severity, reported_by_email, assigned_to_email, created_at, updated_at
+                ) VALUES ($1, $2, $3, $4, 'OPEN', $5, $6, $7, timezone('Asia/Jakarta', now()), timezone('Asia/Jakarta', now()))
+                RETURNING *`,
+                [projectId, input.issue_type, input.title, input.description, input.severity, input.actor_email, input.assigned_to_email ?? null]
+            );
+
+            await insertActivityLog(client, {
+                project_id: projectId,
+                entity_type: "DC_ISSUE",
+                entity_id: result.rows[0].id,
+                actor_email: input.actor_email,
+                action: "REPORT_ISSUE",
+                status_after: 'OPEN',
+                metadata: { issue_type: input.issue_type, severity: input.severity }
+            });
+
+            return result.rows[0];
+        });
+    },
+
+    async updateProjectIssue(issueId: number, input: any): Promise<DcIssueRow> {
+        return withTransaction(async (client) => {
+            const currentRes = await client.query(`SELECT project_id, status FROM dc_issue WHERE id = $1`, [issueId]);
+            const current = currentRes.rows[0];
+
+            let resolvedAtSql = input.status === 'RESOLVED' || input.status === 'CLOSED' ? `timezone('Asia/Jakarta', now())` : `NULL`;
+
+            const result = await client.query<DcIssueRow>(
+                `UPDATE dc_issue 
+                 SET status = $1, 
+                     resolution_notes = COALESCE($2, resolution_notes),
+                     resolved_at = ${resolvedAtSql},
+                     updated_at = timezone('Asia/Jakarta', now())
+                 WHERE id = $3
+                 RETURNING *`,
+                [input.status, input.resolution_notes ?? null, issueId]
+            );
+
+            await insertActivityLog(client, {
+                project_id: current.project_id,
+                entity_type: "DC_ISSUE",
+                entity_id: issueId,
+                actor_email: input.actor_email,
+                action: "UPDATE_ISSUE",
+                status_before: current.status,
+                status_after: input.status,
+                metadata: { resolution_notes: input.resolution_notes }
+            });
+
+            return result.rows[0];
+        });
+    },
+
+    async listProjectBast(projectId: number): Promise<DcBastRow[]> {
+        const result = await pool.query<DcBastRow>(
+            `SELECT * FROM dc_bast WHERE project_id = $1 ORDER BY created_at DESC`,
+            [projectId]
+        );
+        return result.rows;
+    },
+
+    async createProjectBast(projectId: number, input: any): Promise<DcBastRow> {
+        return withTransaction(async (client) => {
+            const result = await client.query<DcBastRow>(
+                `INSERT INTO dc_bast (
+                    project_id, participant_id, bast_type, notes, status, created_at, updated_at
+                ) VALUES ($1, $2, $3, $4, 'DRAFT', timezone('Asia/Jakarta', now()), timezone('Asia/Jakarta', now()))
+                RETURNING *`,
+                [projectId, input.participant_id ?? null, input.bast_type, input.notes ?? null]
+            );
+
+            await insertActivityLog(client, {
+                project_id: projectId,
+                entity_type: "DC_BAST",
+                entity_id: result.rows[0].id,
+                actor_email: input.actor_email,
+                action: "CREATE_BAST",
+                status_after: 'DRAFT',
+                metadata: { bast_type: input.bast_type }
+            });
+
+            return result.rows[0];
+        });
+    },
+
+    async updateProjectBast(bastId: number, input: any): Promise<DcBastRow> {
+        return withTransaction(async (client) => {
+            const currentRes = await client.query(`SELECT project_id, status FROM dc_bast WHERE id = $1`, [bastId]);
+            const current = currentRes.rows[0];
+
+            const result = await client.query<DcBastRow>(
+                `UPDATE dc_bast 
+                 SET status = $1, 
+                     checklist = COALESCE($2, checklist),
+                     notes = COALESCE($3, notes),
+                     updated_at = timezone('Asia/Jakarta', now())
+                 WHERE id = $4
+                 RETURNING *`,
+                [input.status, input.checklist ?? null, input.notes ?? null, bastId]
+            );
+
+            await insertActivityLog(client, {
+                project_id: current.project_id,
+                entity_type: "DC_BAST",
+                entity_id: bastId,
+                actor_email: input.actor_email,
+                action: "UPDATE_BAST",
+                status_before: current.status,
+                status_after: input.status,
+            });
+
+            return result.rows[0];
+        });
+    },
+
+    async listParticipantTerms(participantId: number): Promise<{ schedules: DcTermScheduleRow[], claims: DcTermClaimRow[] }> {
+        const schedulesRes = await pool.query<DcTermScheduleRow>(
+            `SELECT * FROM dc_term_schedule WHERE participant_id = $1 ORDER BY term_no ASC`,
+            [participantId]
+        );
+        
+        let claims: DcTermClaimRow[] = [];
+        if (schedulesRes.rows.length > 0) {
+            const scheduleIds = schedulesRes.rows.map(s => s.id);
+            const claimsRes = await pool.query<DcTermClaimRow>(
+                `SELECT * FROM dc_term_claim WHERE term_schedule_id = ANY($1) ORDER BY submitted_at DESC`,
+                [scheduleIds]
+            );
+            claims = claimsRes.rows;
+        }
+
+        return { schedules: schedulesRes.rows, claims };
+    },
+
+    async addTermSchedule(participantId: number, input: any): Promise<DcTermScheduleRow> {
+        return withTransaction(async (client) => {
+            const result = await client.query<DcTermScheduleRow>(
+                `INSERT INTO dc_term_schedule (
+                    participant_id, term_no, percentage, amount, requirements, status, created_at
+                ) VALUES ($1, $2, $3, $4, $5, 'PROPOSED', timezone('Asia/Jakarta', now()))
+                RETURNING *`,
+                [participantId, input.term_no, input.percentage, input.amount, input.requirements ?? null]
+            );
+
+            await insertActivityLog(client, {
+                entity_type: "DC_TERM_SCHEDULE",
+                entity_id: result.rows[0].id,
+                actor_email: input.actor_email,
+                action: "ADD_TERM_SCHEDULE",
+                status_after: 'PROPOSED',
+                metadata: { term_no: input.term_no, amount: input.amount }
+            });
+
+            return result.rows[0];
+        });
+    },
+
+    async submitTermClaim(termId: number, input: any): Promise<DcTermClaimRow> {
+        return withTransaction(async (client) => {
+            const result = await client.query<DcTermClaimRow>(
+                `INSERT INTO dc_term_claim (
+                    term_schedule_id, claimed_amount, status, submitted_by_email, submitted_at, updated_at
+                ) VALUES ($1, $2, 'SUBMITTED', $3, timezone('Asia/Jakarta', now()), timezone('Asia/Jakarta', now()))
+                RETURNING *`,
+                [termId, input.claimed_amount, input.actor_email]
+            );
+
+            await insertActivityLog(client, {
+                entity_type: "DC_TERM_CLAIM",
+                entity_id: result.rows[0].id,
+                actor_email: input.actor_email,
+                action: "SUBMIT_TERM_CLAIM",
+                status_after: 'SUBMITTED',
+                metadata: { claimed_amount: input.claimed_amount }
+            });
+
+            return result.rows[0];
         });
     },
 

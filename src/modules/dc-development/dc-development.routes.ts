@@ -18,7 +18,24 @@ import {
     listDcProjects,
     listDcVendors,
     updateDcDocument,
-    viewDcDocument
+    viewDcDocument,
+    listDcTenders,
+    getDcTenderById,
+    inviteDcTenderParticipant,
+    submitDcTenderSubmission,
+    setDcTenderWinner,
+    listDcProjectTimelines,
+    addDcProjectTimeline,
+    updateDcProjectTimeline,
+    listDcProjectIssues,
+    addDcProjectIssue,
+    updateDcProjectIssue,
+    listDcProjectBast,
+    createDcProjectBast,
+    updateDcProjectBast,
+    listDcParticipantTerms,
+    addDcTermSchedule,
+    submitDcTermClaim
 } from "./dc-development.controller";
 
 const dcDevelopmentRouter = Router();
@@ -34,6 +51,25 @@ dcDevelopmentRouter.post("/projects", createDcProject);
 dcDevelopmentRouter.get("/projects/:id", getDcProjectById);
 dcDevelopmentRouter.post("/projects/:id/advance-stage", advanceDcProjectStage);
 dcDevelopmentRouter.post("/projects/:id/tenders", createDcTender);
+dcDevelopmentRouter.get("/projects/:id/timeline", listDcProjectTimelines);
+dcDevelopmentRouter.post("/projects/:id/timeline", addDcProjectTimeline);
+dcDevelopmentRouter.put("/projects/:id/timeline/:taskId", updateDcProjectTimeline);
+dcDevelopmentRouter.get("/projects/:id/issues", listDcProjectIssues);
+dcDevelopmentRouter.post("/projects/:id/issues", addDcProjectIssue);
+dcDevelopmentRouter.put("/projects/:id/issues/:issueId", updateDcProjectIssue);
+dcDevelopmentRouter.get("/projects/:id/bast", listDcProjectBast);
+dcDevelopmentRouter.post("/projects/:id/bast", createDcProjectBast);
+dcDevelopmentRouter.put("/projects/:id/bast/:bastId", updateDcProjectBast);
+
+dcDevelopmentRouter.get("/tenders", listDcTenders);
+dcDevelopmentRouter.get("/tenders/:id", getDcTenderById);
+dcDevelopmentRouter.post("/tenders/:id/participants", inviteDcTenderParticipant);
+dcDevelopmentRouter.post("/tenders/:id/submissions", submitDcTenderSubmission);
+dcDevelopmentRouter.post("/tenders/:id/winner", setDcTenderWinner);
+
+dcDevelopmentRouter.get("/tenders/participants/:participantId/terms", listDcParticipantTerms);
+dcDevelopmentRouter.post("/tenders/participants/:participantId/terms", addDcTermSchedule);
+dcDevelopmentRouter.post("/tenders/participants/terms/:termId/claim", submitDcTermClaim);
 
 dcDevelopmentRouter.get("/archive-projects", listDcArchiveProjects);
 dcDevelopmentRouter.post("/archive-projects", createDcArchiveProject);

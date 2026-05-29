@@ -58,6 +58,87 @@ export const createDcTenderSchema = z.object({
     created_by_email: z.string().email().optional()
 });
 
+export const dcTenderListQuerySchema = z.object({
+    project_id: z.coerce.number().int().positive().optional(),
+    tender_type: z.string().optional(),
+    status: z.string().optional()
+});
+
+export const inviteDcTenderParticipantSchema = z.object({
+    vendor_company_id: z.coerce.number().int().positive(),
+    invited_by_email: z.string().email().optional()
+});
+
+export const submitDcTenderSubmissionSchema = z.object({
+    submission_type: z.string().trim().min(1),
+    submitted_offer_amount: z.coerce.number().nonnegative().optional(),
+    notes: z.string().trim().optional(),
+    submitted_by_email: z.string().email().optional()
+});
+
+export const setDcTenderWinnerSchema = z.object({
+    participant_id: z.coerce.number().int().positive(),
+    actor_email: z.string().email(),
+    actor_role: z.string().trim().min(1)
+});
+
+
+export const createDcTimelineSchema = z.object({
+    task_name: z.string().trim().min(1),
+    start_date: z.string().datetime().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)),
+    end_date: z.string().datetime().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)),
+    assigned_to_email: z.string().email().optional(),
+    actor_email: z.string().email().optional()
+});
+
+export const updateDcTimelineSchema = z.object({
+    progress_percent: z.coerce.number().min(0).max(100).optional(),
+    status: z.string().trim().optional(),
+    actor_email: z.string().email().optional()
+});
+
+export const createDcIssueSchema = z.object({
+    issue_type: z.string().trim().min(1),
+    title: z.string().trim().min(1),
+    description: z.string().trim().min(1),
+    severity: z.string().trim().min(1),
+    assigned_to_email: z.string().email().optional(),
+    actor_email: z.string().email()
+});
+
+export const updateDcIssueSchema = z.object({
+    status: z.string().trim(),
+    resolution_notes: z.string().trim().optional(),
+    actor_email: z.string().email()
+});
+
+export const createDcBastSchema = z.object({
+    bast_type: z.string().trim().min(1),
+    participant_id: z.coerce.number().optional(),
+    notes: z.string().trim().optional(),
+    actor_email: z.string().email()
+});
+
+export const updateDcBastSchema = z.object({
+    status: z.string().trim(),
+    checklist: z.record(z.any()).optional(),
+    notes: z.string().trim().optional(),
+    actor_email: z.string().email()
+});
+
+export const createDcTermScheduleSchema = z.object({
+    term_no: z.coerce.number().min(1),
+    percentage: z.coerce.number().min(0.01).max(100),
+    amount: z.coerce.number().min(0),
+    requirements: z.string().trim().optional(),
+    actor_email: z.string().email()
+});
+
+export const submitDcTermClaimSchema = z.object({
+    claimed_amount: z.coerce.number().min(0),
+    actor_email: z.string().email()
+});
+
 export const dcApprovalListQuerySchema = z.object({
     status: z.string().optional(),
     required_role: z.string().optional(),
@@ -127,6 +208,21 @@ export type AdvanceDcProjectStageInput = z.infer<typeof advanceDcProjectStageSch
 export type CreateDcVendorInput = z.infer<typeof createDcVendorSchema>;
 export type CreateDcVendorUserInput = z.infer<typeof createDcVendorUserSchema>;
 export type CreateDcTenderInput = z.infer<typeof createDcTenderSchema>;
+export type DcTenderListQuery = z.infer<typeof dcTenderListQuerySchema>;
+export type InviteDcTenderParticipantInput = z.infer<typeof inviteDcTenderParticipantSchema>;
+export type SubmitDcTenderSubmissionInput = z.infer<typeof submitDcTenderSubmissionSchema>;
+export type SetDcTenderWinnerInput = z.infer<typeof setDcTenderWinnerSchema>;
+
+export type CreateDcTimelineInput = z.infer<typeof createDcTimelineSchema>;
+export type UpdateDcTimelineInput = z.infer<typeof updateDcTimelineSchema>;
+export type CreateDcIssueInput = z.infer<typeof createDcIssueSchema>;
+export type UpdateDcIssueInput = z.infer<typeof updateDcIssueSchema>;
+
+export type CreateDcBastInput = z.infer<typeof createDcBastSchema>;
+export type UpdateDcBastInput = z.infer<typeof updateDcBastSchema>;
+export type CreateDcTermScheduleInput = z.infer<typeof createDcTermScheduleSchema>;
+export type SubmitDcTermClaimInput = z.infer<typeof submitDcTermClaimSchema>;
+
 export type DcApprovalListQuery = z.infer<typeof dcApprovalListQuerySchema>;
 export type DcDocumentListQuery = z.infer<typeof dcDocumentListQuerySchema>;
 export type CreateDcDocumentInput = z.infer<typeof createDcDocumentSchema>;

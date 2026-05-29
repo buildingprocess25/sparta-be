@@ -13,6 +13,18 @@ import {
     dcArchiveProjectListQuerySchema,
     dcDocumentListQuerySchema,
     dcProjectListQuerySchema,
+    dcTenderListQuerySchema,
+    inviteDcTenderParticipantSchema,
+    submitDcTenderSubmissionSchema,
+    setDcTenderWinnerSchema,
+    createDcTimelineSchema,
+    updateDcTimelineSchema,
+    createDcIssueSchema,
+    updateDcIssueSchema,
+    createDcBastSchema,
+    updateDcBastSchema,
+    createDcTermScheduleSchema,
+    submitDcTermClaimSchema,
     updateDcDocumentSchema
 } from "./dc-development.schema";
 import { dcDevelopmentService, type UploadedDcDocumentFile } from "./dc-development.service";
@@ -75,6 +87,148 @@ export const createDcTender = asyncHandler(async (req: Request, res: Response) =
     res.status(201).json({
         status: "success",
         message: "Tender DC berhasil dibuat",
+        data
+    });
+});
+
+export const listDcTenders = asyncHandler(async (req: Request, res: Response) => {
+    const query = dcTenderListQuerySchema.parse(req.query);
+    const data = await dcDevelopmentService.listTenders(query);
+    res.json({ status: "success", data });
+});
+
+export const getDcTenderById = asyncHandler(async (req: Request, res: Response) => {
+    const data = await dcDevelopmentService.getTenderById(req.params.id);
+    res.json({ status: "success", data });
+});
+
+export const inviteDcTenderParticipant = asyncHandler(async (req: Request, res: Response) => {
+    const input = inviteDcTenderParticipantSchema.parse(req.body);
+    const data = await dcDevelopmentService.inviteTenderParticipant(req.params.id, input);
+    res.status(201).json({
+        status: "success",
+        message: "Vendor berhasil diundang ke tender",
+        data
+    });
+});
+
+export const submitDcTenderSubmission = asyncHandler(async (req: Request, res: Response) => {
+    const input = submitDcTenderSubmissionSchema.parse(req.body);
+    // Allow participant_id from body if exists (for internal user testing)
+    const data = await dcDevelopmentService.submitTenderSubmission(req.params.id, { ...input, participant_id: req.body.participant_id });
+    res.status(201).json({
+        status: "success",
+        message: "Penawaran tender berhasil disubmit",
+        data
+    });
+});
+
+export const setDcTenderWinner = asyncHandler(async (req: Request, res: Response) => {
+    const input = setDcTenderWinnerSchema.parse(req.body);
+    const data = await dcDevelopmentService.setTenderWinner(req.params.id, input);
+    res.json({
+        status: "success",
+        message: "Pemenang tender berhasil ditetapkan",
+        data
+    });
+});
+
+export const listDcProjectTimelines = asyncHandler(async (req: Request, res: Response) => {
+    const data = await dcDevelopmentService.listProjectTimelines(req.params.id);
+    res.json({ status: "success", data });
+});
+
+export const addDcProjectTimeline = asyncHandler(async (req: Request, res: Response) => {
+    const input = createDcTimelineSchema.parse(req.body);
+    const data = await dcDevelopmentService.addProjectTimeline(req.params.id, input);
+    res.status(201).json({
+        status: "success",
+        message: "Task timeline berhasil ditambahkan",
+        data
+    });
+});
+
+export const updateDcProjectTimeline = asyncHandler(async (req: Request, res: Response) => {
+    const input = updateDcTimelineSchema.parse(req.body);
+    const data = await dcDevelopmentService.updateProjectTimeline(req.params.taskId, input);
+    res.json({
+        status: "success",
+        message: "Task timeline berhasil diupdate",
+        data
+    });
+});
+
+export const listDcProjectIssues = asyncHandler(async (req: Request, res: Response) => {
+    const data = await dcDevelopmentService.listProjectIssues(req.params.id);
+    res.json({ status: "success", data });
+});
+
+export const addDcProjectIssue = asyncHandler(async (req: Request, res: Response) => {
+    const input = createDcIssueSchema.parse(req.body);
+    const data = await dcDevelopmentService.addProjectIssue(req.params.id, input);
+    res.status(201).json({
+        status: "success",
+        message: "Issue berhasil dilaporkan",
+        data
+    });
+});
+
+export const updateDcProjectIssue = asyncHandler(async (req: Request, res: Response) => {
+    const input = updateDcIssueSchema.parse(req.body);
+    const data = await dcDevelopmentService.updateProjectIssue(req.params.issueId, input);
+    res.json({
+        status: "success",
+        message: "Issue berhasil diupdate",
+        data
+    });
+});
+
+export const listDcProjectBast = asyncHandler(async (req: Request, res: Response) => {
+    const data = await dcDevelopmentService.listProjectBast(req.params.id);
+    res.json({ status: "success", data });
+});
+
+export const createDcProjectBast = asyncHandler(async (req: Request, res: Response) => {
+    const input = createDcBastSchema.parse(req.body);
+    const data = await dcDevelopmentService.createProjectBast(req.params.id, input);
+    res.status(201).json({
+        status: "success",
+        message: "BAST berhasil dibuat",
+        data
+    });
+});
+
+export const updateDcProjectBast = asyncHandler(async (req: Request, res: Response) => {
+    const input = updateDcBastSchema.parse(req.body);
+    const data = await dcDevelopmentService.updateProjectBast(req.params.bastId, input);
+    res.json({
+        status: "success",
+        message: "BAST berhasil diupdate",
+        data
+    });
+});
+
+export const listDcParticipantTerms = asyncHandler(async (req: Request, res: Response) => {
+    const data = await dcDevelopmentService.listParticipantTerms(req.params.participantId);
+    res.json({ status: "success", data });
+});
+
+export const addDcTermSchedule = asyncHandler(async (req: Request, res: Response) => {
+    const input = createDcTermScheduleSchema.parse(req.body);
+    const data = await dcDevelopmentService.addTermSchedule(req.params.participantId, input);
+    res.status(201).json({
+        status: "success",
+        message: "Jadwal Termin berhasil ditambahkan",
+        data
+    });
+});
+
+export const submitDcTermClaim = asyncHandler(async (req: Request, res: Response) => {
+    const input = submitDcTermClaimSchema.parse(req.body);
+    const data = await dcDevelopmentService.submitTermClaim(req.params.termId, input);
+    res.status(201).json({
+        status: "success",
+        message: "Klaim Termin berhasil diajukan",
         data
     });
 });

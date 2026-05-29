@@ -125,7 +125,9 @@ const imageBufferToPdfDataUrl = async (buffer: Buffer, mimeType?: string | null)
     try {
         const normalized = await sharp(buffer, { failOn: "none" })
             .rotate()
-            .jpeg({ quality: 84, mozjpeg: true })
+            // Kurangi quality dari 84 → 75 agar base64 lebih kecil di memori
+            .jpeg({ quality: 75, mozjpeg: true })
+            .resize({ width: 1280, withoutEnlargement: true })
             .toBuffer();
 
         return `data:image/jpeg;base64,${normalized.toString("base64")}`;
@@ -284,12 +286,14 @@ const buildPengawasanPdfBuffer = async (
     tanggalPengawasan: string
 ): Promise<Buffer> => {
     const rawItems = await pengawasanRepository.findAllPengawasanByGanttId(idPengawasanGantt);
-    const items = await Promise.all(
-        rawItems.map(async (item) => ({
+    // Sequential (bukan Promise.all) agar tidak semua foto di-decode ke memori sekaligus
+    const items: (typeof rawItems[number] & { dokumentasi_base64: string | null })[] = [];
+    for (const item of rawItems) {
+        items.push({
             ...item,
             dokumentasi_base64: await resolvePengawasanPhotoBase64(item)
-        }))
-    );
+        });
+    }
 
     if (items.length === 0) {
         throw new AppError("Data pengawasan belum memiliki item", 404);
@@ -445,26 +449,27 @@ export const pengawasanService = {
         try {
             const resolvedGanttIds = new Map<number, { idPengawasanGantt: number; tanggal: string }>();
 
-            const basePayloads = await Promise.all(
-                items.map(async (item, index): Promise<CreatePengawasanData> => {
-                    const idPengawasanGantt = await resolvePengawasanGanttId(
-                        item.id_gantt,
-                        item.tanggal_pengawasan,
-                        index
-                    );
+            // Sequential (bukan Promise.all) agar query ke DB tidak meledak paralel
+            const basePayloads: CreatePengawasanData[] = [];
+            for (let index = 0; index < items.length; index++) {
+                const item = items[index];
+                const idPengawasanGantt = await resolvePengawasanGanttId(
+                    item.id_gantt,
+                    item.tanggal_pengawasan,
+                    index
+                );
 
-                    resolvedGanttIds.set(idPengawasanGantt, {
-                        idPengawasanGantt,
-                        tanggal: normalizeTanggalPengawasan(item.tanggal_pengawasan)
-                    });
+                resolvedGanttIds.set(idPengawasanGantt, {
+                    idPengawasanGantt,
+                    tanggal: normalizeTanggalPengawasan(item.tanggal_pengawasan)
+                });
 
-                    const { tanggal_pengawasan: _tanggalPengawasan, ...itemWithoutTanggal } = item;
-                    return {
-                        ...itemWithoutTanggal,
-                        id_pengawasan_gantt: idPengawasanGantt
-                    };
-                })
-            );
+                const { tanggal_pengawasan: _tanggalPengawasan, ...itemWithoutTanggal } = item;
+                basePayloads.push({
+                    ...itemWithoutTanggal,
+                    id_pengawasan_gantt: idPengawasanGantt
+                });
+            }
 
             let rows: PengawasanRow[];
 
@@ -696,6 +701,9 @@ export const pengawasanService = {
 
             const usedIds = new Set<number>();
             const updatedRows: PengawasanRow[] = [];
+            // Kumpulkan id_pengawasan_gantt yang unik agar PDF hanya digenerate
+            // sekali per tanggal, bukan sekali per item (mencegah OOM)
+            const ganttIdsToRegenerate = new Set<number>();
 
             for (let index = 0; index < items.length; index++) {
                 const item = items[index];
@@ -736,9 +744,19 @@ export const pengawasanService = {
                     throw new AppError(`Data pengawasan tidak ditemukan pada items[${index}] (id=${id})`, 404);
                 }
 
-                await regeneratePengawasanPdfForRow(data);
-
+                // Tandai id_pengawasan_gantt untuk regenerasi PDF di akhir (deduplication)
+                ganttIdsToRegenerate.add(data.id_pengawasan_gantt);
                 updatedRows.push(data);
+            }
+
+            // Generate PDF sekali per id_pengawasan_gantt (fire-and-forget)
+            // Ini mencegah N concurrent PDF generation yang bisa crash server
+            for (const pgId of ganttIdsToRegenerate) {
+                const representativeRow = updatedRows.find(r => r.id_pengawasan_gantt === pgId);
+                if (representativeRow) {
+                    regeneratePengawasanPdfForRow(representativeRow)
+                        .catch((err) => console.error("[berkas_pengawasan] bulk regenerate error:", err));
+                }
             }
 
             return updatedRows;
