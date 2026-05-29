@@ -114,7 +114,7 @@ export const serahTerimaService = {
         }
 
         const { toko, opnameFinal, items } = await buildDetailByTokoId(berkas.id_toko);
-        const buffer = await buildSerahTerimaPdfBuffer({ toko, opname_final: opnameFinal, items });
+        const buffer = await buildSerahTerimaPdfBuffer({ toko, opname_final: opnameFinal, items }, berkas.created_at);
         const proyek = sanitizeFilenamePart(toko.proyek ?? undefined, "PROYEK");
         const nomorUlok = sanitizeFilenamePart(toko.nomor_ulok ?? undefined, "ULOK");
 
