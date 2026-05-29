@@ -98,22 +98,22 @@ const buildAssessmentSummary = (items: SerahTerimaDetail["items"]) => {
         {
             label: "Desain Sesuai",
             value: `${desainSesuai} dari ${total}`,
-            detail: total > 0 ? `Nilai ${nilaiDesain.toFixed(1)} dari bobot 30` : "Belum ada item"
+            detail: ""
         },
         {
             label: "Kualitas Baik",
             value: `${kualitasBaik} dari ${total}`,
-            detail: total > 0 ? `Nilai ${nilaiKualitas.toFixed(1)} dari bobot 35` : "Belum ada item"
+            detail: ""
         },
         {
             label: "Spesifikasi Sesuai",
             value: `${spesifikasiSesuai} dari ${total}`,
-            detail: total > 0 ? `Nilai ${nilaiSpesifikasi.toFixed(1)} dari bobot 35` : "Belum ada item"
+            detail: ""
         },
         {
             label: "Nilai Toko",
             value: `${nilaiToko.toFixed(1)} / 100`,
-            detail: "Bobot: desain 30, kualitas 35, spesifikasi 35"
+            detail: ""
         },
     ];
 };
@@ -148,7 +148,7 @@ export const buildSerahTerimaPdfBuffer = async (detail: SerahTerimaDetail, tangg
         grand_total_opname_formatted: rupiah(grandTotalOpname),
         grand_total_rab_formatted: rupiah(grandTotalRab),
         selisih_total_formatted: rupiah(grandTotalOpname - grandTotalRab),
-        created_at_formatted: formatDateIndonesia(detail.opname_final.created_at),
+        created_at_formatted: formatDateIndonesia(tanggalAktual ? new Date(tanggalAktual).toISOString() : new Date().toISOString()),
         watermark_logo_path: staticAssetPath("Building-Logo.png"),
     });
 
