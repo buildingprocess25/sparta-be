@@ -91,7 +91,7 @@ export const serahTerimaService = {
 
         // 6. Simpan link di tabel berkas_serah_terima
         const berkas = await serahTerimaRepository.upsertBerkasSerahTerima(idToko, linkPdf, tanggalAktual);
-        
+
         // 7. Regenerate Opname Final PDF since penalty was updated
         const opnameFinalRefreshed = await opnameFinalService.refreshDendaAndPdfById(String(opnameFinal.id));
 
