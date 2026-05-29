@@ -118,14 +118,14 @@ const buildAssessmentSummary = (items: SerahTerimaDetail["items"]) => {
     ];
 };
 
-export const buildSerahTerimaPdfBuffer = async (detail: SerahTerimaDetail): Promise<Buffer> => {
+export const buildSerahTerimaPdfBuffer = async (detail: SerahTerimaDetail, tanggalAktual?: string): Promise<Buffer> => {
     const templatePath = await resolveTemplatePath("serah_terima_report.njk");
 
     const grandTotalOpname = toNumber(detail.opname_final.grand_total_opname);
     const grandTotalRab = toNumber(detail.opname_final.grand_total_rab);
 
     const html = await renderHtmlTemplate(templatePath, {
-        generated_at: formatDateIndonesia(new Date().toISOString()),
+        generated_at: formatDateIndonesia(tanggalAktual ? new Date(tanggalAktual).toISOString() : new Date().toISOString()),
         opname_final: detail.opname_final,
         toko: detail.toko,
         items: detail.items.map((item) => ({

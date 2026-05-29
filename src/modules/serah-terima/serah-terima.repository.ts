@@ -247,6 +247,18 @@ export const serahTerimaRepository = {
         return result.rows;
     },
 
+    async upsertTanggalAktual(idToko: number, tanggalAktual: string): Promise<void> {
+        const existing = await pool.query(
+            `SELECT id FROM berkas_serah_terima WHERE id_toko = $1 ORDER BY id DESC LIMIT 1`,
+            [idToko]
+        );
+        if ((existing.rowCount ?? 0) > 0) {
+            await pool.query(`UPDATE berkas_serah_terima SET created_at = $1 WHERE id = $2`, [tanggalAktual, existing.rows[0].id]);
+        } else {
+            await pool.query(`INSERT INTO berkas_serah_terima (id_toko, created_at) VALUES ($1, $2)`, [idToko, tanggalAktual]);
+        }
+    },
+
     async upsertBerkasSerahTerima(idToko: number, linkPdf: string, tanggalAktual?: string): Promise<BerkasSerahTerimaRow> {
         const existing = await pool.query<BerkasSerahTerimaRow>(
             `

@@ -71,10 +71,16 @@ export const serahTerimaService = {
     },
 
     async createPdfSerahTerima(idToko: number, tanggalAktual?: string) {
-        const { toko, opnameFinal, items } = await buildDetailByTokoId(idToko);
+        if (tanggalAktual) {
+            await serahTerimaRepository.upsertTanggalAktual(idToko, tanggalAktual);
+        }
 
+        // 1. Refresh denda HANYA dengan tanggal terbaru di berkas
+        const refreshedOpnameFinal = await opnameFinalService.refreshDendaByTokoId(idToko);
+
+        const { toko, opnameFinal, items } = await buildDetailByTokoId(idToko);
         const detail = { toko, opname_final: opnameFinal, items };
-        const pdfBuffer = await buildSerahTerimaPdfBuffer(detail);
+        const pdfBuffer = await buildSerahTerimaPdfBuffer(detail, tanggalAktual);
 
         // 5. Upload ke Google Drive
         const proyek = sanitizeFilenamePart(toko.proyek ?? undefined, "PROYEK");
@@ -85,14 +91,16 @@ export const serahTerimaService = {
 
         // 6. Simpan link di tabel berkas_serah_terima
         const berkas = await serahTerimaRepository.upsertBerkasSerahTerima(idToko, linkPdf, tanggalAktual);
-        const refreshedOpnameFinal = await opnameFinalService.refreshDendaAndPdfById(String(opnameFinal.id));
+        
+        // 7. Regenerate Opname Final PDF since penalty was updated
+        const opnameFinalRefreshed = await opnameFinalService.refreshDendaAndPdfById(String(opnameFinal.id));
 
         return {
             id: berkas.id,
             id_toko: idToko,
             link_pdf: linkPdf,
             opname_final_id: opnameFinal.id,
-            link_pdf_opname: refreshedOpnameFinal.link_pdf_opname,
+            link_pdf_opname: opnameFinalRefreshed.link_pdf_opname,
             item_count: items.length,
             created_at: berkas.created_at,
             toko,
