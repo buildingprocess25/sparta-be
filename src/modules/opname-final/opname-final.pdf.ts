@@ -22,11 +22,23 @@ const roundUpTenThousand = (value: number): number => {
     return sign * Math.ceil(Math.abs(numeric) / 10000) * 10000;
 };
 
-const buildFinancialSummary = (total: number, direction: "down" | "up") => {
+const normalizeNoPpnText = (value?: string | null): string => String(value ?? "").trim().toUpperCase();
+
+const isNoPpnArea = (toko: { cabang?: string | null; nama_toko?: string | null; alamat?: string | null }): boolean => {
+    const identity = [
+        toko.cabang,
+        toko.nama_toko,
+        toko.alamat,
+    ].map(normalizeNoPpnText);
+
+    return identity.some(value => value === "BATAM" || value === "BINTAN" || /\bBATAM\b|\bBINTAN\b/.test(value));
+};
+
+const buildFinancialSummary = (total: number, direction: "down" | "up", noPpn = false) => {
     const pembulatan = direction === "down"
         ? roundDownTenThousand(total)
         : roundUpTenThousand(total);
-    const ppn = Math.round(pembulatan * 0.11);
+    const ppn = noPpn ? 0 : Math.round(pembulatan * 0.11);
     const grandTotal = pembulatan + ppn;
 
     return {
@@ -121,7 +133,7 @@ const resolveOpnameSatuan = (item: OpnameFinalItemRow): string => {
         .trim() || "-";
 };
 
-const buildOpnameGroupedItems = (items: OpnameFinalItemRow[]): GroupedItems<OpnameItemView> => {
+const buildOpnameGroupedItems = (items: OpnameFinalItemRow[], noPpn = false): GroupedItems<OpnameItemView> => {
     const grouped = new Map<string, OpnameItemView[]>();
     const totals = new Map<string, number>();
 
@@ -151,12 +163,13 @@ const buildOpnameGroupedItems = (items: OpnameFinalItemRow[]): GroupedItems<Opna
     return Array.from(grouped.entries()).map(([category, groupedItems]) => ({
         category,
         items: groupedItems,
-        summary: buildFinancialSummary(totals.get(category) ?? 0, "up")
+        summary: buildFinancialSummary(totals.get(category) ?? 0, "up", noPpn)
     }));
 };
 
 const buildInstruksiLapanganGroups = (
-    items: InstruksiLapanganItemRow[]
+    items: InstruksiLapanganItemRow[],
+    noPpn = false
 ): GroupedItems<InstruksiLapanganItemView> => {
     const grouped = new Map<string, InstruksiLapanganItemView[]>();
     const totals = new Map<string, number>();
@@ -186,11 +199,11 @@ const buildInstruksiLapanganGroups = (
     return Array.from(grouped.entries()).map(([category, groupedItems]) => ({
         category,
         items: groupedItems,
-        summary: buildFinancialSummary(totals.get(category) ?? 0, "up")
+        summary: buildFinancialSummary(totals.get(category) ?? 0, "up", noPpn)
     }));
 };
 
-const buildRabGroupedItems = (items: RabItemRow[]): GroupedItems<RabItemView> => {
+const buildRabGroupedItems = (items: RabItemRow[], noPpn = false): GroupedItems<RabItemView> => {
     const grouped = new Map<string, RabItemView[]>();
     const totals = new Map<string, number>();
 
@@ -220,7 +233,7 @@ const buildRabGroupedItems = (items: RabItemRow[]): GroupedItems<RabItemView> =>
     return Array.from(grouped.entries()).map(([category, groupedItems]) => ({
         category,
         items: groupedItems,
-        summary: buildFinancialSummary(totals.get(category) ?? 0, "down")
+        summary: buildFinancialSummary(totals.get(category) ?? 0, "down", noPpn)
     }));
 };
 
@@ -292,6 +305,7 @@ export const buildOpnameFinalPdfBuffer = async (
     rabData?: { header: RabRow | null; items: RabItemRow[] }
 ): Promise<Buffer> => {
     const templatePath = await resolveTemplatePath("opname_final_report.njk");
+    const noPpn = isNoPpnArea(detail.toko);
 
     const grandTotalOpname = toNumber(detail.opname_final.grand_total_opname);
     const grandTotalRab = toNumber(detail.opname_final.grand_total_rab);
@@ -313,10 +327,10 @@ export const buildOpnameFinalPdfBuffer = async (
     const grandTotalKerjaKurang = sumOpnameTotalSelisih(kerjaKurangItems);
     const nilaiDenda = toNumber(detail.opname_final.nilai_denda);
     const hariDenda = Number(detail.opname_final.hari_denda ?? 0) || 0;
-    const rabSummary = buildFinancialSummary(totalRabItems, "down");
-    const instruksiLapanganSummary = buildFinancialSummary(grandTotalIl, "up");
-    const kerjaTambahSummary = buildFinancialSummary(grandTotalKerjaTambah, "up");
-    const kerjaKurangSummary = buildFinancialSummary(grandTotalKerjaKurang, "up");
+    const rabSummary = buildFinancialSummary(totalRabItems, "down", noPpn);
+    const instruksiLapanganSummary = buildFinancialSummary(grandTotalIl, "up", noPpn);
+    const kerjaTambahSummary = buildFinancialSummary(grandTotalKerjaTambah, "up", noPpn);
+    const kerjaKurangSummary = buildFinancialSummary(grandTotalKerjaKurang, "up", noPpn);
     const selisihKerjaTambahKurang = kerjaTambahSummary.grand_total - Math.abs(kerjaKurangSummary.grand_total);
     const totalOpnameFinal = rabSummary.grand_total
         + instruksiLapanganSummary.grand_total
@@ -331,12 +345,12 @@ export const buildOpnameFinalPdfBuffer = async (
         header_left_logo_path: staticAssetPath("Alfamart-Emblem.png"),
         header_right_logo_path: staticAssetPath("Building-Logo.png"),
         watermark_logo_path: staticAssetPath("Building-Logo.png"),
-        grouped_items_list: buildOpnameGroupedItems(opnameItems),
-        rab_grouped_items_list: buildRabGroupedItems(rabItems),
-        instruksi_lapangan_groups: buildInstruksiLapanganGroups(instruksiLapanganItems),
-        kerja_tambah_groups: buildOpnameGroupedItems(kerjaTambahItems),
-        kerja_kurang_groups: buildOpnameGroupedItems(kerjaKurangItems),
-        opname_summary: buildFinancialSummary(totalOpnameSelisih, "up"),
+        grouped_items_list: buildOpnameGroupedItems(opnameItems, noPpn),
+        rab_grouped_items_list: buildRabGroupedItems(rabItems, noPpn),
+        instruksi_lapangan_groups: buildInstruksiLapanganGroups(instruksiLapanganItems, noPpn),
+        kerja_tambah_groups: buildOpnameGroupedItems(kerjaTambahItems, noPpn),
+        kerja_kurang_groups: buildOpnameGroupedItems(kerjaKurangItems, noPpn),
+        opname_summary: buildFinancialSummary(totalOpnameSelisih, "up", noPpn),
         rab_summary: rabSummary,
         instruksi_lapangan_summary: instruksiLapanganSummary,
         kerja_tambah_summary: kerjaTambahSummary,

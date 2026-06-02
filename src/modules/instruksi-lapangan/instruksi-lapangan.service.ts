@@ -47,6 +47,18 @@ async function uploadPdfToDrive(buffer: Buffer, filename: string): Promise<strin
     return result.webViewLink ?? `https://drive.google.com/file/d/${result.id}/view`;
 }
 
+const normalizeNoPpnText = (value?: string | null): string => String(value ?? "").trim().toUpperCase();
+
+const isNoPpnArea = (toko: { cabang?: string | null; nama_toko?: string | null; alamat?: string | null }): boolean => {
+    const identity = [
+        toko.cabang,
+        toko.nama_toko,
+        toko.alamat,
+    ].map(normalizeNoPpnText);
+
+    return identity.some(value => value === "BATAM" || value === "BINTAN" || /\bBATAM\b|\bBINTAN\b/.test(value));
+};
+
 export const instruksiLapanganService = {
     async submit(
         payload: SubmitInstruksiLapanganInput,
@@ -103,7 +115,7 @@ export const instruksiLapanganService = {
 
         const items = await instruksiLapanganRepository.getItems(idIL);
         
-        const isBatamBranch = (data.toko.cabang || "").toUpperCase() === "BATAM" || (data.toko.cabang || "").toUpperCase() === "BINTAN";
+        const noPpn = isNoPpnArea(data.toko);
 
         const reportBuffer = await buildInstruksiLapanganPdfBuffer({
             instruksiLapangan: data.instruksiLapangan,
@@ -144,7 +156,7 @@ export const instruksiLapanganService = {
 
         const total = items.reduce((acc, item) => acc + Number(item.total_harga || 0), 0);
         const roundedDown = Math.floor(total / 10000) * 10000;
-        const ppn = isBatamBranch ? 0 : roundedDown * 0.11;
+        const ppn = noPpn ? 0 : roundedDown * 0.11;
         const finalTotal = roundedDown + ppn;
 
         await instruksiLapanganRepository.updatePdfLinks(idIL, {

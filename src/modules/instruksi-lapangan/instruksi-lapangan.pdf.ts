@@ -106,21 +106,29 @@ const buildGroupedItems = (items: InstruksiLapanganItemRow[]) => {
     }));
 };
 
-const isBatamBranch = (cabang?: string | null): boolean => {
-    const normalizedCabang = String(cabang ?? "").trim().toUpperCase();
-    return normalizedCabang === "BATAM" || normalizedCabang === "BINTAN";
+const normalizeNoPpnText = (value?: string | null): string => String(value ?? "").trim().toUpperCase();
+
+const isNoPpnArea = (toko: { cabang?: string | null; nama_toko?: string | null; alamat?: string | null }): boolean => {
+    const identity = [
+        toko.cabang,
+        toko.nama_toko,
+        toko.alamat,
+    ].map(normalizeNoPpnText);
+
+    return identity.some(value => value === "BATAM" || value === "BINTAN" || /\bBATAM\b|\bBINTAN\b/.test(value));
 };
 
-const computeRecapTotals = (total: number, cabang?: string | null) => {
+const computeRecapTotals = (total: number, noPpn = false) => {
     const roundedDown = Math.floor(total / 10000) * 10000;
-    const ppn = isBatamBranch(cabang) ? 0 : roundedDown * 0.11;
+    const ppn = noPpn ? 0 : roundedDown * 0.11;
     const finalTotal = roundedDown + ppn;
     return { roundedDown, ppn, finalTotal };
 };
 
 export const buildInstruksiLapanganPdfBuffer = async (input: BuildInstruksiLapanganPdfInput): Promise<Buffer> => {
     const total = input.items.reduce((acc, item) => acc + Number(item.total_harga || 0), 0);
-    const recap = computeRecapTotals(total, input.toko.cabang);
+    const noPpn = isNoPpnArea(input.toko);
+    const recap = computeRecapTotals(total, noPpn);
     const templatePath = await resolveTemplatePath("instruksi_lapangan_report.njk");
 
     const html = await renderHtmlTemplate(templatePath, {
@@ -140,7 +148,7 @@ export const buildInstruksiLapanganPdfBuffer = async (input: BuildInstruksiLapan
         watermark_logo_path: staticAssetPath("Building-Logo.png"),
         tanggal_pengajuan: formatDateIndonesia(input.instruksiLapangan.created_at),
         nama_pt: input.toko.nama_kontraktor || "NAMA PT. KONTRAKTOR TIDAK ADA",
-        is_batam_branch: isBatamBranch(input.toko.cabang),
+        is_batam_branch: noPpn,
         creator_details: approvalDetails(input.instruksiLapangan.email_pembuat, input.instruksiLapangan.created_at),
         coordinator_approval_details: approvalDetails(
             input.instruksiLapangan.pemberi_persetujuan_koordinator,
@@ -179,7 +187,7 @@ export const buildInstruksiLapanganRecapPdfBuffer = async (input: BuildInstruksi
     }));
 
     const grandTotal = category_totals_list.reduce((acc, row) => acc + row.totalRaw, 0);
-    const recap = computeRecapTotals(grandTotal, input.toko.cabang);
+    const recap = computeRecapTotals(grandTotal, isNoPpnArea(input.toko));
 
     const html = await renderHtmlTemplate(templatePath, {
         data: {
