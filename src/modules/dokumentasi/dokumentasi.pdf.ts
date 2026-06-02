@@ -69,7 +69,7 @@ const gdriveUrlToBase64 = async (url: string | null | undefined): Promise<string
         let mime = "image/jpeg";
         if (head[0] === 0x89 && head[1] === 0x50) mime = "image/png";
         else if (head[0] === 0x47 && head[1] === 0x49) mime = "image/gif";
-        else if (head[0] === 0x25 && head[1] === 0x50) mime = "application/pdf";
+        else if (head[0] === 0x25 && head[1] === 0x50) return null;
         return `data:${mime};base64,${buffer.toString("base64")}`;
     } catch {
         return null;
