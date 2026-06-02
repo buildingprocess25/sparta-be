@@ -22,6 +22,7 @@ Base URL: `/api/dok`
 ## Struktur Tabel `dokumentasi_bangunan`
 
 - `id` (PK)
+- `jenis_toko` (varchar, `REGULAR` / `FRANCHISE`, default `REGULAR`)
 - `nomor_ulok` (varchar)
 - `nama_toko` (varchar)
 - `kode_toko` (varchar)
@@ -52,6 +53,7 @@ Base URL: `/api/dok`
 
 - Saat create dokumentasi bangunan, sistem otomatis generate PDF foto per item, upload ke Google Drive, lalu simpan link ke `dokumentasi_bangunan.link_pdf`.
 - Jika butuh regenerate PDF, gunakan endpoint `/api/dok/bangunan/:id/pdf`.
+- `jenis_toko=REGULAR` berarti data identitas toko berasal dari pilihan ULOK/RAB. `jenis_toko=FRANCHISE` berarti data identitas toko diinput manual dan tidak membuat/membutuhkan data RAB.
 
 ---
 
@@ -71,6 +73,7 @@ Contoh fields:
 
 ```
 nomor_ulok=ULOK-123
+jenis_toko=REGULAR
 nama_toko=Alfamart Batam
 kode_toko=ABT001
 cabang=BATAM
@@ -99,6 +102,7 @@ foto_items_2=<file>
   "data": {
     "dokumentasi": {
       "id": 1,
+      "jenis_toko": "REGULAR",
       "nomor_ulok": "ULOK-123",
       "nama_toko": "Alfamart Batam",
       "kode_toko": "ABT001",
@@ -155,6 +159,7 @@ foto_items_2=<file>
   "data": [
     {
       "id": 1,
+      "jenis_toko": "REGULAR",
       "nomor_ulok": "ULOK-123",
       "nama_toko": "Alfamart Batam",
       "kode_toko": "ABT001",
@@ -191,6 +196,7 @@ foto_items_2=<file>
   "data": {
     "dokumentasi": {
       "id": 1,
+      "jenis_toko": "REGULAR",
       "nomor_ulok": "ULOK-123",
       "nama_toko": "Alfamart Batam",
       "kode_toko": "ABT001",

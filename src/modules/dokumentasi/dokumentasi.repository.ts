@@ -7,6 +7,7 @@ import type {
 
 export type DokumentasiBangunanRow = {
     id: number;
+    jenis_toko: "REGULAR" | "FRANCHISE";
     nomor_ulok: string | null;
     nama_toko: string | null;
     kode_toko: string | null;
@@ -45,6 +46,7 @@ export const dokumentasiBangunanRepository = {
         const result = await pool.query<DokumentasiBangunanRow>(
             `
             INSERT INTO dokumentasi_bangunan (
+                jenis_toko,
                 nomor_ulok,
                 nama_toko,
                 kode_toko,
@@ -61,9 +63,10 @@ export const dokumentasiBangunanRepository = {
                 alasan_revisi,
                 pic_dokumentasi
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
             RETURNING
                 id,
+                jenis_toko,
                 nomor_ulok,
                 nama_toko,
                 kode_toko,
@@ -83,6 +86,7 @@ export const dokumentasiBangunanRepository = {
                 created_at
             `,
             [
+                input.jenis_toko ?? "REGULAR",
                 input.nomor_ulok,
                 input.nama_toko,
                 input.kode_toko,
@@ -114,6 +118,7 @@ export const dokumentasiBangunanRepository = {
             fields.push(`${column} = $${values.length}`);
         };
 
+        pushField("jenis_toko", input.jenis_toko);
         pushField("nomor_ulok", input.nomor_ulok);
         pushField("nama_toko", input.nama_toko);
         pushField("kode_toko", input.kode_toko);
@@ -141,6 +146,7 @@ export const dokumentasiBangunanRepository = {
             WHERE id = $${values.length + 1}
             RETURNING
                 id,
+                jenis_toko,
                 nomor_ulok,
                 nama_toko,
                 kode_toko,
@@ -177,6 +183,7 @@ export const dokumentasiBangunanRepository = {
             `
             SELECT
                 id,
+                jenis_toko,
                 nomor_ulok,
                 nama_toko,
                 kode_toko,
@@ -228,6 +235,7 @@ export const dokumentasiBangunanRepository = {
             `
             SELECT
                 id,
+                jenis_toko,
                 nomor_ulok,
                 nama_toko,
                 kode_toko,

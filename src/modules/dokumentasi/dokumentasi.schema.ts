@@ -28,6 +28,7 @@ const sudutFotoItemsSchema = z.preprocess(
 );
 
 export const dokumentasiBangunanCreateSchema = z.object({
+    jenis_toko: z.enum(["REGULAR", "FRANCHISE"]).optional().default("REGULAR"),
     nomor_ulok: z.string().trim().min(1),
     nama_toko: z.string().trim().min(1),
     kode_toko: z.string().trim().optional().default(""),
@@ -47,6 +48,7 @@ export const dokumentasiBangunanCreateSchema = z.object({
 });
 
 export const dokumentasiBangunanUpdateSchema = z.object({
+    jenis_toko: z.enum(["REGULAR", "FRANCHISE"]).optional(),
     nomor_ulok: z.string().trim().min(1).optional(),
     nama_toko: z.string().trim().min(1).optional(),
     kode_toko: z.string().trim().min(1).optional(),
