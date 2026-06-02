@@ -48,24 +48,24 @@ fixed_items AS (
         END AS satuan_baru,
         CASE
             WHEN LOWER(ri.jenis_pekerjaan) = LOWER('Galian tanah') AND ri.volume_num = 6.1 THEN 0
-            WHEN ri.jenis_pekerjaan ILIKE 'Sloof beton 15x20 cm%' AND ri.volume_num = 0.38 THEN 4062000
-            WHEN ri.jenis_pekerjaan ILIKE 'Kolom praktis 10x15 cm%' AND ri.volume_num = 0.05 THEN 4062000
-            WHEN ri.jenis_pekerjaan ILIKE 'Pasangan dinding bata%' AND ri.volume_num = 7.68 THEN 95000
-            WHEN ri.jenis_pekerjaan ILIKE 'Plester + aci untuk pasangan dinding bata%' AND ri.volume_num = 15.36 THEN 33100
+            WHEN ri.jenis_pekerjaan ILIKE 'Sloof beton 15x20 cm%' AND ri.volume_num = 0.38 THEN 4550000
+            WHEN ri.jenis_pekerjaan ILIKE 'Kolom praktis 10x15 cm%' AND ri.volume_num = 0.05 THEN 4550000
+            WHEN ri.jenis_pekerjaan ILIKE 'Pasangan dinding bata%' AND ri.volume_num = 7.68 THEN 98500
+            WHEN ri.jenis_pekerjaan ILIKE 'Plester + aci untuk pasangan dinding bata%' AND ri.volume_num = 15.36 THEN 41400
             WHEN ri.jenis_pekerjaan ILIKE 'Cat dinding luar merk Avitek Super White eksterior%' AND ri.volume_num = 15.36 THEN 18000
-            WHEN ri.jenis_pekerjaan ILIKE 'Cat merk Nippon roadline warna kuning%' AND ri.volume_num = 1.5 THEN 61700
-            WHEN ri.jenis_pekerjaan ILIKE 'Pasang tiang pipa besi 3 inch%' AND ri.volume_num = 50.82 THEN 27300
-            WHEN ri.jenis_pekerjaan ILIKE 'Pasang tiang pipa besi 4 inch%' AND ri.volume_num = 121 THEN 27300
+            WHEN ri.jenis_pekerjaan ILIKE 'Cat merk Nippon roadline warna kuning%' AND ri.volume_num = 1.5 THEN 48500
+            WHEN ri.jenis_pekerjaan ILIKE 'Pasang tiang pipa besi 3 inch%' AND ri.volume_num = 50.82 THEN 25700
+            WHEN ri.jenis_pekerjaan ILIKE 'Pasang tiang pipa besi 4 inch%' AND ri.volume_num = 121 THEN 25700
             ELSE ri.harga_material_num
         END::numeric AS harga_material_baru,
         CASE
-            WHEN LOWER(ri.jenis_pekerjaan) = LOWER('Galian tanah') AND ri.volume_num = 6.1 THEN 80000
-            WHEN ri.jenis_pekerjaan ILIKE 'Sloof beton 15x20 cm%' AND ri.volume_num = 0.38 THEN 970000
-            WHEN ri.jenis_pekerjaan ILIKE 'Kolom praktis 10x15 cm%' AND ri.volume_num = 0.05 THEN 970000
+            WHEN LOWER(ri.jenis_pekerjaan) = LOWER('Galian tanah') AND ri.volume_num = 6.1 THEN 78000
+            WHEN ri.jenis_pekerjaan ILIKE 'Sloof beton 15x20 cm%' AND ri.volume_num = 0.38 THEN 926000
+            WHEN ri.jenis_pekerjaan ILIKE 'Kolom praktis 10x15 cm%' AND ri.volume_num = 0.05 THEN 926000
             WHEN ri.jenis_pekerjaan ILIKE 'Pasangan dinding bata%' AND ri.volume_num = 7.68 THEN 40000
-            WHEN ri.jenis_pekerjaan ILIKE 'Plester + aci untuk pasangan dinding bata%' AND ri.volume_num = 15.36 THEN 62000
+            WHEN ri.jenis_pekerjaan ILIKE 'Plester + aci untuk pasangan dinding bata%' AND ri.volume_num = 15.36 THEN 53000
             WHEN ri.jenis_pekerjaan ILIKE 'Cat dinding luar merk Avitek Super White eksterior%' AND ri.volume_num = 15.36 THEN 8600
-            WHEN ri.jenis_pekerjaan ILIKE 'Cat merk Nippon roadline warna kuning%' AND ri.volume_num = 1.5 THEN 12500
+            WHEN ri.jenis_pekerjaan ILIKE 'Cat merk Nippon roadline warna kuning%' AND ri.volume_num = 1.5 THEN 11000
             WHEN ri.jenis_pekerjaan ILIKE 'Pasang tiang pipa besi 3 inch%' AND ri.volume_num = 50.82 THEN 6500
             WHEN ri.jenis_pekerjaan ILIKE 'Pasang tiang pipa besi 4 inch%' AND ri.volume_num = 121 THEN 6500
             ELSE ri.harga_upah_num
