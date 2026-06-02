@@ -449,6 +449,7 @@ export const ganttRepository = {
     }): Promise<
         (GanttRow & {
             nomor_ulok: string;
+            lingkup_pekerjaan: string | null;
             nama_toko: string | null;
             cabang: string | null;
             proyek: string | null;
@@ -477,7 +478,7 @@ export const ganttRepository = {
 
         const result = await pool.query(
             `SELECT ${GANTT_COLUMNS},
-                t.nomor_ulok, t.nama_toko, t.cabang, t.proyek
+                t.nomor_ulok, t.lingkup_pekerjaan, t.nama_toko, t.cabang, t.proyek
              FROM gantt_chart g
              JOIN toko t ON t.id = g.id_toko
              ${whereClause}
@@ -774,9 +775,27 @@ export const ganttRepository = {
         if (tokoRes.rowCount === 0) return null;
         const toko = tokoRes.rows[0];
 
-        // 2. Ambil RAB terbaru untuk toko ini
+        // 2. Ambil RAB relevan untuk toko ini.
+        // Prioritaskan RAB yang sudah disetujui; jangan sampai RAB reject terbaru
+        // menggantikan item/kategori untuk pengawasan Gantt yang sudah berjalan.
         const rabRes = await pool.query<{ id: number; status: string | null }>(
-            `SELECT id, status FROM rab WHERE id_toko = $1 ORDER BY id DESC LIMIT 1`,
+            `SELECT id, status
+             FROM rab
+             WHERE id_toko = $1
+             ORDER BY
+                CASE
+                    WHEN status = 'Disetujui' THEN 0
+                    WHEN status = 'Menunggu Gantt Chart' THEN 1
+                    WHEN status IN (
+                        'Menunggu Persetujuan Direktur Kontraktor',
+                        'Menunggu Persetujuan Koordinator',
+                        'Menunggu Persetujuan Manajer'
+                    ) THEN 2
+                    ELSE 3
+                END,
+                created_at DESC,
+                id DESC
+             LIMIT 1`,
             [tokoId]
         );
         const rab = rabRes.rows[0] ?? null;
