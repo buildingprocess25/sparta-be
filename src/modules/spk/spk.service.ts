@@ -24,6 +24,29 @@ const terbilang = (angka: number): string => {
     return terbilang(Math.floor(angka / 1_000_000_000_000)) + " Triliun" + (angka % 1_000_000_000_000 ? " " + terbilang(angka % 1_000_000_000_000) : "");
 };
 
+const normalizeText = (value?: string | null): string => String(value ?? "").trim().toUpperCase();
+
+const numericCurrencyValue = (value: number | string | null | undefined): number => {
+    if (value === null || value === undefined) return 0;
+    if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+
+    const trimmed = String(value).trim();
+    if (/^\d+(\.\d+)?$/.test(trimmed)) return Number(trimmed);
+
+    const numeric = Number(trimmed.replace(/\./g, "").replace(",", "."));
+    return Number.isFinite(numeric) ? numeric : 0;
+};
+
+const isNoPpnArea = (toko: { cabang?: string | null; nama_toko?: string | null; alamat?: string | null }): boolean => {
+    const identity = [
+        toko.cabang,
+        toko.nama_toko,
+        toko.alamat,
+    ].map(normalizeText);
+
+    return identity.some(value => value === "BATAM" || value === "BINTAN" || /\bBATAM\b|\bBINTAN\b/.test(value));
+};
+
 async function uploadPdfToDrive(buffer: Buffer, filename: string): Promise<string> {
     const gp = GoogleProvider.instance;
     const drive = gp.spartaDrive;
@@ -104,8 +127,18 @@ export const spkService = {
         endDate.setDate(endDate.getDate() + payload.durasi - 1);
         const waktuSelesai = endDate.toISOString();
 
+        const approvedRabTotals = await spkRepository.findApprovedRabTotalsByTokoId(payload.id_toko);
+        const spkGrandTotal = isNoPpnArea(toko)
+            ? numericCurrencyValue(approvedRabTotals?.grand_total_non_sbo)
+                || numericCurrencyValue(approvedRabTotals?.grand_total)
+                || numericCurrencyValue(approvedRabTotals?.grand_total_final)
+                || payload.grand_total
+            : numericCurrencyValue(approvedRabTotals?.grand_total_final)
+                || numericCurrencyValue(approvedRabTotals?.grand_total)
+                || payload.grand_total;
+
         // Hitung terbilang
-        const totalCost = Math.floor(payload.grand_total);
+        const totalCost = Math.floor(spkGrandTotal);
         const terbilangText = `( ${terbilang(totalCost)} Rupiah )`;
 
         // Generate nomor SPK
@@ -124,7 +157,7 @@ export const spkService = {
             waktu_mulai: payload.waktu_mulai,
             durasi: payload.durasi,
             waktu_selesai: waktuSelesai,
-            grand_total: payload.grand_total,
+            grand_total: spkGrandTotal,
             terbilang: terbilangText,
             nomor_spk: nomorSpk,
             par: payload.par,

@@ -50,6 +50,13 @@ export type SpkApprovalLogRow = {
     waktu_tindakan: string;
 };
 
+export type SpkApprovedRabTotalsRow = {
+    id: number;
+    grand_total: string | null;
+    grand_total_non_sbo: string | null;
+    grand_total_final: string | null;
+};
+
 type SpkListJoinRow = PengajuanSpkRow & {
     toko_id: number | null;
     toko_nomor_ulok: string;
@@ -97,6 +104,22 @@ export const spkRepository = {
         );
 
         return result.rows[0]?.exists ?? false;
+    },
+
+    async findApprovedRabTotalsByTokoId(idToko: number): Promise<SpkApprovedRabTotalsRow | null> {
+        const result = await pool.query<SpkApprovedRabTotalsRow>(
+            `
+      SELECT id, grand_total, grand_total_non_sbo, grand_total_final
+      FROM rab
+      WHERE id_toko = $1
+        AND status = 'Disetujui'
+      ORDER BY created_at DESC, id DESC
+      LIMIT 1
+      `,
+            [idToko]
+        );
+
+        return result.rows[0] ?? null;
     },
 
     async getNextSequence(cabang: string, year: number, month: number): Promise<number> {

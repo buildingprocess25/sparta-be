@@ -21,7 +21,7 @@ export const BRANCH_TO_CODE_MAP: Record<string, string> = {
     "JAMBI": "1DZ1", "HEAD OFFICE": "Z001", "BANDUNG 1": "BZ01", "BANDUNG 2": "NZ01",
     "BEKASI": "CZ01", "CILACAP": "IZ01", "CILEUNGSI": "JZ01", "SEMARANG": "HZ01",
     "CIKOKOL": "KZ01", "LAMPUNG": "LZ01", "MALANG": "MZ01", "MANADO": "1YZ1",
-    "BATAM": "2DZ1", "MADIUN": "2MZ1"
+    "BATAM": "2DZ1", "BINTAN": "KZ01", "MADIUN": "2MZ1"
 };
 
 export const getCabangCode = (cabangName: string): string => {
