@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import sharp from "sharp";
 import { env } from "../../config/env";
 import { renderHtmlTemplate, renderPdfFromHtml, resolveTemplatePath } from "../../common/html-pdf";
 import { GoogleProvider } from "../../common/google";
@@ -55,6 +56,24 @@ const extractGdriveFileId = (url: string): string | null => {
     return null;
 };
 
+const imageBufferToPdfDataUrl = async (buffer: Buffer): Promise<string | null> => {
+    try {
+        const normalized = await sharp(buffer, { failOn: "none" })
+            .rotate()
+            .resize({ width: 1280, withoutEnlargement: true })
+            .jpeg({ quality: 75, mozjpeg: true })
+            .toBuffer();
+
+        return `data:image/jpeg;base64,${normalized.toString("base64")}`;
+    } catch (error) {
+        console.error("[dokumentasi_bangunan] Gagal normalisasi foto untuk PDF:", {
+            size: buffer.length,
+            error
+        });
+        return null;
+    }
+};
+
 const gdriveUrlToBase64 = async (url: string | null | undefined): Promise<string | null> => {
     if (!url) return null;
     const fileId = extractGdriveFileId(url);
@@ -65,13 +84,12 @@ const gdriveUrlToBase64 = async (url: string | null | undefined): Promise<string
         if (!drive) return null;
         const buffer = await GoogleProvider.instance.getFileBufferById(drive, fileId);
         if (!buffer) return null;
-        const head = buffer.slice(0, 4);
-        let mime = "image/jpeg";
-        if (head[0] === 0x89 && head[1] === 0x50) mime = "image/png";
-        else if (head[0] === 0x47 && head[1] === 0x49) mime = "image/gif";
-        else if (head[0] === 0x25 && head[1] === 0x50) return null;
-        return `data:${mime};base64,${buffer.toString("base64")}`;
-    } catch {
+        return imageBufferToPdfDataUrl(buffer);
+    } catch (error) {
+        console.error("[dokumentasi_bangunan] Gagal mengambil foto Drive untuk PDF:", {
+            fileId,
+            error
+        });
         return null;
     }
 };
