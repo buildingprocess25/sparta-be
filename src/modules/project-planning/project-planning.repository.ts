@@ -959,6 +959,7 @@ export const projekPlanningRepository = {
     ): Promise<void> {
         if (rabIds.length === 0) return;
         const db = client ?? pool;
+        const safeReason = reason.length > 252 ? `${reason.slice(0, 252)}...` : reason;
         await db.query(
             `UPDATE rab
              SET status = 'Ditolak oleh Koordinator',
@@ -966,7 +967,7 @@ export const projekPlanningRepository = {
                  ditolak_oleh = $2,
                  waktu_penolakan = NOW()
              WHERE id = ANY($3::int[])`,
-            [reason, actorEmail, rabIds]
+            [safeReason, actorEmail, rabIds]
         );
     },
 

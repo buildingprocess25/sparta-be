@@ -823,7 +823,7 @@ export const projekPlanningService = {
                     await projekPlanningRepository.markRabNeedsRevision(
                         rabIds,
                         action.approver_email,
-                        `FPD #${id} ditolak PP Specialist: ${rejectReason}. ${reviewSummary}`,
+                        `FPD #${id} ditolak PP Specialist. Lihat detail revisi RAB di Project Planning.`,
                         client
                     );
                 }
@@ -881,7 +881,7 @@ export const projekPlanningService = {
                     await projekPlanningRepository.markRabNeedsRevision(
                         rabIds,
                         action.approver_email,
-                        `FPD #${id} ditolak PP Manager: ${rejectReason}. ${reviewSummary}`,
+                        `FPD #${id} ditolak PP Manager. Lihat detail revisi RAB di Project Planning.`,
                         client
                     );
                 }
