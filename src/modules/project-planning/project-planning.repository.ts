@@ -734,7 +734,7 @@ export const projekPlanningRepository = {
         const db = client ?? pool;
         const result = await db.query<ProjekPlanningRow>(
             `UPDATE projek_planning
-             SET status = $1,
+             SET status = $1::text,
                  bm_approver_email = $2,
                  bm_waktu_persetujuan = NOW(),
                  bm_alasan_penolakan = NULL,
@@ -755,7 +755,7 @@ export const projekPlanningRepository = {
         const db = client ?? pool;
         const result = await db.query<ProjekPlanningRow>(
             `UPDATE projek_planning
-             SET status = $1,
+             SET status = $1::text,
                  bm2_approver_email = $2,
                  bm2_waktu_persetujuan = NOW(),
                  bm2_alasan_penolakan = CASE WHEN $1::text = 'WAITING_RAB_UPLOAD' THEN $3 ELSE NULL END,
@@ -776,7 +776,7 @@ export const projekPlanningRepository = {
         const db = client ?? pool;
         const result = await db.query<ProjekPlanningRow>(
             `UPDATE projek_planning
-             SET status = $1,
+             SET status = $1::text,
                  butuh_desain_3d = $2,
                  pp1_approver_email = $3,
                  pp1_waktu_persetujuan = NOW(),
@@ -798,7 +798,7 @@ export const projekPlanningRepository = {
         const db = client ?? pool;
         const result = await db.query<ProjekPlanningRow>(
             `UPDATE projek_planning
-             SET status = $1,
+             SET status = $1::text,
                  link_desain_3d = $2,
                  updated_at = NOW()
              WHERE id = $3
@@ -830,7 +830,7 @@ export const projekPlanningRepository = {
         const db = client ?? pool;
         const result = await db.query<ProjekPlanningRow>(
             `UPDATE projek_planning
-             SET status = $1,
+             SET status = $1::text,
                  link_rab_sipil = COALESCE($2, link_rab_sipil),
                  link_rab_me = COALESCE($3, link_rab_me),
                  id_rab_sipil = COALESCE($4, id_rab_sipil),
@@ -886,7 +886,7 @@ export const projekPlanningRepository = {
         const db = client ?? pool;
         const result = await db.query<ProjekPlanningRow>(
             `UPDATE projek_planning
-             SET status = $1,
+             SET status = $1::text,
                  pp_manager_approver_email = $2,
                  pp_manager_waktu_persetujuan = NOW(),
                  pp_manager_alasan_penolakan = NULL,
@@ -932,7 +932,7 @@ export const projekPlanningRepository = {
 
         const result = await db.query<ProjekPlanningRow>(
             `UPDATE projek_planning
-             SET status = $1,
+             SET status = $1::text,
                  ${setFields},
                  updated_at = NOW()
              WHERE id = $8
@@ -979,7 +979,7 @@ export const projekPlanningRepository = {
         const db = client ?? pool;
         const result = await db.query<ProjekPlanningRow>(
             `UPDATE projek_planning
-             SET status = $1,
+             SET status = $1::text,
                  pp2_approver_email = $2,
                  pp2_waktu_persetujuan = NOW(),
                  pp2_alasan_penolakan = NULL,
