@@ -30,13 +30,8 @@ projekPlanningRouter.post("/:id/resubmit", fpdUpload.any(), resubmitProjekPlanni
 projekPlanningRouter.post(
     "/:id/upload-rab",
     fpdUpload.fields([
-        { name: "file_rab_sipil", maxCount: 2 },
-        { name: "file_rab_me", maxCount: 2 },
-        { name: "file_gambar_kerja", maxCount: 2 },
         { name: "file_gambar_kerja_final_sipil", maxCount: 2 },
         { name: "file_gambar_kerja_final_me", maxCount: 2 },
-        // Backward compatibility for older clients that still send one generic RAB file.
-        { name: "file_rab", maxCount: 1 },
     ]),
     handleUploadRab
 );

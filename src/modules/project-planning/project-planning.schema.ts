@@ -7,6 +7,8 @@ const fasilitasItemSchema = z.object({
     keterangan: z.string().nullable().optional()
 });
 
+const optionalText = z.string().optional().or(z.literal(""));
+
 const validateProjectPlanningBusinessRules = (val: {
     jenis_pengajuan: string;
     fasilitas?: z.infer<typeof fasilitasItemSchema>[];
@@ -46,22 +48,31 @@ export const submitProjekPlanningSchema = z.object({
     id_toko: z.coerce.number().int().min(0).optional().default(0),
     nomor_ulok: z.string().min(1),
     // New fields for manual toko creation
-    cabang: z.string().optional().or(z.literal("")),
-    nama_toko: z.string().optional().or(z.literal("")),
-    kode_toko: z.string().optional().or(z.literal("")),
-    alamat_toko: z.string().optional().or(z.literal("")),
-    link_google_maps: z.string().optional().or(z.literal("")),
+    cabang: optionalText,
+    nama_toko: optionalText,
+    kode_toko: optionalText,
+    alamat_toko: optionalText,
+    link_google_maps: optionalText,
     
     email_pembuat: z.string().email(),
-    lingkup_pekerjaan: z.string().optional().or(z.literal("")),
-    jenis_proyek: z.string().optional().or(z.literal("")),
+    lingkup_pekerjaan: optionalText,
+    jenis_proyek: optionalText,
     estimasi_biaya: z.coerce.number().nonnegative().optional(),
     keterangan: z.string().optional(),
-    link_fpd: z.string().optional().or(z.literal("")),
+    link_fpd: optionalText,
+    link_siteplan: optionalText,
+    luas_bangunan: optionalText,
+    luas_area_terbuka: optionalText,
+    luas_area_terbangun: optionalText,
+    luas_gudang: optionalText,
+    luas_area_parkir: optionalText,
+    luas_area_sales: optionalText,
+    pxl_bangunan: optionalText,
+    pxl_area_parkir: optionalText,
 
     // ── Identitas Pengajuan ──────────────────────────────────
     nama_pengaju: z.string().min(1, "Nama pengaju wajib diisi"),
-    nama_lokasi: z.string().optional().or(z.literal("")),
+    nama_lokasi: optionalText,
 
     // ── Jenis Pengajuan Desain ───────────────────────────────
     jenis_pengajuan: z.string().min(1, "Jenis pengajuan wajib dipilih"),
@@ -78,8 +89,6 @@ export const submitProjekPlanningSchema = z.object({
 
     // ── Upload Files ─────────────────────────────────────────
     link_gambar_kerja: z.string().optional(),
-    link_gambar_rab_sipil: z.string().optional(),
-    link_gambar_rab_me: z.string().optional(),
 
     // ── Ruko / Non-Ruko ──────────────────────────────────────
     is_ruko: z.coerce.boolean().optional().default(false),
@@ -90,13 +99,14 @@ export const submitProjekPlanningSchema = z.object({
 
     // ── Head to Head & Seating Area ─────────────────────────
     is_head_to_head: z.coerce.boolean().optional().default(false),
+    jarak_head_to_head: z.coerce.number().nonnegative().optional().nullable(),
     is_seating_area: z.coerce.boolean().optional().default(false),
 
     // ── Kategori Toko ────────────────────────────────────────
     is_dark_store: z.coerce.boolean().optional().default(false),
 
     // ── Tipe Bean Spot ───────────────────────────────────────
-    beanspot_tipe: z.string().optional().or(z.literal("")),
+    beanspot_tipe: optionalText,
 }).superRefine(validateProjectPlanningBusinessRules);
 
 export type SubmitProjekPlanningInput = z.infer<typeof submitProjekPlanningSchema>;
@@ -106,21 +116,30 @@ export type SubmitProjekPlanningInput = z.infer<typeof submitProjekPlanningSchem
 // ============================================================
 
 export const resubmitProjekPlanningSchema = z.object({
-    cabang: z.string().optional().or(z.literal("")),
-    nama_toko: z.string().optional().or(z.literal("")),
-    kode_toko: z.string().optional().or(z.literal("")),
-    alamat_toko: z.string().optional().or(z.literal("")),
-    link_google_maps: z.string().optional().or(z.literal("")),
+    cabang: optionalText,
+    nama_toko: optionalText,
+    kode_toko: optionalText,
+    alamat_toko: optionalText,
+    link_google_maps: optionalText,
     email_pembuat: z.string().email(),
-    lingkup_pekerjaan: z.string().optional().or(z.literal("")),
-    jenis_proyek: z.string().optional().or(z.literal("")),
+    lingkup_pekerjaan: optionalText,
+    jenis_proyek: optionalText,
     estimasi_biaya: z.coerce.number().nonnegative().optional(),
     keterangan: z.string().optional(),
-    link_fpd: z.string().optional().or(z.literal("")),
+    link_fpd: optionalText,
+    link_siteplan: optionalText,
+    luas_bangunan: optionalText,
+    luas_area_terbuka: optionalText,
+    luas_area_terbangun: optionalText,
+    luas_gudang: optionalText,
+    luas_area_parkir: optionalText,
+    luas_area_sales: optionalText,
+    pxl_bangunan: optionalText,
+    pxl_area_parkir: optionalText,
 
     // ── Identitas Pengajuan ──────────────────────────────────
     nama_pengaju: z.string().min(1, "Nama pengaju wajib diisi"),
-    nama_lokasi: z.string().optional().or(z.literal("")),
+    nama_lokasi: optionalText,
 
     // ── Jenis Pengajuan Desain ───────────────────────────────
     jenis_pengajuan: z.string().min(1, "Jenis pengajuan wajib dipilih"),
@@ -137,8 +156,6 @@ export const resubmitProjekPlanningSchema = z.object({
 
     // ── Upload Files ─────────────────────────────────────────
     link_gambar_kerja: z.string().optional(),
-    link_gambar_rab_sipil: z.string().optional(),
-    link_gambar_rab_me: z.string().optional(),
 
     // ── Ruko / Non-Ruko ──────────────────────────────────────
     is_ruko: z.coerce.boolean().optional().default(false),
@@ -149,13 +166,14 @@ export const resubmitProjekPlanningSchema = z.object({
 
     // ── Head to Head & Seating Area ─────────────────────────
     is_head_to_head: z.coerce.boolean().optional().default(false),
+    jarak_head_to_head: z.coerce.number().nonnegative().optional().nullable(),
     is_seating_area: z.coerce.boolean().optional().default(false),
 
     // ── Kategori Toko ────────────────────────────────────────
     is_dark_store: z.coerce.boolean().optional().default(false),
 
     // ── Tipe Bean Spot ───────────────────────────────────────
-    beanspot_tipe: z.string().optional().or(z.literal("")),
+    beanspot_tipe: optionalText,
 }).superRefine(validateProjectPlanningBusinessRules);
 
 export type ResubmitProjekPlanningInput = z.infer<typeof resubmitProjekPlanningSchema>;
@@ -168,6 +186,7 @@ export const approvalSchema = z
     .object({
         approver_email: z.string().trim().email(),
         tindakan: z.enum(["APPROVE", "REJECT"]),
+        catatan: z.string().optional(),
         alasan_penolakan: z.string().optional(),
     })
     .superRefine((val, ctx) => {
@@ -191,6 +210,7 @@ export const ppApproval1Schema = z
         approver_email: z.string().trim().email(),
         tindakan: z.enum(["APPROVE", "REJECT"]),
         butuh_desain_3d: z.boolean().optional().default(false),
+        catatan: z.string().optional(),
         alasan_penolakan: z.string().optional(),
     })
     .superRefine((val, ctx) => {
@@ -204,6 +224,32 @@ export const ppApproval1Schema = z
     });
 
 export type PpApproval1Input = z.infer<typeof ppApproval1Schema>;
+
+// ============================================================
+// REVIEW FINAL RAB & GAMBAR (PP Specialist / PP Manager)
+// ============================================================
+
+export const finalReviewSchema = z
+    .object({
+        approver_email: z.string().trim().email(),
+        rab_tindakan: z.enum(["APPROVE", "REJECT"]),
+        gambar_tindakan: z.enum(["APPROVE", "REJECT"]),
+        catatan: z.string().optional(),
+        alasan_penolakan: z.string().optional(),
+        rab_rejected_item_ids: z.array(z.coerce.number().int().positive()).optional().default([]),
+        rab_rejected_item_notes: z.string().optional(),
+    })
+    .superRefine((val, ctx) => {
+        if ((val.rab_tindakan === "REJECT" || val.gambar_tindakan === "REJECT") && !val.alasan_penolakan?.trim()) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "alasan_penolakan wajib diisi saat menolak RAB atau gambar final",
+                path: ["alasan_penolakan"],
+            });
+        }
+    });
+
+export type FinalReviewInput = z.infer<typeof finalReviewSchema>;
 
 // ============================================================
 // UPLOAD 3D (oleh PP Specialist)
@@ -225,9 +271,11 @@ export const uploadRabSchema = z.object({
     uploader_email: z.string().email(),
     link_rab_sipil: z.string().optional(),
     link_rab_me: z.string().optional(),
-    link_gambar_kerja: z.string().optional(),
+    id_rab_sipil: z.coerce.number().int().positive().optional(),
+    id_rab_me: z.coerce.number().int().positive().optional(),
     link_gambar_kerja_final_sipil: z.string().optional(),
     link_gambar_kerja_final_me: z.string().optional(),
+    fasilitas: z.array(fasilitasItemSchema).optional().default([]),
     keterangan: z.string().optional(),
 });
 

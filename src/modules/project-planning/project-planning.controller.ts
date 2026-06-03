@@ -5,6 +5,7 @@ import {
     resubmitProjekPlanningSchema,
     approvalSchema,
     ppApproval1Schema,
+    finalReviewSchema,
     upload3dSchema,
     uploadRabSchema,
     listProjekPlanningQuerySchema,
@@ -179,13 +180,16 @@ export const handleUploadRab = asyncHandler(async (req: Request, res: Response) 
         return;
     }
 
-    const payload = uploadRabSchema.parse(req.body);
+    const payloadStr = req.body;
+    if (typeof payloadStr.fasilitas === "string") payloadStr.fasilitas = JSON.parse(payloadStr.fasilitas);
+
+    const payload = uploadRabSchema.parse(payloadStr);
     const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
     const result = await projekPlanningService.uploadRab(id, payload, files);
 
     res.json({
         status: "success",
-        message: "RAB & Gambar Kerja berhasil diupload, menunggu approval PP Specialist",
+        message: "Data tahap kedua berhasil dikirim, menunggu approval B&M Manager tahap 2",
         data: result,
     });
 });
@@ -201,14 +205,14 @@ export const handlePpApproval2 = asyncHandler(async (req: Request, res: Response
         return;
     }
 
-    const action = approvalSchema.parse(req.body);
+    const action = finalReviewSchema.parse(req.body);
     const result = await projekPlanningService.ppApproval2(id, action);
 
     res.json({
         status: "success",
-        message: action.tindakan === "APPROVE"
+        message: action.rab_tindakan === "APPROVE" && action.gambar_tindakan === "APPROVE"
             ? "Disetujui oleh PP Specialist, menunggu approval final PP Manager"
-            : "Ditolak oleh PP Specialist, dikembalikan ke Cabang untuk Upload ulang RAB & Gambar Kerja",
+            : "Ditolak oleh PP Specialist, dikembalikan sesuai bagian yang perlu revisi",
         data: result,
     });
 });
@@ -224,14 +228,14 @@ export const handlePpManagerApproval = asyncHandler(async (req: Request, res: Re
         return;
     }
 
-    const action = approvalSchema.parse(req.body);
+    const action = finalReviewSchema.parse(req.body);
     const result = await projekPlanningService.ppManagerApproval(id, action);
 
     res.json({
         status: "success",
-        message: action.tindakan === "APPROVE"
+        message: action.rab_tindakan === "APPROVE" && action.gambar_tindakan === "APPROVE"
             ? "Project planning selesai! FPD yang telah disetujui dikirim ke Cabang"
-            : "Ditolak oleh PP Manager, dikembalikan ke Cabang untuk Upload ulang RAB & Gambar Kerja",
+            : "Ditolak oleh PP Manager, dikembalikan sesuai bagian yang perlu revisi",
         data: result,
     });
 });
@@ -292,9 +296,8 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
     // Pilih URL berdasarkan field
     let fileUrl: string | null | undefined;
     if (field === "fpd") fileUrl = projek.link_fpd;
+    else if (field === "siteplan") fileUrl = (projek as any).link_siteplan;
     // Dokumen form awal koordinator
-    else if (field === "rab_sipil_awal" || field === "rab_sipil") fileUrl = projek.link_gambar_rab_sipil;
-    else if (field === "rab_me_awal" || field === "rab_me") fileUrl = projek.link_gambar_rab_me;
     else if (field === "gambar_kerja_awal" || field === "gambar_kerja") fileUrl = projek.link_gambar_kerja;
     else if (field === "gambar_kompetitor") fileUrl = projek.link_gambar_kompetitor;
     // Dokumen PP Specialist
@@ -303,8 +306,7 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
     // Dokumen RAB & Final (koordinator — setelah PP Specialist approve)
     else if (field === "rab_sipil_final") fileUrl = (projek as any).link_rab_sipil;
     else if (field === "rab_me_final") fileUrl = (projek as any).link_rab_me;
-    else if (field === "gambar_kerja_final") fileUrl = (projek as any).link_gambar_kerja_final;
-    else if (field === "gambar_kerja_final_sipil") fileUrl = (projek as any).link_gambar_kerja_final_sipil || (projek as any).link_gambar_kerja_final;
+    else if (field === "gambar_kerja_final_sipil") fileUrl = (projek as any).link_gambar_kerja_final_sipil;
     else if (field === "gambar_kerja_final_me") fileUrl = (projek as any).link_gambar_kerja_final_me;
     // Legacy
     else if (field === "rab") fileUrl = projek.link_rab;

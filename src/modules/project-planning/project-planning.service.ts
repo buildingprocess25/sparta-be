@@ -110,9 +110,8 @@ function buildRevisionSummary(
     links: {
         link_fpd?: string | null;
         link_gambar_kerja?: string | null;
-        link_gambar_rab_sipil?: string | null;
-        link_gambar_rab_me?: string | null;
         link_gambar_kompetitor?: string | null;
+        link_siteplan?: string | null;
     }
 ): string {
     const changed: string[] = [];
@@ -143,9 +142,8 @@ function buildRevisionSummary(
     if (normalizeArrayForCompare(projek.fasilitas ?? []) !== normalizeArrayForCompare(payload.fasilitas ?? [])) changed.push("Fasilitas");
 
     addIfChanged("File/Link FPD", projek.link_fpd, links.link_fpd);
+    addIfChanged("Siteplan", projek.link_siteplan, links.link_siteplan);
     addIfChanged("Gambar kerja ME", projek.link_gambar_kerja, links.link_gambar_kerja);
-    addIfChanged("RAB Sipil awal", projek.link_gambar_rab_sipil, links.link_gambar_rab_sipil);
-    addIfChanged("RAB ME awal", projek.link_gambar_rab_me, links.link_gambar_rab_me);
     addIfChanged("Gambar kompetitor", projek.link_gambar_kompetitor, links.link_gambar_kompetitor);
 
     return changed.length > 0
@@ -153,11 +151,32 @@ function buildRevisionSummary(
         : "Perubahan revisi: tidak terdeteksi detail perubahan.";
 }
 
+function buildApprovalNote(prefix: string, catatan?: string | null): string {
+    const note = normalizeText(catatan);
+    return note ? `${prefix}. Catatan: ${note}` : prefix;
+}
+
+function getApprovedRabByLingkup(approvedRabs: any[], lingkup: "SIPIL" | "ME") {
+    return approvedRabs.find((rab) => normalizeText(rab.lingkup_pekerjaan).toUpperCase().includes(lingkup)) ?? null;
+}
+
+function buildFinalReviewSummary(action: FinalReviewInput): string {
+    const parts = [
+        `RAB ${action.rab_tindakan === "APPROVE" ? "disetujui" : "ditolak"}`,
+        `Gambar final ${action.gambar_tindakan === "APPROVE" ? "disetujui" : "ditolak"}`,
+    ];
+    if (action.rab_rejected_item_ids.length > 0) parts.push(`Item RAB perlu revisi: ${action.rab_rejected_item_ids.join(", ")}`);
+    if (action.rab_rejected_item_notes?.trim()) parts.push(`Catatan item RAB: ${action.rab_rejected_item_notes.trim()}`);
+    if (action.catatan?.trim()) parts.push(`Catatan: ${action.catatan.trim()}`);
+    return parts.join(". ");
+}
+
 import type {
     SubmitProjekPlanningInput,
     ResubmitProjekPlanningInput,
     ApprovalInput,
     PpApproval1Input,
+    FinalReviewInput,
     Upload3dInput,
     UploadRabInput,
     ListProjekPlanningQuery,
@@ -195,17 +214,15 @@ export const projekPlanningService = {
         // Upload file to Google Drive if provided
         let fpdLink = payload.link_fpd;
         let gambarKerjaMe = payload.link_gambar_kerja;
-        let rabSipilLink = payload.link_gambar_rab_sipil;
-        let rabMeLink = payload.link_gambar_rab_me;
         let gambarKompetitor = payload.link_gambar_kompetitor;
+        let siteplanLink = payload.link_siteplan;
         let fotoItemsLinks: { item_index: number; link_foto: string }[] = [];
 
         if (files && files.length > 0) {
             const fFpd = files.filter(f => f.fieldname === "file_fpd");
             const fGambarKerjaMe = files.filter(f => f.fieldname === "file_gambar_kerja_me");
-            const fRabSipil = files.filter(f => f.fieldname === "file_rab_sipil");
-            const fRabMe = files.filter(f => f.fieldname === "file_rab_me");
             const fKompetitor = files.filter(f => f.fieldname === "file_gambar_kompetitor");
+            const fSiteplan = files.filter(f => f.fieldname === "file_siteplan");
 
             const itemRegex = /^foto_items_(\d+)$/i;
 
@@ -218,17 +235,21 @@ export const projekPlanningService = {
                     const link = await uploadCompressedFiles(fGambarKerjaMe, PROJECT_PLANNING_DRIVE_FOLDER_ID);
                     if (link) gambarKerjaMe = link;
                 }
-                if (fRabSipil.length > 0) {
-                    const link = await uploadCompressedFiles(fRabSipil, PROJECT_PLANNING_DRIVE_FOLDER_ID);
-                    if (link) rabSipilLink = link;
-                }
-                if (fRabMe.length > 0) {
-                    const link = await uploadCompressedFiles(fRabMe, PROJECT_PLANNING_DRIVE_FOLDER_ID);
-                    if (link) rabMeLink = link;
-                }
                 if (fKompetitor.length > 0) {
-                    const link = await uploadCompressedFiles(fKompetitor, PROJECT_PLANNING_DRIVE_FOLDER_ID);
+                    const uploadedLinks: string[] = [];
+                    for (const [idx, file] of fKompetitor.slice(0, 2).entries()) {
+                        const link = await uploadCompressedFile(file, PROJECT_PLANNING_DRIVE_FOLDER_ID);
+                        if (link) {
+                            uploadedLinks.push(link);
+                            fotoItemsLinks.push({ item_index: 39 + idx, link_foto: link });
+                        }
+                    }
+                    const link = uploadedLinks.length > 0 ? uploadedLinks.join("\n") : undefined;
                     if (link) gambarKompetitor = link;
+                }
+                if (fSiteplan.length > 0) {
+                    const link = await uploadCompressedFiles(fSiteplan, PROJECT_PLANNING_DRIVE_FOLDER_ID);
+                    if (link) siteplanLink = link;
                 }
 
                 // Process foto_items_X
@@ -250,11 +271,20 @@ export const projekPlanningService = {
 
         const initialMeta = getInitialSubmitMeta(payload.cabang);
         const darkStoreDesign = isDarkStoreDesign(payload.jenis_pengajuan);
+        if (payload.is_head_to_head && gambarKompetitor && !fotoItemsLinks.some((item) => item.item_index === 39)) {
+            normalizeText(gambarKompetitor)
+                .split(/\r?\n/)
+                .map((link) => link.trim())
+                .filter(Boolean)
+                .slice(0, 2)
+                .forEach((link, idx) => fotoItemsLinks.push({ item_index: 39 + idx, link_foto: link }));
+        }
 
         // Buat record baru sesuai alur cabang
         const created = await projekPlanningRepository.create({
             ...payload,
             is_head_to_head: darkStoreDesign ? false : payload.is_head_to_head,
+            jarak_head_to_head: darkStoreDesign ? null : payload.jarak_head_to_head,
             is_seating_area: darkStoreDesign ? false : payload.is_seating_area,
             is_dark_store: darkStoreDesign ? false : payload.is_dark_store,
             id_toko: payload.id_toko ?? 0,
@@ -267,9 +297,8 @@ export const projekPlanningService = {
             proyek: payload.jenis_proyek || null,
             beanspot_tipe: normalizeBeanspotTipe(payload.beanspot_tipe),
             link_fpd: fpdLink ?? undefined,
+            link_siteplan: siteplanLink ?? undefined,
             link_gambar_kerja: gambarKerjaMe ?? undefined,
-            link_gambar_rab_sipil: rabSipilLink ?? undefined,
-            link_gambar_rab_me: rabMeLink ?? undefined,
             link_gambar_kompetitor: gambarKompetitor ?? undefined,
             status: initialMeta.status,
         } as any);
@@ -311,17 +340,15 @@ export const projekPlanningService = {
         // Upload file if provided
         let fpdLink = payload.link_fpd;
         let gambarKerjaMe = payload.link_gambar_kerja;
-        let rabSipilLink = payload.link_gambar_rab_sipil;
-        let rabMeLink = payload.link_gambar_rab_me;
         let gambarKompetitor = payload.link_gambar_kompetitor;
+        let siteplanLink = payload.link_siteplan;
         let fotoItemsLinks: { item_index: number; link_foto: string }[] = [];
 
         if (files && files.length > 0) {
             const fFpd = files.filter(f => f.fieldname === "file_fpd");
             const fGambarKerjaMe = files.filter(f => f.fieldname === "file_gambar_kerja_me");
-            const fRabSipil = files.filter(f => f.fieldname === "file_rab_sipil");
-            const fRabMe = files.filter(f => f.fieldname === "file_rab_me");
             const fKompetitor = files.filter(f => f.fieldname === "file_gambar_kompetitor");
+            const fSiteplan = files.filter(f => f.fieldname === "file_siteplan");
 
             const itemRegex = /^foto_items_(\d+)$/i;
 
@@ -334,17 +361,21 @@ export const projekPlanningService = {
                     const link = await uploadCompressedFiles(fGambarKerjaMe, PROJECT_PLANNING_DRIVE_FOLDER_ID);
                     if (link) gambarKerjaMe = link;
                 }
-                if (fRabSipil.length > 0) {
-                    const link = await uploadCompressedFiles(fRabSipil, PROJECT_PLANNING_DRIVE_FOLDER_ID);
-                    if (link) rabSipilLink = link;
-                }
-                if (fRabMe.length > 0) {
-                    const link = await uploadCompressedFiles(fRabMe, PROJECT_PLANNING_DRIVE_FOLDER_ID);
-                    if (link) rabMeLink = link;
-                }
                 if (fKompetitor.length > 0) {
-                    const link = await uploadCompressedFiles(fKompetitor, PROJECT_PLANNING_DRIVE_FOLDER_ID);
+                    const uploadedLinks: string[] = [];
+                    for (const [idx, file] of fKompetitor.slice(0, 2).entries()) {
+                        const link = await uploadCompressedFile(file, PROJECT_PLANNING_DRIVE_FOLDER_ID);
+                        if (link) {
+                            uploadedLinks.push(link);
+                            fotoItemsLinks.push({ item_index: 39 + idx, link_foto: link });
+                        }
+                    }
+                    const link = uploadedLinks.length > 0 ? uploadedLinks.join("\n") : undefined;
                     if (link) gambarKompetitor = link;
+                }
+                if (fSiteplan.length > 0) {
+                    const link = await uploadCompressedFiles(fSiteplan, PROJECT_PLANNING_DRIVE_FOLDER_ID);
+                    if (link) siteplanLink = link;
                 }
 
                 // Process foto_items_X
@@ -367,17 +398,25 @@ export const projekPlanningService = {
         // Update record DRAFT → WAITING_BM_APPROVAL
         const initialMeta = getInitialSubmitMeta(payload.cabang || projek.cabang);
         const darkStoreDesign = isDarkStoreDesign(payload.jenis_pengajuan);
+        if (payload.is_head_to_head && gambarKompetitor && !fotoItemsLinks.some((item) => item.item_index === 39)) {
+            normalizeText(gambarKompetitor)
+                .split(/\r?\n/)
+                .map((link) => link.trim())
+                .filter(Boolean)
+                .slice(0, 2)
+                .forEach((link, idx) => fotoItemsLinks.push({ item_index: 39 + idx, link_foto: link }));
+        }
         const revisionSummary = buildRevisionSummary(projek, payload, {
             link_fpd: fpdLink ?? projek.link_fpd ?? null,
+            link_siteplan: siteplanLink ?? projek.link_siteplan ?? null,
             link_gambar_kerja: gambarKerjaMe ?? projek.link_gambar_kerja ?? null,
-            link_gambar_rab_sipil: rabSipilLink ?? projek.link_gambar_rab_sipil ?? null,
-            link_gambar_rab_me: rabMeLink ?? projek.link_gambar_rab_me ?? null,
             link_gambar_kompetitor: gambarKompetitor ?? projek.link_gambar_kompetitor ?? null,
         });
 
         const updated = await projekPlanningRepository.resubmitDraft(id, {
             ...payload,
             is_head_to_head: darkStoreDesign ? false : payload.is_head_to_head,
+            jarak_head_to_head: darkStoreDesign ? null : payload.jarak_head_to_head,
             is_seating_area: darkStoreDesign ? false : payload.is_seating_area,
             is_dark_store: darkStoreDesign ? false : payload.is_dark_store,
             nama_toko: payload.nama_toko || payload.nama_lokasi || projek.nama_toko || null,
@@ -388,9 +427,8 @@ export const projekPlanningService = {
             proyek: payload.jenis_proyek || projek.proyek || null,
             beanspot_tipe: normalizeBeanspotTipe(payload.beanspot_tipe),
             link_fpd: fpdLink ?? projek.link_fpd ?? undefined,
+            link_siteplan: siteplanLink ?? projek.link_siteplan ?? undefined,
             link_gambar_kerja: gambarKerjaMe ?? projek.link_gambar_kerja ?? undefined,
-            link_gambar_rab_sipil: rabSipilLink ?? projek.link_gambar_rab_sipil ?? undefined,
-            link_gambar_rab_me: rabMeLink ?? projek.link_gambar_rab_me ?? undefined,
             link_gambar_kompetitor: gambarKompetitor ?? projek.link_gambar_kompetitor ?? undefined,
             status: initialMeta.status,
         } as any);
@@ -474,7 +512,8 @@ export const projekPlanningService = {
         if (!data) throw new AppError("Project planning tidak ditemukan", 404);
 
         const { projek } = data;
-        if (projek.status !== PP_STATUS.WAITING_BM_APPROVAL) {
+        const isStage2 = projek.status === PP_STATUS.WAITING_BM_APPROVAL_2;
+        if (!([PP_STATUS.WAITING_BM_APPROVAL, PP_STATUS.WAITING_BM_APPROVAL_2] as PpStatus[]).includes(projek.status)) {
             throw new AppError(
                 `Aksi tidak valid. Status saat ini: ${PP_STATUS_LABEL[projek.status]}`,
                 409
@@ -482,7 +521,15 @@ export const projekPlanningService = {
         }
 
         const isApprove = action.tindakan === "APPROVE";
-        const newStatus = isApprove ? PP_STATUS.WAITING_PP_APPROVAL_1 : PP_STATUS.DRAFT;
+        const newStatus = isStage2
+            ? (isApprove ? PP_STATUS.WAITING_PP_APPROVAL_2 : PP_STATUS.WAITING_RAB_UPLOAD)
+            : (isApprove ? PP_STATUS.WAITING_PP_APPROVAL_1 : PP_STATUS.DRAFT);
+        const approveMessage = isStage2
+            ? "Disetujui oleh BM Manager tahap 2, menunggu approval PP Specialist tahap 2"
+            : "Disetujui oleh BM Manager, menunggu approval PP Specialist";
+        const rejectMessage = isStage2
+            ? `Ditolak oleh BM Manager tahap 2: ${action.alasan_penolakan}. Dikembalikan ke Coordinator untuk input ulang tahap kedua`
+            : `Ditolak oleh BM Manager: ${action.alasan_penolakan}. Dikembalikan ke Coordinator dari awal`;
 
         const { projek: updated } = await projekPlanningRepository.updateStatusWithLog(
             id,
@@ -494,12 +541,14 @@ export const projekPlanningService = {
                 status_sesudah: newStatus,
                 alasan_penolakan: action.alasan_penolakan ?? null,
                 keterangan: isApprove
-                    ? "Disetujui oleh BM Manager, menunggu approval PP Specialist"
-                    : `Ditolak oleh BM Manager: ${action.alasan_penolakan}. Dikembalikan ke Coordinator dari awal`,
+                    ? buildApprovalNote(approveMessage, action.catatan)
+                    : rejectMessage,
             },
-            isApprove
-                ? (client) => projekPlanningRepository.updateStatusAndBmApproval(id, newStatus, action, client)
-                : (client) => projekPlanningRepository.updateStatusAndRejectToDraft(id, PP_ROLE.BM, action, client)
+            isStage2
+                ? (client) => projekPlanningRepository.updateStatusAndBm2Approval(id, newStatus, action, client)
+                : isApprove
+                    ? (client) => projekPlanningRepository.updateStatusAndBmApproval(id, newStatus, action, client)
+                    : (client) => projekPlanningRepository.updateStatusAndRejectToDraft(id, PP_ROLE.BM, action, client)
         );
 
         return {
@@ -537,8 +586,9 @@ export const projekPlanningService = {
                 keterangan = "Disetujui oleh PP Specialist, PP perlu membuat desain 3D";
             } else {
                 newStatus = PP_STATUS.WAITING_RAB_UPLOAD;
-                keterangan = "Disetujui oleh PP Specialist (tanpa 3D), Cabang dapat mengupload RAB & Gambar Kerja";
+                keterangan = "Disetujui oleh PP Specialist (tanpa 3D), Cabang dapat mengisi fasilitas, memilih RAB Sparta approved, dan mengupload gambar final";
             }
+            keterangan = buildApprovalNote(keterangan, action.catatan);
         }
 
         const { projek: updated } = await projekPlanningRepository.updateStatusWithLog(
@@ -641,31 +691,43 @@ export const projekPlanningService = {
         // Upload file if provided
         let linkRabSipil = payload.link_rab_sipil;
         let linkRabMe = payload.link_rab_me;
-        let linkGambar = payload.link_gambar_kerja;
         let linkGambarSipil = payload.link_gambar_kerja_final_sipil;
         let linkGambarMe = payload.link_gambar_kerja_final_me;
+        const approvedRabs = await projekPlanningRepository.findApprovedRabsByNomorUlok(projek.nomor_ulok);
+        if (approvedRabs.length === 0) {
+            throw new AppError(
+                "RAB untuk ULOK ini belum diinput kontraktor atau belum selesai approval. Input dan approve RAB terlebih dahulu sebelum melanjutkan FPD.",
+                422
+            );
+        }
+
+        const selectedRabSipil = payload.id_rab_sipil
+            ? approvedRabs.find((rab) => rab.id === payload.id_rab_sipil)
+            : getApprovedRabByLingkup(approvedRabs, "SIPIL");
+        const selectedRabMe = payload.id_rab_me
+            ? approvedRabs.find((rab) => rab.id === payload.id_rab_me)
+            : getApprovedRabByLingkup(approvedRabs, "ME");
+
+        if (payload.id_rab_sipil && !selectedRabSipil) {
+            throw new AppError("RAB Sipil yang dipilih tidak ditemukan atau belum approved untuk ULOK ini.", 422);
+        }
+        if (payload.id_rab_me && !selectedRabMe) {
+            throw new AppError("RAB ME yang dipilih tidak ditemukan atau belum approved untuk ULOK ini.", 422);
+        }
+        if (!selectedRabSipil && !selectedRabMe) {
+            throw new AppError(
+                "RAB approved tersedia, tetapi belum ada RAB dengan lingkup Sipil atau ME untuk ULOK ini.",
+                422
+            );
+        }
+        linkRabSipil = linkRabSipil || selectedRabSipil?.link_pdf_gabungan || undefined;
+        linkRabMe = linkRabMe || selectedRabMe?.link_pdf_gabungan || undefined;
         
         if (files) {
-            const fRabSipil = files["file_rab_sipil"] ?? [];
-            const fRabMe = files["file_rab_me"] ?? [];
-            const fRabLegacy = files["file_rab"]?.[0];
-            const fGambar = files["file_gambar_kerja"] ?? [];
             const fGambarSipil = files["file_gambar_kerja_final_sipil"] ?? [];
             const fGambarMe = files["file_gambar_kerja_final_me"] ?? [];
             
             try {
-                if (fRabSipil.length > 0 || fRabLegacy) {
-                    const link = await uploadCompressedFiles(fRabSipil.length > 0 ? fRabSipil : [fRabLegacy], PROJECT_PLANNING_DRIVE_FOLDER_ID);
-                    if (link) linkRabSipil = link;
-                }
-                if (fRabMe.length > 0) {
-                    const link = await uploadCompressedFiles(fRabMe, PROJECT_PLANNING_DRIVE_FOLDER_ID);
-                    if (link) linkRabMe = link;
-                }
-                if (fGambar.length > 0) {
-                    const link = await uploadCompressedFiles(fGambar, PROJECT_PLANNING_DRIVE_FOLDER_ID);
-                    if (link) linkGambar = link;
-                }
                 if (fGambarSipil.length > 0) {
                     const link = await uploadCompressedFiles(fGambarSipil, PROJECT_PLANNING_DRIVE_FOLDER_ID);
                     if (link) linkGambarSipil = link;
@@ -680,7 +742,7 @@ export const projekPlanningService = {
             }
         }
 
-        const newStatus = PP_STATUS.WAITING_PP_APPROVAL_2;
+        const newStatus = PP_STATUS.WAITING_BM_APPROVAL_2;
 
         const { projek: updated } = await projekPlanningRepository.updateStatusWithLog(
             id,
@@ -690,13 +752,14 @@ export const projekPlanningService = {
                 aksi: PP_AKSI.UPLOAD_RAB,
                 status_sebelum: projek.status,
                 status_sesudah: newStatus,
-                keterangan: payload.keterangan ?? "RAB & Gambar Kerja Final berhasil diupload, menunggu approval PP Specialist",
+                keterangan: payload.keterangan ?? "Input tahap kedua berhasil dikirim, menunggu approval B&M Manager tahap 2",
             },
             (client) => projekPlanningRepository.updateRabUpload(id, newStatus, {
                 ...payload,
                 link_rab_sipil: linkRabSipil,
                 link_rab_me: linkRabMe,
-                link_gambar_kerja: linkGambar,
+                id_rab_sipil: selectedRabSipil?.id,
+                id_rab_me: selectedRabMe?.id,
                 link_gambar_kerja_final_sipil: linkGambarSipil,
                 link_gambar_kerja_final_me: linkGambarMe,
             }, client)
@@ -708,7 +771,6 @@ export const projekPlanningService = {
             new_status: updated.status,
             link_rab_sipil: linkRabSipil ?? null,
             link_rab_me: linkRabMe ?? null,
-            link_gambar_kerja: linkGambar ?? null,
             link_gambar_kerja_final_sipil: linkGambarSipil ?? null,
             link_gambar_kerja_final_me: linkGambarMe ?? null,
         };
@@ -718,7 +780,7 @@ export const projekPlanningService = {
     // PP APPROVAL STAGE 2 (PP Specialist, setelah RAB)
     // ============================================================
 
-    async ppApproval2(id: number, action: ApprovalInput) {
+    async ppApproval2(id: number, action: FinalReviewInput) {
         const data = await projekPlanningRepository.findById(id);
         if (!data) throw new AppError("Project planning tidak ditemukan", 404);
 
@@ -730,8 +792,9 @@ export const projekPlanningService = {
             );
         }
 
-        const isApprove = action.tindakan === "APPROVE";
+        const isApprove = action.rab_tindakan === "APPROVE" && action.gambar_tindakan === "APPROVE";
         const newStatus = isApprove ? PP_STATUS.WAITING_PP_MANAGER_APPROVAL : PP_STATUS.WAITING_RAB_UPLOAD;
+        const reviewSummary = buildFinalReviewSummary(action);
 
         const { projek: updated } = await projekPlanningRepository.updateStatusWithLog(
             id,
@@ -743,19 +806,30 @@ export const projekPlanningService = {
                 status_sesudah: newStatus,
                 alasan_penolakan: action.alasan_penolakan ?? null,
                 keterangan: isApprove
-                    ? "Disetujui oleh PP Specialist, menunggu approval final PP Manager"
-                    : `Ditolak oleh PP Specialist (Tahap 2): ${action.alasan_penolakan}. Dikembalikan ke Cabang untuk Upload ulang RAB & Gambar Kerja`,
+                    ? `Disetujui oleh PP Specialist, menunggu approval final PP Manager. ${reviewSummary}`
+                    : `Ditolak oleh PP Specialist (Tahap 2): ${action.alasan_penolakan}. ${reviewSummary}. Dikembalikan sesuai bagian yang perlu revisi`,
             },
-            isApprove
-                ? (client) => projekPlanningRepository.updateStatusAndPp2Approval(id, newStatus, action, client)
-                : (client) => projekPlanningRepository.updateStatusAndRejectToRabUpload(id, PP_ROLE.PP_SPECIALIST, action, client)
+            async (client) => {
+                const updated = await projekPlanningRepository.updateStatusAndFinalReview(id, newStatus, PP_ROLE.PP_SPECIALIST, action, client);
+                if (action.rab_tindakan === "REJECT") {
+                    const rabIds = [projek.id_rab_sipil, projek.id_rab_me].filter((rabId): rabId is number => !!rabId);
+                    await projekPlanningRepository.markRabNeedsRevision(
+                        rabIds,
+                        action.approver_email,
+                        `FPD #${id} ditolak PP Specialist: ${action.alasan_penolakan ?? ""}. ${reviewSummary}`,
+                        client
+                    );
+                }
+                return updated;
+            }
         );
 
         return {
             id,
             old_status: projek.status,
             new_status: updated.status,
-            tindakan: action.tindakan,
+            rab_tindakan: action.rab_tindakan,
+            gambar_tindakan: action.gambar_tindakan,
         };
     },
 
@@ -763,7 +837,7 @@ export const projekPlanningService = {
     // PP MANAGER APPROVAL (Tahap Final)
     // ============================================================
 
-    async ppManagerApproval(id: number, action: ApprovalInput) {
+    async ppManagerApproval(id: number, action: FinalReviewInput) {
         const data = await projekPlanningRepository.findById(id);
         if (!data) throw new AppError("Project planning tidak ditemukan", 404);
 
@@ -775,8 +849,9 @@ export const projekPlanningService = {
             );
         }
 
-        const isApprove = action.tindakan === "APPROVE";
+        const isApprove = action.rab_tindakan === "APPROVE" && action.gambar_tindakan === "APPROVE";
         const newStatus = isApprove ? PP_STATUS.COMPLETED : PP_STATUS.WAITING_RAB_UPLOAD;
+        const reviewSummary = buildFinalReviewSummary(action);
 
         const { projek: updated } = await projekPlanningRepository.updateStatusWithLog(
             id,
@@ -788,19 +863,30 @@ export const projekPlanningService = {
                 status_sesudah: newStatus,
                 alasan_penolakan: action.alasan_penolakan ?? null,
                 keterangan: isApprove
-                    ? "Disetujui final oleh PP Manager. FPD dikirim ke Cabang. Project planning SELESAI."
-                    : `Ditolak oleh PP Manager: ${action.alasan_penolakan}. Dikembalikan ke Cabang untuk Upload ulang RAB & Gambar Kerja`,
+                    ? `Disetujui final oleh PP Manager. FPD dikirim ke Cabang. Project planning SELESAI. ${reviewSummary}`
+                    : `Ditolak oleh PP Manager: ${action.alasan_penolakan}. ${reviewSummary}. Dikembalikan sesuai bagian yang perlu revisi`,
             },
-            isApprove
-                ? (client) => projekPlanningRepository.updateStatusAndPpManagerApproval(id, newStatus, action, client)
-                : (client) => projekPlanningRepository.updateStatusAndRejectToRabUpload(id, PP_ROLE.PP_MANAGER, action, client)
+            async (client) => {
+                const updated = await projekPlanningRepository.updateStatusAndFinalReview(id, newStatus, PP_ROLE.PP_MANAGER, action, client);
+                if (action.rab_tindakan === "REJECT") {
+                    const rabIds = [projek.id_rab_sipil, projek.id_rab_me].filter((rabId): rabId is number => !!rabId);
+                    await projekPlanningRepository.markRabNeedsRevision(
+                        rabIds,
+                        action.approver_email,
+                        `FPD #${id} ditolak PP Manager: ${action.alasan_penolakan ?? ""}. ${reviewSummary}`,
+                        client
+                    );
+                }
+                return updated;
+            }
         );
 
         return {
             id,
             old_status: projek.status,
             new_status: updated.status,
-            tindakan: action.tindakan,
+            rab_tindakan: action.rab_tindakan,
+            gambar_tindakan: action.gambar_tindakan,
             completed: isApprove,
         };
     },
@@ -828,7 +914,7 @@ export const projekPlanningService = {
 
         if (hasRole("BRANCH BUILDING & MAINTENANCE MANAGER") || hasRole("MAINTENANCE MANAGER") || hasRole("BBMM")) {
             approval += await projekPlanningRepository.countByStatuses(
-                [PP_STATUS.WAITING_BM_APPROVAL],
+                [PP_STATUS.WAITING_BM_APPROVAL, PP_STATUS.WAITING_BM_APPROVAL_2],
                 input.cabang
             );
         }

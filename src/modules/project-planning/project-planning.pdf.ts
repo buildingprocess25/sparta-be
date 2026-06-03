@@ -49,6 +49,8 @@ const PHOTO_POINT_LABELS: Record<number, string> = {
     36: "INSTALASI LISTRIK DIATAS PLAFOND",
     37: "SEPTICTANK EXISTING",
     38: "SUMUR EXISTING",
+    39: "HEAD TO HEAD KOMPETITOR 1",
+    40: "HEAD TO HEAD KOMPETITOR 2",
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

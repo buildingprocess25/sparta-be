@@ -25,6 +25,7 @@ export type ProjekPlanningRow = {
     cabang: string | null;
     alamat_toko: string | null;
     link_google_maps: string | null;
+    link_siteplan: string | null;
     proyek: string | null;
     lingkup_pekerjaan: string | null;
     jenis_proyek: string | null;
@@ -62,15 +63,22 @@ export type ProjekPlanningRow = {
     link_gambar_kerja: string | null;
     link_desain_3d: string | null;
     link_fpd_approved: string | null;
-    link_gambar_rab_sipil: string | null;
-    link_gambar_rab_me: string | null;
     link_gambar_kompetitor: string | null;
     link_rab_sipil: string | null;
     link_rab_me: string | null;
-    link_gambar_kerja_final: string | null;
     link_gambar_kerja_final_sipil: string | null;
     link_gambar_kerja_final_me: string | null;
     link_pdf: string | null;
+    id_rab_sipil: number | null;
+    id_rab_me: number | null;
+    luas_bangunan: string | null;
+    luas_area_terbuka: string | null;
+    luas_area_terbangun: string | null;
+    luas_gudang: string | null;
+    luas_area_parkir: string | null;
+    luas_area_sales: string | null;
+    pxl_bangunan: string | null;
+    pxl_area_parkir: string | null;
 
     // Status & flags
     status: PpStatus;
@@ -78,6 +86,7 @@ export type ProjekPlanningRow = {
     is_ruko: boolean;
     jumlah_lantai: number | null;
     is_head_to_head: boolean;
+    jarak_head_to_head: string | null;
     is_seating_area: boolean;
     is_dark_store: boolean;
     beanspot_tipe: string | null;
@@ -95,6 +104,17 @@ export type ProjekPlanningRow = {
     pp2_approver_email: string | null;
     pp2_waktu_persetujuan: string | null;
     pp2_alasan_penolakan: string | null;
+    bm2_approver_email: string | null;
+    bm2_waktu_persetujuan: string | null;
+    bm2_alasan_penolakan: string | null;
+    pp2_rab_status: string | null;
+    pp2_gambar_status: string | null;
+    pp2_rab_rejected_item_ids: number[] | null;
+    pp2_rab_rejected_item_notes: string | null;
+    pp_manager_rab_status: string | null;
+    pp_manager_gambar_status: string | null;
+    pp_manager_rab_rejected_item_ids: number[] | null;
+    pp_manager_rab_rejected_item_notes: string | null;
 
     created_at: string;
     updated_at: string;
@@ -119,20 +139,26 @@ export type ProjekPlanningLogRow = {
 
 const PP_COLUMNS = `
     id, id_toko, nomor_ulok, email_pembuat,
-    nama_toko, kode_toko, cabang, alamat_toko, link_google_maps, proyek, lingkup_pekerjaan,
+    nama_toko, kode_toko, cabang, alamat_toko, link_google_maps, link_siteplan, proyek, lingkup_pekerjaan,
     jenis_proyek, estimasi_biaya, keterangan,
     nama_pengaju, nama_lokasi,
     jenis_pengajuan, jenis_pengajuan_lainnya,
     link_fpd, link_rab, link_gambar_kerja, link_desain_3d, link_fpd_approved,
-    link_gambar_rab_sipil, link_gambar_rab_me, link_gambar_kompetitor,
-    link_rab_sipil, link_rab_me, link_gambar_kerja_final,
+    link_gambar_kompetitor,
+    link_rab_sipil, link_rab_me,
     link_gambar_kerja_final_sipil, link_gambar_kerja_final_me, link_pdf,
+    id_rab_sipil, id_rab_me,
+    luas_bangunan, luas_area_terbuka, luas_area_terbangun, luas_gudang,
+    luas_area_parkir, luas_area_sales, pxl_bangunan, pxl_area_parkir,
     status, butuh_desain_3d, is_ruko, jumlah_lantai,
-    is_head_to_head, is_seating_area, is_dark_store, beanspot_tipe,
+    is_head_to_head, jarak_head_to_head, is_seating_area, is_dark_store, beanspot_tipe,
     bm_approver_email, bm_waktu_persetujuan, bm_alasan_penolakan,
+    bm2_approver_email, bm2_waktu_persetujuan, bm2_alasan_penolakan,
     pp1_approver_email, pp1_waktu_persetujuan, pp1_alasan_penolakan,
     pp_manager_approver_email, pp_manager_waktu_persetujuan, pp_manager_alasan_penolakan,
     pp2_approver_email, pp2_waktu_persetujuan, pp2_alasan_penolakan,
+    pp2_rab_status, pp2_gambar_status, pp2_rab_rejected_item_ids, pp2_rab_rejected_item_notes,
+    pp_manager_rab_status, pp_manager_gambar_status, pp_manager_rab_rejected_item_ids, pp_manager_rab_rejected_item_notes,
     created_at, updated_at
 `;
 
@@ -211,6 +237,29 @@ export const projekPlanningRepository = {
             [idToko]
         );
         return result.rows[0] ?? null;
+    },
+
+    async findApprovedRabsByNomorUlok(nomorUlok: string): Promise<Array<{
+        id: number;
+        id_toko: number;
+        nomor_ulok: string;
+        lingkup_pekerjaan: string | null;
+        nama_pt: string | null;
+        status: string;
+        link_pdf_gabungan: string | null;
+        grand_total_final: string | null;
+    }>> {
+        const result = await pool.query(
+            `SELECT r.id, r.id_toko, t.nomor_ulok, t.lingkup_pekerjaan,
+                    r.nama_pt, r.status, r.link_pdf_gabungan, r.grand_total_final
+             FROM rab r
+             JOIN toko t ON t.id = r.id_toko
+             WHERE t.nomor_ulok = $1
+               AND r.status = 'Disetujui'
+             ORDER BY r.created_at DESC`,
+            [nomorUlok]
+        );
+        return result.rows;
     },
 
     async findLatestByTokoId(idToko: number): Promise<ProjekPlanningRow | null> {
@@ -380,25 +429,29 @@ export const projekPlanningRepository = {
                     id_toko, nomor_ulok, email_pembuat,
                     nama_toko, kode_toko, cabang, alamat_toko, link_google_maps, proyek, lingkup_pekerjaan,
                     jenis_proyek, estimasi_biaya, keterangan, link_fpd,
+                    link_siteplan,
+                    luas_bangunan, luas_area_terbuka, luas_area_terbangun, luas_gudang,
+                    luas_area_parkir, luas_area_sales, pxl_bangunan, pxl_area_parkir,
                     nama_pengaju, nama_lokasi,
                     jenis_pengajuan, jenis_pengajuan_lainnya,
-                    link_gambar_kerja, link_gambar_rab_sipil, link_gambar_rab_me,
-                    link_gambar_kompetitor,
+                    link_gambar_kerja, link_gambar_kompetitor,
                     is_ruko, jumlah_lantai,
-                    is_head_to_head, is_seating_area, is_dark_store, beanspot_tipe,
+                    is_head_to_head, jarak_head_to_head, is_seating_area, is_dark_store, beanspot_tipe,
                     status, butuh_desain_3d,
                     created_at, updated_at
                 ) VALUES (
                     $1, $2, $3,
                     $4, $5, $6, $7, $8, $9, $10,
                     $11, $12, $13, $14,
-                    $15, $16,
-                    $17, $18,
-                    $19, $20, $21,
-                    $22,
-                    $23, $24,
-                    $25, $26, $27, $28,
-                    $29, FALSE,
+                    $15,
+                    $16, $17, $18, $19,
+                    $20, $21, $22, $23,
+                    $24, $25,
+                    $26, $27,
+                    $28, $29,
+                    $30, $31,
+                    $32, $33, $34, $35, $36,
+                    $37, FALSE,
                     NOW(), NOW()
                 )
                 RETURNING ${PP_COLUMNS}`,
@@ -417,17 +470,25 @@ export const projekPlanningRepository = {
                     payload.estimasi_biaya ?? null,
                     payload.keterangan ?? null,
                     payload.link_fpd ?? null,
+                    (payload as any).link_siteplan ?? null,
+                    (payload as any).luas_bangunan ?? null,
+                    (payload as any).luas_area_terbuka ?? null,
+                    (payload as any).luas_area_terbangun ?? null,
+                    (payload as any).luas_gudang ?? null,
+                    (payload as any).luas_area_parkir ?? null,
+                    (payload as any).luas_area_sales ?? null,
+                    (payload as any).pxl_bangunan ?? null,
+                    (payload as any).pxl_area_parkir ?? null,
                     payload.nama_pengaju,
                     payload.nama_lokasi,
                     payload.jenis_pengajuan,
                     payload.jenis_pengajuan_lainnya ?? null,
                     (payload as any).link_gambar_kerja ?? null,
-                    payload.link_gambar_rab_sipil ?? null,
-                    payload.link_gambar_rab_me ?? null,
                     (payload as any).link_gambar_kompetitor ?? null,
                     (payload as any).is_ruko ?? false,
                     (payload as any).jumlah_lantai ?? null,
                     (payload as any).is_head_to_head ?? false,
+                    (payload as any).jarak_head_to_head ?? null,
                     (payload as any).is_seating_area ?? false,
                     (payload as any).is_dark_store ?? false,
                     (payload as any).beanspot_tipe ?? null,
@@ -496,22 +557,30 @@ export const projekPlanningRepository = {
                      cabang = $9,
                      alamat_toko = $10,
                      link_google_maps = $11,
-                     proyek = $12,
-                     nama_pengaju = $13,
-                     nama_lokasi = $14,
-                     jenis_pengajuan = $15,
-                     jenis_pengajuan_lainnya = $16,
-                     link_gambar_rab_sipil = $17,
-                     link_gambar_rab_me = $18,
-                     link_gambar_kerja = COALESCE($19, link_gambar_kerja),
-                     link_gambar_kompetitor = COALESCE($20, link_gambar_kompetitor),
-                     is_ruko = $21,
-                     jumlah_lantai = $22,
-                     is_head_to_head = $23,
-                     is_seating_area = $24,
-                     is_dark_store = $25,
-                     beanspot_tipe = $26,
-                     status = $27,
+                     link_siteplan = COALESCE($12, link_siteplan),
+                     luas_bangunan = $13,
+                     luas_area_terbuka = $14,
+                     luas_area_terbangun = $15,
+                     luas_gudang = $16,
+                     luas_area_parkir = $17,
+                     luas_area_sales = $18,
+                     pxl_bangunan = $19,
+                     pxl_area_parkir = $20,
+                     proyek = $21,
+                     nama_pengaju = $22,
+                     nama_lokasi = $23,
+                     jenis_pengajuan = $24,
+                     jenis_pengajuan_lainnya = $25,
+                     link_gambar_kerja = COALESCE($26, link_gambar_kerja),
+                     link_gambar_kompetitor = COALESCE($27, link_gambar_kompetitor),
+                     is_ruko = $28,
+                     jumlah_lantai = $29,
+                     is_head_to_head = $30,
+                     jarak_head_to_head = $31,
+                     is_seating_area = $32,
+                     is_dark_store = $33,
+                     beanspot_tipe = $34,
+                     status = $35,
                      butuh_desain_3d = FALSE,
                      bm_approver_email = NULL,
                      bm_waktu_persetujuan = NULL,
@@ -522,7 +591,7 @@ export const projekPlanningRepository = {
                      pp2_approver_email = NULL,
                      pp2_waktu_persetujuan = NULL,
                      updated_at = NOW()
-                 WHERE id = $28
+                 WHERE id = $36
                  RETURNING ${PP_COLUMNS}`,
                 [
                     payload.email_pembuat,
@@ -536,18 +605,26 @@ export const projekPlanningRepository = {
                     payload.cabang,
                     payload.alamat_toko,
                     (payload as any).link_google_maps ?? null,
+                    (payload as any).link_siteplan ?? null,
+                    (payload as any).luas_bangunan ?? null,
+                    (payload as any).luas_area_terbuka ?? null,
+                    (payload as any).luas_area_terbangun ?? null,
+                    (payload as any).luas_gudang ?? null,
+                    (payload as any).luas_area_parkir ?? null,
+                    (payload as any).luas_area_sales ?? null,
+                    (payload as any).pxl_bangunan ?? null,
+                    (payload as any).pxl_area_parkir ?? null,
                     payload.proyek,
                     payload.nama_pengaju,
                     payload.nama_lokasi,
                     payload.jenis_pengajuan,
                     payload.jenis_pengajuan_lainnya ?? null,
-                    payload.link_gambar_rab_sipil ?? null,
-                    payload.link_gambar_rab_me ?? null,
                     (payload as any).link_gambar_kerja ?? null,
                     (payload as any).link_gambar_kompetitor ?? null,
                     (payload as any).is_ruko ?? false,
                     (payload as any).jumlah_lantai ?? null,
                     (payload as any).is_head_to_head ?? false,
+                    (payload as any).jarak_head_to_head ?? null,
                     (payload as any).is_seating_area ?? false,
                     (payload as any).is_dark_store ?? false,
                     (payload as any).beanspot_tipe ?? null,
@@ -669,6 +746,27 @@ export const projekPlanningRepository = {
         return result.rows[0];
     },
 
+    async updateStatusAndBm2Approval(
+        id: number,
+        newStatus: PpStatus,
+        action: ApprovalInput,
+        client?: PoolClient
+    ): Promise<ProjekPlanningRow> {
+        const db = client ?? pool;
+        const result = await db.query<ProjekPlanningRow>(
+            `UPDATE projek_planning
+             SET status = $1,
+                 bm2_approver_email = $2,
+                 bm2_waktu_persetujuan = NOW(),
+                 bm2_alasan_penolakan = CASE WHEN $1 = 'WAITING_RAB_UPLOAD' THEN $3 ELSE NULL END,
+                 updated_at = NOW()
+             WHERE id = $4
+             RETURNING ${PP_COLUMNS}`,
+            [newStatus, action.approver_email, action.alasan_penolakan ?? null, id]
+        );
+        return result.rows[0];
+    },
+
     async updateStatusAndPp1Approval(
         id: number,
         newStatus: PpStatus,
@@ -716,9 +814,16 @@ export const projekPlanningRepository = {
         payload: {
             link_rab_sipil?: string;
             link_rab_me?: string;
-            link_gambar_kerja?: string;
+            id_rab_sipil?: number;
+            id_rab_me?: number;
             link_gambar_kerja_final_sipil?: string;
             link_gambar_kerja_final_me?: string;
+            fasilitas?: Array<{
+                jenis_fasilitas: string;
+                nama_fasilitas_lainnya?: string | null;
+                is_tersedia: boolean;
+                keterangan?: string | null;
+            }>;
         },
         client?: PoolClient
     ): Promise<ProjekPlanningRow> {
@@ -728,23 +833,48 @@ export const projekPlanningRepository = {
              SET status = $1,
                  link_rab_sipil = COALESCE($2, link_rab_sipil),
                  link_rab_me = COALESCE($3, link_rab_me),
-                 link_gambar_kerja_final = COALESCE($4, link_gambar_kerja_final),
-                 link_gambar_kerja_final_sipil = COALESCE($5, link_gambar_kerja_final_sipil),
-                 link_gambar_kerja_final_me = COALESCE($6, link_gambar_kerja_final_me),
+                 id_rab_sipil = COALESCE($4, id_rab_sipil),
+                 id_rab_me = COALESCE($5, id_rab_me),
+                 link_gambar_kerja_final_sipil = COALESCE($6, link_gambar_kerja_final_sipil),
+                 link_gambar_kerja_final_me = COALESCE($7, link_gambar_kerja_final_me),
+                 pp2_rab_status = NULL,
+                 pp2_gambar_status = NULL,
+                 pp2_alasan_penolakan = NULL,
+                 pp2_rab_rejected_item_ids = NULL,
+                 pp2_rab_rejected_item_notes = NULL,
+                 pp_manager_rab_status = NULL,
+                 pp_manager_gambar_status = NULL,
+                 pp_manager_alasan_penolakan = NULL,
+                 pp_manager_rab_rejected_item_ids = NULL,
+                 pp_manager_rab_rejected_item_notes = NULL,
                  updated_at = NOW()
-             WHERE id = $7
+             WHERE id = $8
              RETURNING ${PP_COLUMNS}`,
             [
                 newStatus,
                 payload.link_rab_sipil ?? null,
                 payload.link_rab_me ?? null,
-                payload.link_gambar_kerja ?? null,
+                payload.id_rab_sipil ?? null,
+                payload.id_rab_me ?? null,
                 payload.link_gambar_kerja_final_sipil ?? null,
                 payload.link_gambar_kerja_final_me ?? null,
                 id,
             ]
         );
-        return result.rows[0];
+
+        if (payload.fasilitas) {
+            await db.query(`DELETE FROM projek_planning_fasilitas WHERE projek_planning_id = $1`, [id]);
+            for (const f of payload.fasilitas) {
+                await db.query(
+                    `INSERT INTO projek_planning_fasilitas (projek_planning_id, jenis_fasilitas, nama_fasilitas_lainnya, is_tersedia, keterangan) VALUES ($1, $2, $3, $4, $5)`,
+                    [id, f.jenis_fasilitas, f.nama_fasilitas_lainnya ?? null, f.is_tersedia, f.keterangan ?? null]
+                );
+            }
+        }
+
+        const row = result.rows[0];
+        row.fasilitas = payload.fasilitas || [];
+        return row;
     },
 
     async updateStatusAndPpManagerApproval(
@@ -766,6 +896,78 @@ export const projekPlanningRepository = {
             [newStatus, action.approver_email, id]
         );
         return result.rows[0];
+    },
+
+    async updateStatusAndFinalReview(
+        id: number,
+        newStatus: PpStatus,
+        role: "PP_SPECIALIST" | "PP_MANAGER",
+        action: {
+            approver_email: string;
+            rab_tindakan: "APPROVE" | "REJECT";
+            gambar_tindakan: "APPROVE" | "REJECT";
+            alasan_penolakan?: string | null;
+            rab_rejected_item_ids?: number[];
+            rab_rejected_item_notes?: string | null;
+        },
+        client?: PoolClient
+    ): Promise<ProjekPlanningRow> {
+        const db = client ?? pool;
+        const isManager = role === "PP_MANAGER";
+        const setFields = isManager
+            ? `pp_manager_approver_email = $2,
+               pp_manager_waktu_persetujuan = NOW(),
+               pp_manager_alasan_penolakan = $3,
+               pp_manager_rab_status = $4,
+               pp_manager_gambar_status = $5,
+               pp_manager_rab_rejected_item_ids = $6,
+               pp_manager_rab_rejected_item_notes = $7`
+            : `pp2_approver_email = $2,
+               pp2_waktu_persetujuan = NOW(),
+               pp2_alasan_penolakan = $3,
+               pp2_rab_status = $4,
+               pp2_gambar_status = $5,
+               pp2_rab_rejected_item_ids = $6,
+               pp2_rab_rejected_item_notes = $7`;
+
+        const result = await db.query<ProjekPlanningRow>(
+            `UPDATE projek_planning
+             SET status = $1,
+                 ${setFields},
+                 updated_at = NOW()
+             WHERE id = $8
+             RETURNING ${PP_COLUMNS}`,
+            [
+                newStatus,
+                action.approver_email,
+                action.alasan_penolakan ?? null,
+                action.rab_tindakan,
+                action.gambar_tindakan,
+                action.rab_rejected_item_ids && action.rab_rejected_item_ids.length > 0 ? action.rab_rejected_item_ids : null,
+                action.rab_rejected_item_notes ?? null,
+                id,
+            ]
+        );
+        return result.rows[0];
+    },
+
+    async markRabNeedsRevision(
+        rabIds: number[],
+        actorEmail: string,
+        reason: string,
+        client?: PoolClient
+    ): Promise<void> {
+        if (rabIds.length === 0) return;
+        const db = client ?? pool;
+        await db.query(
+            `UPDATE rab
+             SET status = 'Ditolak oleh Koordinator',
+                 alasan_penolakan = $1,
+                 ditolak_oleh = $2,
+                 waktu_penolakan = NOW()
+             WHERE id = ANY($3::int[])`,
+            [reason, actorEmail, rabIds]
+        );
     },
 
     async updateStatusAndPp2Approval(
