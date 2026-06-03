@@ -171,6 +171,12 @@ function buildFinalReviewSummary(action: FinalReviewInput): string {
     return parts.join(". ");
 }
 
+function getFinalReviewRejectReason(action: FinalReviewInput, reviewSummary: string): string {
+    return normalizeText(action.alasan_penolakan)
+        || normalizeText(action.rab_rejected_item_notes)
+        || reviewSummary;
+}
+
 import type {
     SubmitProjekPlanningInput,
     ResubmitProjekPlanningInput,
@@ -795,6 +801,7 @@ export const projekPlanningService = {
         const isApprove = action.rab_tindakan === "APPROVE" && action.gambar_tindakan === "APPROVE";
         const newStatus = isApprove ? PP_STATUS.WAITING_PP_MANAGER_APPROVAL : PP_STATUS.WAITING_RAB_UPLOAD;
         const reviewSummary = buildFinalReviewSummary(action);
+        const rejectReason = getFinalReviewRejectReason(action, reviewSummary);
 
         const { projek: updated } = await projekPlanningRepository.updateStatusWithLog(
             id,
@@ -804,10 +811,10 @@ export const projekPlanningService = {
                 aksi: isApprove ? PP_AKSI.APPROVE : PP_AKSI.REJECT,
                 status_sebelum: projek.status,
                 status_sesudah: newStatus,
-                alasan_penolakan: action.alasan_penolakan ?? null,
+                alasan_penolakan: isApprove ? null : rejectReason,
                 keterangan: isApprove
                     ? `Disetujui oleh PP Specialist, menunggu approval final PP Manager. ${reviewSummary}`
-                    : `Ditolak oleh PP Specialist (Tahap 2): ${action.alasan_penolakan}. ${reviewSummary}. Dikembalikan sesuai bagian yang perlu revisi`,
+                    : `Ditolak oleh PP Specialist (Tahap 2): ${rejectReason}. ${reviewSummary}. Dikembalikan sesuai bagian yang perlu revisi`,
             },
             async (client) => {
                 const updated = await projekPlanningRepository.updateStatusAndFinalReview(id, newStatus, PP_ROLE.PP_SPECIALIST, action, client);
@@ -816,7 +823,7 @@ export const projekPlanningService = {
                     await projekPlanningRepository.markRabNeedsRevision(
                         rabIds,
                         action.approver_email,
-                        `FPD #${id} ditolak PP Specialist: ${action.alasan_penolakan ?? ""}. ${reviewSummary}`,
+                        `FPD #${id} ditolak PP Specialist: ${rejectReason}. ${reviewSummary}`,
                         client
                     );
                 }
@@ -852,6 +859,7 @@ export const projekPlanningService = {
         const isApprove = action.rab_tindakan === "APPROVE" && action.gambar_tindakan === "APPROVE";
         const newStatus = isApprove ? PP_STATUS.COMPLETED : PP_STATUS.WAITING_RAB_UPLOAD;
         const reviewSummary = buildFinalReviewSummary(action);
+        const rejectReason = getFinalReviewRejectReason(action, reviewSummary);
 
         const { projek: updated } = await projekPlanningRepository.updateStatusWithLog(
             id,
@@ -861,10 +869,10 @@ export const projekPlanningService = {
                 aksi: isApprove ? PP_AKSI.COMPLETE : PP_AKSI.REJECT,
                 status_sebelum: projek.status,
                 status_sesudah: newStatus,
-                alasan_penolakan: action.alasan_penolakan ?? null,
+                alasan_penolakan: isApprove ? null : rejectReason,
                 keterangan: isApprove
                     ? `Disetujui final oleh PP Manager. FPD dikirim ke Cabang. Project planning SELESAI. ${reviewSummary}`
-                    : `Ditolak oleh PP Manager: ${action.alasan_penolakan}. ${reviewSummary}. Dikembalikan sesuai bagian yang perlu revisi`,
+                    : `Ditolak oleh PP Manager: ${rejectReason}. ${reviewSummary}. Dikembalikan sesuai bagian yang perlu revisi`,
             },
             async (client) => {
                 const updated = await projekPlanningRepository.updateStatusAndFinalReview(id, newStatus, PP_ROLE.PP_MANAGER, action, client);
@@ -873,7 +881,7 @@ export const projekPlanningService = {
                     await projekPlanningRepository.markRabNeedsRevision(
                         rabIds,
                         action.approver_email,
-                        `FPD #${id} ditolak PP Manager: ${action.alasan_penolakan ?? ""}. ${reviewSummary}`,
+                        `FPD #${id} ditolak PP Manager: ${rejectReason}. ${reviewSummary}`,
                         client
                     );
                 }

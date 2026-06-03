@@ -240,11 +240,22 @@ export const finalReviewSchema = z
         rab_rejected_item_notes: z.string().optional(),
     })
     .superRefine((val, ctx) => {
-        if ((val.rab_tindakan === "REJECT" || val.gambar_tindakan === "REJECT") && !val.alasan_penolakan?.trim()) {
+        if (val.gambar_tindakan === "REJECT" && !val.alasan_penolakan?.trim()) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
-                message: "alasan_penolakan wajib diisi saat menolak RAB atau gambar final",
+                message: "alasan_penolakan wajib diisi saat menolak gambar final",
                 path: ["alasan_penolakan"],
+            });
+        }
+        if (
+            val.rab_tindakan === "REJECT"
+            && val.rab_rejected_item_ids.length === 0
+            && !val.rab_rejected_item_notes?.trim()
+        ) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Catatan revisi RAB general atau item RAB wajib diisi saat menolak RAB",
+                path: ["rab_rejected_item_notes"],
             });
         }
     });
