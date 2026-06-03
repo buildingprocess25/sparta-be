@@ -758,7 +758,7 @@ export const projekPlanningRepository = {
              SET status = $1,
                  bm2_approver_email = $2,
                  bm2_waktu_persetujuan = NOW(),
-                 bm2_alasan_penolakan = CASE WHEN $1 = 'WAITING_RAB_UPLOAD' THEN $3 ELSE NULL END,
+                 bm2_alasan_penolakan = CASE WHEN $1::text = 'WAITING_RAB_UPLOAD' THEN $3 ELSE NULL END,
                  updated_at = NOW()
              WHERE id = $4
              RETURNING ${PP_COLUMNS}`,

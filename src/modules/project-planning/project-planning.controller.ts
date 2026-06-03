@@ -12,6 +12,29 @@ import {
 } from "./project-planning.schema";
 import { projekPlanningService } from "./project-planning.service";
 
+async function fetchPublicDriveBuffer(fileId: string): Promise<Buffer | null> {
+    const urls = [
+        `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}`,
+        `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download`,
+    ];
+
+    for (const url of urls) {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) continue;
+            const contentType = response.headers.get("content-type") || "";
+            const body = Buffer.from(await response.arrayBuffer());
+            if (!body.length) continue;
+            // Halaman HTML Google Drive "can't access" bukan file valid.
+            if (contentType.includes("text/html") && body.toString("utf8", 0, Math.min(body.length, 300)).includes("<html")) continue;
+            return body;
+        } catch {
+            // lanjut ke URL berikutnya
+        }
+    }
+    return null;
+}
+
 // ============================================================
 // SUBMIT FPD (Coordinator) — record baru
 // ============================================================
@@ -334,7 +357,8 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
 
     const { GoogleProvider } = await import("../../common/google");
     const drive = GoogleProvider.instance.docDrive;
-    if (!drive) {
+    const spartaDrive = GoogleProvider.instance.spartaDrive;
+    if (!drive && !spartaDrive) {
         res.status(503).json({ status: "error", message: "Layanan Drive belum siap" });
         return;
     }
@@ -343,15 +367,31 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
     let mimeType = "application/octet-stream";
     let fileName = `file_${field}_${id}`;
     try {
+        if (!drive) throw new Error("docDrive unavailable");
         const meta = await drive.files.get({ fileId, fields: "name, mimeType" });
         if (meta.data.name) fileName = meta.data.name;
         if (meta.data.mimeType) mimeType = meta.data.mimeType;
-    } catch { /* ignore, gunakan default */ }
+    } catch {
+        try {
+            if (!spartaDrive) throw new Error("spartaDrive unavailable");
+            const meta = await spartaDrive.files.get({ fileId, fields: "name, mimeType" });
+            if (meta.data.name) fileName = meta.data.name;
+            if (meta.data.mimeType) mimeType = meta.data.mimeType;
+        } catch {
+            // ignore, gunakan default
+        }
+    }
 
     // Download buffer
-    const buffer = await GoogleProvider.instance.getFileBufferById(drive, fileId);
+    let buffer = drive ? await GoogleProvider.instance.getFileBufferById(drive, fileId) : null;
+    if (!buffer && spartaDrive) {
+        buffer = await GoogleProvider.instance.getFileBufferById(spartaDrive, fileId);
+    }
     if (!buffer) {
-        res.status(502).json({ status: "error", message: "Gagal mengambil file dari Drive" });
+        buffer = await fetchPublicDriveBuffer(fileId);
+    }
+    if (!buffer) {
+        res.status(502).json({ status: "error", message: "Gagal mengambil file dari Drive. Pastikan file RAB dapat diakses oleh token backend atau dibagikan sebagai viewer." });
         return;
     }
 
