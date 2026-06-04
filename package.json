@@ -11,6 +11,8 @@
         "copy:images": "node -e \"const fs=require('fs');fs.mkdirSync('dist/image',{recursive:true});if(fs.existsSync('src/image')){fs.cpSync('src/image','dist/image',{recursive:true});}\"",
         "build": "tsc -p tsconfig.json && npm run copy:templates && npm run copy:images",
         "start": "node dist/index.js",
+        "backup:drive": "tsx src/scripts/backup-database-to-drive.ts",
+        "backup:drive:prod": "node dist/scripts/backup-database-to-drive.js",
         "typecheck": "tsc --noEmit -p tsconfig.json"
     },
     "dependencies": {

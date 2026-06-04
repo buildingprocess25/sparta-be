@@ -15,6 +15,9 @@ const envSchema = z.object({
     DOC_SPREADSHEET_ID: z.string().default("1bEslAY1gGm1QgYl_ZL88_rt5z-errU7HU3GkqbWcNOw"),
     DOC_DRIVE_ROOT_ID: z.string().default("14hjuP33ez1v1WDxkTi7A3k-XfKOZKVTc"),
     DC_DOC_DRIVE_ROOT_ID: z.string().optional(),
+    DB_BACKUP_DRIVE_ROOT_ID: z.string().optional(),
+    DB_BACKUP_DRIVE_FOLDER_NAME: z.string().default("backup database building"),
+    DB_BACKUP_RETENTION_COUNT: z.coerce.number().int().positive().default(10),
     PROJECT_PLANNING_DRIVE_FOLDER_ID: z.string().default("1BBZQZtHJV0dN6rQMp0EQ7aLpG5kcPPCF"),
     DOC_SHEET_NAME: z.string().default("penyimpanan_dokumen"),
 
