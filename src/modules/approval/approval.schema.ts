@@ -16,7 +16,11 @@ export const approvalActionSchema = z
         jabatan: jabatanSchema,
         tindakan: tindakanSchema,
         // Frontend/Postman kadang mengirim null saat approve.
-        alasan_penolakan: z.string().nullable().optional()
+        alasan_penolakan: z.string().nullable().optional(),
+        catatan_approval: z.string().nullable().optional(),
+        catatan_revisi_umum: z.string().nullable().optional(),
+        revisi_item_ids: z.array(z.coerce.number().int().positive()).optional(),
+        revisi_item_notes: z.record(z.string(), z.string().nullable().optional()).optional()
     })
     .superRefine((value, ctx) => {
         if (value.tindakan === "REJECT" && !value.alasan_penolakan?.trim()) {

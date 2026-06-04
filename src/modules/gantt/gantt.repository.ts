@@ -40,6 +40,7 @@ export type PengawasanGanttRow = {
     id_gantt: number;
     id_pic_pengawasan: number | null;
     tanggal_pengawasan: string;
+    catatan_memo: string | null;
 };
 
 export type DependencyGanttRow = {
@@ -136,9 +137,9 @@ const insertPengawasan = async (
 ): Promise<void> => {
     for (const item of pengawasanItems) {
         await client.query(
-            `INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan)
-             VALUES ($1, $2)`,
-            [ganttId, item.tanggal_pengawasan]
+            `INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan, catatan_memo)
+             VALUES ($1, $2, $3)`,
+            [ganttId, item.tanggal_pengawasan, item.catatan_memo?.trim() || null]
         );
     }
 };
@@ -386,7 +387,7 @@ export const ganttRepository = {
 
         // Pengawasan
         const pengawasanRes = await pool.query<PengawasanGanttRow>(
-            `SELECT id, id_gantt, id_pic_pengawasan, tanggal_pengawasan
+            `SELECT id, id_gantt, id_pic_pengawasan, tanggal_pengawasan, catatan_memo
              FROM pengawasan_gantt
              WHERE id_gantt = $1
              ORDER BY id ASC`,
@@ -718,15 +719,37 @@ export const ganttRepository = {
     async addPengawasan(
         ganttId: string,
         tanggalPengawasanList: string[],
-        idPicPengawasan?: number
+        idPicPengawasan?: number,
+        catatanMemo?: string | null
     ): Promise<{ inserted: number; ids: number[] }> {
         const ids: number[] = [];
 
         for (const tanggalPengawasan of tanggalPengawasanList) {
+            const existing = await pool.query<{ id: number }>(
+                `SELECT id
+                 FROM pengawasan_gantt
+                 WHERE id_gantt = $1 AND tanggal_pengawasan = $2
+                 ORDER BY id ASC
+                 LIMIT 1`,
+                [ganttId, tanggalPengawasan]
+            );
+
+            if (existing.rows[0]) {
+                await pool.query(
+                    `UPDATE pengawasan_gantt
+                     SET id_pic_pengawasan = COALESCE($1, id_pic_pengawasan),
+                         catatan_memo = COALESCE(NULLIF($2, ''), catatan_memo)
+                     WHERE id = $3`,
+                    [idPicPengawasan ?? null, catatanMemo?.trim() || "", existing.rows[0].id]
+                );
+                ids.push(existing.rows[0].id);
+                continue;
+            }
+
             const result = await pool.query<{ id: number }>(
-                `INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan, id_pic_pengawasan)
-                 VALUES ($1, $2, $3) RETURNING id`,
-                [ganttId, tanggalPengawasan, idPicPengawasan ?? null]
+                `INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan, id_pic_pengawasan, catatan_memo)
+                 VALUES ($1, $2, $3, $4) RETURNING id`,
+                [ganttId, tanggalPengawasan, idPicPengawasan ?? null, catatanMemo?.trim() || null]
             );
             ids.push(result.rows[0].id);
         }
@@ -861,7 +884,7 @@ export const ganttRepository = {
 
         // 7. Pengawasan
         const pengawasanRes = await pool.query<PengawasanGanttRow>(
-            `SELECT id, id_gantt, id_pic_pengawasan, tanggal_pengawasan
+            `SELECT id, id_gantt, id_pic_pengawasan, tanggal_pengawasan, catatan_memo
              FROM pengawasan_gantt
              WHERE id_gantt = $1
              ORDER BY id ASC`,

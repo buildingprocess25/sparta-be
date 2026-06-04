@@ -46,7 +46,8 @@ export const pertambahanSpkApprovalSchema = z
     .object({
         approver_email: z.string().email(),
         tindakan: z.enum(["APPROVE", "REJECT"]),
-        alasan_penolakan: z.string().optional()
+        alasan_penolakan: z.string().optional(),
+        catatan_approval: z.string().nullable().optional()
     })
     .superRefine((value, ctx) => {
         if (value.tindakan === "REJECT" && !value.alasan_penolakan?.trim()) {

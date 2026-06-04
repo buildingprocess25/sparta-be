@@ -18,6 +18,8 @@ export type PertambahanSpkRow = {
     disetujui_oleh: string | null;
     waktu_persetujuan: string | null;
     alasan_penolakan: string | null;
+    catatan_approval: string | null;
+    catatan_penolakan: string | null;
     link_pdf: string | null;
     link_lampiran_pendukung: string | null;
     created_at: string;
@@ -65,7 +67,7 @@ const PERTAMBAHAN_SPK_COLUMNS = `
   id, id_spk, pertambahan_hari, tanggal_spk_akhir,
   tanggal_spk_akhir_setelah_perpanjangan, alasan_perpanjangan,
   dibuat_oleh, status_persetujuan, disetujui_oleh, waktu_persetujuan,
-  alasan_penolakan, link_pdf, link_lampiran_pendukung, created_at
+  alasan_penolakan, catatan_approval, catatan_penolakan, link_pdf, link_lampiran_pendukung, created_at
 `;
 
 const PERTAMBAHAN_SPK_DETAIL_COLUMNS = `
@@ -80,6 +82,8 @@ const PERTAMBAHAN_SPK_DETAIL_COLUMNS = `
     p.disetujui_oleh,
     p.waktu_persetujuan,
     p.alasan_penolakan,
+    p.catatan_approval,
+    p.catatan_penolakan,
     p.link_pdf,
     p.link_lampiran_pendukung,
     p.created_at,
@@ -160,10 +164,12 @@ export const pertambahanSpkRepository = {
                 disetujui_oleh,
                 waktu_persetujuan,
                 alasan_penolakan,
+                catatan_approval,
+                catatan_penolakan,
                 link_pdf,
                 link_lampiran_pendukung,
                 created_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NULL, NULL, $11, $12, NOW())
             RETURNING ${PERTAMBAHAN_SPK_COLUMNS}
             `,
             [
@@ -312,8 +318,10 @@ export const pertambahanSpkRepository = {
             SET status_persetujuan = $1,
                 disetujui_oleh = $2,
                 waktu_persetujuan = $3,
-                alasan_penolakan = $4
-            WHERE p.id = $5
+                alasan_penolakan = $4,
+                catatan_approval = $5,
+                catatan_penolakan = $6
+            WHERE p.id = $7
             RETURNING p.id
             `,
             [
@@ -321,6 +329,8 @@ export const pertambahanSpkRepository = {
                 isApprove ? action.approver_email : null,
                 isApprove ? new Date().toISOString() : null,
                 isApprove ? null : (action.alasan_penolakan ?? null),
+                isApprove ? (action.catatan_approval?.trim() || null) : null,
+                isApprove ? null : (action.catatan_approval?.trim() || null),
                 id
             ]
         );

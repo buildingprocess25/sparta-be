@@ -347,7 +347,7 @@ export const ganttService = {
                 idPicPengawasan = pic.id;
             }
 
-            const result = await ganttRepository.addPengawasan(id, tanggalList, idPicPengawasan);
+            const result = await ganttRepository.addPengawasan(id, tanggalList, idPicPengawasan, payload.catatan_memo ?? null);
             return {
                 action: "added" as const,
                 inserted: result.inserted,

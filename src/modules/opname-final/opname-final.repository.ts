@@ -20,7 +20,11 @@ export type OpnameFinalRow = {
     pemberi_persetujuan_manager: string | null;
     nama_persetujuan_manager: string | null;
     waktu_persetujuan_manager: string | null;
+    catatan_persetujuan_koordinator: string | null;
+    catatan_persetujuan_manager: string | null;
+    catatan_persetujuan_direktur: string | null;
     alasan_penolakan: string | null;
+    catatan_penolakan: string | null;
     grand_total_opname: string | null;
     grand_total_rab: string | null;
     hari_denda: number | null;
@@ -120,7 +124,11 @@ const OPNAME_FINAL_COLUMNS = `
     ofn.pemberi_persetujuan_manager,
     manager_user.nama_lengkap AS nama_persetujuan_manager,
     ofn.waktu_persetujuan_manager,
+    ofn.catatan_persetujuan_koordinator,
+    ofn.catatan_persetujuan_manager,
+    ofn.catatan_persetujuan_direktur,
     ofn.alasan_penolakan,
+    ofn.catatan_penolakan,
     ofn.grand_total_opname,
     ofn.grand_total_rab,
     ofn.hari_denda,
@@ -334,7 +342,11 @@ export const opnameFinalRepository = {
                 pemberi_persetujuan_manager: header.pemberi_persetujuan_manager,
                 nama_persetujuan_manager: header.nama_persetujuan_manager,
                 waktu_persetujuan_manager: header.waktu_persetujuan_manager,
+                catatan_persetujuan_koordinator: header.catatan_persetujuan_koordinator,
+                catatan_persetujuan_manager: header.catatan_persetujuan_manager,
+                catatan_persetujuan_direktur: header.catatan_persetujuan_direktur,
                 alasan_penolakan: header.alasan_penolakan,
+                catatan_penolakan: header.catatan_penolakan,
                 grand_total_opname: header.grand_total_opname,
                 grand_total_rab: header.grand_total_rab,
                 hari_denda: header.hari_denda,
@@ -383,21 +395,28 @@ export const opnameFinalRepository = {
         action: ApprovalActionInput
     ): Promise<void> {
         if (action.tindakan === "APPROVE") {
-            const sets: string[] = ["status_opname_final = $1", "alasan_penolakan = NULL"];
+            const sets: string[] = ["status_opname_final = $1", "alasan_penolakan = NULL", "catatan_penolakan = NULL"];
             const values: Array<string> = [newStatus];
+            const approvalNote = action.catatan_approval?.trim() || null;
 
             if (action.jabatan === "KOORDINATOR") {
                 values.push(action.approver_email);
                 sets.push(`pemberi_persetujuan_koordinator = $${values.length}`);
                 sets.push(`waktu_persetujuan_koordinator = ${approvalTimestampExpression}`);
+                values.push(approvalNote ?? "");
+                sets.push(`catatan_persetujuan_koordinator = NULLIF($${values.length}, '')`);
             } else if (action.jabatan === "MANAGER") {
                 values.push(action.approver_email);
                 sets.push(`pemberi_persetujuan_manager = $${values.length}`);
                 sets.push(`waktu_persetujuan_manager = ${approvalTimestampExpression}`);
+                values.push(approvalNote ?? "");
+                sets.push(`catatan_persetujuan_manager = NULLIF($${values.length}, '')`);
             } else {
                 values.push(action.approver_email);
                 sets.push(`pemberi_persetujuan_direktur = $${values.length}`);
                 sets.push(`waktu_persetujuan_direktur = ${approvalTimestampExpression}`);
+                values.push(approvalNote ?? "");
+                sets.push(`catatan_persetujuan_direktur = NULLIF($${values.length}, '')`);
             }
 
             values.push(opnameFinalId);
@@ -412,10 +431,11 @@ export const opnameFinalRepository = {
             `
             UPDATE opname_final
             SET status_opname_final = $1,
-                alasan_penolakan = $2
-            WHERE id = $3
+                alasan_penolakan = $2,
+                catatan_penolakan = $3
+            WHERE id = $4
             `,
-            [newStatus, action.alasan_penolakan?.trim() ?? null, opnameFinalId]
+            [newStatus, action.alasan_penolakan?.trim() ?? null, action.catatan_approval?.trim() || null, opnameFinalId]
         );
 
         await pool.query(

@@ -261,7 +261,9 @@ export const instruksiLapanganService = {
                     id,
                     "Menunggu Persetujuan Manager",
                     "koordinator",
-                    action.approver_email
+                    action.approver_email,
+                    undefined,
+                    action.catatan_approval ?? null
                 );
             } else if (currentStatus === "Menunggu Persetujuan Manager") {
                 if (action.jabatan !== "MANAGER") {
@@ -272,7 +274,9 @@ export const instruksiLapanganService = {
                     id,
                     "Disetujui",
                     "manager",
-                    action.approver_email
+                    action.approver_email,
+                    undefined,
+                    action.catatan_approval ?? null
                 );
             } else {
                 throw new AppError(`Status tidak dapat di-approve dari state saat ini: ${currentStatus}`, 400);
@@ -298,7 +302,8 @@ export const instruksiLapanganService = {
                 "Ditolak",
                 role,
                 action.approver_email,
-                action.alasan_penolakan ?? undefined
+                action.alasan_penolakan ?? undefined,
+                action.catatan_approval ?? null
             );
         } else {
             throw new AppError("Action tidak valid", 400);

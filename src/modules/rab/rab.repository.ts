@@ -29,7 +29,11 @@ export type RabRow = {
     nama_persetujuan_direktur: string | null;
     nama_lengkap_persetujuan_direktur?: string | null;
     waktu_persetujuan_direktur: string | null;
+    catatan_persetujuan_koordinator: string | null;
+    catatan_persetujuan_manager: string | null;
+    catatan_persetujuan_direktur: string | null;
     alasan_penolakan: string | null;
+    catatan_penolakan: string | null;
     waktu_penolakan: string | null;
     ditolak_oleh: string | null;
     durasi_pekerjaan: string | null;
@@ -100,7 +104,8 @@ const RAB_COLUMNS = `
     r.pemberi_persetujuan_koordinator, r.nama_persetujuan_koordinator, r.waktu_persetujuan_koordinator,
     r.pemberi_persetujuan_manager, r.nama_persetujuan_manager, r.waktu_persetujuan_manager,
     r.pemberi_persetujuan_direktur, r.nama_persetujuan_direktur, r.waktu_persetujuan_direktur,
-    r.alasan_penolakan, r.waktu_penolakan, r.ditolak_oleh, r.durasi_pekerjaan, r.kategori_lokasi,
+    r.catatan_persetujuan_koordinator, r.catatan_persetujuan_manager, r.catatan_persetujuan_direktur,
+    r.alasan_penolakan, r.catatan_penolakan, r.waktu_penolakan, r.ditolak_oleh, r.durasi_pekerjaan, r.kategori_lokasi,
     r.no_polis, r.berlaku_polis, r.file_asuransi,
     r.luas_bangunan, r.luas_terbangun, r.luas_area_terbuka,
     r.luas_area_parkir, r.luas_area_sales, r.luas_gudang,
@@ -658,7 +663,11 @@ export const rabRepository = {
             nama_persetujuan_direktur: row.nama_persetujuan_direktur,
             nama_lengkap_persetujuan_direktur: (row as any).nama_lengkap_persetujuan_direktur ?? null,
             waktu_persetujuan_direktur: row.waktu_persetujuan_direktur,
+            catatan_persetujuan_koordinator: row.catatan_persetujuan_koordinator,
+            catatan_persetujuan_manager: row.catatan_persetujuan_manager,
+            catatan_persetujuan_direktur: row.catatan_persetujuan_direktur,
             alasan_penolakan: row.alasan_penolakan,
+            catatan_penolakan: row.catatan_penolakan,
             waktu_penolakan: row.waktu_penolakan,
             ditolak_oleh: row.ditolak_oleh,
             durasi_pekerjaan: row.durasi_pekerjaan,
@@ -891,6 +900,7 @@ export const rabRepository = {
         }
 
         const approverName = (action.nama_lengkap ?? "").trim();
+        const approvalNote = action.catatan_approval?.trim() || null;
 
         const sets: string[] = ["status = $1"];
         const values: unknown[] = [newStatus];
@@ -903,6 +913,8 @@ export const rabRepository = {
                 sets.push(`nama_persetujuan_koordinator = $${values.length}`);
             }
             sets.push(`waktu_persetujuan_koordinator = timezone('Asia/Jakarta', now())`);
+            values.push(approvalNote);
+            sets.push(`catatan_persetujuan_koordinator = $${values.length}`);
         } else if (action.jabatan === "MANAGER") {
             values.push(action.approver_email);
             sets.push(`pemberi_persetujuan_manager = $${values.length}`);
@@ -911,6 +923,8 @@ export const rabRepository = {
                 sets.push(`nama_persetujuan_manager = $${values.length}`);
             }
             sets.push(`waktu_persetujuan_manager = timezone('Asia/Jakarta', now())`);
+            values.push(approvalNote);
+            sets.push(`catatan_persetujuan_manager = $${values.length}`);
         } else {
             values.push(action.approver_email);
             sets.push(`pemberi_persetujuan_direktur = $${values.length}`);
@@ -919,6 +933,8 @@ export const rabRepository = {
                 sets.push(`nama_persetujuan_direktur = $${values.length}`);
             }
             sets.push(`waktu_persetujuan_direktur = timezone('Asia/Jakarta', now())`);
+            values.push(approvalNote);
+            sets.push(`catatan_persetujuan_direktur = $${values.length}`);
         }
 
         values.push(rabId);
@@ -936,19 +952,21 @@ export const rabRepository = {
         rabId: string,
         newStatus: RabStatus,
         alasanPenolakan: string,
-        ditolakOleh: string
+        ditolakOleh: string,
+        catatanPenolakan?: string | null
     ): Promise<void> {
         await pool.query(
             `UPDATE rab
              SET status = $1,
-                 alasan_penolakan = $2,
-                 waktu_penolakan = timezone('Asia/Jakarta', now()),
+                  alasan_penolakan = $2,
+                  catatan_penolakan = $5,
+                  waktu_penolakan = timezone('Asia/Jakarta', now()),
                  ditolak_oleh = $3,
                  nama_persetujuan_direktur = NULL,
                  nama_persetujuan_koordinator = NULL,
                  nama_persetujuan_manager = NULL
-             WHERE id = $4`,
-            [newStatus, alasanPenolakan, ditolakOleh, rabId]
+              WHERE id = $4`,
+            [newStatus, alasanPenolakan, ditolakOleh, rabId, catatanPenolakan?.trim() || null]
         );
     },
 
@@ -962,7 +980,9 @@ export const rabRepository = {
         rabId: string,
         newStatus: RabStatus,
         alasanPenolakan: string,
-        ditolakOleh: string
+        ditolakOleh: string,
+        catatanPenolakan?: string | null,
+        revisiItems?: Array<{ id_rab_item: number | null; catatan_item?: string | null; catatan_umum?: string | null }>
     ): Promise<void> {
         await withTransaction(async (client) => {
             const rabRes = await client.query<{ id_toko: number }>(
@@ -1001,15 +1021,33 @@ export const rabRepository = {
             await client.query(
                 `UPDATE rab
                  SET status = $1,
-                     alasan_penolakan = $2,
-                     waktu_penolakan = timezone('Asia/Jakarta', now()),
+                      alasan_penolakan = $2,
+                      catatan_penolakan = $5,
+                      waktu_penolakan = timezone('Asia/Jakarta', now()),
                      ditolak_oleh = $3,
                      nama_persetujuan_direktur = NULL,
                      nama_persetujuan_koordinator = NULL,
                      nama_persetujuan_manager = NULL
-                 WHERE id = $4`,
-                [newStatus, alasanPenolakan, ditolakOleh, rabId]
+                  WHERE id = $4`,
+                [newStatus, alasanPenolakan, ditolakOleh, rabId, catatanPenolakan?.trim() || null]
             );
+
+            await client.query(`DELETE FROM rab_revisi_item WHERE id_rab = $1`, [rabId]);
+            for (const item of revisiItems ?? []) {
+                await client.query(
+                    `INSERT INTO rab_revisi_item (
+                        id_rab, id_rab_item, approver_email, approver_role, catatan_item, catatan_umum
+                    ) VALUES ($1, $2, $3, $4, $5, $6)`,
+                    [
+                        rabId,
+                        item.id_rab_item,
+                        ditolakOleh,
+                        newStatus,
+                        item.catatan_item?.trim() || null,
+                        item.catatan_umum?.trim() || null
+                    ]
+                );
+            }
 
             // --- Step 2: Activate latest gantt_chart for this toko ---
             await client.query(

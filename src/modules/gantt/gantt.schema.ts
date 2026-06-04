@@ -45,7 +45,8 @@ export const dependencyItemSchema = z.object({
 });
 
 export const pengawasanItemSchema = z.object({
-    tanggal_pengawasan: tanggalPengawasanValueSchema
+    tanggal_pengawasan: tanggalPengawasanValueSchema,
+    catatan_memo: nullableOptionalString
 });
 
 // --- Submit Gantt Chart ---
@@ -150,6 +151,7 @@ export const managePengawasanSchema = z.object({
         z.string().min(1),
         z.array(z.string().min(1)).min(1)
     ]).optional(),
+    catatan_memo: nullableOptionalString,
     pic_pengawasan: createPicPengawasanSchema.optional(),
     remove_tanggal_pengawasan: z.string().min(1).optional()
 }).refine(

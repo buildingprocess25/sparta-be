@@ -18,7 +18,11 @@ export interface InstruksiLapanganRow {
     waktu_persetujuan_manager: string | null;
     pemberi_persetujuan_kontraktor: string | null;
     waktu_persetujuan_kontraktor: string | null;
+    catatan_persetujuan_koordinator: string | null;
+    catatan_persetujuan_manager: string | null;
+    catatan_persetujuan_kontraktor: string | null;
     alasan_penolakan: string | null;
+    catatan_penolakan: string | null;
     grand_total: string | null;
     grand_total_non_sbo: string | null;
     grand_total_final: string | null;
@@ -274,20 +278,22 @@ export const instruksiLapanganRepository = {
         status: string,
         approverRole: 'koordinator' | 'manager' | 'kontraktor',
         approverEmail: string,
-        alasanPenolakan?: string
+        alasanPenolakan?: string,
+        catatanApproval?: string | null
     ) {
         const now = new Date();
         const timeField = `waktu_persetujuan_${approverRole}`;
         const emailField = `pemberi_persetujuan_${approverRole}`;
+        const noteField = alasanPenolakan !== undefined ? "catatan_penolakan" : `catatan_persetujuan_${approverRole}`;
 
-        let query = `UPDATE instruksi_lapangan SET status = $1, ${emailField} = $2, ${timeField} = $3`;
-        const params: any[] = [status, approverEmail, now];
+        let query = `UPDATE instruksi_lapangan SET status = $1, ${emailField} = $2, ${timeField} = $3, ${noteField} = $4`;
+        const params: any[] = [status, approverEmail, now, catatanApproval?.trim() || null];
 
         if (alasanPenolakan !== undefined) {
-            query += `, alasan_penolakan = $4 WHERE id = $5`;
+            query += `, alasan_penolakan = $5 WHERE id = $6`;
             params.push(alasanPenolakan, id);
         } else {
-            query += ` WHERE id = $4`;
+            query += `, alasan_penolakan = NULL, catatan_penolakan = NULL WHERE id = $5`;
             params.push(id);
         }
 

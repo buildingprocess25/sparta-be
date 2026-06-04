@@ -47,6 +47,7 @@ export type SpkApprovalLogRow = {
     approver_email: string;
     tindakan: string;
     alasan_penolakan: string | null;
+    catatan_approval: string | null;
     waktu_tindakan: string;
 };
 
@@ -295,7 +296,7 @@ export const spkRepository = {
 
         const logs = await pool.query<SpkApprovalLogRow>(
             `
-      SELECT id, pengajuan_spk_id, approver_email, tindakan, alasan_penolakan, waktu_tindakan
+      SELECT id, pengajuan_spk_id, approver_email, tindakan, alasan_penolakan, catatan_approval, waktu_tindakan
       FROM spk_approval_log
       WHERE pengajuan_spk_id = $1
       ORDER BY waktu_tindakan ASC
@@ -402,14 +403,15 @@ export const spkRepository = {
             await client.query(
                 `
         INSERT INTO spk_approval_log (
-          pengajuan_spk_id, approver_email, tindakan, alasan_penolakan, waktu_tindakan
-        ) VALUES ($1, $2, $3, $4, NOW())
+          pengajuan_spk_id, approver_email, tindakan, alasan_penolakan, catatan_approval, waktu_tindakan
+        ) VALUES ($1, $2, $3, $4, $5, NOW())
         `,
                 [
                     pengajuanSpkId,
                     action.approver_email,
                     action.tindakan,
-                    action.alasan_penolakan ?? null
+                    action.alasan_penolakan ?? null,
+                    action.catatan_approval?.trim() || null
                 ]
             );
         });
