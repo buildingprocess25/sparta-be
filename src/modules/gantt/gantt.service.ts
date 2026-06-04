@@ -105,6 +105,7 @@ export const ganttService = {
                     day_items: payload.day_items,
                     pengawasan: payload.pengawasan,
                     dependencies: payload.dependencies,
+                    catatan_gantt: payload.catatan_gantt ?? null,
                 });
 
                 const refreshed = await ganttRepository.findById(String(activeGantt.id));
@@ -133,6 +134,7 @@ export const ganttService = {
             // gantt fields
             email_pembuat: payload.email_pembuat,
             status: GANTT_STATUS.ACTIVE,
+            catatan_gantt: payload.catatan_gantt ?? null,
             // children
             kategori_pekerjaan: payload.kategori_pekerjaan,
             day_items: payload.day_items,
@@ -184,7 +186,8 @@ export const ganttService = {
             kategori_pekerjaan: shouldReplaceMainData ? normalizedKategoriPekerjaan : undefined,
             day_items: shouldReplaceMainData ? normalizedDayItems : undefined,
             pengawasan: normalizedPengawasan,
-            dependencies: payload.dependencies
+            dependencies: payload.dependencies,
+            catatan_gantt: payload.catatan_gantt
         });
 
         return ganttRepository.findById(id);
@@ -398,7 +401,7 @@ export const ganttService = {
                 idPicPengawasan = pic.id;
             }
 
-            const result = await ganttRepository.addPengawasan(id, tanggalList, idPicPengawasan, payload.catatan_memo ?? null);
+            const result = await ganttRepository.addPengawasan(id, tanggalList, idPicPengawasan);
             return {
                 action: "added" as const,
                 inserted: result.inserted,

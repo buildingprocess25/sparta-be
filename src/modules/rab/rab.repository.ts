@@ -68,6 +68,16 @@ export type RabItemRow = {
     catatan: string | null;
 };
 
+export type RabRevisiItemRow = {
+    id: number;
+    id_rab: number;
+    id_rab_item: number | null;
+    approver_email: string | null;
+    approver_role: string | null;
+    catatan_item: string | null;
+    created_at: string;
+};
+
 export type TokoJoinRow = {
     id: number;
     nomor_ulok: string;
@@ -613,6 +623,7 @@ export const rabRepository = {
         rab: RabRow;
         toko: TokoJoinRow;
         items: RabItemRow[];
+        revisi_items: RabRevisiItemRow[];
     } | null> {
         const header = await pool.query<RabRow & TokoJoinRow>(
             `SELECT ${RAB_COLUMNS},
@@ -639,6 +650,14 @@ export const rabRepository = {
             FROM rab_item
             WHERE id_rab = $1
             ORDER BY id ASC`,
+            [id]
+        );
+
+        const revisiItems = await pool.query<RabRevisiItemRow>(
+            `SELECT id, id_rab, id_rab_item, approver_email, approver_role, catatan_item, created_at
+             FROM rab_revisi_item
+             WHERE id_rab = $1
+             ORDER BY created_at ASC, id ASC`,
             [id]
         );
 
@@ -699,7 +718,7 @@ export const rabRepository = {
             nama_kontraktor: row.nama_kontraktor
         };
 
-        return { rab, toko, items: items.rows };
+        return { rab, toko, items: items.rows, revisi_items: revisiItems.rows };
     },
 
     async listItemsByRabId(rabId: number | string): Promise<RabItemRow[]> {
@@ -982,7 +1001,7 @@ export const rabRepository = {
         alasanPenolakan: string,
         ditolakOleh: string,
         catatanPenolakan?: string | null,
-        revisiItems?: Array<{ id_rab_item: number | null; catatan_item?: string | null; catatan_umum?: string | null }>
+        revisiItems?: Array<{ id_rab_item: number | null; catatan_item?: string | null }>
     ): Promise<void> {
         await withTransaction(async (client) => {
             const rabRes = await client.query<{ id_toko: number }>(
@@ -1036,15 +1055,14 @@ export const rabRepository = {
             for (const item of revisiItems ?? []) {
                 await client.query(
                     `INSERT INTO rab_revisi_item (
-                        id_rab, id_rab_item, approver_email, approver_role, catatan_item, catatan_umum
-                    ) VALUES ($1, $2, $3, $4, $5, $6)`,
+                        id_rab, id_rab_item, approver_email, approver_role, catatan_item
+                    ) VALUES ($1, $2, $3, $4, $5)`,
                     [
                         rabId,
                         item.id_rab_item,
                         ditolakOleh,
                         newStatus,
-                        item.catatan_item?.trim() || null,
-                        item.catatan_umum?.trim() || null
+                        item.catatan_item?.trim() || null
                     ]
                 );
             }

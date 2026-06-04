@@ -17,6 +17,7 @@ export type GanttRow = {
     status: string | null;
     email_pembuat: string | null;
     timestamp: string | null;
+    catatan_gantt: string | null;
 };
 
 export type KategoriPekerjaanGanttRow = {
@@ -40,7 +41,6 @@ export type PengawasanGanttRow = {
     id_gantt: number;
     id_pic_pengawasan: number | null;
     tanggal_pengawasan: string;
-    catatan_memo: string | null;
 };
 
 export type DependencyGanttRow = {
@@ -73,7 +73,7 @@ export type TokoStableFields = {
 // ---------------------------------------------------------------------------
 
 const GANTT_COLUMNS = `
-    g.id, g.id_toko, g.status, g.email_pembuat, g.timestamp
+    g.id, g.id_toko, g.status, g.email_pembuat, g.timestamp, g.catatan_gantt
 `;
 
 /**
@@ -137,9 +137,9 @@ const insertPengawasan = async (
 ): Promise<void> => {
     for (const item of pengawasanItems) {
         await client.query(
-            `INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan, catatan_memo)
-             VALUES ($1, $2, $3)`,
-            [ganttId, item.tanggal_pengawasan, item.catatan_memo?.trim() || null]
+            `INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan)
+             VALUES ($1, $2)`,
+            [ganttId, item.tanggal_pengawasan]
         );
     }
 };
@@ -173,7 +173,7 @@ const insertDependencies = async (
 export const ganttRepository = {
     async findLatestActiveByTokoId(tokoId: number): Promise<GanttRow | null> {
         const result = await pool.query<GanttRow>(
-            `SELECT id, id_toko, status, email_pembuat, timestamp
+            `SELECT id, id_toko, status, email_pembuat, timestamp, catatan_gantt
              FROM gantt_chart
              WHERE id_toko = $1
                AND status = 'active'
@@ -239,6 +239,7 @@ export const ganttRepository = {
         // gantt
         email_pembuat: string;
         status: GanttStatus;
+        catatan_gantt?: string | null;
         // children
         kategori_pekerjaan: string[];
         day_items: DayGanttItemInput[];
@@ -299,10 +300,10 @@ export const ganttRepository = {
 
             // 2. Insert gantt_chart header
             const ganttRes = await client.query<GanttRow>(
-                `INSERT INTO gantt_chart (id_toko, status, email_pembuat, timestamp)
-                 VALUES ($1, $2, $3, CURRENT_DATE)
+                `INSERT INTO gantt_chart (id_toko, status, email_pembuat, timestamp, catatan_gantt)
+                 VALUES ($1, $2, $3, CURRENT_DATE, $4)
                  RETURNING *`,
-                [tokoId, payload.status, payload.email_pembuat]
+                [tokoId, payload.status, payload.email_pembuat, payload.catatan_gantt?.trim() || null]
             );
             const gantt = ganttRes.rows[0];
 
@@ -387,7 +388,7 @@ export const ganttRepository = {
 
         // Pengawasan
         const pengawasanRes = await pool.query<PengawasanGanttRow>(
-            `SELECT id, id_gantt, id_pic_pengawasan, tanggal_pengawasan, catatan_memo
+            `SELECT id, id_gantt, id_pic_pengawasan, tanggal_pengawasan
              FROM pengawasan_gantt
              WHERE id_gantt = $1
              ORDER BY id ASC`,
@@ -417,7 +418,8 @@ export const ganttRepository = {
             id_toko: row.id_toko,
             status: row.status,
             email_pembuat: row.email_pembuat,
-            timestamp: row.timestamp
+            timestamp: row.timestamp,
+            catatan_gantt: row.catatan_gantt
         };
 
         const toko: TokoJoinRow = {
@@ -541,9 +543,19 @@ export const ganttRepository = {
             day_items?: DayGanttItemInput[];
             pengawasan?: PengawasanItemInput[];
             dependencies?: DependencyItemInput[];
+            catatan_gantt?: string | null;
         }
     ): Promise<void> {
         return withTransaction(async (client) => {
+            if (payload.catatan_gantt !== undefined) {
+                await client.query(
+                    `UPDATE gantt_chart
+                     SET catatan_gantt = $1
+                     WHERE id = $2`,
+                    [payload.catatan_gantt?.trim() || null, ganttId]
+                );
+            }
+
             // Jika ada kategori_pekerjaan baru, hapus children lama lalu insert ulang
             if (payload.kategori_pekerjaan && payload.day_items) {
                 // Hapus dependency dulu (FK ke kategori)
@@ -719,8 +731,7 @@ export const ganttRepository = {
     async addPengawasan(
         ganttId: string,
         tanggalPengawasanList: string[],
-        idPicPengawasan?: number,
-        catatanMemo?: string | null
+        idPicPengawasan?: number
     ): Promise<{ inserted: number; ids: number[] }> {
         const ids: number[] = [];
 
@@ -737,19 +748,18 @@ export const ganttRepository = {
             if (existing.rows[0]) {
                 await pool.query(
                     `UPDATE pengawasan_gantt
-                     SET id_pic_pengawasan = COALESCE($1, id_pic_pengawasan),
-                         catatan_memo = COALESCE(NULLIF($2, ''), catatan_memo)
-                     WHERE id = $3`,
-                    [idPicPengawasan ?? null, catatanMemo?.trim() || "", existing.rows[0].id]
+                     SET id_pic_pengawasan = COALESCE($1, id_pic_pengawasan)
+                      WHERE id = $2`,
+                    [idPicPengawasan ?? null, existing.rows[0].id]
                 );
                 ids.push(existing.rows[0].id);
                 continue;
             }
 
             const result = await pool.query<{ id: number }>(
-                `INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan, id_pic_pengawasan, catatan_memo)
-                 VALUES ($1, $2, $3, $4) RETURNING id`,
-                [ganttId, tanggalPengawasan, idPicPengawasan ?? null, catatanMemo?.trim() || null]
+                `INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan, id_pic_pengawasan)
+                 VALUES ($1, $2, $3) RETURNING id`,
+                [ganttId, tanggalPengawasan, idPicPengawasan ?? null]
             );
             ids.push(result.rows[0].id);
         }
@@ -840,7 +850,7 @@ export const ganttRepository = {
 
         // 4. Ambil gantt_chart terbaru untuk toko ini
         const ganttRes = await pool.query<GanttRow>(
-            `SELECT id, id_toko, status, email_pembuat, timestamp
+            `SELECT id, id_toko, status, email_pembuat, timestamp, catatan_gantt
              FROM gantt_chart
              WHERE id_toko = $1
              ORDER BY id DESC LIMIT 1`,
@@ -884,7 +894,7 @@ export const ganttRepository = {
 
         // 7. Pengawasan
         const pengawasanRes = await pool.query<PengawasanGanttRow>(
-            `SELECT id, id_gantt, id_pic_pengawasan, tanggal_pengawasan, catatan_memo
+            `SELECT id, id_gantt, id_pic_pengawasan, tanggal_pengawasan
              FROM pengawasan_gantt
              WHERE id_gantt = $1
              ORDER BY id ASC`,

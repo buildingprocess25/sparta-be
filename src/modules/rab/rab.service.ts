@@ -1255,21 +1255,12 @@ export const rabService = {
 
         const newStatus = resolveStatusTransition(data.rab.status, action, data.toko.cabang);
         if (action.tindakan === "REJECT") {
-            const generalRevisionNote = action.catatan_revisi_umum?.trim() || null;
             const revisionItemIds = action.revisi_item_ids ?? [];
             const revisionItemNotes = action.revisi_item_notes ?? {};
-            const revisionItems: Array<{ id_rab_item: number | null; catatan_item: string | null; catatan_umum: string | null }> = revisionItemIds.map((itemId) => ({
+            const revisionItems: Array<{ id_rab_item: number | null; catatan_item: string | null }> = revisionItemIds.map((itemId) => ({
                 id_rab_item: itemId,
-                catatan_item: revisionItemNotes[String(itemId)] ?? null,
-                catatan_umum: generalRevisionNote
+                catatan_item: revisionItemNotes[String(itemId)] ?? null
             }));
-            if (generalRevisionNote && revisionItems.length === 0) {
-                revisionItems.push({
-                    id_rab_item: null,
-                    catatan_item: null,
-                    catatan_umum: generalRevisionNote
-                });
-            }
             await rabRepository.rejectRabAndActivateLatestGanttGuarded(
                 id,
                 newStatus,

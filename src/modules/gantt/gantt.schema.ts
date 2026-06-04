@@ -46,8 +46,7 @@ export const dependencyItemSchema = z.object({
 });
 
 export const pengawasanItemSchema = z.object({
-    tanggal_pengawasan: tanggalPengawasanValueSchema,
-    catatan_memo: nullableOptionalString
+    tanggal_pengawasan: tanggalPengawasanValueSchema
 });
 
 // --- Submit Gantt Chart ---
@@ -65,6 +64,7 @@ export const submitGanttSchema = z.object({
 
     // gantt header
     email_pembuat: z.string().email(),
+    catatan_gantt: nullableOptionalString,
 
     // kategori pekerjaan + day items
     kategori_pekerjaan: z.array(kategoriPekerjaanValueSchema).min(1),
@@ -84,7 +84,8 @@ export const updateGanttSchema = z.object({
 
     // optional: pengawasan & dependency
     pengawasan: z.array(pengawasanItemSchema).optional(),
-    dependencies: z.array(dependencyItemSchema).optional()
+    dependencies: z.array(dependencyItemSchema).optional(),
+    catatan_gantt: nullableOptionalString
 });
 
 // --- Lock Gantt Chart ---
@@ -159,7 +160,6 @@ export const managePengawasanSchema = z.object({
         z.string().min(1),
         z.array(z.string().min(1)).min(1)
     ]).optional(),
-    catatan_memo: nullableOptionalString,
     pic_pengawasan: createPicPengawasanSchema.optional(),
     remove_tanggal_pengawasan: z.string().min(1).optional()
 }).refine(
