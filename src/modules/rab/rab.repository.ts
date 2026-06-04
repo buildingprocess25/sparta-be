@@ -372,12 +372,12 @@ export const rabRepository = {
 
             await client.query(
                 `UPDATE toko
-                 SET lingkup_pekerjaan = COALESCE($1, lingkup_pekerjaan),
-                     nama_toko = COALESCE($2, nama_toko),
-                     proyek = COALESCE($3, proyek),
-                     cabang = COALESCE($4, cabang),
-                     alamat = COALESCE($5, alamat),
-                     nama_kontraktor = COALESCE($6, nama_kontraktor)
+                 SET lingkup_pekerjaan = COALESCE(NULLIF(TRIM(lingkup_pekerjaan), ''), $1, lingkup_pekerjaan),
+                     nama_toko = COALESCE(NULLIF(TRIM(nama_toko), ''), $2, nama_toko),
+                     proyek = COALESCE(NULLIF(TRIM(proyek), ''), $3, proyek),
+                     cabang = COALESCE(NULLIF(TRIM(cabang), ''), $4, cabang),
+                     alamat = COALESCE(NULLIF(TRIM(alamat), ''), $5, alamat),
+                     nama_kontraktor = COALESCE(NULLIF(TRIM(nama_kontraktor), ''), $6, nama_kontraktor)
                  WHERE id = $7`,
                 [
                     payload.lingkup_pekerjaan ?? null,
@@ -521,11 +521,11 @@ export const rabRepository = {
 
                 await client.query(
                     `UPDATE toko
-                     SET nama_toko = COALESCE($1, nama_toko),
-                         proyek = COALESCE($2, proyek),
-                         cabang = COALESCE($3, cabang),
-                         alamat = COALESCE($4, alamat),
-                         nama_kontraktor = COALESCE($5, nama_kontraktor)
+                     SET nama_toko = COALESCE(NULLIF(TRIM(nama_toko), ''), $1, nama_toko),
+                         proyek = COALESCE(NULLIF(TRIM(proyek), ''), $2, proyek),
+                         cabang = COALESCE(NULLIF(TRIM(cabang), ''), $3, cabang),
+                         alamat = COALESCE(NULLIF(TRIM(alamat), ''), $4, alamat),
+                         nama_kontraktor = COALESCE(NULLIF(TRIM(nama_kontraktor), ''), $5, nama_kontraktor)
                      WHERE id = $6`,
                     [
                         payload.nama_toko ?? null,

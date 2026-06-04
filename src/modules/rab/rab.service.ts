@@ -209,6 +209,14 @@ const normalizeLingkupForPrice = (value?: string | null): "ME" | "SIPIL" | null 
     return null;
 };
 
+const normalizeComparableText = (value?: string | null): string =>
+    String(value ?? "").trim().replace(/\s+/g, " ").toUpperCase();
+
+const isPlaceholderText = (value?: string | null): boolean => {
+    const normalized = normalizeComparableText(value);
+    return !normalized || normalized === "-" || normalized === "N/A" || normalized === "NULL";
+};
+
 const normalizeCabangForPrice = (value?: string | null): string => {
     return String(value ?? "")
         .trim()
@@ -216,6 +224,86 @@ const normalizeCabangForPrice = (value?: string | null): string => {
         .replace(/^CAB(?:ANG)?\.?\s+/, "")
         .replace(/^CABANG\s+/, "")
         .trim();
+};
+
+const validateSubmitterCompanyMapping = async (payload: SubmitRabInput): Promise<string> => {
+    const submittedNamaPt = String(payload.nama_pt ?? "").trim();
+    if (isPlaceholderText(submittedNamaPt)) {
+        throw new AppError("Nama PT/CV kontraktor wajib terisi sebelum submit RAB.", 422);
+    }
+
+    const emailPembuat = String(payload.email_pembuat ?? "").trim();
+    const cabang = String(payload.cabang ?? "").trim();
+    if (!emailPembuat || !cabang) return submittedNamaPt;
+
+    const mappedUsers = await userCabangRepository.findAll({
+        email_sat: emailPembuat,
+        cabang,
+    });
+    const mappedCompanies = Array.from(new Set(
+        mappedUsers
+            .map(user => user.nama_pt)
+            .filter((namaPt): namaPt is string => !isPlaceholderText(namaPt))
+            .map(normalizeComparableText)
+    ));
+
+    if (mappedCompanies.length > 0 && !mappedCompanies.includes(normalizeComparableText(submittedNamaPt))) {
+        throw new AppError(
+            `Nama PT/CV "${submittedNamaPt}" tidak sesuai dengan mapping user cabang ${cabang}. Silakan periksa data user cabang sebelum submit RAB.`,
+            422
+        );
+    }
+
+    return submittedNamaPt;
+};
+
+const getRabContractorCompany = (data: { rab: { nama_pt?: string | null }; toko: { nama_kontraktor?: string | null } }): string => {
+    const rabCompany = String(data.rab.nama_pt ?? "").trim();
+    if (!isPlaceholderText(rabCompany)) return rabCompany;
+
+    const tokoCompany = String(data.toko.nama_kontraktor ?? "").trim();
+    if (!isPlaceholderText(tokoCompany)) return tokoCompany;
+
+    throw new AppError("Nama PT/CV RAB belum valid. Perbaiki data RAB sebelum approval Direktur Kontraktor.", 422);
+};
+
+const validateDirectorContractorApprovalCompany = async (
+    data: { rab: { nama_pt?: string | null }; toko: { cabang?: string | null; nama_kontraktor?: string | null } },
+    action: ApprovalActionInput
+): Promise<void> => {
+    if (action.jabatan !== "DIREKTUR" || action.tindakan !== "APPROVE") return;
+
+    const targetCompany = getRabContractorCompany(data);
+    const cabang = String(data.toko.cabang ?? "").trim();
+    const approverEmail = String(action.approver_email ?? "").trim();
+    if (!cabang || !approverEmail) {
+        throw new AppError("Data cabang atau email approver tidak valid untuk approval Direktur Kontraktor.", 422);
+    }
+
+    const approverRows = await userCabangRepository.findAll({
+        email_sat: approverEmail,
+        cabang,
+    });
+    const approverCompanies = Array.from(new Set(
+        approverRows
+            .map(user => user.nama_pt)
+            .filter((namaPt): namaPt is string => !isPlaceholderText(namaPt))
+            .map(normalizeComparableText)
+    ));
+
+    if (approverCompanies.length === 0) {
+        throw new AppError(
+            `Approver ${approverEmail} belum punya mapping PT/CV untuk cabang ${cabang}.`,
+            422
+        );
+    }
+
+    if (!approverCompanies.includes(normalizeComparableText(targetCompany))) {
+        throw new AppError(
+            `Approver ${approverEmail} tidak sesuai dengan PT/CV RAB ${targetCompany}.`,
+            403
+        );
+    }
 };
 
 const syncDetailItemsWithBranchPrices = async (
@@ -859,9 +947,16 @@ async function regenerateRabPdfs(
 
 export const rabService = {
     async submit(payload: SubmitRabInput, uploadedFiles: SubmitUploadedFiles = {}) {
+        const normalizedLingkupPekerjaan = normalizeLingkupForPrice(payload.lingkup_pekerjaan);
+        if (!normalizedLingkupPekerjaan) {
+            throw new AppError("Lingkup pekerjaan RAB wajib SIPIL atau ME.", 422);
+        }
+
+        const submittedNamaPt = await validateSubmitterCompanyMapping(payload);
+
         logRab("SUBMIT", "Mulai submit RAB", {
             nomor_ulok: payload.nomor_ulok,
-            lingkup_pekerjaan: payload.lingkup_pekerjaan,
+            lingkup_pekerjaan: normalizedLingkupPekerjaan,
             is_revisi: payload.is_revisi === true,
         });
         // 1. Tentukan mode submit: create baru atau revisi explicit dari frontend
@@ -871,7 +966,7 @@ export const rabService = {
         const isRevisionSubmit = payload.is_revisi === true;
         const existingTokoByCombination = await tokoRepository.findByNomorUlokAndLingkup(
             payload.nomor_ulok,
-            payload.lingkup_pekerjaan
+            normalizedLingkupPekerjaan
         );
 
         if (isRevisionSubmit) {
@@ -906,7 +1001,7 @@ export const rabService = {
             const alreadyExists = await rabRepository.existsAnyByTokoId(existingTokoByCombination.id);
             if (alreadyExists) {
                 throw new AppError(
-                    `RAB untuk kombinasi ULOK ${payload.nomor_ulok} dan lingkup ${payload.lingkup_pekerjaan ?? "-"} sudah ada`,
+                    `RAB untuk kombinasi ULOK ${payload.nomor_ulok} dan lingkup ${normalizedLingkupPekerjaan} sudah ada`,
                     409
                 );
             }
@@ -1019,15 +1114,15 @@ export const rabService = {
         const submitPayload = {
             // toko fields
             nomor_ulok: payload.nomor_ulok,
-            lingkup_pekerjaan: payload.lingkup_pekerjaan,
+            lingkup_pekerjaan: normalizedLingkupPekerjaan,
             nama_toko: payload.nama_toko,
             proyek: payload.proyek,
             cabang: payload.cabang,
             alamat: payload.alamat,
-            nama_kontraktor: payload.nama_kontraktor,
+            nama_kontraktor: submittedNamaPt,
             // rab fields
             email_pembuat: payload.email_pembuat,
-            nama_pt: payload.nama_pt,
+            nama_pt: submittedNamaPt,
             status: RAB_STATUS.WAITING_FOR_GANTT,
             logo: logoLink,
             durasi_pekerjaan: payload.durasi_pekerjaan,
@@ -1135,6 +1230,7 @@ export const rabService = {
             // in case a deferred trigger or other side-effect corrupted them.
             await rabRepository.restoreTokoStableFieldsByRabId(id, tokoStableFields);
         } else {
+            await validateDirectorContractorApprovalCompany(data, action);
             await rabRepository.updateApproval(id, newStatus, action);
             logRab("APPROVAL", "RAB diapprove", { rabId: id, newStatus });
         }
