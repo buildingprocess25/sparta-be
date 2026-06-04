@@ -13,6 +13,7 @@ import {
     handlePpApproval2,
     getProjekPlanningLogs,
     getProjekPlanningTaskCounts,
+    handleProjekPlanningIntervention,
     downloadPdf,
     proxyFile,
 } from "./project-planning.controller";
@@ -43,6 +44,7 @@ projekPlanningRouter.get("/:id", getProjekPlanningById);
 projekPlanningRouter.get("/:id/logs", getProjekPlanningLogs);
 projekPlanningRouter.get("/:id/pdf", downloadPdf);
 projekPlanningRouter.get("/:id/proxy-file", proxyFile);
+projekPlanningRouter.post("/:id/intervention", handleProjekPlanningIntervention);
 
 // ── BM Manager ───────────────────────────────────────────────
 projekPlanningRouter.post("/:id/bm-approval", handleBmApproval);

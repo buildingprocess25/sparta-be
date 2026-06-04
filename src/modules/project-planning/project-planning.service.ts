@@ -186,6 +186,7 @@ import type {
     Upload3dInput,
     UploadRabInput,
     ListProjekPlanningQuery,
+    ProjekPlanningInterventionInput,
 } from "./project-planning.schema";
 
 export const projekPlanningService = {
@@ -907,6 +908,36 @@ export const projekPlanningService = {
         const data = await projekPlanningRepository.findById(id);
         if (!data) throw new AppError("Project planning tidak ditemukan", 404);
         return data.logs;
+    },
+
+    async intervene(id: number, action: ProjekPlanningInterventionInput) {
+        const data = await projekPlanningRepository.findById(id);
+        if (!data) throw new AppError("Project planning tidak ditemukan", 404);
+
+        const { projek } = data;
+        if (projek.status === action.target_status) {
+            throw new AppError("Status Project Planning sudah sama dengan target intervensi", 409);
+        }
+
+        const { projek: updated } = await projekPlanningRepository.updateStatusWithLog(
+            id,
+            {
+                actor_email: action.actor_email,
+                role: PP_ROLE.SUPER_HUMAN,
+                aksi: PP_AKSI.INTERVENTION,
+                status_sebelum: projek.status,
+                status_sesudah: action.target_status,
+                alasan_penolakan: null,
+                keterangan: `[INTERVENSI SUPER HUMAN] ${projek.status} -> ${action.target_status}. Actor role: ${action.actor_role}. Alasan: ${action.alasan_intervensi}`,
+            },
+            (client) => projekPlanningRepository.updateStatusOnly(id, action.target_status, client)
+        );
+
+        return {
+            id,
+            old_status: projek.status,
+            new_status: updated.status,
+        };
     },
 
     async getTaskCounts(input: { roles?: string[]; cabang?: string; email?: string }) {

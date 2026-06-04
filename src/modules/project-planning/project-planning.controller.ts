@@ -9,6 +9,7 @@ import {
     upload3dSchema,
     uploadRabSchema,
     listProjekPlanningQuerySchema,
+    projekPlanningInterventionSchema,
 } from "./project-planning.schema";
 import { projekPlanningService } from "./project-planning.service";
 
@@ -122,6 +123,23 @@ export const getProjekPlanningById = asyncHandler(async (req: Request, res: Resp
 
     const data = await projekPlanningService.getById(id);
     res.json({ status: "success", data });
+});
+
+export const handleProjekPlanningIntervention = asyncHandler(async (req: Request, res: Response) => {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+        res.status(400).json({ status: "error", message: "ID tidak valid" });
+        return;
+    }
+
+    const action = projekPlanningInterventionSchema.parse(req.body);
+    const result = await projekPlanningService.intervene(id, action);
+
+    res.json({
+        status: "success",
+        message: "Intervensi Project Planning berhasil diproses",
+        data: result,
+    });
 });
 
 // ============================================================

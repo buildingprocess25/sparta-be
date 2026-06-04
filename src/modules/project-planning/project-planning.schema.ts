@@ -305,3 +305,23 @@ export const listProjekPlanningQuerySchema = z.object({
 });
 
 export type ListProjekPlanningQuery = z.infer<typeof listProjekPlanningQuerySchema>;
+
+export const projekPlanningInterventionSchema = z.object({
+    actor_email: z.string().trim().email(),
+    actor_role: z.string().trim().min(1),
+    target_status: z.enum([
+        "DRAFT",
+        "WAITING_BM_APPROVAL",
+        "WAITING_PP_APPROVAL_1",
+        "PP_DESIGN_3D_REQUIRED",
+        "WAITING_RAB_UPLOAD",
+        "WAITING_BM_APPROVAL_2",
+        "WAITING_PP_MANAGER_APPROVAL",
+        "WAITING_PP_APPROVAL_2",
+        "COMPLETED",
+        "REJECTED",
+    ]),
+    alasan_intervensi: z.string().trim().min(5, "alasan_intervensi minimal 5 karakter"),
+});
+
+export type ProjekPlanningInterventionInput = z.infer<typeof projekPlanningInterventionSchema>;

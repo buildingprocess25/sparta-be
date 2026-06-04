@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createPicPengawasanSchema } from "../pic-pengawasan/pic-pengawasan.schema";
+import { GANTT_STATUS } from "./gantt.constants";
 
 // --- Sub-schemas ---
 
@@ -92,6 +93,13 @@ export const lockGanttSchema = z.object({
     email: z.string().email()
 });
 
+export const ganttInterventionSchema = z.object({
+    actor_email: z.string().trim().email(),
+    actor_role: z.string().trim().min(1),
+    target_status: z.enum([GANTT_STATUS.ACTIVE, GANTT_STATUS.TERKUNCI]),
+    alasan_intervensi: z.string().trim().min(5, "alasan_intervensi minimal 5 karakter")
+});
+
 // --- Query filters ---
 
 export const ganttListQuerySchema = z.object({
@@ -176,6 +184,7 @@ export type GanttDetailByTokoParams = z.infer<typeof ganttDetailByTokoSchema>;
 export type SubmitGanttInput = z.infer<typeof submitGanttSchema>;
 export type UpdateGanttInput = z.infer<typeof updateGanttSchema>;
 export type LockGanttInput = z.infer<typeof lockGanttSchema>;
+export type GanttInterventionInput = z.infer<typeof ganttInterventionSchema>;
 export type DayGanttItemInput = z.infer<typeof dayGanttItemSchema>;
 export type DependencyItemInput = z.infer<typeof dependencyItemSchema>;
 export type PengawasanItemInput = z.infer<typeof pengawasanItemSchema>;

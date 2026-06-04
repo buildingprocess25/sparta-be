@@ -9,6 +9,7 @@ export type ActivityLogEntityType =
     | "PENGAWASAN"
     | "BERKAS_SERAH_TERIMA"
     | "INSTRUKSI_LAPANGAN"
+    | "GANTT"
     | "PROJECT_PLANNING"
     | "DOKUMENTASI_BANGUNAN"
     | "PENYIMPANAN_DOKUMEN"

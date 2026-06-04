@@ -2,11 +2,13 @@ import { AppError } from "../../common/app-error";
 import { tokoRepository } from "../toko/toko.repository";
 import { picPengawasanService } from "../pic-pengawasan/pic-pengawasan.service";
 import { rabRepository } from "../rab/rab.repository";
+import { activityLogRepository } from "../activity-log/activity-log.repository";
 import { GANTT_STATUS } from "./gantt.constants";
 import { ganttRepository } from "./gantt.repository";
 import type {
     AddDayItemsInput,
     DayGanttItemInput,
+    GanttInterventionInput,
     GanttListQuery,
     ManagePengawasanInput,
     SubmitGanttInput,
@@ -217,6 +219,55 @@ export const ganttService = {
             old_status: data.gantt.status,
             new_status: GANTT_STATUS.TERKUNCI,
             locked_by: email
+        };
+    },
+
+    async intervene(id: string, action: GanttInterventionInput) {
+        const data = await ganttRepository.findById(id);
+        if (!data) {
+            throw new AppError("Gantt Chart tidak ditemukan", 404);
+        }
+
+        if (data.gantt.status === action.target_status) {
+            throw new AppError("Status Gantt Chart sudah sama dengan target intervensi", 409);
+        }
+
+        const tokoStableFields = {
+            kode_toko: data.toko.kode_toko,
+            alamat: data.toko.alamat,
+            nama_kontraktor: data.toko.nama_kontraktor,
+        };
+
+        try {
+            await ganttRepository.updateStatus(id, action.target_status);
+        } finally {
+            await ganttRepository.restoreTokoStableFieldsByGanttId(id, tokoStableFields);
+        }
+
+        if (action.target_status === GANTT_STATUS.TERKUNCI) {
+            await releaseRabApprovalAfterGantt(data.gantt.id_toko, "INTERVENTION");
+        }
+
+        await activityLogRepository.insert({
+            entity_type: "GANTT",
+            entity_id: Number(id),
+            actor_email: action.actor_email,
+            actor_role: action.actor_role,
+            action: "INTERVENTION",
+            status_before: data.gantt.status,
+            status_after: action.target_status,
+            reason: action.alasan_intervensi,
+            metadata: {
+                id_toko: data.gantt.id_toko,
+                nomor_ulok: data.toko.nomor_ulok,
+                source: "super_human_intervention",
+            },
+        });
+
+        return {
+            id,
+            old_status: data.gantt.status,
+            new_status: action.target_status,
         };
     },
 

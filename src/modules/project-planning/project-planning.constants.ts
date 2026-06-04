@@ -38,6 +38,7 @@ export const PP_ROLE = {
     BM: "BM",
     PP_SPECIALIST: "PP_SPECIALIST",
     PP_MANAGER: "PP_MANAGER",
+    SUPER_HUMAN: "SUPER_HUMAN",
 } as const;
 
 export type PpRole = (typeof PP_ROLE)[keyof typeof PP_ROLE];
@@ -53,6 +54,7 @@ export const PP_AKSI = {
     UPLOAD_3D: "UPLOAD_3D",
     UPLOAD_RAB: "UPLOAD_RAB",
     COMPLETE: "COMPLETE",
+    INTERVENTION: "INTERVENTION",
 } as const;
 
 export type PpAksi = (typeof PP_AKSI)[keyof typeof PP_AKSI];

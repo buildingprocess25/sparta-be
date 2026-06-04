@@ -4,6 +4,7 @@ import {
     deleteGantt,
     getDetailByToko,
     getGanttById,
+    interveneGantt,
     listGantt,
     lockGantt,
     managePengawasan,
@@ -21,6 +22,7 @@ ganttRouter.get("/detail/:id_toko", getDetailByToko);
 ganttRouter.get("/:id", getGanttById);
 ganttRouter.put("/:id", updateGantt);
 ganttRouter.post("/:id/lock", lockGantt);
+ganttRouter.post("/:id/intervention", interveneGantt);
 ganttRouter.delete("/:id", deleteGantt);
 ganttRouter.post("/:id/day", addDayItems);
 ganttRouter.post("/:id/day/keterlambatan", updateKeterlambatan);

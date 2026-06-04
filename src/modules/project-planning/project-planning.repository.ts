@@ -694,6 +694,23 @@ export const projekPlanningRepository = {
         return result.rows[0];
     },
 
+    async updateStatusOnly(
+        id: number,
+        status: PpStatus,
+        client?: PoolClient
+    ): Promise<ProjekPlanningRow> {
+        const db = client ?? pool;
+        const result = await db.query<ProjekPlanningRow>(
+            `UPDATE projek_planning
+             SET status = $2,
+                 updated_at = NOW()
+             WHERE id = $1
+             RETURNING ${PP_COLUMNS}`,
+            [id, status]
+        );
+        return result.rows[0];
+    },
+
     // ----------------------------------------------------------
     // RESET ke RAB UPLOAD (saat ditolak oleh PP2 / PP Manager)
     // ----------------------------------------------------------

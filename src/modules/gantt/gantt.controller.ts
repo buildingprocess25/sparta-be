@@ -5,6 +5,7 @@ import {
     ganttDetailQuerySchema,
     ganttDetailByTokoSchema,
     ganttListQuerySchema,
+    ganttInterventionSchema,
     lockGanttSchema,
     managePengawasanSchema,
     submitGanttSchema,
@@ -58,6 +59,17 @@ export const lockGantt = asyncHandler(async (req: Request, res: Response) => {
     res.json({
         status: "success",
         message: "Gantt Chart berhasil dikunci",
+        data: result
+    });
+});
+
+export const interveneGantt = asyncHandler(async (req: Request, res: Response) => {
+    const payload = ganttInterventionSchema.parse(req.body);
+    const result = await ganttService.intervene(req.params.id, payload);
+
+    res.json({
+        status: "success",
+        message: "Intervensi Gantt Chart berhasil diproses",
         data: result
     });
 });
