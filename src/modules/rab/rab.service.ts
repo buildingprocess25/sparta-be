@@ -226,6 +226,49 @@ const normalizeCabangForPrice = (value?: string | null): string => {
         .trim();
 };
 
+const BRANCH_GROUPS: Record<string, string[]> = {
+    LOMBOK: ["LOMBOK", "SUMBAWA"],
+    CIKOKOL: ["CIKOKOL", "BINTAN"],
+    MEDAN: ["MEDAN", "ACEH"],
+    LAMPUNG: ["LAMPUNG", "KOTABUMI"],
+    PALEMBANG: ["PALEMBANG", "BENGKULU", "BANGKA", "BELITUNG"],
+    SIDOARJO: ["SIDOARJO", "SIDOARJO BPN_SMD", "MANOKWARI", "NTT", "SORONG"],
+};
+
+const normalizeBranchName = (value?: string | null): string =>
+    String(value ?? "").trim().replace(/\s+/g, " ").toUpperCase();
+
+const getBranchScopeCandidates = (branch?: string | null): string[] => {
+    const normalized = normalizeBranchName(branch);
+    if (!normalized) return [];
+
+    const candidates = new Set<string>([normalized]);
+    for (const [parentBranch, branchGroup] of Object.entries(BRANCH_GROUPS)) {
+        if (branchGroup.includes(normalized)) {
+            candidates.add(parentBranch);
+            branchGroup.forEach(item => candidates.add(item));
+        }
+    }
+
+    return Array.from(candidates);
+};
+
+const findUserCabangByEmailAndBranchScope = async (email: string, branch: string) => {
+    const branchCandidates = getBranchScopeCandidates(branch);
+    const rows = await Promise.all(
+        branchCandidates.map(candidate =>
+            userCabangRepository.findAll({ email_sat: email, cabang: candidate })
+        )
+    );
+
+    const seen = new Set<number>();
+    return rows.flat().filter(row => {
+        if (seen.has(row.id)) return false;
+        seen.add(row.id);
+        return true;
+    });
+};
+
 const validateSubmitterCompanyMapping = async (payload: SubmitRabInput): Promise<string> => {
     const submittedNamaPt = String(payload.nama_pt ?? "").trim();
     if (isPlaceholderText(submittedNamaPt)) {
@@ -236,10 +279,7 @@ const validateSubmitterCompanyMapping = async (payload: SubmitRabInput): Promise
     const cabang = String(payload.cabang ?? "").trim();
     if (!emailPembuat || !cabang) return submittedNamaPt;
 
-    const mappedUsers = await userCabangRepository.findAll({
-        email_sat: emailPembuat,
-        cabang,
-    });
+    const mappedUsers = await findUserCabangByEmailAndBranchScope(emailPembuat, cabang);
     const mappedCompanies = Array.from(new Set(
         mappedUsers
             .map(user => user.nama_pt)
@@ -280,10 +320,7 @@ const validateDirectorContractorApprovalCompany = async (
         throw new AppError("Data cabang atau email approver tidak valid untuk approval Direktur Kontraktor.", 422);
     }
 
-    const approverRows = await userCabangRepository.findAll({
-        email_sat: approverEmail,
-        cabang,
-    });
+    const approverRows = await findUserCabangByEmailAndBranchScope(approverEmail, cabang);
     const approverCompanies = Array.from(new Set(
         approverRows
             .map(user => user.nama_pt)
@@ -293,7 +330,7 @@ const validateDirectorContractorApprovalCompany = async (
 
     if (approverCompanies.length === 0) {
         throw new AppError(
-            `Approver ${approverEmail} belum punya mapping PT/CV untuk cabang ${cabang}.`,
+            `Approver ${approverEmail} belum punya mapping PT/CV untuk cabang ${cabang} atau cabang satu grupnya.`,
             422
         );
     }
