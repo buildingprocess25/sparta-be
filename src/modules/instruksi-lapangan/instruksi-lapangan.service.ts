@@ -96,6 +96,14 @@ export const instruksiLapanganService = {
             throw new AppError("id_toko tidak sesuai dengan lingkup pekerjaan yang dipilih", 409);
         }
 
+        console.log("[IL][SUBMIT_SERVICE] Toko tervalidasi, mulai simpan", {
+            id_toko: toko.id,
+            nomor_ulok: toko.nomor_ulok,
+            lingkup_pekerjaan: toko.lingkup_pekerjaan,
+            item_count: payload.detail_items.length,
+            is_revisi: Boolean(payload.id_instruksi_lapangan_revisi)
+        });
+
         let lampiranPath: string | undefined;
 
         if (files.lampiranFile) {
@@ -128,6 +136,11 @@ export const instruksiLapanganService = {
                 lampiranPath
             );
         }
+
+        console.log("[IL][SUBMIT_SERVICE] Data IL berhasil tersimpan", {
+            id_instruksi_lapangan: idInstruksiLapangan,
+            id_toko: toko.id
+        });
 
         // Jangan tahan response user pada proses render/upload PDF ke Drive.
         // PDF tetap dibuat background dan link akan terisi ketika proses selesai.

@@ -27,6 +27,15 @@ export const submitInstruksiLapangan = asyncHandler(async (req: Request, res: Re
         mimetype: string;
         buffer: Buffer;
     }>>;
+
+    console.log("[IL][SUBMIT_CONTROLLER] Payload diterima", {
+        id_toko: payload.id_toko ?? null,
+        nomor_ulok: payload.nomor_ulok,
+        lingkup_pekerjaan: payload.lingkup_pekerjaan ?? null,
+        email_pembuat: payload.email_pembuat,
+        item_count: payload.detail_items.length,
+        has_lampiran: Boolean(uploadedFiles.lampiran?.[0])
+    });
     const getUploadedFile = (fieldName: string) => {
         const file = uploadedFiles[fieldName]?.[0];
         if (!file) return undefined;
