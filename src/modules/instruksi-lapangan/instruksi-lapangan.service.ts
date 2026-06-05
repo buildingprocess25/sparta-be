@@ -59,6 +59,17 @@ const isNoPpnArea = (toko: { cabang?: string | null; nama_toko?: string | null; 
     return identity.some(value => value === "BATAM" || value === "BINTAN" || /\bBATAM\b|\bBINTAN\b/.test(value));
 };
 
+const generateInstruksiLapanganPdfInBackground = (idIL: number | string): void => {
+    setImmediate(() => {
+        instruksiLapanganService.generateAndStorePdf(idIL).catch((err) => {
+            console.error("[IL][PDF_BACKGROUND] Gagal generate/upload PDF Instruksi Lapangan", {
+                idIL,
+                error: err instanceof Error ? err.message : String(err)
+            });
+        });
+    });
+};
+
 export const instruksiLapanganService = {
     async submit(
         payload: SubmitInstruksiLapanganInput,
@@ -118,8 +129,9 @@ export const instruksiLapanganService = {
             );
         }
 
-        // Generate PDF
-        await this.generateAndStorePdf(idInstruksiLapangan);
+        // Jangan tahan response user pada proses render/upload PDF ke Drive.
+        // PDF tetap dibuat background dan link akan terisi ketika proses selesai.
+        generateInstruksiLapanganPdfInBackground(idInstruksiLapangan);
 
         return await instruksiLapanganRepository.getById(idInstruksiLapangan);
     },
