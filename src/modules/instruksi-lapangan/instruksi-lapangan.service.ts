@@ -64,10 +64,25 @@ export const instruksiLapanganService = {
         payload: SubmitInstruksiLapanganInput,
         files: { lampiranFile?: { originalname: string; buffer: Buffer; mimetype: string } }
     ) {
-        // Validate Toko
-        const toko = await instruksiLapanganRepository.getTokoByUlok(payload.nomor_ulok);
+        // Validate Toko. Prefer id_toko because nomor_ulok can exist for multiple scopes (Sipil/ME).
+        const toko = payload.id_toko
+            ? await instruksiLapanganRepository.getTokoById(payload.id_toko)
+            : await instruksiLapanganRepository.getTokoByUlok(payload.nomor_ulok, payload.lingkup_pekerjaan);
+
         if (!toko) {
             throw new AppError(`Toko dengan nomor ULOK ${payload.nomor_ulok} tidak ditemukan`, 404);
+        }
+
+        if (toko.nomor_ulok !== payload.nomor_ulok) {
+            throw new AppError("id_toko tidak sesuai dengan nomor ULOK yang dipilih", 409);
+        }
+
+        if (
+            payload.lingkup_pekerjaan &&
+            toko.lingkup_pekerjaan &&
+            toko.lingkup_pekerjaan.trim().toUpperCase() !== payload.lingkup_pekerjaan.trim().toUpperCase()
+        ) {
+            throw new AppError("id_toko tidak sesuai dengan lingkup pekerjaan yang dipilih", 409);
         }
 
         let lampiranPath: string | undefined;

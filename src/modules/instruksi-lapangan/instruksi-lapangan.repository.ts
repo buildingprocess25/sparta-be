@@ -248,10 +248,30 @@ export const instruksiLapanganRepository = {
         return res.rows;
     },
 
-    async getTokoByUlok(nomorUlok: string): Promise<TokoRow | null> {
+    async getTokoById(idToko: number): Promise<TokoRow | null> {
         const res = await pool.query(`
-            SELECT * FROM toko WHERE nomor_ulok = $1
-        `, [nomorUlok]);
+            SELECT * FROM toko WHERE id = $1
+        `, [idToko]);
+        return res.rows[0] || null;
+    },
+
+    async getTokoByUlok(nomorUlok: string, lingkupPekerjaan?: string | null): Promise<TokoRow | null> {
+        const params: any[] = [nomorUlok];
+        let scopeCondition = "";
+
+        if (lingkupPekerjaan) {
+            params.push(lingkupPekerjaan);
+            scopeCondition = "AND LOWER(COALESCE(lingkup_pekerjaan, '')) = LOWER($2)";
+        }
+
+        const res = await pool.query(`
+            SELECT *
+            FROM toko
+            WHERE nomor_ulok = $1
+            ${scopeCondition}
+            ORDER BY id DESC
+            LIMIT 1
+        `, params);
         return res.rows[0] || null;
     },
 

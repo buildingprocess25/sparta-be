@@ -10,7 +10,9 @@ export const instruksiLapanganItemSchema = z.object({
 });
 
 export const submitInstruksiLapanganSchema = z.object({
+    id_toko: z.coerce.number().int().positive().optional(),
     nomor_ulok: z.string().min(1),
+    lingkup_pekerjaan: z.string().trim().optional(),
     email_pembuat: z.string().email(),
     tanggal_mulai: z.string().min(1),
     tanggal_selesai: z.string().min(1),
