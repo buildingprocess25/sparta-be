@@ -33,6 +33,26 @@ function processPriceValue(rawValue: unknown): PriceValue {
     return safeToFloat(rawValue);
 }
 
+function normalizeSheetText(value: unknown): string {
+    return String(value ?? "").trim().replace(/\s+/g, " ");
+}
+
+function isRomanCategoryCode(value: unknown): boolean {
+    const normalized = normalizeSheetText(value).replace(/\./g, "").toUpperCase();
+    return /^[IVXLCDM]+$/.test(normalized);
+}
+
+function findCategoryName(row: string[][][number], fallbackIndex: number): string {
+    const fallback = normalizeSheetText(row[fallbackIndex]);
+    if (fallback) return fallback;
+
+    const pekerjaanCell = row
+        .map((cell) => normalizeSheetText(cell))
+        .find((cell) => /^PEKERJAAN\b/i.test(cell));
+
+    return pekerjaanCell ?? "";
+}
+
 function normalizeCabangInput(value: string): string {
     return value
         .trim()
@@ -91,24 +111,28 @@ function processSheet(allValues: string[][], lingkup: "ME" | "SIPIL"): PriceResu
     }
 
     for (const row of allValues) {
-        if (row.length <= jenisPekerjaanColIndex || !String(row[jenisPekerjaanColIndex] ?? "").trim()) {
-            continue;
+        const noVal = normalizeSheetText(row[noColIndex]);
+        const jenisPekerjaan = normalizeSheetText(row[jenisPekerjaanColIndex]);
+        const hasRomanCategoryMarker = row.slice(0, Math.max(jenisPekerjaanColIndex, 1)).some(isRomanCategoryCode);
+
+        if (isRomanCategoryCode(noVal) || hasRomanCategoryMarker) {
+            const categoryName = findCategoryName(row, jenisPekerjaanColIndex);
+            if (categoryName && /^PEKERJAAN\b/i.test(categoryName)) {
+                currentCategory = categoryName;
+                if (!categorizedPrices[currentCategory]) categorizedPrices[currentCategory] = [];
+                continue;
+            }
         }
 
-        const noVal = String(row[noColIndex] ?? "").trim();
-        const jenisPekerjaan = String(row[jenisPekerjaanColIndex] ?? "").trim();
+        if (!jenisPekerjaan) {
+            continue;
+        }
 
         if (!noVal || jenisPekerjaan.toUpperCase() === "JENIS PEKERJAAN") {
             continue;
         }
 
-        if (/^[IVXLCDM]+$/.test(noVal)) {
-            currentCategory = jenisPekerjaan;
-            if (!categorizedPrices[currentCategory]) categorizedPrices[currentCategory] = [];
-            continue;
-        }
-
-        const satuanVal = String(row[satColIndex] ?? "").trim();
+        const satuanVal = normalizeSheetText(row[satColIndex]);
         if (!satuanVal) continue;
 
         const hargaMaterialRaw = row[materialColIndex] ?? "0";
