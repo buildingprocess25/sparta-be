@@ -53,6 +53,10 @@ function findCategoryName(row: string[][][number], fallbackIndex: number): strin
     return pekerjaanCell ?? "";
 }
 
+function normalizeCategoryName(value: unknown): string {
+    return normalizeSheetText(value).toUpperCase();
+}
+
 function normalizeCabangInput(value: string): string {
     return value
         .trim()
@@ -118,7 +122,7 @@ function processSheet(allValues: string[][], lingkup: "ME" | "SIPIL"): PriceResu
         if (isRomanCategoryCode(noVal) || hasRomanCategoryMarker) {
             const categoryName = findCategoryName(row, jenisPekerjaanColIndex);
             if (categoryName && /^PEKERJAAN\b/i.test(categoryName)) {
-                currentCategory = categoryName;
+                currentCategory = normalizeCategoryName(categoryName);
                 if (!categorizedPrices[currentCategory]) categorizedPrices[currentCategory] = [];
                 continue;
             }
