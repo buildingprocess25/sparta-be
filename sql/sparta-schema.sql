@@ -98,8 +98,8 @@ ALTER TABLE rab ADD COLUMN IF NOT EXISTS waktu_penolakan TIMESTAMP;
 CREATE TABLE rab_item (
     id SERIAL PRIMARY KEY,
     id_rab INT,
-    kategori_pekerjaan VARCHAR(255),
-    jenis_pekerjaan VARCHAR(255),
+    kategori_pekerjaan TEXT,
+    jenis_pekerjaan TEXT,
     satuan VARCHAR(50),
     volume VARCHAR(50),
     harga_material VARCHAR(50),
@@ -1012,8 +1012,8 @@ CREATE INDEX IF NOT EXISTS idx_instruksi_lapangan_toko_status_created
 CREATE TABLE IF NOT EXISTS instruksi_lapangan_item (
     id SERIAL PRIMARY KEY,
     id_instruksi_lapangan INT NOT NULL,
-    kategori_pekerjaan VARCHAR(255),
-    jenis_pekerjaan VARCHAR(255),
+    kategori_pekerjaan TEXT,
+    jenis_pekerjaan TEXT,
     satuan VARCHAR(50),
     volume DOUBLE PRECISION,
     harga_material INTEGER,
