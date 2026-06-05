@@ -1015,7 +1015,7 @@ CREATE TABLE IF NOT EXISTS instruksi_lapangan_item (
     kategori_pekerjaan VARCHAR(255),
     jenis_pekerjaan VARCHAR(255),
     satuan VARCHAR(50),
-    volume INTEGER,
+    volume DOUBLE PRECISION,
     harga_material INTEGER,
     harga_upah INTEGER,
     total_material INTEGER,
