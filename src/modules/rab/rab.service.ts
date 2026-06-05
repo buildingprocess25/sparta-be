@@ -1256,6 +1256,11 @@ export const rabService = {
         const newStatus = resolveStatusTransition(data.rab.status, action, data.toko.cabang);
         if (action.tindakan === "REJECT") {
             const revisionItemIds = action.revisi_item_ids ?? [];
+            const uniqueRevisionItemIds = new Set(revisionItemIds);
+            if (uniqueRevisionItemIds.size !== revisionItemIds.length) {
+                throw new AppError("Item revisi RAB tidak boleh duplikat", 400);
+            }
+
             const revisionItemNotes = action.revisi_item_notes ?? {};
             const revisionItems: Array<{ id_rab_item: number | null; catatan_item: string | null }> = revisionItemIds.map((itemId) => ({
                 id_rab_item: itemId,
