@@ -64,7 +64,6 @@ export const submitGanttSchema = z.object({
 
     // gantt header
     email_pembuat: z.string().email(),
-    catatan_gantt: nullableOptionalString,
 
     // kategori pekerjaan + day items
     kategori_pekerjaan: z.array(kategoriPekerjaanValueSchema).min(1),
@@ -85,7 +84,6 @@ export const updateGanttSchema = z.object({
     // optional: pengawasan & dependency
     pengawasan: z.array(pengawasanItemSchema).optional(),
     dependencies: z.array(dependencyItemSchema).optional(),
-    catatan_gantt: nullableOptionalString
 });
 
 // --- Lock Gantt Chart ---
@@ -172,6 +170,15 @@ export const managePengawasanSchema = z.object({
     { message: "Field 'tanggal_pengawasan' atau 'remove_tanggal_pengawasan' wajib diisi" }
 );
 
+// --- Catatan Pengawasan ---
+
+export const createGanttNoteSchema = z.object({
+    author_email: z.string().trim().email(),
+    author_name: z.string().trim().min(1),
+    author_role: z.string().trim().min(1),
+    note: z.string().trim().min(1, "Catatan wajib diisi")
+});
+
 // --- Detail by Toko ---
 
 export const ganttDetailByTokoSchema = z.object({
@@ -194,3 +201,4 @@ export type AddDayItemsInput = z.infer<typeof addDayItemsSchema>;
 export type UpdateKeterlambatanInput = z.infer<typeof updateKeterlambatanSchema>;
 export type UpdateKecepatanInput = z.infer<typeof updateKecepatanSchema>;
 export type ManagePengawasanInput = z.infer<typeof managePengawasanSchema>;
+export type CreateGanttNoteInput = z.infer<typeof createGanttNoteSchema>;

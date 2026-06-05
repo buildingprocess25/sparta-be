@@ -7,6 +7,7 @@ import { GANTT_STATUS } from "./gantt.constants";
 import { ganttRepository } from "./gantt.repository";
 import type {
     AddDayItemsInput,
+    CreateGanttNoteInput,
     DayGanttItemInput,
     GanttInterventionInput,
     GanttListQuery,
@@ -105,7 +106,6 @@ export const ganttService = {
                     day_items: payload.day_items,
                     pengawasan: payload.pengawasan,
                     dependencies: payload.dependencies,
-                    catatan_gantt: payload.catatan_gantt ?? null,
                 });
 
                 const refreshed = await ganttRepository.findById(String(activeGantt.id));
@@ -134,7 +134,6 @@ export const ganttService = {
             // gantt fields
             email_pembuat: payload.email_pembuat,
             status: GANTT_STATUS.ACTIVE,
-            catatan_gantt: payload.catatan_gantt ?? null,
             // children
             kategori_pekerjaan: payload.kategori_pekerjaan,
             day_items: payload.day_items,
@@ -157,6 +156,24 @@ export const ganttService = {
             throw new AppError("Gantt Chart tidak ditemukan", 404);
         }
         return data;
+    },
+
+    async listNotes(id: string) {
+        const data = await ganttRepository.findById(id);
+        if (!data) {
+            throw new AppError("Gantt Chart tidak ditemukan", 404);
+        }
+
+        return ganttRepository.listNotes(id);
+    },
+
+    async createNote(id: string, payload: CreateGanttNoteInput) {
+        const data = await ganttRepository.findById(id);
+        if (!data) {
+            throw new AppError("Gantt Chart tidak ditemukan", 404);
+        }
+
+        return ganttRepository.createNote(id, payload);
     },
 
     async update(id: string, payload: UpdateGanttInput) {
@@ -187,7 +204,6 @@ export const ganttService = {
             day_items: shouldReplaceMainData ? normalizedDayItems : undefined,
             pengawasan: normalizedPengawasan,
             dependencies: payload.dependencies,
-            catatan_gantt: payload.catatan_gantt
         });
 
         return ganttRepository.findById(id);

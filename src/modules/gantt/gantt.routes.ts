@@ -1,10 +1,12 @@
 import { Router } from "express";
 import {
     addDayItems,
+    createGanttNote,
     deleteGantt,
     getDetailByToko,
     getGanttById,
     interveneGantt,
+    listGanttNotes,
     listGantt,
     lockGantt,
     managePengawasan,
@@ -19,6 +21,8 @@ const ganttRouter = Router();
 ganttRouter.post("/submit", submitGantt);
 ganttRouter.get("/", listGantt);
 ganttRouter.get("/detail/:id_toko", getDetailByToko);
+ganttRouter.get("/:id/notes", listGanttNotes);
+ganttRouter.post("/:id/notes", createGanttNote);
 ganttRouter.get("/:id", getGanttById);
 ganttRouter.put("/:id", updateGantt);
 ganttRouter.post("/:id/lock", lockGantt);
