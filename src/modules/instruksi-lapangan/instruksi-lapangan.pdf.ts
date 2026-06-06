@@ -43,6 +43,9 @@ const approvalDetails = (nameOrEmail?: string | null, approvedAt?: string | null
     return `<div class="approval-details"><div class="approval-date">${formatDateTimeIndonesia(approvedAt)}</div><div class="approval-name">( ${identity} )</div></div>`;
 };
 
+const isRejectedStatus = (status?: string | null): boolean =>
+    String(status ?? "").toUpperCase().includes("DITOLAK");
+
 const formatNomorUlok = (raw?: string | null): string => {
     const value = String(raw ?? "").trim();
     if (!value) return "";
@@ -131,6 +134,7 @@ export const buildInstruksiLapanganPdfBuffer = async (input: BuildInstruksiLapan
     const recap = computeRecapTotals(total, noPpn);
     const templatePath = await resolveTemplatePath("instruksi_lapangan_report.njk");
 
+    const isRejected = isRejectedStatus(input.instruksiLapangan.status);
     const html = await renderHtmlTemplate(templatePath, {
         data: {
             NomorUlok: formatNomorUlok(input.toko.nomor_ulok),
@@ -150,14 +154,18 @@ export const buildInstruksiLapanganPdfBuffer = async (input: BuildInstruksiLapan
         nama_pt: input.toko.nama_kontraktor || "NAMA PT. KONTRAKTOR TIDAK ADA",
         is_batam_branch: noPpn,
         creator_details: approvalDetails(input.instruksiLapangan.email_pembuat, input.instruksiLapangan.created_at),
-        coordinator_approval_details: approvalDetails(
-            input.instruksiLapangan.pemberi_persetujuan_koordinator,
-            input.instruksiLapangan.waktu_persetujuan_koordinator,
-        ),
-        manager_approval_details: approvalDetails(
-            input.instruksiLapangan.pemberi_persetujuan_manager,
-            input.instruksiLapangan.waktu_persetujuan_manager,
-        ),
+        coordinator_approval_details: isRejected
+            ? approvalDetails()
+            : approvalDetails(
+                input.instruksiLapangan.pemberi_persetujuan_koordinator,
+                input.instruksiLapangan.waktu_persetujuan_koordinator,
+            ),
+        manager_approval_details: isRejected
+            ? approvalDetails()
+            : approvalDetails(
+                input.instruksiLapangan.pemberi_persetujuan_manager,
+                input.instruksiLapangan.waktu_persetujuan_manager,
+            ),
     });
 
     return renderPdfFromHtml(html);
