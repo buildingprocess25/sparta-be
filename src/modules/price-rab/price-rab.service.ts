@@ -105,9 +105,10 @@ function processSheet(allValues: string[][], lingkup: "ME" | "SIPIL"): PriceResu
     let materialColIndex = -1;
     let upahColIndex = -1;
     headerRow.forEach((headerText, i) => {
+        if (i <= satColIndex) return;
         const lower = headerText.toLowerCase();
-        if (lower.includes("material")) materialColIndex = i;
-        if (lower.includes("upah")) upahColIndex = i;
+        if (lower.includes("material") && materialColIndex === -1) materialColIndex = i;
+        if (lower.includes("upah") && upahColIndex === -1) upahColIndex = i;
     });
 
     if (materialColIndex === -1 || upahColIndex === -1) {
