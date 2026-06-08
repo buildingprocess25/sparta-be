@@ -5,7 +5,8 @@ export const opnameStatusSchema = z.enum(["pending", "disetujui", "ditolak"]);
 export const createOpnameSchema = z.object({
     id_toko: z.coerce.number().int().positive(),
     id_opname_final: z.coerce.number().int().positive(),
-    id_rab_item: z.coerce.number().int().positive(),
+    id_rab_item: z.coerce.number().int().positive().optional(),
+    id_instruksi_lapangan_item: z.coerce.number().int().positive().optional(),
     status: opnameStatusSchema.optional(),
     volume_akhir: z.coerce.number(),
     selisih_volume: z.coerce.number(),
@@ -15,12 +16,18 @@ export const createOpnameSchema = z.object({
     kualitas: z.string().trim().min(1).optional(),
     spesifikasi: z.string().trim().min(1).optional(),
     catatan: z.string().trim().min(1).optional()
-});
+}).refine(
+    (data) =>
+        (typeof data.id_rab_item !== "undefined" && typeof data.id_instruksi_lapangan_item === "undefined")
+        || (typeof data.id_rab_item === "undefined" && typeof data.id_instruksi_lapangan_item !== "undefined"),
+    { message: "Isi tepat salah satu: id_rab_item atau id_instruksi_lapangan_item" }
+);
 
 export const bulkCreateOpnameItemSchema = z.object({
     id: z.coerce.number().int().positive().optional(),
     id_toko: z.coerce.number().int().positive().optional(),
-    id_rab_item: z.coerce.number().int().positive(),
+    id_rab_item: z.coerce.number().int().positive().optional(),
+    id_instruksi_lapangan_item: z.coerce.number().int().positive().optional(),
     status: opnameStatusSchema.optional(),
     volume_akhir: z.coerce.number(),
     selisih_volume: z.coerce.number(),
@@ -30,7 +37,12 @@ export const bulkCreateOpnameItemSchema = z.object({
     kualitas: z.string().trim().min(1).optional(),
     spesifikasi: z.string().trim().min(1).optional(),
     catatan: z.string().trim().min(1).optional()
-});
+}).refine(
+    (data) =>
+        (typeof data.id_rab_item !== "undefined" && typeof data.id_instruksi_lapangan_item === "undefined")
+        || (typeof data.id_rab_item === "undefined" && typeof data.id_instruksi_lapangan_item !== "undefined"),
+    { message: "Isi tepat salah satu: id_rab_item atau id_instruksi_lapangan_item" }
+);
 
 export const bulkCreateOpnameSchema = z.object({
     id_toko: z.coerce.number().int().positive(),
@@ -44,6 +56,7 @@ export const updateOpnameSchema = z.object({
     id_toko: z.coerce.number().int().positive().optional(),
     id_opname_final: z.coerce.number().int().positive().optional(),
     id_rab_item: z.coerce.number().int().positive().optional(),
+    id_instruksi_lapangan_item: z.coerce.number().int().positive().optional(),
     status: opnameStatusSchema.optional(),
     volume_akhir: z.coerce.number().optional(),
     selisih_volume: z.coerce.number().optional(),
@@ -59,6 +72,7 @@ export const updateOpnameSchema = z.object({
         id_toko?: number;
         id_opname_final?: number;
         id_rab_item?: number;
+        id_instruksi_lapangan_item?: number;
         status?: "pending" | "disetujui" | "ditolak";
         volume_akhir?: number;
         selisih_volume?: number;
@@ -73,6 +87,7 @@ export const updateOpnameSchema = z.object({
         typeof data.id_toko !== "undefined"
         || typeof data.id_opname_final !== "undefined"
         || typeof data.id_rab_item !== "undefined"
+        || typeof data.id_instruksi_lapangan_item !== "undefined"
         || typeof data.status !== "undefined"
         || typeof data.volume_akhir !== "undefined"
         || typeof data.selisih_volume !== "undefined"
@@ -90,6 +105,7 @@ export const listOpnameQuerySchema = z.object({
     id_toko: z.coerce.number().int().positive().optional(),
     id_opname_final: z.coerce.number().int().positive().optional(),
     id_rab_item: z.coerce.number().int().positive().optional(),
+    id_instruksi_lapangan_item: z.coerce.number().int().positive().optional(),
     status: opnameStatusSchema.optional()
 });
 

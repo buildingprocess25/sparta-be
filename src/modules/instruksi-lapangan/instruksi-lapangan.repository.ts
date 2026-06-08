@@ -142,7 +142,7 @@ export const instruksiLapanganRepository = {
 
     async getApprovedByTokoId(idToko: number): Promise<InstruksiLapanganRow[]> {
         const res = await pool.query(
-            "SELECT * FROM instruksi_lapangan WHERE id_toko = $1 AND status = 'Disetujui' ORDER BY created_at ASC, id ASC",
+            "SELECT * FROM instruksi_lapangan WHERE id_toko = $1 AND status IN ('Disetujui', 'Approved') ORDER BY created_at ASC, id ASC",
             [idToko]
         );
         return res.rows;
@@ -245,6 +245,18 @@ export const instruksiLapanganRepository = {
         const res = await pool.query(`
             SELECT * FROM instruksi_lapangan_item WHERE id_instruksi_lapangan = $1 ORDER BY id ASC
         `, [idIL]);
+        return res.rows;
+    },
+
+    async getApprovedItemsByTokoId(idToko: number): Promise<InstruksiLapanganItemRow[]> {
+        const res = await pool.query(`
+            SELECT ili.*
+            FROM instruksi_lapangan_item ili
+            JOIN instruksi_lapangan il ON il.id = ili.id_instruksi_lapangan
+            WHERE il.id_toko = $1
+              AND il.status IN ('Disetujui', 'Approved')
+            ORDER BY il.created_at ASC, il.id ASC, ili.id ASC
+        `, [idToko]);
         return res.rows;
     },
 

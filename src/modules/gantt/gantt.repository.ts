@@ -6,6 +6,7 @@ import type {
     DependencyItemInput,
     PengawasanItemInput
 } from "./gantt.schema";
+import { instruksiLapanganRepository, type InstruksiLapanganItemRow } from "../instruksi-lapangan/instruksi-lapangan.repository";
 
 // ---------------------------------------------------------------------------
 // Row types – sesuai tabel gantt_chart, kategori_pekerjaan_gantt, dll
@@ -388,6 +389,7 @@ export const ganttRepository = {
             kategori_pekerjaan: string;
             kategori_pekerjaan_terikat: string;
         })[];
+        instruksi_lapangan_items: InstruksiLapanganItemRow[];
     } | null> {
         // Header + toko
         const headerConditions = ["g.id = $1"];
@@ -478,6 +480,7 @@ export const ganttRepository = {
             alamat: row.alamat,
             nama_kontraktor: row.nama_kontraktor
         };
+        const instruksiLapanganItems = await instruksiLapanganRepository.getApprovedItemsByTokoId(gantt.id_toko);
 
         return {
             gantt,
@@ -485,7 +488,8 @@ export const ganttRepository = {
             kategori_pekerjaan: kategoriRes.rows,
             day_items: dayRes.rows,
             pengawasan: pengawasanRes.rows,
-            dependencies: depRes.rows
+            dependencies: depRes.rows,
+            instruksi_lapangan_items: instruksiLapanganItems
         };
     },
 
@@ -832,6 +836,7 @@ export const ganttRepository = {
             kategori_pekerjaan: string;
             kategori_pekerjaan_terikat: string;
         })[];
+        instruksi_lapangan_items: InstruksiLapanganItemRow[];
     } | null> {
         // 1. Cek toko exists
         const tokoRes = await pool.query<TokoJoinRow>(
@@ -882,6 +887,14 @@ export const ganttRepository = {
                 (r: { kategori_pekerjaan: string }) => r.kategori_pekerjaan
             );
         }
+        const instruksiLapanganItems = await instruksiLapanganRepository.getApprovedItemsByTokoId(tokoId);
+        const ilCategories = Array.from(new Set(
+            instruksiLapanganItems
+                .map((item) => String(item.kategori_pekerjaan ?? "").trim())
+                .filter(Boolean)
+                .map((category) => `[IL] ${category.toUpperCase()}`)
+        ));
+        filteredCategories = Array.from(new Set([...filteredCategories, ...ilCategories]));
 
         // 4. Ambil gantt_chart terbaru untuk toko ini
         const ganttRes = await pool.query<GanttRow>(
@@ -902,7 +915,8 @@ export const ganttRepository = {
                 kategori_pekerjaan: [],
                 day_items: [],
                 pengawasan: [],
-                dependencies: []
+                dependencies: [],
+                instruksi_lapangan_items: instruksiLapanganItems
             };
         }
 
@@ -962,7 +976,8 @@ export const ganttRepository = {
             kategori_pekerjaan: kategoriRes.rows,
             day_items: dayRes.rows,
             pengawasan: pengawasanRes.rows,
-            dependencies: depRes.rows
+            dependencies: depRes.rows,
+            instruksi_lapangan_items: instruksiLapanganItems
         };
     }
 };

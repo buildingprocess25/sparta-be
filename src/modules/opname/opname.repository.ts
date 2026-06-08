@@ -20,7 +20,8 @@ export type OpnameRow = {
     id: number;
     id_toko: number;
     id_opname_final: number;
-    id_rab_item: number;
+    id_rab_item: number | null;
+    id_instruksi_lapangan_item: number | null;
     status: "pending" | "disetujui" | "ditolak";
     volume_akhir: number;
     selisih_volume: number;
@@ -74,6 +75,7 @@ const returningColumns = `
     id_toko,
     id_opname_final,
     id_rab_item,
+    id_instruksi_lapangan_item,
     status,
     volume_akhir,
     selisih_volume,
@@ -118,6 +120,7 @@ export const opnameRepository = {
                 id_toko,
                 id_opname_final,
                 id_rab_item,
+                id_instruksi_lapangan_item,
                 status,
                 volume_akhir,
                 selisih_volume,
@@ -129,13 +132,14 @@ export const opnameRepository = {
                 foto,
                 catatan
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
             RETURNING ${returningColumns}
             `,
             [
                 input.id_toko,
                 input.id_opname_final,
-                input.id_rab_item,
+                input.id_rab_item ?? null,
+                input.id_instruksi_lapangan_item ?? null,
                 input.status ?? "pending",
                 input.volume_akhir,
                 input.selisih_volume,
@@ -244,23 +248,25 @@ export const opnameRepository = {
                         SET id_toko = $1,
                             id_opname_final = $2,
                             id_rab_item = $3,
-                            status = $4,
-                            volume_akhir = $5,
-                            selisih_volume = $6,
-                            total_selisih = $7,
-                            total_harga_opname = $8,
-                            desain = $9,
-                            kualitas = $10,
-                            spesifikasi = $11,
-                            foto = COALESCE($12, foto),
-                            catatan = $13
-                        WHERE id = $14
+                            id_instruksi_lapangan_item = $4,
+                            status = $5,
+                            volume_akhir = $6,
+                            selisih_volume = $7,
+                            total_selisih = $8,
+                            total_harga_opname = $9,
+                            desain = $10,
+                            kualitas = $11,
+                            spesifikasi = $12,
+                            foto = COALESCE($13, foto),
+                            catatan = $14
+                        WHERE id = $15
                         RETURNING ${returningColumns}
                         `,
                         [
                             itemTokoId,
                             opnameFinalId,
-                            item.id_rab_item,
+                            item.id_rab_item ?? null,
+                            item.id_instruksi_lapangan_item ?? null,
                             itemStatus,
                             item.volume_akhir,
                             item.selisih_volume,
@@ -289,17 +295,21 @@ export const opnameRepository = {
                         volume_akhir = $3,
                         selisih_volume = $4,
                         total_selisih = $5,
-                                                total_harga_opname = $6,
-                                                desain = $7,
-                                                kualitas = $8,
-                                                spesifikasi = $9,
-                                                foto = COALESCE($10, foto),
-                                                catatan = $11
+                        total_harga_opname = $6,
+                        desain = $7,
+                        kualitas = $8,
+                        spesifikasi = $9,
+                        foto = COALESCE($10, foto),
+                        catatan = $11
                     WHERE id = (
                         SELECT id
                         FROM opname_item
-                                                WHERE id_toko = $12
-                                                    AND id_rab_item = $13
+                        WHERE id_toko = $12
+                          AND (
+                            ($13::int IS NOT NULL AND id_rab_item = $13::int AND id_instruksi_lapangan_item IS NULL)
+                            OR
+                            ($14::int IS NOT NULL AND id_instruksi_lapangan_item = $14::int AND id_rab_item IS NULL)
+                          )
                         ORDER BY id DESC
                         LIMIT 1
                     )
@@ -311,14 +321,15 @@ export const opnameRepository = {
                         item.volume_akhir,
                         item.selisih_volume,
                         item.total_selisih,
-                                                item.total_harga_opname,
+                        item.total_harga_opname,
                         item.desain ?? null,
                         item.kualitas ?? null,
                         item.spesifikasi ?? null,
                         sanitizeFotoValue(item.foto),
                         item.catatan ?? null,
                         itemTokoId,
-                        item.id_rab_item
+                        item.id_rab_item ?? null,
+                        item.id_instruksi_lapangan_item ?? null
                     ]
                 );
 
@@ -333,6 +344,7 @@ export const opnameRepository = {
                         id_toko,
                         id_opname_final,
                         id_rab_item,
+                        id_instruksi_lapangan_item,
                         status,
                         volume_akhir,
                         selisih_volume,
@@ -344,13 +356,14 @@ export const opnameRepository = {
                         foto,
                         catatan
                     )
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
                     RETURNING ${returningColumns}
                     `,
                     [
                         itemTokoId,
                         opnameFinalId,
-                        item.id_rab_item,
+                        item.id_rab_item ?? null,
+                        item.id_instruksi_lapangan_item ?? null,
                         itemStatus,
                         item.volume_akhir,
                         item.selisih_volume,
@@ -415,6 +428,11 @@ export const opnameRepository = {
             conditions.push(`id_rab_item = $${values.length}`);
         }
 
+        if (typeof query.id_instruksi_lapangan_item !== "undefined") {
+            values.push(query.id_instruksi_lapangan_item);
+            conditions.push(`id_instruksi_lapangan_item = $${values.length}`);
+        }
+
         if (typeof query.status !== "undefined") {
             values.push(query.status);
             conditions.push(`status = $${values.length}`);
@@ -473,6 +491,13 @@ export const opnameRepository = {
         if (typeof input.id_rab_item !== "undefined") {
             values.push(input.id_rab_item);
             setClauses.push(`id_rab_item = $${values.length}`);
+            setClauses.push("id_instruksi_lapangan_item = NULL");
+        }
+
+        if (typeof input.id_instruksi_lapangan_item !== "undefined") {
+            values.push(input.id_instruksi_lapangan_item);
+            setClauses.push(`id_instruksi_lapangan_item = $${values.length}`);
+            setClauses.push("id_rab_item = NULL");
         }
 
         if (typeof input.status !== "undefined") {

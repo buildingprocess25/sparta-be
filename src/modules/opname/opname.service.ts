@@ -2,6 +2,7 @@ import { AppError } from "../../common/app-error";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
 import { calculateDendaByTokoId } from "../denda/denda-keterlambatan";
+import { instruksiLapanganRepository } from "../instruksi-lapangan/instruksi-lapangan.repository";
 import { opnameFinalRepository } from "../opname-final/opname-final.repository";
 import { opnameRepository, type OpnameRow, type TokoSummaryRow } from "./opname.repository";
 import type {
@@ -43,12 +44,20 @@ const mapPgError = (error: unknown): never => {
         throw new AppError("id_rab_item tidak ditemukan di tabel rab_item", 404);
     }
 
+    if (pgError.code === "23503" && pgError.constraint === "fk_opname_item_instruksi_lapangan_item") {
+        throw new AppError("id_instruksi_lapangan_item tidak ditemukan di tabel instruksi_lapangan_item", 404);
+    }
+
     if (pgError.code === "23503" && pgError.constraint === "fk_opname_item_opname_final") {
         throw new AppError("id_opname_final tidak ditemukan di tabel opname_final", 404);
     }
 
     if (pgError.code === "23514" && pgError.constraint === "chk_opname_item_status") {
         throw new AppError("status opname tidak valid (gunakan: pending, disetujui, ditolak)", 400);
+    }
+
+    if (pgError.code === "23514" && pgError.constraint === "chk_opname_item_source") {
+        throw new AppError("Sumber item opname tidak valid. Isi tepat salah satu: id_rab_item atau id_instruksi_lapangan_item", 400);
     }
 
     throw error;
@@ -333,14 +342,18 @@ export const opnameService = {
         }
     },
 
-    async list(query: ListOpnameQueryInput): Promise<{ toko: TokoSummaryRow | null; items: OpnameRow[] }> {
+    async list(query: ListOpnameQueryInput): Promise<{ toko: TokoSummaryRow | null; items: OpnameRow[]; instruksi_lapangan_items: Awaited<ReturnType<typeof instruksiLapanganRepository.getApprovedItemsByTokoId>> }> {
         const items = await opnameRepository.findAll(query);
         const toko = typeof query.id_toko === "number"
             ? await opnameRepository.findTokoById(query.id_toko)
             : null;
+        const instruksiLapanganItems = typeof query.id_toko === "number"
+            ? await instruksiLapanganRepository.getApprovedItemsByTokoId(query.id_toko)
+            : [];
 
         return {
             toko,
+            instruksi_lapangan_items: instruksiLapanganItems,
             items: items.map((item) => normalizeOpnameFotoLink(item))
         };
     },

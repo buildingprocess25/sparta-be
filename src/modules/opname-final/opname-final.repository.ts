@@ -45,7 +45,8 @@ export type OpnameFinalItemRow = {
     id: number;
     id_toko: number;
     id_opname_final: number;
-    id_rab_item: number;
+    id_rab_item: number | null;
+    id_instruksi_lapangan_item: number | null;
     status: "pending" | "disetujui" | "ditolak";
     volume_akhir: number;
     selisih_volume: number;
@@ -63,7 +64,7 @@ export type OpnameFinalItemRow = {
     volume_rab: number | null;
     total_harga_rab: number | null;
     rab_item: {
-        id: number;
+        id: number | null;
         id_rab: number | null;
         kategori_pekerjaan: string | null;
         jenis_pekerjaan: string | null;
@@ -76,6 +77,19 @@ export type OpnameFinalItemRow = {
         total_harga: number | null;
         catatan: string | null;
     };
+    instruksi_lapangan_item?: {
+        id: number | null;
+        id_instruksi_lapangan: number | null;
+        kategori_pekerjaan: string | null;
+        jenis_pekerjaan: string | null;
+        satuan: string | null;
+        volume: number | null;
+        harga_material: number | null;
+        harga_upah: number | null;
+        total_material: number | null;
+        total_upah: number | null;
+        total_harga: number | null;
+    };
 };
 
 type OpnameFinalItemQueryRow = Omit<OpnameFinalItemRow, "rab_item"> & {
@@ -86,6 +100,17 @@ type OpnameFinalItemQueryRow = Omit<OpnameFinalItemRow, "rab_item"> & {
     rab_item_total_material: number | null;
     rab_item_total_upah: number | null;
     rab_item_catatan: string | null;
+    il_item_id: number | null;
+    il_item_id_instruksi_lapangan: number | null;
+    il_kategori_pekerjaan: string | null;
+    il_jenis_pekerjaan: string | null;
+    il_satuan: string | null;
+    il_volume: number | null;
+    il_harga_material: number | null;
+    il_harga_upah: number | null;
+    il_total_material: number | null;
+    il_total_upah: number | null;
+    il_total_harga: number | null;
 };
 
 export type OpnameFinalDetail = {
@@ -275,6 +300,7 @@ export const opnameFinalRepository = {
                 oi.id_toko,
                 oi.id_opname_final,
                 oi.id_rab_item,
+                oi.id_instruksi_lapangan_item,
                 oi.status,
                 oi.volume_akhir,
                 oi.selisih_volume,
@@ -297,9 +323,21 @@ export const opnameFinalRepository = {
                 ri.total_material AS rab_item_total_material,
                 ri.total_upah AS rab_item_total_upah,
                 ri.total_harga AS total_harga_rab,
-                ri.catatan AS rab_item_catatan
+                ri.catatan AS rab_item_catatan,
+                ili.id AS il_item_id,
+                ili.id_instruksi_lapangan AS il_item_id_instruksi_lapangan,
+                ili.kategori_pekerjaan AS il_kategori_pekerjaan,
+                ili.jenis_pekerjaan AS il_jenis_pekerjaan,
+                ili.satuan AS il_satuan,
+                ili.volume AS il_volume,
+                ili.harga_material AS il_harga_material,
+                ili.harga_upah AS il_harga_upah,
+                ili.total_material AS il_total_material,
+                ili.total_upah AS il_total_upah,
+                ili.total_harga AS il_total_harga
             FROM opname_item oi
             LEFT JOIN rab_item ri ON ri.id = oi.id_rab_item
+            LEFT JOIN instruksi_lapangan_item ili ON ili.id = oi.id_instruksi_lapangan_item
             WHERE oi.id_opname_final = $1
             ORDER BY oi.id ASC
             `,
@@ -311,16 +349,29 @@ export const opnameFinalRepository = {
             rab_item: {
                 id: item.rab_item_id ?? item.id_rab_item,
                 id_rab: item.rab_item_id_rab,
-                kategori_pekerjaan: item.kategori_pekerjaan,
-                jenis_pekerjaan: item.jenis_pekerjaan,
-                satuan: item.satuan,
-                volume: item.volume_rab,
-                harga_material: item.rab_item_harga_material,
-                harga_upah: item.rab_item_harga_upah,
-                total_material: item.rab_item_total_material,
-                total_upah: item.rab_item_total_upah,
-                total_harga: item.total_harga_rab,
+                kategori_pekerjaan: item.kategori_pekerjaan ?? item.il_kategori_pekerjaan,
+                jenis_pekerjaan: item.jenis_pekerjaan ?? item.il_jenis_pekerjaan,
+                satuan: item.satuan ?? item.il_satuan,
+                volume: item.volume_rab ?? item.il_volume,
+                harga_material: item.rab_item_harga_material ?? item.il_harga_material,
+                harga_upah: item.rab_item_harga_upah ?? item.il_harga_upah,
+                total_material: item.rab_item_total_material ?? item.il_total_material,
+                total_upah: item.rab_item_total_upah ?? item.il_total_upah,
+                total_harga: item.total_harga_rab ?? item.il_total_harga,
                 catatan: item.rab_item_catatan
+            },
+            instruksi_lapangan_item: {
+                id: item.il_item_id,
+                id_instruksi_lapangan: item.il_item_id_instruksi_lapangan,
+                kategori_pekerjaan: item.il_kategori_pekerjaan,
+                jenis_pekerjaan: item.il_jenis_pekerjaan,
+                satuan: item.il_satuan,
+                volume: item.il_volume,
+                harga_material: item.il_harga_material,
+                harga_upah: item.il_harga_upah,
+                total_material: item.il_total_material,
+                total_upah: item.il_total_upah,
+                total_harga: item.il_total_harga
             }
         }));
 
@@ -519,13 +570,22 @@ export const opnameFinalRepository = {
                 return { item_count: 0 };
             }
 
-            const existingPhotos = await client.query<{ id_rab_item: number; foto: string | null }>(
-                `SELECT id_rab_item, foto FROM opname_item WHERE id_opname_final = $1`,
+            const existingPhotos = await client.query<{ source_key: string; foto: string | null }>(
+                `
+                SELECT
+                    CASE
+                        WHEN id_rab_item IS NOT NULL THEN 'rab:' || id_rab_item::text
+                        ELSE 'il:' || id_instruksi_lapangan_item::text
+                    END AS source_key,
+                    foto
+                FROM opname_item
+                WHERE id_opname_final = $1
+                `,
                 [opnameFinalId]
             );
-            const photoByRabItem = new Map<number, string | null>();
+            const photoBySource = new Map<string, string | null>();
             for (const row of existingPhotos.rows) {
-                photoByRabItem.set(row.id_rab_item, row.foto);
+                photoBySource.set(row.source_key, row.foto);
             }
 
             await client.query(
@@ -535,11 +595,15 @@ export const opnameFinalRepository = {
 
             const values: Array<number | string | null> = [];
             const placeholders = payload.opname_item.map((item, index) => {
-                const base = index * 13;
+                const base = index * 14;
+                const sourceKey = item.id_rab_item
+                    ? `rab:${item.id_rab_item}`
+                    : `il:${item.id_instruksi_lapangan_item}`;
                 values.push(
                     payload.id_toko,
                     Number(opnameFinalId),
-                    item.id_rab_item,
+                    item.id_rab_item ?? null,
+                    item.id_instruksi_lapangan_item ?? null,
                     item.status ?? "pending",
                     item.volume_akhir,
                     item.selisih_volume,
@@ -548,11 +612,11 @@ export const opnameFinalRepository = {
                     item.desain ?? null,
                     item.kualitas ?? null,
                     item.spesifikasi ?? null,
-                    item.foto ?? photoByRabItem.get(item.id_rab_item) ?? null,
+                    item.foto ?? photoBySource.get(sourceKey) ?? null,
                     item.catatan ?? null
                 );
 
-                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13})`;
+                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14})`;
             });
 
             await client.query(
@@ -561,6 +625,7 @@ export const opnameFinalRepository = {
                     id_toko,
                     id_opname_final,
                     id_rab_item,
+                    id_instruksi_lapangan_item,
                     status,
                     volume_akhir,
                     selisih_volume,

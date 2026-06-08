@@ -9,7 +9,8 @@ export const opnameFinalListQuerySchema = z.object({
 });
 
 export const lockOpnameFinalItemSchema = z.object({
-    id_rab_item: z.coerce.number().int().positive(),
+    id_rab_item: z.coerce.number().int().positive().optional(),
+    id_instruksi_lapangan_item: z.coerce.number().int().positive().optional(),
     status: z.enum(["pending", "disetujui", "ditolak"]).optional(),
     volume_akhir: z.coerce.number(),
     selisih_volume: z.coerce.number(),
@@ -20,7 +21,12 @@ export const lockOpnameFinalItemSchema = z.object({
     spesifikasi: z.string().trim().min(1).optional(),
     foto: z.string().trim().min(1).optional(),
     catatan: z.string().trim().min(1).optional()
-});
+}).refine(
+    (data) =>
+        (typeof data.id_rab_item !== "undefined" && typeof data.id_instruksi_lapangan_item === "undefined")
+        || (typeof data.id_rab_item === "undefined" && typeof data.id_instruksi_lapangan_item !== "undefined"),
+    { message: "Isi tepat salah satu: id_rab_item atau id_instruksi_lapangan_item" }
+);
 
 export const lockOpnameFinalSchema = z.object({
     id_toko: z.coerce.number().int().positive(),

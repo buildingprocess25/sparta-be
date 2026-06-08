@@ -34,12 +34,20 @@ const mapPgError = (error: unknown): never => {
         throw new AppError("id_rab_item tidak ditemukan di tabel rab_item", 404);
     }
 
+    if (pgError.code === "23503" && pgError.constraint === "fk_opname_item_instruksi_lapangan_item") {
+        throw new AppError("id_instruksi_lapangan_item tidak ditemukan di tabel instruksi_lapangan_item", 404);
+    }
+
     if (pgError.code === "23503" && pgError.constraint === "fk_opname_item_toko") {
         throw new AppError("id_toko tidak ditemukan di tabel toko", 404);
     }
 
     if (pgError.code === "23514" && pgError.constraint === "chk_opname_item_status") {
         throw new AppError("status opname item tidak valid (gunakan: pending, disetujui, ditolak)", 400);
+    }
+
+    if (pgError.code === "23514" && pgError.constraint === "chk_opname_item_source") {
+        throw new AppError("Sumber item opname tidak valid. Isi tepat salah satu: id_rab_item atau id_instruksi_lapangan_item", 400);
     }
 
     throw error;
