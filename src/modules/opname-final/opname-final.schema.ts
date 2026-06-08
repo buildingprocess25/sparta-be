@@ -5,7 +5,8 @@ export const opnameFinalListQuerySchema = z.object({
     aksi: z.enum(["active", "terkunci"]).optional(),
     id_toko: z.coerce.number().int().positive().optional(),
     nomor_ulok: z.string().trim().min(1).optional(),
-    cabang: z.string().trim().min(1).optional()
+    cabang: z.string().trim().min(1).optional(),
+    nama_kontraktor: z.string().trim().min(1).optional()
 });
 
 export const lockOpnameFinalItemSchema = z.object({

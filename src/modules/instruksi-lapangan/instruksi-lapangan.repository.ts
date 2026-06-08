@@ -338,7 +338,7 @@ export const instruksiLapanganRepository = {
         let index = 1;
 
         let sql = `
-            SELECT il.*, t.nomor_ulok, t.nama_toko, t.cabang
+            SELECT il.*, t.nomor_ulok, t.nama_toko, t.cabang, t.nama_kontraktor
             FROM instruksi_lapangan il
             JOIN toko t ON il.id_toko = t.id
             WHERE 1=1

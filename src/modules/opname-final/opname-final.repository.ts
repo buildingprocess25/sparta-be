@@ -39,6 +39,7 @@ export type OpnameFinalListRow = OpnameFinalRow & {
     nama_toko: string | null;
     proyek: string | null;
     cabang: string | null;
+    nama_kontraktor: string | null;
 };
 
 export type OpnameFinalItemRow = {
@@ -195,6 +196,11 @@ export const opnameFinalRepository = {
             conditions.push(`t.cabang = $${values.length}`);
         }
 
+        if (filter.nama_kontraktor) {
+            values.push(filter.nama_kontraktor);
+            conditions.push(`LOWER(t.nama_kontraktor) = LOWER($${values.length})`);
+        }
+
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
         const result = await pool.query<OpnameFinalListRow>(
@@ -203,7 +209,8 @@ export const opnameFinalRepository = {
                   t.nomor_ulok,
                   t.nama_toko,
                   t.proyek,
-                  t.cabang
+                  t.cabang,
+                  t.nama_kontraktor
               FROM opname_final ofn
             JOIN toko t ON t.id = ofn.id_toko
             LEFT JOIN LATERAL (
@@ -238,6 +245,7 @@ export const opnameFinalRepository = {
 
         return result.rows;
     },
+
 
     async findById(id: string): Promise<OpnameFinalDetail | null> {
         const headerResult = await pool.query<OpnameFinalRow & {
