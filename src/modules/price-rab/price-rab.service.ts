@@ -86,27 +86,50 @@ function isRomanCategoryCode(value: unknown): boolean {
     return /^[IVXLCDM]+$/.test(normalized);
 }
 
+const ME_CATEGORY_NAMES = new Set(["INSTALASI", "FIXTURE", "PEKERJAAN TAMBAHAN", "PEKERJAAN SBO"]);
+
+function isKnownMeCategoryName(value: unknown): boolean {
+    return ME_CATEGORY_NAMES.has(normalizeCategoryName(value));
+}
+
 function findCategoryName(row: string[][][number], fallbackIndex: number): string {
     const fallback = normalizeSheetText(row[fallbackIndex]);
     if (fallback) return fallback;
 
-    const pekerjaanCell = row
+    const categoryCell = row
         .map((cell) => normalizeSheetText(cell))
-        .find((cell) => /^PEKERJAAN\b/i.test(cell));
+        .find((cell) => /^PEKERJAAN\b/i.test(cell) || isKnownMeCategoryName(cell));
 
-    return pekerjaanCell ?? "";
+    return categoryCell ?? "";
 }
 
 function normalizeCategoryName(value: unknown): string {
     return normalizeSheetText(value).toUpperCase();
 }
 
-const ME_CATEGORY_NAMES = new Set(["INSTALASI", "FIXTURE", "PEKERJAAN TAMBAHAN", "PEKERJAAN SBO"]);
-
 function isValidCategoryName(value: unknown, lingkup: "ME" | "SIPIL"): boolean {
     const normalized = normalizeCategoryName(value);
     if (/^PEKERJAAN\b/i.test(normalized)) return true;
-    return lingkup === "ME" && ME_CATEGORY_NAMES.has(normalized);
+    return lingkup === "ME" && isKnownMeCategoryName(normalized);
+}
+
+function isCategoryRow(
+    row: string[][][number],
+    lingkup: "ME" | "SIPIL",
+    noColIndex: number,
+    jenisPekerjaanColIndex: number,
+    satColIndex: number
+): boolean {
+    const noVal = normalizeSheetText(row[noColIndex]);
+    const satuanVal = normalizeSheetText(row[satColIndex]);
+    const categoryName = findCategoryName(row, jenisPekerjaanColIndex);
+    const hasRomanCategoryMarker = row.slice(0, Math.max(jenisPekerjaanColIndex, 1)).some(isRomanCategoryCode);
+
+    if (!categoryName || !isValidCategoryName(categoryName, lingkup)) return false;
+    if (isRomanCategoryCode(noVal) || hasRomanCategoryMarker) return true;
+
+    // Some ME sheets put section headers like "INSTALASI" without roman markers.
+    return lingkup === "ME" && !satuanVal && isKnownMeCategoryName(categoryName);
 }
 
 function findHeaderColumn(
@@ -165,7 +188,7 @@ async function getFirstSheetName(sheets: sheets_v4.Sheets, spreadsheetId: string
 
 function processSheet(allValues: string[][], lingkup: "ME" | "SIPIL"): PriceResult {
     const categorizedPrices: PriceResult = {};
-    let currentCategory = "Uncategorized";
+    let currentCategory = "";
 
     const defaultNoColIndex = 1;
     const defaultJenisPekerjaanColIndex = 3;
@@ -216,15 +239,12 @@ function processSheet(allValues: string[][], lingkup: "ME" | "SIPIL"): PriceResu
     for (const row of allValues) {
         const noVal = normalizeSheetText(row[noColIndex]);
         const jenisPekerjaan = normalizeSheetText(row[jenisPekerjaanColIndex]);
-        const hasRomanCategoryMarker = row.slice(0, Math.max(jenisPekerjaanColIndex, 1)).some(isRomanCategoryCode);
 
-        if (isRomanCategoryCode(noVal) || hasRomanCategoryMarker) {
+        if (isCategoryRow(row, lingkup, noColIndex, jenisPekerjaanColIndex, satColIndex)) {
             const categoryName = findCategoryName(row, jenisPekerjaanColIndex);
-            if (categoryName && isValidCategoryName(categoryName, lingkup)) {
-                currentCategory = normalizeCategoryName(categoryName);
-                if (!categorizedPrices[currentCategory]) categorizedPrices[currentCategory] = [];
-                continue;
-            }
+            currentCategory = normalizeCategoryName(categoryName);
+            if (!categorizedPrices[currentCategory]) categorizedPrices[currentCategory] = [];
+            continue;
         }
 
         if (!jenisPekerjaan) {
@@ -237,6 +257,7 @@ function processSheet(allValues: string[][], lingkup: "ME" | "SIPIL"): PriceResu
 
         const satuanVal = normalizeSheetText(row[satColIndex]);
         if (!satuanVal) continue;
+        if (!currentCategory) continue;
 
         const hargaMaterialRaw = row[materialColIndex] ?? "0";
         const hargaUpahRaw = row[upahColIndex] ?? "0";
