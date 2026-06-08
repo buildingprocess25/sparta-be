@@ -79,6 +79,16 @@ export type ProjekPlanningRow = {
     luas_area_sales: string | null;
     pxl_bangunan: string | null;
     pxl_area_parkir: string | null;
+    p_bangunan: string | null;
+    l_bangunan: string | null;
+    p_area_parkir: string | null;
+    l_area_parkir: string | null;
+    jumlah_ac: number | null;
+    pk_ac: string | null;
+    listrik_va: number | null;
+    listrik_phase: number | null;
+    sumber_air_bersih: string | null;
+    drainase_air_kotor: string | null;
 
     // Status & flags
     status: PpStatus;
@@ -150,6 +160,8 @@ const PP_COLUMNS = `
     id_rab_sipil, id_rab_me,
     luas_bangunan, luas_area_terbuka, luas_area_terbangun, luas_gudang,
     luas_area_parkir, luas_area_sales, pxl_bangunan, pxl_area_parkir,
+    p_bangunan, l_bangunan, p_area_parkir, l_area_parkir,
+    jumlah_ac, pk_ac, listrik_va, listrik_phase, sumber_air_bersih, drainase_air_kotor,
     status, butuh_desain_3d, is_ruko, jumlah_lantai,
     is_head_to_head, jarak_head_to_head, is_seating_area, is_dark_store, beanspot_tipe,
     bm_approver_email, bm_waktu_persetujuan, bm_alasan_penolakan,
@@ -432,6 +444,8 @@ export const projekPlanningRepository = {
                     link_siteplan,
                     luas_bangunan, luas_area_terbuka, luas_area_terbangun, luas_gudang,
                     luas_area_parkir, luas_area_sales, pxl_bangunan, pxl_area_parkir,
+                    p_bangunan, l_bangunan, p_area_parkir, l_area_parkir,
+                    jumlah_ac, pk_ac, listrik_va, listrik_phase, sumber_air_bersih, drainase_air_kotor,
                     nama_pengaju, nama_lokasi,
                     jenis_pengajuan, jenis_pengajuan_lainnya,
                     link_gambar_kerja, link_gambar_kompetitor,
@@ -452,6 +466,8 @@ export const projekPlanningRepository = {
                     $30, $31,
                     $32, $33, $34, $35, $36,
                     $37, FALSE,
+                    $38, $39, $40, $41,
+                    $42, $43, $44, $45, $46, $47,
                     NOW(), NOW()
                 )
                 RETURNING ${PP_COLUMNS}`,
@@ -493,6 +509,16 @@ export const projekPlanningRepository = {
                     (payload as any).is_dark_store ?? false,
                     (payload as any).beanspot_tipe ?? null,
                     payload.status,
+                    (payload as any).p_bangunan ?? null,
+                    (payload as any).l_bangunan ?? null,
+                    (payload as any).p_area_parkir ?? null,
+                    (payload as any).l_area_parkir ?? null,
+                    (payload as any).jumlah_ac ?? null,
+                    (payload as any).pk_ac ?? null,
+                    (payload as any).listrik_va ?? null,
+                    (payload as any).listrik_phase ?? null,
+                    (payload as any).sumber_air_bersih ?? null,
+                    (payload as any).drainase_air_kotor ?? null,
                 ]
             );
             const row = result.rows[0];
@@ -566,6 +592,16 @@ export const projekPlanningRepository = {
                      luas_area_sales = $18,
                      pxl_bangunan = $19,
                      pxl_area_parkir = $20,
+                     p_bangunan = $37,
+                     l_bangunan = $38,
+                     p_area_parkir = $39,
+                     l_area_parkir = $40,
+                     jumlah_ac = $41,
+                     pk_ac = $42,
+                     listrik_va = $43,
+                     listrik_phase = $44,
+                     sumber_air_bersih = $45,
+                     drainase_air_kotor = $46,
                      proyek = $21,
                      nama_pengaju = $22,
                      nama_lokasi = $23,
@@ -630,6 +666,16 @@ export const projekPlanningRepository = {
                     (payload as any).beanspot_tipe ?? null,
                     payload.status,
                     id,
+                    (payload as any).p_bangunan ?? null,
+                    (payload as any).l_bangunan ?? null,
+                    (payload as any).p_area_parkir ?? null,
+                    (payload as any).l_area_parkir ?? null,
+                    (payload as any).jumlah_ac ?? null,
+                    (payload as any).pk_ac ?? null,
+                    (payload as any).listrik_va ?? null,
+                    (payload as any).listrik_phase ?? null,
+                    (payload as any).sumber_air_bersih ?? null,
+                    (payload as any).drainase_air_kotor ?? null,
                 ]
             );
             const row = result.rows[0];

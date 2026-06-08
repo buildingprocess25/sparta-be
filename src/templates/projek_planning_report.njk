@@ -224,7 +224,7 @@
     </div>
   </div>
 
-  <div class="section-title">Informasi Form Permintaan Desain</div>
+  <div class="section-title">FPD (Form Permintaan Desain) - Informasi Utama</div>
   <table class="info-table">
     <tr>
       <td class="label">Nomor ULOK</td>
@@ -262,6 +262,10 @@
       <td class="label">Seating Area</td>
       <td class="value">: {{ '-' if 'DARK STORE' in (projek.jenis_pengajuan or '') else ('Ya' if projek.is_seating_area else 'Tidak') }}</td>
     </tr>
+  </table>
+
+  <div class="section-title">Data Luasan & Dimensi</div>
+  <table class="info-table">
     <tr>
       <td class="label">Luas Bangunan</td>
       <td class="value">: {{ projek.luas_bangunan or '-' }}{% if projek.luas_bangunan %} m²{% endif %}</td>
@@ -282,10 +286,14 @@
     </tr>
     <tr>
       <td class="label">P x L Bangunan</td>
-      <td class="value">: {{ projek.pxl_bangunan or '-' }}</td>
+      <td class="value">: {{ (projek.p_bangunan + ' x ' + projek.l_bangunan) if projek.p_bangunan and projek.l_bangunan else (projek.pxl_bangunan or '-') }}</td>
       <td class="label">P x L Parkir</td>
-      <td class="value">: {{ projek.pxl_area_parkir or '-' }}</td>
+      <td class="value">: {{ (projek.p_area_parkir + ' x ' + projek.l_area_parkir) if projek.p_area_parkir and projek.l_area_parkir else (projek.pxl_area_parkir or '-') }}</td>
     </tr>
+  </table>
+
+  <div class="section-title">Lokasi & Keterangan</div>
+  <table class="info-table">
     <tr>
       <td class="label">Google Maps</td>
       <td class="full-value" colspan="3">
@@ -320,6 +328,19 @@
       <td class="label-col">Jenis Pengajuan Desain</td>
       <td>{{ projek.jenis_pengajuan or '-' }} {{ '(' + projek.jenis_pengajuan_lainnya + ')' if projek.jenis_pengajuan == 'LAINNYA' and projek.jenis_pengajuan_lainnya else '' }}</td>
     </tr>
+    {% if projek.sumber_air_bersih %}
+    <tr><td class="label-col">Sumber Air Bersih</td><td>{{ projek.sumber_air_bersih }}</td></tr>
+    {% endif %}
+    {% if projek.drainase_air_kotor %}
+    <tr><td class="label-col">Drain Pembuangan Air Kotor</td><td>{{ projek.drainase_air_kotor }}</td></tr>
+    {% endif %}
+    {% if projek.jumlah_ac %}
+    <tr><td class="label-col">AC</td><td>{{ projek.jumlah_ac }} Unit {{ '(' + projek.pk_ac + ' PK)' if projek.pk_ac else '' }}</td></tr>
+    {% endif %}
+    {% if projek.listrik_va %}
+    <tr><td class="label-col">Listrik</td><td>{{ projek.listrik_va }} VA {{ '(' + projek.listrik_phase + ' Phase)' if projek.listrik_phase else '' }}</td></tr>
+    {% endif %}
+
     {% if projek.fasilitas and projek.fasilitas.length > 0 %}
       {% for fas in projek.fasilitas %}
       <tr>
@@ -327,9 +348,9 @@
           {% if fas.jenis_fasilitas == 'LAINNYA' %}
             {{ fas.nama_fasilitas_lainnya }}
           {% else %}
-            {% if fas.jenis_fasilitas == 'AIR_BERSIH' %}Sumber Air Bersih
-            {% elif fas.jenis_fasilitas == 'DRAINASE' %}Drain Pembuangan Air Kotor
-            {% elif fas.jenis_fasilitas == 'AC' %}AC
+            {% if fas.jenis_fasilitas == 'AIR_BERSIH' %}Sumber Air Bersih (Lama)
+            {% elif fas.jenis_fasilitas == 'DRAINASE' %}Drain Pembuangan Air Kotor (Lama)
+            {% elif fas.jenis_fasilitas == 'AC' %}AC (Lama)
             {% else %}{{ fas.jenis_fasilitas }}{% endif %}
           {% endif %}
         </td>
@@ -357,10 +378,6 @@
   </table>
   {% endif %}
 
-  {# ======================================================= #}
-  {# TANDA TANGAN — 4 kolom SELALU tampil                   #}
-  {# Nama & tanggal hanya muncul jika sudah di-approve       #}
-  {# ======================================================= #}
   <table class="approval-table" style="margin-top: 40px;">
     <tr>
 
@@ -376,23 +393,7 @@
         </div>
       </td>
 
-      {# ── [2] MENGETAHUI — B&M Manager (nama & tanggal jika sudah approve) ── #}
-      <td style="width: 25%; vertical-align: top; text-align: center;">
-        <div class="approval-title">MENGETAHUI</div>
-        <div class="approval-box pp1" style="min-height: 90px;">
-          {% if has_bm_signature %}
-            <div style="min-height: 25px;"></div>
-            <div class="approval-date">{{ bm_waktu_formatted or '-' }}</div>
-            <div style="min-height: 25px;"></div>
-            <div class="approval-name">{{ projek.bm_approver_email.split('@')[0] | upper }}</div>
-          {% else %}
-            <div style="min-height: 80px;"></div>
-          {% endif %}
-          <div class="approval-role">Building &amp; Maintenance Manager</div>
-        </div>
-      </td>
-
-      {# ── [3] MENGETAHUI — PP Specialist (nama & tanggal jika sudah approve) ── #}
+      {# ── [2] MENGETAHUI — PP Specialist (nama & tanggal jika sudah approve) ── #}
       <td style="width: 25%; vertical-align: top; text-align: center;">
         <div class="approval-title">MENGETAHUI</div>
         <div class="approval-box pp2" style="min-height: 90px;">
@@ -405,6 +406,22 @@
             <div style="min-height: 80px;"></div>
           {% endif %}
           <div class="approval-role">Project Planning &amp; Development Specialist</div>
+        </div>
+      </td>
+
+      {# ── [3] MENGETAHUI — B&M Manager (nama & tanggal jika sudah approve) ── #}
+      <td style="width: 25%; vertical-align: top; text-align: center;">
+        <div class="approval-title">MENGETAHUI</div>
+        <div class="approval-box pp1" style="min-height: 90px;">
+          {% if has_bm_signature %}
+            <div style="min-height: 25px;"></div>
+            <div class="approval-date">{{ bm_waktu_formatted or '-' }}</div>
+            <div style="min-height: 25px;"></div>
+            <div class="approval-name">{{ projek.bm_approver_email.split('@')[0] | upper }}</div>
+          {% else %}
+            <div style="min-height: 80px;"></div>
+          {% endif %}
+          <div class="approval-role">Building &amp; Maintenance Manager</div>
         </div>
       </td>
 
@@ -426,6 +443,7 @@
 
     </tr>
   </table>
+
 
   {% if projek.foto_items and projek.foto_items.length > 0 %}
   <div style="page-break-before: always;"></div>
