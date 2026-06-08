@@ -57,6 +57,14 @@ function normalizeCategoryName(value: unknown): string {
     return normalizeSheetText(value).toUpperCase();
 }
 
+const ME_CATEGORY_NAMES = new Set(["INSTALASI", "FIXTURE", "PEKERJAAN TAMBAHAN", "PEKERJAAN SBO"]);
+
+function isValidCategoryName(value: unknown, lingkup: "ME" | "SIPIL"): boolean {
+    const normalized = normalizeCategoryName(value);
+    if (/^PEKERJAAN\b/i.test(normalized)) return true;
+    return lingkup === "ME" && ME_CATEGORY_NAMES.has(normalized);
+}
+
 function normalizeCabangInput(value: string): string {
     return value
         .trim()
@@ -122,7 +130,7 @@ function processSheet(allValues: string[][], lingkup: "ME" | "SIPIL"): PriceResu
 
         if (isRomanCategoryCode(noVal) || hasRomanCategoryMarker) {
             const categoryName = findCategoryName(row, jenisPekerjaanColIndex);
-            if (categoryName && /^PEKERJAAN\b/i.test(categoryName)) {
+            if (categoryName && isValidCategoryName(categoryName, lingkup)) {
                 currentCategory = normalizeCategoryName(categoryName);
                 if (!categorizedPrices[currentCategory]) categorizedPrices[currentCategory] = [];
                 continue;
