@@ -310,7 +310,7 @@ export const spkRepository = {
         };
     },
 
-    async list(filter: { status?: string; nomor_ulok?: string }): Promise<SpkListRow[]> {
+    async list(filter: { status?: string; nomor_ulok?: string; nama_kontraktor?: string }): Promise<SpkListRow[]> {
         const conditions: string[] = [];
         const values: string[] = [];
 
@@ -322,6 +322,11 @@ export const spkRepository = {
         if (filter.nomor_ulok) {
             values.push(filter.nomor_ulok);
             conditions.push(`p.nomor_ulok = $${values.length}`);
+        }
+
+        if (filter.nama_kontraktor) {
+            values.push(filter.nama_kontraktor);
+            conditions.push(`UPPER(p.nama_kontraktor) = UPPER($${values.length})`);
         }
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";

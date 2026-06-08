@@ -35,7 +35,8 @@ export const spkApprovalSchema = z
 
 export const spkListQuerySchema = z.object({
     status: z.string().trim().min(1).optional(),
-    nomor_ulok: z.string().trim().min(1).optional()
+    nomor_ulok: z.string().trim().min(1).optional(),
+    nama_kontraktor: z.string().trim().min(1).optional()
 });
 
 export const spkInterventionSchema = z.object({
