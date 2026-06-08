@@ -55,9 +55,10 @@ function processPriceValue(rawValue: unknown): PriceValue {
 
 function processMaterialUpahValues(
     materialRaw: unknown,
-    upahRaw: unknown
+    upahRaw: unknown,
+    hasMaterialTextDirective = isTextPriceDirective(materialRaw)
 ): Pick<PriceItem, "Harga Material" | "Harga Upah" | "Input Material Manual" | "Input Upah Manual"> {
-    if (isTextPriceDirective(materialRaw)) {
+    if (hasMaterialTextDirective) {
         return {
             "Harga Material": 0,
             "Harga Upah": hasNumericPrice(upahRaw) ? processPriceValue(upahRaw) : 0,
@@ -193,7 +194,12 @@ function processSheet(allValues: string[][], lingkup: "ME" | "SIPIL"): PriceResu
 
         const hargaMaterialRaw = row[materialColIndex] ?? "0";
         const hargaUpahRaw = row[upahColIndex] ?? "0";
-        const priceValues = processMaterialUpahValues(hargaMaterialRaw, hargaUpahRaw);
+        const priceAreaStart = Math.min(materialColIndex, upahColIndex);
+        const priceAreaEnd = Math.max(materialColIndex, upahColIndex);
+        const hasMaterialTextDirective = row
+            .slice(priceAreaStart, priceAreaEnd + 1)
+            .some((cell) => isTextPriceDirective(cell));
+        const priceValues = processMaterialUpahValues(hargaMaterialRaw, hargaUpahRaw, hasMaterialTextDirective);
 
         const itemData: PriceItem = {
             "Jenis Pekerjaan": jenisPekerjaan,
