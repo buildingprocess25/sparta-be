@@ -164,6 +164,7 @@ export const getDetailByToko = asyncHandler(async (req: Request, res: Response) 
         dependency_data: data.dependencies,
         pengawasan_data: data.pengawasan,
         kategori_pekerjaan: data.kategori_pekerjaan,
+        instruksi_lapangan_items: data.instruksi_lapangan_items,
         toko: data.toko
     });
 });
