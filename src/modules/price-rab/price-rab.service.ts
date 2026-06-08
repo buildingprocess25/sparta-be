@@ -109,6 +109,30 @@ function isValidCategoryName(value: unknown, lingkup: "ME" | "SIPIL"): boolean {
     return lingkup === "ME" && ME_CATEGORY_NAMES.has(normalized);
 }
 
+function findHeaderColumn(
+    allValues: string[][],
+    targetHeaderRowIndex: number,
+    matcher: (value: string) => boolean,
+    fallbackIndex: number,
+    startIndex = 0
+): number {
+    const startRow = Math.max(0, targetHeaderRowIndex - 2);
+    const endRow = targetHeaderRowIndex;
+    const maxColumns = Math.max(...allValues.slice(startRow, endRow + 1).map((row) => row.length), 0);
+
+    for (let col = startIndex; col < maxColumns; col++) {
+        const headerText = allValues
+            .slice(startRow, endRow + 1)
+            .map((row) => normalizeSheetText(row[col]).toLowerCase())
+            .filter(Boolean)
+            .join(" ");
+
+        if (matcher(headerText)) return col;
+    }
+
+    return fallbackIndex;
+}
+
 function normalizeCabangInput(value: string): string {
     return value
         .trim()
@@ -143,25 +167,47 @@ function processSheet(allValues: string[][], lingkup: "ME" | "SIPIL"): PriceResu
     const categorizedPrices: PriceResult = {};
     let currentCategory = "Uncategorized";
 
-    const noColIndex = 1;
-    const jenisPekerjaanColIndex = 3;
-    const satColIndex = 4;
+    const defaultNoColIndex = 1;
+    const defaultJenisPekerjaanColIndex = 3;
+    const defaultSatColIndex = 4;
 
     const targetHeaderRowIndex = lingkup === "SIPIL" ? 16 : 13;
     if (allValues.length <= targetHeaderRowIndex) {
         throw new AppError(`Baris header tidak ditemukan di sheet untuk lingkup ${lingkup}.`, 500);
     }
 
-    const headerRow = (allValues[targetHeaderRowIndex] ?? []).map((cell) => String(cell).trim());
-
-    let materialColIndex = -1;
-    let upahColIndex = -1;
-    headerRow.forEach((headerText, i) => {
-        if (i <= satColIndex) return;
-        const lower = headerText.toLowerCase();
-        if (lower.includes("material") && materialColIndex === -1) materialColIndex = i;
-        if (lower.includes("upah") && upahColIndex === -1) upahColIndex = i;
-    });
+    const noColIndex = findHeaderColumn(
+        allValues,
+        targetHeaderRowIndex,
+        (text) => /\bno\.?\b/.test(text),
+        defaultNoColIndex
+    );
+    const jenisPekerjaanColIndex = findHeaderColumn(
+        allValues,
+        targetHeaderRowIndex,
+        (text) => text.includes("jenis pekerjaan"),
+        defaultJenisPekerjaanColIndex
+    );
+    const satColIndex = findHeaderColumn(
+        allValues,
+        targetHeaderRowIndex,
+        (text) => /\bsatuan\b/.test(text),
+        defaultSatColIndex
+    );
+    const materialColIndex = findHeaderColumn(
+        allValues,
+        targetHeaderRowIndex,
+        (text) => text.includes("material"),
+        -1,
+        satColIndex + 1
+    );
+    const upahColIndex = findHeaderColumn(
+        allValues,
+        targetHeaderRowIndex,
+        (text) => text.includes("upah"),
+        -1,
+        satColIndex + 1
+    );
 
     if (materialColIndex === -1 || upahColIndex === -1) {
         throw new AppError(`Error pada header untuk lingkup ${lingkup}: Header 'Material' atau 'Upah' tidak ditemukan.`, 500);
