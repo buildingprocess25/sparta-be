@@ -25,12 +25,44 @@ function safeToFloat(value: unknown): number {
     return 0;
 }
 
+function hasNumericPrice(value: unknown): boolean {
+    if (typeof value === "number") return Number.isFinite(value);
+    if (typeof value !== "string") return false;
+
+    const trimmed = value.trim();
+    if (!trimmed || trimmed === "-") return false;
+
+    const parsed = Number(trimmed.replaceAll(",", ""));
+    return Number.isFinite(parsed);
+}
+
+function isTextPriceDirective(value: unknown): boolean {
+    if (typeof value !== "string") return false;
+
+    const trimmed = value.trim();
+    return Boolean(trimmed && trimmed !== "-" && !hasNumericPrice(trimmed));
+}
+
 function processPriceValue(rawValue: unknown): PriceValue {
     const valueStr = String(rawValue ?? "").trim().toLowerCase();
     if (valueStr === "kondisional") return "Kondisional";
     if (valueStr === "sbo") return "SBO";
     if (valueStr.includes("kontraktor")) return 0;
     return safeToFloat(rawValue);
+}
+
+function processMaterialUpahValues(materialRaw: unknown, upahRaw: unknown): Pick<PriceItem, "Harga Material" | "Harga Upah"> {
+    if (isTextPriceDirective(materialRaw)) {
+        return {
+            "Harga Material": 0,
+            "Harga Upah": hasNumericPrice(upahRaw) ? processPriceValue(upahRaw) : "Kondisional"
+        };
+    }
+
+    return {
+        "Harga Material": processPriceValue(materialRaw),
+        "Harga Upah": processPriceValue(upahRaw)
+    };
 }
 
 function normalizeSheetText(value: unknown): string {
@@ -150,12 +182,12 @@ function processSheet(allValues: string[][], lingkup: "ME" | "SIPIL"): PriceResu
 
         const hargaMaterialRaw = row[materialColIndex] ?? "0";
         const hargaUpahRaw = row[upahColIndex] ?? "0";
+        const priceValues = processMaterialUpahValues(hargaMaterialRaw, hargaUpahRaw);
 
         const itemData: PriceItem = {
             "Jenis Pekerjaan": jenisPekerjaan,
             "Satuan": satuanVal,
-            "Harga Material": processPriceValue(hargaMaterialRaw),
-            "Harga Upah": processPriceValue(hargaUpahRaw)
+            ...priceValues
         };
 
         if (!categorizedPrices[currentCategory]) categorizedPrices[currentCategory] = [];
