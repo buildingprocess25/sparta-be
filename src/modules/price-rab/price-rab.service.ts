@@ -61,9 +61,9 @@ function processMaterialUpahValues(
     if (hasMaterialTextDirective) {
         return {
             "Harga Material": 0,
-            "Harga Upah": hasNumericPrice(upahRaw) ? processPriceValue(upahRaw) : 0,
+            "Harga Upah": 0,
             "Input Material Manual": false,
-            "Input Upah Manual": !hasNumericPrice(upahRaw)
+            "Input Upah Manual": true
         };
     }
 
@@ -240,8 +240,8 @@ function processSheet(allValues: string[][], lingkup: "ME" | "SIPIL"): PriceResu
 
         const hargaMaterialRaw = row[materialColIndex] ?? "0";
         const hargaUpahRaw = row[upahColIndex] ?? "0";
-        const priceAreaStart = Math.min(materialColIndex, upahColIndex);
-        const priceAreaEnd = Math.max(materialColIndex, upahColIndex);
+        const priceAreaStart = Math.min(materialColIndex, upahColIndex, satColIndex + 1);
+        const priceAreaEnd = Math.max(materialColIndex, upahColIndex, row.length - 1);
         const hasMaterialTextDirective = row
             .slice(priceAreaStart, priceAreaEnd + 1)
             .some((cell) => isTextPriceDirective(cell));
