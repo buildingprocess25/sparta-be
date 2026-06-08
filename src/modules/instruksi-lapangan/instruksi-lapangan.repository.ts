@@ -124,7 +124,7 @@ export const instruksiLapanganRepository = {
 
     async getById(id: string | number) {
         const res = await pool.query(`
-            SELECT il.*, t.nomor_ulok, t.nama_toko, t.cabang
+            SELECT il.*, t.nomor_ulok, t.nama_toko, t.cabang, t.lingkup_pekerjaan, t.proyek
             FROM instruksi_lapangan il
             JOIN toko t ON il.id_toko = t.id
             WHERE il.id = $1
