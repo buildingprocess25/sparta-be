@@ -10,6 +10,8 @@ type PriceItem = {
     "Satuan": string;
     "Harga Material": PriceValue;
     "Harga Upah": PriceValue;
+    "Input Material Manual"?: boolean;
+    "Input Upah Manual"?: boolean;
 };
 
 export type PriceResult = Record<string, PriceItem[]>;
@@ -51,17 +53,26 @@ function processPriceValue(rawValue: unknown): PriceValue {
     return safeToFloat(rawValue);
 }
 
-function processMaterialUpahValues(materialRaw: unknown, upahRaw: unknown): Pick<PriceItem, "Harga Material" | "Harga Upah"> {
+function processMaterialUpahValues(
+    materialRaw: unknown,
+    upahRaw: unknown
+): Pick<PriceItem, "Harga Material" | "Harga Upah" | "Input Material Manual" | "Input Upah Manual"> {
     if (isTextPriceDirective(materialRaw)) {
         return {
             "Harga Material": 0,
-            "Harga Upah": hasNumericPrice(upahRaw) ? processPriceValue(upahRaw) : "Kondisional"
+            "Harga Upah": hasNumericPrice(upahRaw) ? processPriceValue(upahRaw) : 0,
+            "Input Material Manual": false,
+            "Input Upah Manual": !hasNumericPrice(upahRaw)
         };
     }
 
+    const upahManual = isTextPriceDirective(upahRaw);
+
     return {
         "Harga Material": processPriceValue(materialRaw),
-        "Harga Upah": processPriceValue(upahRaw)
+        "Harga Upah": upahManual ? 0 : processPriceValue(upahRaw),
+        "Input Material Manual": false,
+        "Input Upah Manual": upahManual
     };
 }
 
