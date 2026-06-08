@@ -4,6 +4,7 @@ import { env } from "../../config/env";
 import { opnameFinalService } from "../opname-final/opname-final.service";
 import { spkRepository } from "../spk/spk.repository";
 import { tokoRepository } from "../toko/toko.repository";
+import { userCabangRepository } from "../user-cabang/user-cabang.repository";
 import { buildPertambahanSpkPdfBuffer } from "./pertambahan-spk.pdf";
 import {
     pertambahanSpkRepository,
@@ -26,6 +27,40 @@ const APPROVAL_ALLOWED_STATUS = new Set<string>([
     PERTAMBAHAN_SPK_STATUS.WAITING_FOR_BM_APPROVAL,
     "WAITING_FOR_BM_APPROVAL"
 ]);
+
+const normalizeBranchName = (value?: string | null): string =>
+    String(value ?? "").trim().replace(/\s+/g, " ").toUpperCase();
+
+const assertApproverCanProcessPertambahanSpk = async (
+    data: PertambahanSpkDetailRow,
+    approverEmail: string
+): Promise<void> => {
+    const targetBranch = normalizeBranchName(data.toko?.cabang);
+    if (!targetBranch) {
+        throw new AppError("Cabang toko pada pertambahan SPK tidak ditemukan", 409);
+    }
+
+    const approverRows = await userCabangRepository.findAll({ email_sat: approverEmail });
+    if (approverRows.length === 0) {
+        throw new AppError("Approver tidak terdaftar pada data user cabang", 403);
+    }
+
+    const hasAccessToBranch = approverRows.some(row => {
+        const approverBranch = normalizeBranchName(row.cabang);
+        return approverBranch === "HEAD OFFICE" || approverBranch === targetBranch;
+    });
+
+    if (!hasAccessToBranch) {
+        const approverBranches = approverRows
+            .map(row => row.cabang)
+            .filter(Boolean)
+            .join(", ");
+        throw new AppError(
+            `Approver cabang ${approverBranches || "-"} tidak dapat memproses pertambahan SPK cabang ${data.toko?.cabang}`,
+            403
+        );
+    }
+};
 
 interface UploadedLampiranPendukungFile {
     originalname: string;
@@ -337,6 +372,8 @@ export const pertambahanSpkService = {
                 409
             );
         }
+
+        await assertApproverCanProcessPertambahanSpk(existing, action.approver_email);
 
         const nextStatus = action.tindakan === "APPROVE"
             ? PERTAMBAHAN_SPK_STATUS.APPROVED_BY_BM
