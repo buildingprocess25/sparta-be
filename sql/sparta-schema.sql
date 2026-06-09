@@ -800,6 +800,8 @@ CREATE TABLE IF NOT EXISTS pertambahan_spk (
     disetujui_oleh VARCHAR(255),
     waktu_persetujuan TIMESTAMP,
     alasan_penolakan VARCHAR(500),
+    catatan_approval VARCHAR(500),
+    catatan_penolakan VARCHAR(500),
     link_pdf VARCHAR(500),
     link_lampiran_pendukung VARCHAR(500),
     created_at TIMESTAMP NOT NULL DEFAULT timezone('Asia/Jakarta', now()),
