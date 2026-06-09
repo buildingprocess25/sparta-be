@@ -879,8 +879,11 @@ export const rabRepository = {
         }
 
         if (filter.nama_pt) {
-            values.push(filter.nama_pt);
-            conditions.push(`r.nama_pt ILIKE '%' || $${values.length} || '%'`);
+            const words = filter.nama_pt.toUpperCase().split(/[\s,.]+/).filter(w => w !== 'CV' && w !== 'PT' && w.length > 0);
+            for (const word of words) {
+                values.push(word);
+                conditions.push(`r.nama_pt ILIKE '%' || $${values.length} || '%'`);
+            }
         }
 
         if (filter.email_pembuat) {

@@ -325,8 +325,11 @@ export const spkRepository = {
         }
 
         if (filter.nama_kontraktor) {
-            values.push(filter.nama_kontraktor);
-            conditions.push(`p.nama_kontraktor ILIKE '%' || $${values.length} || '%'`);
+            const words = filter.nama_kontraktor.toUpperCase().split(/[\s,.]+/).filter(w => w !== 'CV' && w !== 'PT' && w.length > 0);
+            for (const word of words) {
+                values.push(word);
+                conditions.push(`p.nama_kontraktor ILIKE '%' || $${values.length} || '%'`);
+            }
         }
 
         if (filter.cabang) {
