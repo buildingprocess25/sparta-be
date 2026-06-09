@@ -344,8 +344,9 @@ END $$;
 CREATE TABLE IF NOT EXISTS opname_final (
     id SERIAL PRIMARY KEY,
     id_toko INT NOT NULL,
+    tipe_opname VARCHAR(50) NOT NULL DEFAULT 'OPNAME',
     aksi VARCHAR(20) NOT NULL DEFAULT 'active',
-    status_opname_final VARCHAR(255) NOT NULL DEFAULT 'Menunggu Persetujuan Koordinator',
+    status_opname_final VARCHAR(255) NOT NULL DEFAULT 'Proses KTK/Approval Kontraktor',
     link_pdf_opname VARCHAR(500),
     email_pembuat VARCHAR(255),
     pemberi_persetujuan_direktur VARCHAR(255),
@@ -368,22 +369,42 @@ CREATE TABLE IF NOT EXISTS opname_final (
 CREATE INDEX IF NOT EXISTS idx_opname_final_id_toko ON opname_final(id_toko);
 CREATE INDEX IF NOT EXISTS idx_opname_final_status ON opname_final(status_opname_final);
 CREATE INDEX IF NOT EXISTS idx_opname_final_aksi ON opname_final(aksi);
+CREATE INDEX IF NOT EXISTS idx_opname_final_tipe ON opname_final(tipe_opname);
+CREATE INDEX IF NOT EXISTS idx_opname_final_tipe_aksi ON opname_final(tipe_opname, aksi);
 
--- Migration safety: pastikan default status mengikuti alur approval terbaru.
+-- Migration safety: sebelum dikunci, header opname berada di proses KTK/Approval Kontraktor.
 ALTER TABLE opname_final
-    ALTER COLUMN status_opname_final SET DEFAULT 'Menunggu Persetujuan Koordinator';
+    ALTER COLUMN status_opname_final SET DEFAULT 'Proses KTK/Approval Kontraktor';
 
--- Migration safety: pastikan kolom aksi tersedia dan bernilai valid.
+-- Migration safety: pastikan kolom aksi & tipe_opname tersedia dan bernilai valid.
 ALTER TABLE opname_final
-    ADD COLUMN IF NOT EXISTS aksi VARCHAR(20);
+    ADD COLUMN IF NOT EXISTS aksi VARCHAR(20),
+    ADD COLUMN IF NOT EXISTS tipe_opname VARCHAR(50) NOT NULL DEFAULT 'OPNAME';
 
 UPDATE opname_final
 SET aksi = 'active'
 WHERE aksi IS NULL OR aksi NOT IN ('active', 'terkunci');
 
+UPDATE opname_final
+SET tipe_opname = 'OPNAME'
+WHERE tipe_opname IS NULL OR tipe_opname NOT IN ('OPNAME', 'OPNAME_FINAL');
+
+UPDATE opname_final
+SET status_opname_final = 'Proses KTK/Approval Kontraktor'
+WHERE aksi = 'active'
+  AND status_opname_final = 'Menunggu Persetujuan Koordinator';
+
 ALTER TABLE opname_final
     ALTER COLUMN aksi SET DEFAULT 'active',
-    ALTER COLUMN aksi SET NOT NULL;
+    ALTER COLUMN aksi SET NOT NULL,
+    ALTER COLUMN tipe_opname SET DEFAULT 'OPNAME',
+    ALTER COLUMN tipe_opname SET NOT NULL;
+
+ALTER TABLE opname_final
+    DROP CONSTRAINT IF EXISTS chk_opname_final_tipe;
+
+ALTER TABLE opname_final
+    ADD CONSTRAINT chk_opname_final_tipe CHECK (tipe_opname IN ('OPNAME', 'OPNAME_FINAL'));
 
 ALTER TABLE opname_final
     ADD COLUMN IF NOT EXISTS hari_denda INTEGER NOT NULL DEFAULT 0,

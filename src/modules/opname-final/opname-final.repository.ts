@@ -6,6 +6,7 @@ import type { LockOpnameFinalInput, OpnameFinalListQueryInput } from "./opname-f
 export type OpnameFinalRow = {
     id: number;
     id_toko: number;
+    tipe_opname: string;
     aksi: "active" | "terkunci" | string;
     status_opname_final: OpnameFinalStatus;
     link_pdf_opname: string | null;
@@ -136,6 +137,7 @@ export type OpnameFinalIdRow = {
 const OPNAME_FINAL_COLUMNS = `
     ofn.id,
     ofn.id_toko,
+    ofn.tipe_opname,
     ofn.aksi,
     ofn.status_opname_final,
     ofn.link_pdf_opname,
@@ -199,6 +201,11 @@ export const opnameFinalRepository = {
         if (filter.nama_kontraktor) {
             values.push(filter.nama_kontraktor);
             conditions.push(`LOWER(t.nama_kontraktor) = LOWER($${values.length})`);
+        }
+
+        if (filter.tipe_opname) {
+            values.push(filter.tipe_opname);
+            conditions.push(`ofn.tipe_opname = $${values.length}`);
         }
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
@@ -387,6 +394,7 @@ export const opnameFinalRepository = {
             opname_final: {
                 id: header.id,
                 id_toko: header.id_toko,
+                tipe_opname: header.tipe_opname,
                 aksi: header.aksi,
                 status_opname_final: header.status_opname_final,
                 link_pdf_opname: header.link_pdf_opname,

@@ -327,6 +327,7 @@ export const buildOpnameFinalPdfBuffer = async (
     const grandTotalKerjaKurang = sumOpnameTotalSelisih(kerjaKurangItems);
     const nilaiDenda = toNumber(detail.opname_final.nilai_denda);
     const hariDenda = Number(detail.opname_final.hari_denda ?? 0) || 0;
+    const documentLabel = detail.opname_final.tipe_opname === "OPNAME_FINAL" ? "Opname Final" : "Opname";
     const rabSummary = buildFinancialSummary(totalRabItems, "down", noPpn);
     const instruksiLapanganSummary = buildFinancialSummary(grandTotalIl, "up", noPpn);
     const kerjaTambahSummary = buildFinancialSummary(grandTotalKerjaTambah, "up", noPpn);
@@ -341,6 +342,7 @@ export const buildOpnameFinalPdfBuffer = async (
     const html = await renderHtmlTemplate(templatePath, {
         generated_at: formatDateIndonesia(new Date().toISOString()),
         opname_final: detail.opname_final,
+        document_label: documentLabel,
         toko: detail.toko,
         header_left_logo_path: staticAssetPath("Alfamart-Emblem.png"),
         header_right_logo_path: staticAssetPath("Building-Logo.png"),

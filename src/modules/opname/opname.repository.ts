@@ -38,6 +38,7 @@ export type OpnameRow = {
 export type OpnameFinalHeaderRow = {
     id: number;
     id_toko: number;
+    tipe_opname: string;
     aksi: "active" | "terkunci" | string;
     status_opname_final: string;
     link_pdf_opname: string | null;
@@ -89,9 +90,29 @@ const returningColumns = `
     created_at
 `;
 
+const returningColumnsFromOpnameItem = `
+    oi.id,
+    oi.id_toko,
+    oi.id_opname_final,
+    oi.id_rab_item,
+    oi.id_instruksi_lapangan_item,
+    oi.status,
+    oi.volume_akhir,
+    oi.selisih_volume,
+    oi.total_selisih,
+    oi.total_harga_opname,
+    oi.desain,
+    oi.kualitas,
+    oi.spesifikasi,
+    oi.foto,
+    oi.catatan,
+    oi.created_at
+`;
+
 const opnameFinalColumns = `
     id,
     id_toko,
+    tipe_opname,
     aksi,
     status_opname_final,
     link_pdf_opname,
@@ -159,6 +180,7 @@ export const opnameRepository = {
     async createBulkWithFinal(payload: {
         id_toko: number;
         email_pembuat: string;
+        tipe_opname?: string;
         grand_total_opname: string;
         grand_total_rab: string;
         items: CreateBulkOpnameItemData[];
@@ -168,12 +190,12 @@ export const opnameRepository = {
                 `
                 SELECT ${opnameFinalColumns}
                 FROM opname_final
-                WHERE id_toko = $1
+                WHERE id_toko = $1 AND tipe_opname = $2
                 ORDER BY id DESC
                 LIMIT 1
                 FOR UPDATE
                 `,
-                [payload.id_toko]
+                [payload.id_toko, payload.tipe_opname || "OPNAME"]
             );
 
             let opnameFinalId: number;
@@ -205,7 +227,7 @@ export const opnameRepository = {
                         "active",
                         payload.grand_total_opname,
                         payload.grand_total_rab,
-                        "Menunggu Persetujuan Koordinator",
+                        "Proses KTK/Approval Kontraktor",
                         opnameFinalId
                     ]
                 );
@@ -214,22 +236,24 @@ export const opnameRepository = {
                     `
                     INSERT INTO opname_final (
                         id_toko,
+                        tipe_opname,
                         email_pembuat,
                         aksi,
                         grand_total_opname,
                         grand_total_rab,
                         status_opname_final
                     )
-                    VALUES ($1, $2, $3, $4, $5, $6)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7)
                     RETURNING ${opnameFinalColumns}
                     `,
                     [
                         payload.id_toko,
+                        payload.tipe_opname || "OPNAME",
                         payload.email_pembuat,
                         "active",
                         payload.grand_total_opname,
                         payload.grand_total_rab,
-                        "Menunggu Persetujuan Koordinator"
+                        "Proses KTK/Approval Kontraktor"
                     ]
                 );
 
@@ -415,36 +439,42 @@ export const opnameRepository = {
 
         if (typeof query.id_toko !== "undefined") {
             values.push(query.id_toko);
-            conditions.push(`id_toko = $${values.length}`);
+            conditions.push(`oi.id_toko = $${values.length}`);
         }
 
         if (typeof query.id_opname_final !== "undefined") {
             values.push(query.id_opname_final);
-            conditions.push(`id_opname_final = $${values.length}`);
+            conditions.push(`oi.id_opname_final = $${values.length}`);
         }
 
         if (typeof query.id_rab_item !== "undefined") {
             values.push(query.id_rab_item);
-            conditions.push(`id_rab_item = $${values.length}`);
+            conditions.push(`oi.id_rab_item = $${values.length}`);
         }
 
         if (typeof query.id_instruksi_lapangan_item !== "undefined") {
             values.push(query.id_instruksi_lapangan_item);
-            conditions.push(`id_instruksi_lapangan_item = $${values.length}`);
+            conditions.push(`oi.id_instruksi_lapangan_item = $${values.length}`);
         }
 
         if (typeof query.status !== "undefined") {
             values.push(query.status);
-            conditions.push(`status = $${values.length}`);
+            conditions.push(`oi.status = $${values.length}`);
+        }
+
+        if (typeof query.tipe_opname !== "undefined") {
+            values.push(query.tipe_opname);
+            conditions.push(`ofn.tipe_opname = $${values.length}`);
         }
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
         const result = await pool.query<OpnameRow>(
             `
-            SELECT ${returningColumns}
-            FROM opname_item
+            SELECT ${returningColumnsFromOpnameItem}
+            FROM opname_item oi
+            JOIN opname_final ofn ON ofn.id = oi.id_opname_final
             ${whereClause}
-            ORDER BY id DESC
+            ORDER BY oi.id DESC
             `,
             values
         );

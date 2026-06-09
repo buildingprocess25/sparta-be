@@ -224,6 +224,7 @@ export const opnameService = {
     async createBulk(
         payload: {
             id_toko: number;
+            tipe_opname?: string;
             email_pembuat: string;
             grand_total_opname: string;
             grand_total_rab: string;
@@ -236,6 +237,7 @@ export const opnameService = {
             const {
                 id_toko: idToko,
                 email_pembuat: emailPembuat,
+                tipe_opname: tipeOpname,
                 grand_total_opname: grandTotalOpname,
                 grand_total_rab: grandTotalRab,
                 items
@@ -244,6 +246,7 @@ export const opnameService = {
             if (uploadedFotoOpnameFiles.length === 0) {
                 const created = await opnameRepository.createBulkWithFinal({
                     id_toko: idToko,
+                    tipe_opname: tipeOpname,
                     email_pembuat: emailPembuat,
                     grand_total_opname: grandTotalOpname,
                     grand_total_rab: grandTotalRab,
@@ -291,6 +294,7 @@ export const opnameService = {
 
                 const created = await opnameRepository.createBulkWithFinal({
                     id_toko: idToko,
+                    tipe_opname: tipeOpname,
                     email_pembuat: emailPembuat,
                     grand_total_opname: grandTotalOpname,
                     grand_total_rab: grandTotalRab,
@@ -329,6 +333,7 @@ export const opnameService = {
 
             const created = await opnameRepository.createBulkWithFinal({
                 id_toko: idToko,
+                tipe_opname: tipeOpname,
                 email_pembuat: emailPembuat,
                 grand_total_opname: grandTotalOpname,
                 grand_total_rab: grandTotalRab,

@@ -47,6 +47,7 @@ export const bulkCreateOpnameItemSchema = z.object({
 export const bulkCreateOpnameSchema = z.object({
     id_toko: z.coerce.number().int().positive(),
     email_pembuat: z.string().email(),
+    tipe_opname: z.enum(["OPNAME", "OPNAME_FINAL"]).optional().default("OPNAME"),
     grand_total_opname: z.union([z.string().trim().min(1), z.coerce.number()]).transform((value) => String(value)),
     grand_total_rab: z.union([z.string().trim().min(1), z.coerce.number()]).transform((value) => String(value)),
     items: z.array(bulkCreateOpnameItemSchema).min(1)
@@ -106,7 +107,8 @@ export const listOpnameQuerySchema = z.object({
     id_opname_final: z.coerce.number().int().positive().optional(),
     id_rab_item: z.coerce.number().int().positive().optional(),
     id_instruksi_lapangan_item: z.coerce.number().int().positive().optional(),
-    status: opnameStatusSchema.optional()
+    status: opnameStatusSchema.optional(),
+    tipe_opname: z.enum(["OPNAME", "OPNAME_FINAL"]).optional()
 });
 
 export type CreateOpnameInput = z.infer<typeof createOpnameSchema>;

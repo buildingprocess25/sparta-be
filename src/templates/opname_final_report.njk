@@ -205,13 +205,14 @@
   {% if watermark_logo_path %}
   <img src="{{ watermark_logo_path }}" class="watermark" alt="watermark" />
   {% endif %}
-  {{ sparta_header("Laporan Opname Final", toko.nomor_ulok ~ " - " ~ (toko.nama_toko or '-')) | safe }}
+  {% set opname_label = document_label or "Opname Final" %}
+  {{ sparta_header("Laporan " ~ opname_label, toko.nomor_ulok ~ " - " ~ (toko.nama_toko or '-')) | safe }}
 
-  <div class="section-title">Informasi Opname Final</div>
+  <div class="section-title">Informasi {{ opname_label }}</div>
 
   <table class="meta">
     <tr>
-      <td class="label">Tanggal Opname Final</td>
+      <td class="label">Tanggal {{ opname_label }}</td>
       <td>{{ created_at_formatted }}</td>
       <td class="label">Email Pembuat</td>
       <td>{{ opname_final.email_pembuat or '-' }}</td>
@@ -219,11 +220,11 @@
     <tr>
       <td class="label">Tanggal Generate PDF</td>
       <td>{{ generated_at }}</td>
-      <td class="label">ID Opname Final</td>
+      <td class="label">ID {{ opname_label }}</td>
       <td>{{ opname_final.id }}</td>
     </tr>
     <tr>
-      <td class="label">Status Opname Final</td>
+      <td class="label">Status {{ opname_label }}</td>
       <td>{{ opname_final.status_opname_final }}</td>
       <td class="label">Aksi</td>
       <td>{{ opname_final.aksi or '-' }}</td>
@@ -517,13 +518,13 @@
       <td class="num">Akhir SPK: {{ tanggal_akhir_spk_denda_formatted }} | ST: {{ tanggal_serah_terima_denda_formatted }}</td>
     </tr>
     <tr>
-      <td class="label">Total Opname Final</td>
+      <td class="label">Total {{ opname_label }}</td>
       <td class="num">{{ total_opname_final_formatted }}</td>
     </tr>
   </table>
 
   <div class="page-break"></div>
-  {{ sparta_header("Tanda Tangan Opname Final", toko.nomor_ulok ~ " - " ~ (toko.nama_toko or '-')) | safe }}
+  {{ sparta_header("Tanda Tangan " ~ opname_label, toko.nomor_ulok ~ " - " ~ (toko.nama_toko or '-')) | safe }}
   <p class="section-title">Tanda Tangan</p>
 
   <table class="approval-table">

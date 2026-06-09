@@ -192,7 +192,8 @@ const regeneratePdfAndUpload = async (opnameFinalId: string): Promise<string> =>
     const pdfBuffer = await buildOpnameFinalPdfBuffer(detail, instruksiLapanganItems, rabData);
     const proyek = sanitizeFilenamePart(detail.toko.proyek ?? undefined, "PROYEK");
     const nomorUlok = sanitizeFilenamePart(detail.toko.nomor_ulok ?? undefined, "ULOK");
-    const filename = `OPNAME_FINAL_${proyek}_${nomorUlok}_${detail.opname_final.id}.pdf`;
+    const filenamePrefix = detail.opname_final.tipe_opname === "OPNAME_FINAL" ? "OPNAME_FINAL" : "OPNAME";
+    const filename = `${filenamePrefix}_${proyek}_${nomorUlok}_${detail.opname_final.id}.pdf`;
 
     return uploadPdfToDrive(pdfBuffer, filename);
 };
@@ -256,9 +257,10 @@ export const opnameFinalService = {
         const pdfBuffer = await buildOpnameFinalPdfBuffer(refreshedDetail, instruksiLapanganItems, rabData);
         const proyek = sanitizeFilenamePart(refreshedDetail.toko.proyek ?? undefined, "PROYEK");
         const nomorUlok = sanitizeFilenamePart(refreshedDetail.toko.nomor_ulok ?? undefined, "ULOK");
+        const filenamePrefix = refreshedDetail.opname_final.tipe_opname === "OPNAME_FINAL" ? "OPNAME_FINAL" : "OPNAME";
 
         return {
-            filename: `OPNAME_FINAL_${proyek}_${nomorUlok}_${id}.pdf`,
+            filename: `${filenamePrefix}_${proyek}_${nomorUlok}_${id}.pdf`,
             pdfBuffer
         };
     },

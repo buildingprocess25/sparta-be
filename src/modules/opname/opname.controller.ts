@@ -74,6 +74,7 @@ export const createBulkOpname = asyncHandler(async (req: Request, res: Response)
     const {
         id_toko,
         email_pembuat,
+        tipe_opname,
         grand_total_opname,
         grand_total_rab,
         items
@@ -108,7 +109,7 @@ export const createBulkOpname = asyncHandler(async (req: Request, res: Response)
     const uploadedFiles = req.files as UploadedFilesMap | undefined;
     const uploadedFotoOpnameFiles = getUploadedFiles(uploadedFiles, "file_foto_opname");
     const data = await opnameService.createBulk(
-        { id_toko, email_pembuat, grand_total_opname, grand_total_rab, items },
+        { id_toko, tipe_opname, email_pembuat, grand_total_opname, grand_total_rab, items },
         uploadedFotoOpnameFiles,
         fotoIndexes
     );
