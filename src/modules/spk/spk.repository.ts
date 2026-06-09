@@ -325,11 +325,14 @@ export const spkRepository = {
         }
 
         if (filter.nama_kontraktor) {
-            const words = filter.nama_kontraktor.toUpperCase().split(/[\s,.]+/).filter(w => w !== 'CV' && w !== 'PT' && w.length > 0);
-            for (const word of words) {
-                values.push(word);
-                conditions.push(`p.nama_kontraktor ILIKE '%' || $${values.length} || '%'`);
-            }
+            values.push(filter.nama_kontraktor);
+            // Normalisasi kedua sisi: hapus PT/CV dan karakter non-alfanumerik, lalu bandingkan exact.
+            // Contoh: "CV ABADI TEKNIK" == "ABADI TEKNIK, CV" tapi != "PT ABADI TEKNIK SEJAHTERA"
+            conditions.push(`
+                REPLACE(REPLACE(regexp_replace(upper(p.nama_kontraktor), '[^A-Z0-9]', '', 'g'), 'PT', ''), 'CV', '')
+                =
+                REPLACE(REPLACE(regexp_replace(upper($${values.length}::text), '[^A-Z0-9]', '', 'g'), 'PT', ''), 'CV', '')
+            `);
         }
 
         if (filter.cabang) {

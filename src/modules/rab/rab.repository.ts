@@ -879,11 +879,14 @@ export const rabRepository = {
         }
 
         if (filter.nama_pt) {
-            const words = filter.nama_pt.toUpperCase().split(/[\s,.]+/).filter(w => w !== 'CV' && w !== 'PT' && w.length > 0);
-            for (const word of words) {
-                values.push(word);
-                conditions.push(`r.nama_pt ILIKE '%' || $${values.length} || '%'`);
-            }
+            values.push(filter.nama_pt);
+            // Normalisasi kedua sisi: hapus PT/CV dan karakter non-alfanumerik, lalu bandingkan exact.
+            // Contoh: "CV ABADI TEKNIK" == "ABADI TEKNIK, CV" tapi != "PT ABADI TEKNIK SEJAHTERA"
+            conditions.push(`
+                REPLACE(REPLACE(regexp_replace(upper(r.nama_pt), '[^A-Z0-9]', '', 'g'), 'PT', ''), 'CV', '')
+                =
+                REPLACE(REPLACE(regexp_replace(upper($${values.length}::text), '[^A-Z0-9]', '', 'g'), 'PT', ''), 'CV', '')
+            `);
         }
 
         if (filter.email_pembuat) {
