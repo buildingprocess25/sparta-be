@@ -7,6 +7,7 @@ import {
     deletePertambahanSpkById,
     getPertambahanSpkById,
     handlePertambahanSpkApproval,
+    handlePertambahanSpkIntervention,
     listPertambahanSpk,
     updatePertambahanSpkById
 } from "./pertambahan-spk.controller";
@@ -26,6 +27,7 @@ pertambahanSpkRouter.get("/:id/pdf", downloadPertambahanSpkPdf);
 pertambahanSpkRouter.get("/:id/lampiran-pendukung", downloadPertambahanSpkLampiranPendukung);
 pertambahanSpkRouter.put("/:id", pertambahanSpkUpload.single("file_lampiran_pendukung"), updatePertambahanSpkById);
 pertambahanSpkRouter.post("/:id/approval", handlePertambahanSpkApproval);
+pertambahanSpkRouter.post("/:id/intervensi", handlePertambahanSpkIntervention);
 pertambahanSpkRouter.delete("/:id", deletePertambahanSpkById);
 
 export { pertambahanSpkRouter };

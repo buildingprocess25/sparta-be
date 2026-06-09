@@ -3,6 +3,7 @@ import { asyncHandler } from "../../common/async-handler";
 import {
     createPertambahanSpkSchema,
     pertambahanSpkApprovalSchema,
+    pertambahanSpkInterventionSchema,
     pertambahanSpkListQuerySchema,
     updatePertambahanSpkSchema
 } from "./pertambahan-spk.schema";
@@ -91,6 +92,17 @@ export const handlePertambahanSpkApproval = asyncHandler(async (req: Request, re
     res.json({
         status: "success",
         message: "Approval pertambahan SPK berhasil diproses",
+        data
+    });
+});
+
+export const handlePertambahanSpkIntervention = asyncHandler(async (req: Request, res: Response) => {
+    const action = pertambahanSpkInterventionSchema.parse(req.body);
+    const data = await pertambahanSpkService.intervene(req.params.id, action);
+
+    res.json({
+        status: "success",
+        message: "Intervensi Pertambahan SPK berhasil diproses",
         data
     });
 });

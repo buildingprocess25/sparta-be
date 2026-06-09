@@ -3,8 +3,10 @@ import type {
     CreatePertambahanSpkInput,
     PertambahanSpkApprovalInput,
     PertambahanSpkListQuery,
-    UpdatePertambahanSpkInput
+    UpdatePertambahanSpkInput,
+    PertambahanSpkInterventionInput
 } from "./pertambahan-spk.schema";
+import { activityLogRepository } from "../activity-log/activity-log.repository";
 
 export type PertambahanSpkRow = {
     id: string;
@@ -340,5 +342,72 @@ export const pertambahanSpkRepository = {
         }
 
         return this.findById(id);
+    },
+
+    async interveneStatusAndInsertLog(
+        id: string,
+        oldStatus: string,
+        targetStatus: string,
+        action: PertambahanSpkInterventionInput
+    ): Promise<PertambahanSpkDetailRow | null> {
+        let updated: PertambahanSpkDetailRow | null = null;
+        const customReason = action.alasan_intervensi?.trim();
+        const logReason = customReason
+            ? `[INTERVENSI SUPER HUMAN] ${oldStatus} -> ${targetStatus}. ${customReason}`
+            : `[INTERVENSI SUPER HUMAN] ${oldStatus} -> ${targetStatus}`;
+
+        await pool.query('BEGIN');
+        try {
+            const isApprove = targetStatus === "Disetujui BM" || targetStatus === "APPROVED_BY_BM";
+            const isReject = targetStatus === "Ditolak BM" || targetStatus === "REJECTED_BY_BM";
+
+            const result = await pool.query<{ id: string }>(
+                `
+                UPDATE pertambahan_spk p
+                SET status_persetujuan = $1,
+                    disetujui_oleh = $2,
+                    waktu_persetujuan = $3,
+                    alasan_penolakan = $4,
+                    catatan_approval = NULL,
+                    catatan_penolakan = NULL
+                WHERE p.id = $5
+                RETURNING p.id
+                `,
+                [
+                    targetStatus,
+                    isApprove ? action.actor_email : null,
+                    isApprove ? new Date().toISOString() : null,
+                    isReject ? logReason : null,
+                    id
+                ]
+            );
+
+            if (!result.rows[0]) {
+                await pool.query('ROLLBACK');
+                return null;
+            }
+
+            await activityLogRepository.insert({
+                entity_type: "PERTAMBAHAN_SPK",
+                entity_id: Number(id),
+                actor_email: action.actor_email,
+                actor_role: action.actor_role,
+                action: "SUPER_HUMAN_INTERVENTION",
+                status_before: oldStatus,
+                status_after: targetStatus,
+                reason: customReason || null,
+                metadata: {
+                    legacy_log_reason: logReason
+                }
+            }, pool as any);
+
+            await pool.query('COMMIT');
+            updated = await this.findById(id);
+        } catch (error) {
+            await pool.query('ROLLBACK');
+            throw error;
+        }
+
+        return updated;
     }
 };

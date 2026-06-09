@@ -59,7 +59,15 @@ export const pertambahanSpkApprovalSchema = z
         }
     });
 
+export const pertambahanSpkInterventionSchema = z.object({
+    actor_email: z.string().email(),
+    actor_role: z.string().trim().min(1),
+    target_status: z.enum(["WAITING_FOR_BM_APPROVAL", "APPROVED_BY_BM", "REJECTED_BY_BM", "Menunggu Persetujuan", "Disetujui BM", "Ditolak BM"]),
+    alasan_intervensi: z.string().trim().optional()
+});
+
 export type CreatePertambahanSpkInput = z.infer<typeof createPertambahanSpkSchema>;
 export type UpdatePertambahanSpkInput = z.infer<typeof updatePertambahanSpkSchema>;
 export type PertambahanSpkListQuery = z.infer<typeof pertambahanSpkListQuerySchema>;
 export type PertambahanSpkApprovalInput = z.infer<typeof pertambahanSpkApprovalSchema>;
+export type PertambahanSpkInterventionInput = z.infer<typeof pertambahanSpkInterventionSchema>;

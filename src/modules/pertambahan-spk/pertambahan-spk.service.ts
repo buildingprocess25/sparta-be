@@ -14,7 +14,8 @@ import type {
     CreatePertambahanSpkInput,
     PertambahanSpkApprovalInput,
     PertambahanSpkListQuery,
-    UpdatePertambahanSpkInput
+    UpdatePertambahanSpkInput,
+    PertambahanSpkInterventionInput
 } from "./pertambahan-spk.schema";
 
 const PERTAMBAHAN_SPK_STATUS = {
@@ -380,6 +381,43 @@ export const pertambahanSpkService = {
             : PERTAMBAHAN_SPK_STATUS.REJECTED_BY_BM;
 
         const updated = await pertambahanSpkRepository.applyApproval(id, nextStatus, action);
+        if (!updated) {
+            throw new AppError("Data pertambahan SPK tidak ditemukan", 404);
+        }
+
+        const spk = await ensureSpkExists(Number(updated.id_spk));
+        await opnameFinalService.refreshDendaByTokoId(spk.pengajuan.id_toko);
+
+        return updated;
+    },
+
+    async intervene(id: string, action: PertambahanSpkInterventionInput): Promise<PertambahanSpkDetailRow> {
+        const role = action.actor_role.toUpperCase();
+        if (!role.includes("SUPER HUMAN")) {
+            throw new AppError("Hanya role Super Human yang dapat melakukan intervensi Pertambahan SPK", 403);
+        }
+
+        const data = await pertambahanSpkRepository.findById(id);
+        if (!data) {
+            throw new AppError("Data pertambahan SPK tidak ditemukan", 404);
+        }
+
+        let targetStatus = action.target_status;
+        if (targetStatus === "WAITING_FOR_BM_APPROVAL") {
+            targetStatus = PERTAMBAHAN_SPK_STATUS.WAITING_FOR_BM_APPROVAL;
+        } else if (targetStatus === "APPROVED_BY_BM") {
+            targetStatus = PERTAMBAHAN_SPK_STATUS.APPROVED_BY_BM;
+        } else if (targetStatus === "REJECTED_BY_BM") {
+            targetStatus = PERTAMBAHAN_SPK_STATUS.REJECTED_BY_BM;
+        }
+
+        const currentStatus = data.status_persetujuan;
+
+        if (currentStatus === targetStatus) {
+            throw new AppError(`Status Pertambahan SPK sudah sama dengan target intervensi`, 409);
+        }
+
+        const updated = await pertambahanSpkRepository.interveneStatusAndInsertLog(id, currentStatus, targetStatus, action);
         if (!updated) {
             throw new AppError("Data pertambahan SPK tidak ditemukan", 404);
         }
