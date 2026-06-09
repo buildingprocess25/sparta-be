@@ -209,8 +209,13 @@ const normalizeLingkupForPrice = (value?: string | null): "ME" | "SIPIL" | null 
     return null;
 };
 
-const normalizeComparableText = (value?: string | null): string =>
-    String(value ?? "").trim().replace(/\s+/g, " ").toUpperCase();
+const normalizeComparableText = (value?: string | null): string => {
+    return String(value ?? "")
+        .trim()
+        .toUpperCase()
+        .replace(/\b(PT|CV)\b\.?/g, "") // Remove PT and CV
+        .replace(/[^A-Z0-9]/g, "");     // Remove spaces and symbols for robust matching
+};
 
 const isPlaceholderText = (value?: string | null): boolean => {
     const normalized = normalizeComparableText(value);

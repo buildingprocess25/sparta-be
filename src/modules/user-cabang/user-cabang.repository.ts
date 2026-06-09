@@ -65,8 +65,8 @@ export const userCabangRepository = {
         }
 
         if (query.email_sat) {
-            values.push(query.email_sat);
-            filters.push(`LOWER(email_sat) = LOWER($${values.length})`);
+            values.push(query.email_sat.trim());
+            filters.push(`LOWER(TRIM(email_sat)) = LOWER($${values.length})`);
         }
 
         if (query.jabatan) {
