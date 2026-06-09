@@ -880,7 +880,7 @@ export const rabRepository = {
 
         if (filter.nama_pt) {
             values.push(filter.nama_pt);
-            conditions.push(`r.nama_pt = $${values.length}`);
+            conditions.push(`r.nama_pt ILIKE '%' || $${values.length} || '%'`);
         }
 
         if (filter.email_pembuat) {
