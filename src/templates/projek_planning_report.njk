@@ -211,20 +211,25 @@
   <img src="{{ watermark_logo_path }}" class="watermark" alt="watermark" />
   {% endif %}
 
-  <div class="header-main">
-    {% if alfamart_logo_path %}
-    <img src="{{ alfamart_logo_path }}" class="header-alfamart-logo" alt="Alfamart" />
-    {% endif %}
-    {% if sparta_logo_path %}
-    <img src="{{ sparta_logo_path }}" class="header-sparta-logo" alt="SPARTA" />
-    {% endif %}
-    <div>
-      <h1 class="header-title">SPARTA</h1>
-      <p class="header-subtitle">Building</p>
+  <div class="header-main" style="justify-content: space-between;">
+    <div style="display: flex; align-items: center;">
+      {% if alfamart_logo_path %}
+      <img src="{{ alfamart_logo_path }}" class="header-alfamart-logo" alt="Alfamart" />
+      {% endif %}
+      {% if sparta_logo_path %}
+      <img src="{{ sparta_logo_path }}" class="header-sparta-logo" alt="SPARTA" />
+      {% endif %}
+      <div>
+        <h1 class="header-title">SPARTA</h1>
+        <p class="header-subtitle">Building</p>
+      </div>
+    </div>
+    <div style="font-size: 14px; font-weight: bold; color: #fff; letter-spacing: 0.5px;">
+      FPD (Form Permintaan Desain)
     </div>
   </div>
 
-  <div class="section-title">FPD (Form Permintaan Desain) - Informasi Utama</div>
+  <div class="section-title">Informasi Utama</div>
   <table class="info-table">
     <tr>
       <td class="label">Nomor ULOK</td>
@@ -393,7 +398,23 @@
         </div>
       </td>
 
-      {# ── [2] MENGETAHUI — PP Specialist (nama & tanggal jika sudah approve) ── #}
+      {# ── [2] MENGETAHUI — B&M Manager (nama & tanggal jika sudah approve) ── #}
+      <td style="width: 25%; vertical-align: top; text-align: center;">
+        <div class="approval-title">MENGETAHUI</div>
+        <div class="approval-box pp1" style="min-height: 90px;">
+          {% if has_bm_signature %}
+            <div style="min-height: 25px;"></div>
+            <div class="approval-date">{{ bm_waktu_formatted or '-' }}</div>
+            <div style="min-height: 25px;"></div>
+            <div class="approval-name">{{ bm_approver_email_final.split('@')[0] | upper }}</div>
+          {% else %}
+            <div style="min-height: 80px;"></div>
+          {% endif %}
+          <div class="approval-role">Building &amp; Maintenance Manager</div>
+        </div>
+      </td>
+
+      {# ── [3] MENGETAHUI — PP Specialist (nama & tanggal jika sudah approve) ── #}
       <td style="width: 25%; vertical-align: top; text-align: center;">
         <div class="approval-title">MENGETAHUI</div>
         <div class="approval-box pp2" style="min-height: 90px;">
@@ -406,22 +427,6 @@
             <div style="min-height: 80px;"></div>
           {% endif %}
           <div class="approval-role">Project Planning &amp; Development Specialist</div>
-        </div>
-      </td>
-
-      {# ── [3] MENGETAHUI — B&M Manager (nama & tanggal jika sudah approve) ── #}
-      <td style="width: 25%; vertical-align: top; text-align: center;">
-        <div class="approval-title">MENGETAHUI</div>
-        <div class="approval-box pp1" style="min-height: 90px;">
-          {% if has_bm_signature %}
-            <div style="min-height: 25px;"></div>
-            <div class="approval-date">{{ bm_waktu_formatted or '-' }}</div>
-            <div style="min-height: 25px;"></div>
-            <div class="approval-name">{{ projek.bm_approver_email.split('@')[0] | upper }}</div>
-          {% else %}
-            <div style="min-height: 80px;"></div>
-          {% endif %}
-          <div class="approval-role">Building &amp; Maintenance Manager</div>
         </div>
       </td>
 
