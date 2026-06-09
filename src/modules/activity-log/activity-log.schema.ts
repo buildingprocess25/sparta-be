@@ -4,6 +4,7 @@ export const activityLogEntityTypeSchema = z.enum([
     "RAB",
     "SPK",
     "PERTAMBAHAN_SPK",
+    "OPNAME",
     "OPNAME_FINAL",
     "PENGAWASAN",
     "BERKAS_SERAH_TERIMA",

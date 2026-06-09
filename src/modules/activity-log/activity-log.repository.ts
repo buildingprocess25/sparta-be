@@ -5,6 +5,7 @@ export type ActivityLogEntityType =
     | "RAB"
     | "SPK"
     | "PERTAMBAHAN_SPK"
+    | "OPNAME"
     | "OPNAME_FINAL"
     | "PENGAWASAN"
     | "BERKAS_SERAH_TERIMA"
