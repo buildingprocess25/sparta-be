@@ -508,7 +508,7 @@ export const ganttService = {
         const workbook = xlsx.read(buffer, { type: "buffer" });
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
-        const rows = xlsx.utils.sheet_to_json<any>(sheet, { defval: "" });
+        const rows = xlsx.utils.sheet_to_json<any>(sheet, { defval: "", raw: false });
 
         if (!rows || rows.length === 0) {
             throw new AppError("File Excel kosong atau tidak valid", 400);
@@ -528,11 +528,36 @@ export const ganttService = {
             groups[key].push(row);
         }
 
-        const parseDateString = (dateStr: string): string => {
-            if (!dateStr) return "";
-            const parts = dateStr.split("/");
-            if (parts.length === 3) {
-                return `${parts[2]}-${parts[1]}-${parts[0]}`;
+        const parseDateString = (val: any): string => {
+            if (!val) return "";
+            
+            // Jika Excel merender sebagai number (serial date)
+            if (typeof val === 'number') {
+                const date = new Date((val - 25569) * 86400 * 1000);
+                const yyyy = date.getFullYear();
+                const mm = String(date.getMonth() + 1).padStart(2, '0');
+                const dd = String(date.getDate()).padStart(2, '0');
+                return `${yyyy}-${mm}-${dd}`;
+            }
+
+            let dateStr = String(val).trim();
+            // Format umum: DD/MM/YYYY
+            if (dateStr.includes("/")) {
+                const parts = dateStr.split("/");
+                if (parts.length === 3) {
+                    let yyyy = parts[2];
+                    if (yyyy.length === 2) yyyy = `20${yyyy}`;
+                    return `${yyyy}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                }
+            }
+            // Format DD-MM-YYYY
+            if (dateStr.includes("-")) {
+                const parts = dateStr.split("-");
+                if (parts.length === 3 && parts[0].length <= 2) {
+                    let yyyy = parts[2];
+                    if (yyyy.length === 2) yyyy = `20${yyyy}`;
+                    return `${yyyy}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                }
             }
             return dateStr;
         };
@@ -564,8 +589,8 @@ export const ganttService = {
             const dayItems: DayGanttItemInput[] = groupRows.map((row) => {
                 return {
                     kategori_pekerjaan: String(row["Kategori"] || "").trim(),
-                    h_awal: parseDateString(String(row["h_awal"] || "").trim()),
-                    h_akhir: parseDateString(String(row["h_akhir"] || "").trim()),
+                    h_awal: parseDateString(row["h_awal"]),
+                    h_akhir: parseDateString(row["h_akhir"]),
                     keterlambatan: row["keterlambatan"] !== undefined && row["keterlambatan"] !== "" ? String(row["keterlambatan"]) : null,
                     kecepatan: row["kecepatan"] !== undefined && row["kecepatan"] !== "" ? String(row["kecepatan"]) : null,
                 };
