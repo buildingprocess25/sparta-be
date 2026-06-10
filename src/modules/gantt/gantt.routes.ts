@@ -13,11 +13,17 @@ import {
     submitGantt,
     updateGantt,
     updateKecepatan,
-    updateKeterlambatan
+    updateKeterlambatan,
+    previewGanttMigration,
+    commitGanttMigration
 } from "./gantt.controller";
+import multer from "multer";
 
+const upload = multer({ storage: multer.memoryStorage() });
 const ganttRouter = Router();
 
+ganttRouter.post("/migration/preview", upload.single("file"), previewGanttMigration);
+ganttRouter.post("/migration/commit", upload.single("file"), commitGanttMigration);
 ganttRouter.post("/submit", submitGantt);
 ganttRouter.get("/", listGantt);
 ganttRouter.get("/detail/:id_toko", getDetailByToko);

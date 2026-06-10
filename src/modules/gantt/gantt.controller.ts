@@ -168,3 +168,34 @@ export const getDetailByToko = asyncHandler(async (req: Request, res: Response) 
         toko: data.toko
     });
 });
+
+export const previewGanttMigration = asyncHandler(async (req: Request, res: Response) => {
+    if (!req.file) {
+        throw new AppError("File tidak ditemukan", 400);
+    }
+    
+    const result = await ganttService.previewMigrationExcel(req.file.buffer);
+
+    res.status(200).json({
+        status: "success",
+        message: "Preview berhasil dibuat",
+        data: result
+    });
+});
+
+export const commitGanttMigration = asyncHandler(async (req: Request, res: Response) => {
+    if (!req.file) {
+        throw new AppError("File tidak ditemukan", 400);
+    }
+    
+    const emailPembuat = req.body.email_pembuat || "system@import.com";
+    const limit = req.body.limit ? Number(req.body.limit) : undefined;
+    
+    const result = await ganttService.commitMigrationExcel(req.file.buffer, emailPembuat, limit);
+
+    res.status(201).json({
+        status: "success",
+        message: "Migrasi berhasil",
+        data: result
+    });
+});

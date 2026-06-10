@@ -1,4 +1,5 @@
 import { AppError } from "../../common/app-error";
+import * as xlsx from "xlsx";
 import { tokoRepository } from "../toko/toko.repository";
 import { picPengawasanService } from "../pic-pengawasan/pic-pengawasan.service";
 import { rabRepository } from "../rab/rab.repository";
@@ -443,5 +444,162 @@ export const ganttService = {
             throw new AppError("Toko tidak ditemukan", 404);
         }
         return data;
+    },
+
+    async previewMigrationExcel(buffer: Buffer) {
+        const workbook = xlsx.read(buffer, { type: "buffer" });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const rows = xlsx.utils.sheet_to_json<any>(sheet, { defval: "" });
+
+        if (!rows || rows.length === 0) {
+            throw new AppError("File Excel kosong atau tidak valid", 400);
+        }
+
+        const groups: Record<string, any[]> = {};
+        for (const row of rows) {
+            const noUlok = String(row["Nomor Ulok"] || "").trim();
+            const lingkup = String(row["Lingkup_Pekerjaan"] || "").trim();
+            
+            if (!noUlok) continue;
+
+            const key = `${noUlok}__${lingkup}`;
+            if (!groups[key]) {
+                groups[key] = [];
+            }
+            groups[key].push(row);
+        }
+
+        let readyCount = 0;
+        let skippedCount = 0;
+        const details: Array<{ nomor_ulok: string, lingkup_pekerjaan: string, status: string }> = [];
+
+        for (const key of Object.keys(groups)) {
+            const groupRows = groups[key];
+            const firstRow = groupRows[0];
+            const noUlok = String(firstRow["Nomor Ulok"] || "").trim();
+            const lingkup = String(firstRow["Lingkup_Pekerjaan"] || "").trim();
+
+            const existingToko = await tokoRepository.findByNomorUlokAndLingkup(noUlok, lingkup);
+            
+            if (existingToko) {
+                const activeGantt = await ganttRepository.findLatestActiveByTokoId(existingToko.id);
+                if (activeGantt) {
+                    skippedCount++;
+                    details.push({ nomor_ulok: noUlok, lingkup_pekerjaan: lingkup, status: "Di-skip (Sudah ada Gantt)" });
+                    continue;
+                }
+            }
+
+            readyCount++;
+            details.push({ nomor_ulok: noUlok, lingkup_pekerjaan: lingkup, status: "Siap Insert" });
+        }
+
+        return {
+            total_groups: Object.keys(groups).length,
+            ready_count: readyCount,
+            skipped_count: skippedCount,
+            details: details,
+            total_rows: rows.length
+        };
+    },
+
+    async commitMigrationExcel(buffer: Buffer, emailPembuat: string, limit?: number) {
+        const workbook = xlsx.read(buffer, { type: "buffer" });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const rows = xlsx.utils.sheet_to_json<any>(sheet, { defval: "" });
+
+        if (!rows || rows.length === 0) {
+            throw new AppError("File Excel kosong atau tidak valid", 400);
+        }
+
+        const groups: Record<string, any[]> = {};
+        for (const row of rows) {
+            const noUlok = String(row["Nomor Ulok"] || "").trim();
+            const lingkup = String(row["Lingkup_Pekerjaan"] || "").trim();
+            
+            if (!noUlok) continue;
+
+            const key = `${noUlok}__${lingkup}`;
+            if (!groups[key]) {
+                groups[key] = [];
+            }
+            groups[key].push(row);
+        }
+
+        const parseDateString = (dateStr: string): string => {
+            if (!dateStr) return "";
+            const parts = dateStr.split("/");
+            if (parts.length === 3) {
+                return `${parts[2]}-${parts[1]}-${parts[0]}`;
+            }
+            return dateStr;
+        };
+
+        let insertedCount = 0;
+        let skippedCount = 0;
+
+        for (const key of Object.keys(groups)) {
+            // Apply limit if provided
+            if (limit !== undefined && insertedCount >= limit) {
+                break;
+            }
+
+            const groupRows = groups[key];
+            const firstRow = groupRows[0];
+            const noUlok = String(firstRow["Nomor Ulok"] || "").trim();
+            const lingkup = String(firstRow["Lingkup_Pekerjaan"] || "").trim();
+
+            const existingToko = await tokoRepository.findByNomorUlokAndLingkup(noUlok, lingkup);
+            
+            if (existingToko) {
+                const activeGantt = await ganttRepository.findLatestActiveByTokoId(existingToko.id);
+                if (activeGantt) {
+                    skippedCount++;
+                    continue;
+                }
+            }
+
+            const dayItems: DayGanttItemInput[] = groupRows.map((row) => {
+                return {
+                    kategori_pekerjaan: String(row["Kategori"] || "").trim(),
+                    h_awal: parseDateString(String(row["h_awal"] || "").trim()),
+                    h_akhir: parseDateString(String(row["h_akhir"] || "").trim()),
+                    keterlambatan: row["keterlambatan"] !== undefined && row["keterlambatan"] !== "" ? String(row["keterlambatan"]) : null,
+                    kecepatan: row["kecepatan"] !== undefined && row["kecepatan"] !== "" ? String(row["kecepatan"]) : null,
+                };
+            }).filter(item => item.kategori_pekerjaan && item.h_awal && item.h_akhir);
+
+            if (dayItems.length === 0) {
+                skippedCount++;
+                continue;
+            }
+
+            const uniqueKategori = Array.from(new Set(dayItems.map(d => d.kategori_pekerjaan)));
+
+            const ganttData = await ganttRepository.createWithDetails({
+                nomor_ulok: noUlok,
+                lingkup_pekerjaan: lingkup,
+                nama_toko: "",
+                kode_toko: "",
+                proyek: "",
+                cabang: "",
+                email_pembuat: emailPembuat,
+                status: GANTT_STATUS.ACTIVE,
+                kategori_pekerjaan: uniqueKategori,
+                day_items: dayItems,
+            });
+
+            await releaseRabApprovalAfterGantt(ganttData.toko_id, "MIGRASI_SUPER_HUMAN");
+            insertedCount++;
+        }
+
+        return {
+            inserted_count: insertedCount,
+            skipped_count: skippedCount,
+            total_groups: Object.keys(groups).length,
+            limit_applied: limit
+        };
     }
 };
