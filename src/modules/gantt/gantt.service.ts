@@ -448,100 +448,90 @@ export const ganttService = {
 
     async previewMigrationExcel(buffer: Buffer) {
         const workbook = xlsx.read(buffer, { type: "buffer" });
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
-        const rows = xlsx.utils.sheet_to_json<any>(sheet, { defval: "" });
 
-        if (!rows || rows.length === 0) {
-            throw new AppError("File Excel kosong atau tidak valid", 400);
+        const sheetGantt = workbook.Sheets['gantt_chart'] || workbook.Sheets[workbook.SheetNames[0]];
+        const sheetDay   = workbook.Sheets['day_gantt_chart'];
+
+        if (!sheetGantt) {
+            throw new AppError("File Excel kosong atau sheet gantt_chart tidak ditemukan", 400);
         }
 
-        const groups: Record<string, any[]> = {};
-        for (const row of rows) {
-            const noUlok = String(row["Nomor Ulok"] || "").trim();
-            const lingkup = String(row["Lingkup_Pekerjaan"] || "").trim();
-            
+        const ganttRows = xlsx.utils.sheet_to_json<any>(sheetGantt, { defval: "", raw: false });
+        const dayRows   = sheetDay ? xlsx.utils.sheet_to_json<any>(sheetDay, { defval: "", raw: false }) : [];
+
+        if (!ganttRows || ganttRows.length === 0) {
+            throw new AppError("Sheet gantt_chart kosong atau tidak valid", 400);
+        }
+
+        let readyCount   = 0;
+        let skippedCount = 0;
+        const details: Array<{ nomor_ulok: string; lingkup_pekerjaan: string; status: string; sheet_count?: number }> = [];
+
+        for (const gRow of ganttRows) {
+            const noUlok  = String(gRow["Nomor Ulok"]       || "").trim();
+            const lingkup = String(gRow["Lingkup_Pekerjaan"] || "").trim();
             if (!noUlok) continue;
 
-            const key = `${noUlok}__${lingkup}`;
-            if (!groups[key]) {
-                groups[key] = [];
-            }
-            groups[key].push(row);
-        }
-
-        let readyCount = 0;
-        let skippedCount = 0;
-        const details: Array<{ nomor_ulok: string, lingkup_pekerjaan: string, status: string }> = [];
-
-        for (const key of Object.keys(groups)) {
-            const groupRows = groups[key];
-            const firstRow = groupRows[0];
-            const noUlok = String(firstRow["Nomor Ulok"] || "").trim();
-            const lingkup = String(firstRow["Lingkup_Pekerjaan"] || "").trim();
+            // Hitung baris di day_gantt_chart yang cocok
+            const dayCount = dayRows.filter(r =>
+                String(r["Nomor Ulok"] || "").trim() === noUlok &&
+                String(r["Lingkup_Pekerjaan"] || "").trim() === lingkup
+            ).length;
 
             const existingToko = await tokoRepository.findByNomorUlokAndLingkup(noUlok, lingkup);
-            
             if (existingToko) {
                 const activeGantt = await ganttRepository.findLatestActiveByTokoId(existingToko.id);
                 if (activeGantt) {
                     skippedCount++;
-                    details.push({ nomor_ulok: noUlok, lingkup_pekerjaan: lingkup, status: "Di-skip (Sudah ada Gantt)" });
+                    details.push({ nomor_ulok: noUlok, lingkup_pekerjaan: lingkup, status: "Di-skip (Sudah ada Gantt)", sheet_count: dayCount });
                     continue;
                 }
             }
 
             readyCount++;
-            details.push({ nomor_ulok: noUlok, lingkup_pekerjaan: lingkup, status: "Siap Insert" });
+            details.push({ nomor_ulok: noUlok, lingkup_pekerjaan: lingkup, status: "Siap Insert", sheet_count: dayCount });
         }
 
         return {
-            total_groups: Object.keys(groups).length,
-            ready_count: readyCount,
+            total_groups:  ganttRows.length,
+            ready_count:   readyCount,
             skipped_count: skippedCount,
-            details: details,
-            total_rows: rows.length
+            details,
+            total_rows:    dayRows.length,
         };
     },
 
     async commitMigrationExcel(buffer: Buffer, emailPembuat: string, limit?: number) {
         const workbook = xlsx.read(buffer, { type: "buffer" });
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
-        const rows = xlsx.utils.sheet_to_json<any>(sheet, { defval: "", raw: false });
+        
+        // Baca 3 sheet yang saling berkaitan
+        const sheetGantt = workbook.Sheets['gantt_chart'] || workbook.Sheets[workbook.SheetNames[0]];
+        const sheetDay = workbook.Sheets['day_gantt_chart'];
+        const sheetDep = workbook.Sheets['dependency_gantt'];
 
-        if (!rows || rows.length === 0) {
-            throw new AppError("File Excel kosong atau tidak valid", 400);
+        if (!sheetGantt) {
+            throw new AppError("File Excel kosong atau sheet gantt_chart tidak ditemukan", 400);
         }
 
-        const groups: Record<string, any[]> = {};
-        for (const row of rows) {
-            const noUlok = String(row["Nomor Ulok"] || "").trim();
-            const lingkup = String(row["Lingkup_Pekerjaan"] || "").trim();
-            
-            if (!noUlok) continue;
+        // Parse semua sheet sekaligus
+        const ganttRows = xlsx.utils.sheet_to_json<any>(sheetGantt, { defval: "", raw: false });
+        const dayRows  = sheetDay ? xlsx.utils.sheet_to_json<any>(sheetDay,  { defval: "", raw: false }) : [];
+        const depRows  = sheetDep ? xlsx.utils.sheet_to_json<any>(sheetDep,  { defval: "", raw: false }) : [];
 
-            const key = `${noUlok}__${lingkup}`;
-            if (!groups[key]) {
-                groups[key] = [];
-            }
-            groups[key].push(row);
+        if (!ganttRows || ganttRows.length === 0) {
+            throw new AppError("Sheet gantt_chart kosong atau tidak valid", 400);
         }
 
         const parseDateString = (val: any): string => {
             if (!val) return "";
-            
-            // Jika Excel merender sebagai number (serial date)
             if (typeof val === 'number') {
                 const date = new Date((val - 25569) * 86400 * 1000);
                 const yyyy = date.getFullYear();
-                const mm = String(date.getMonth() + 1).padStart(2, '0');
-                const dd = String(date.getDate()).padStart(2, '0');
+                const mm   = String(date.getMonth() + 1).padStart(2, '0');
+                const dd   = String(date.getDate()).padStart(2, '0');
                 return `${yyyy}-${mm}-${dd}`;
             }
-
             let dateStr = String(val).trim();
-            // Format umum: DD/MM/YYYY
             if (dateStr.includes("/")) {
                 const parts = dateStr.split("/");
                 if (parts.length === 3) {
@@ -550,7 +540,6 @@ export const ganttService = {
                     return `${yyyy}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
                 }
             }
-            // Format DD-MM-YYYY
             if (dateStr.includes("-")) {
                 const parts = dateStr.split("-");
                 if (parts.length === 3 && parts[0].length <= 2) {
@@ -562,101 +551,135 @@ export const ganttService = {
             return dateStr;
         };
 
+        const isDatePattern = /^\d{4}-\d{2}-\d{2}$/;
         let insertedCount = 0;
-        let skippedCount = 0;
+        let skippedCount  = 0;
 
-        for (const key of Object.keys(groups)) {
-            // Apply limit if provided
-            if (limit !== undefined && insertedCount >= limit) {
-                break;
-            }
+        for (const gRow of ganttRows) {
+            if (limit !== undefined && insertedCount >= limit) break;
 
-            const groupRows = groups[key];
-            const firstRow = groupRows[0];
-            const noUlok = String(firstRow["Nomor Ulok"] || "").trim();
-            const lingkup = String(firstRow["Lingkup_Pekerjaan"] || "").trim();
+            const noUlok = String(gRow["Nomor Ulok"] || "").trim();
+            const lingkup = String(gRow["Lingkup_Pekerjaan"] || "").trim();
+            if (!noUlok) continue;
 
+            // Cek duplikasi
             const existingToko = await tokoRepository.findByNomorUlokAndLingkup(noUlok, lingkup);
-            
             if (existingToko) {
                 const activeGantt = await ganttRepository.findLatestActiveByTokoId(existingToko.id);
-                if (activeGantt) {
-                    skippedCount++;
-                    continue;
-                }
+                if (activeGantt) { skippedCount++; continue; }
             }
 
-            // Kumpulkan semua raw data
-            const rawItems = groupRows.map((row) => {
-                const haStr = parseDateString(row["h_awal"]);
-                const hkStr = parseDateString(row["h_akhir"]);
-                return {
-                    kategori_pekerjaan: String(row["Kategori"] || "").trim(),
-                    raw_h_awal: haStr,
-                    raw_h_akhir: hkStr,
-                    keterlambatan: row["keterlambatan"] !== undefined && row["keterlambatan"] !== "" ? String(row["keterlambatan"]) : null,
-                    kecepatan: row["kecepatan"] !== undefined && row["kecepatan"] !== "" ? String(row["kecepatan"]) : null,
-                };
-            }).filter(item => item.kategori_pekerjaan && item.raw_h_awal && item.raw_h_akhir);
-
-            if (rawItems.length === 0) {
-                skippedCount++;
-                continue;
+            // ─── 1. Kategori Pekerjaan (dari kolom Kategori_1 … Kategori_30) ────────
+            const kategoriPekerjaan: string[] = [];
+            for (let i = 1; i <= 30; i++) {
+                const kName = String(gRow[`Kategori_${i}`] || "").trim();
+                if (kName && !kategoriPekerjaan.includes(kName)) kategoriPekerjaan.push(kName);
             }
 
-            // Cek apakah data di Excel berupa index relative day (angka biasa seperti "1", "10") atau tanggal aktual ("2025-12-29")
-            const isDatePattern = /^\d{4}-\d{2}-\d{2}$/;
+            // ─── 2. Day Items (dari sheet day_gantt_chart) ────────────────────────────
+            const groupDayRows = dayRows.filter(r =>
+                String(r["Nomor Ulok"] || "").trim() === noUlok &&
+                String(r["Lingkup_Pekerjaan"] || "").trim() === lingkup
+            );
+
+            const rawItems = groupDayRows.map(row => ({
+                kategori_pekerjaan: String(row["Kategori"] || "").trim(),
+                raw_h_awal: parseDateString(row["h_awal"]),
+                raw_h_akhir: parseDateString(row["h_akhir"]),
+                keterlambatan: (row["keterlambatan"] !== undefined && row["keterlambatan"] !== "") ? String(row["keterlambatan"]) : null,
+                kecepatan:     (row["kecepatan"]     !== undefined && row["kecepatan"]     !== "") ? String(row["kecepatan"])     : null,
+            })).filter(item => item.kategori_pekerjaan && item.raw_h_awal && item.raw_h_akhir);
+
+            if (rawItems.length === 0) { skippedCount++; continue; }
+
+            // Deteksi format: tanggal aktual vs indeks hari relatif
             const allAwalAreDates = rawItems.every(r => isDatePattern.test(r.raw_h_awal));
-            
             let dayItems: DayGanttItemInput[] = [];
+            let minDate: Date | null = null;
 
             if (allAwalAreDates) {
-                // Convert literal dates to relative day numbers
-                let minDate = new Date(rawItems[0].raw_h_awal);
-                for (const item of rawItems) {
+                minDate = rawItems.reduce<Date>((min, item) => {
                     const d = new Date(item.raw_h_awal);
-                    if (d < minDate) minDate = d;
-                }
+                    return d < min ? d : min;
+                }, new Date(rawItems[0].raw_h_awal));
 
                 dayItems = rawItems.map(item => {
-                    const startD = new Date(item.raw_h_awal);
-                    const endD = new Date(item.raw_h_akhir);
-                    
-                    const diffAwal = Math.floor((startD.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24));
-                    const diffAkhir = Math.floor((endD.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24));
-                    
+                    const diffAwal  = Math.floor((new Date(item.raw_h_awal).getTime() - minDate!.getTime()) / 86_400_000);
+                    const diffAkhir = Math.floor((new Date(item.raw_h_akhir).getTime() - minDate!.getTime()) / 86_400_000);
                     return {
                         kategori_pekerjaan: item.kategori_pekerjaan,
-                        h_awal: String(diffAwal + 1), // Day 1 is the minDate
+                        h_awal:  String(diffAwal  + 1),
                         h_akhir: String(diffAkhir + 1),
                         keterlambatan: item.keterlambatan,
-                        kecepatan: item.kecepatan
+                        kecepatan:     item.kecepatan,
                     };
                 });
             } else {
-                // Asumsikan data sudah berupa relative day (e.g. "1", "5")
                 dayItems = rawItems.map(item => ({
                     kategori_pekerjaan: item.kategori_pekerjaan,
-                    h_awal: item.raw_h_awal,
+                    h_awal:  item.raw_h_awal,
                     h_akhir: item.raw_h_akhir,
                     keterlambatan: item.keterlambatan,
-                    kecepatan: item.kecepatan
+                    kecepatan:     item.kecepatan,
                 }));
             }
 
-            const uniqueKategori = Array.from(new Set(dayItems.map(d => d.kategori_pekerjaan)));
+            // Tambahkan kategori yang muncul di day_items tapi belum ada di list
+            dayItems.forEach(d => {
+                if (!kategoriPekerjaan.includes(d.kategori_pekerjaan)) {
+                    kategoriPekerjaan.push(d.kategori_pekerjaan);
+                }
+            });
+            if (kategoriPekerjaan.length === 0) { skippedCount++; continue; }
 
+            // ─── 3. Pengawasan (Pengawasan_1 … Pengawasan_20) ────────────────────────
+            const pengawasanItems: { tanggal_pengawasan: string }[] = [];
+            for (let i = 1; i <= 20; i++) {
+                const pVal = String(gRow[`Pengawasan_${i}`] || "").trim();
+                if (!pVal) continue;
+
+                if (isDatePattern.test(pVal) || pVal.includes('/')) {
+                    // Sudah berupa tanggal
+                    const dateStr = parseDateString(pVal);
+                    if (dateStr) pengawasanItems.push({ tanggal_pengawasan: dateStr });
+                } else if (!isNaN(Number(pVal)) && minDate) {
+                    // Berupa indeks hari → konversi ke tanggal
+                    const pDate = new Date(minDate.getTime());
+                    pDate.setDate(pDate.getDate() + (Number(pVal) - 1));
+                    const yyyy = pDate.getFullYear();
+                    const mm   = String(pDate.getMonth() + 1).padStart(2, '0');
+                    const dd   = String(pDate.getDate()).padStart(2, '0');
+                    pengawasanItems.push({ tanggal_pengawasan: `${yyyy}-${mm}-${dd}` });
+                }
+            }
+
+            // ─── 4. Dependencies (dari sheet dependency_gantt) ───────────────────────
+            const depItems: { kategori_pekerjaan: string; kategori_pekerjaan_terikat: string }[] = [];
+            depRows
+                .filter(r =>
+                    String(r["Nomor Ulok"] || "").trim() === noUlok &&
+                    String(r["Lingkup_Pekerjaan"] || "").trim() === lingkup
+                )
+                .forEach(r => {
+                    const k1 = String(r["Kategori"] || "").trim();
+                    const k2 = String(r["Kategori_Terikat"] || "").trim();
+                    if (k1 && k2) depItems.push({ kategori_pekerjaan: k1, kategori_pekerjaan_terikat: k2 });
+                });
+
+            // ─── 5. Simpan ke DB ─────────────────────────────────────────────────────
             const ganttData = await ganttRepository.createWithDetails({
-                nomor_ulok: noUlok,
+                nomor_ulok:       noUlok,
                 lingkup_pekerjaan: lingkup,
-                nama_toko: "",
-                kode_toko: "",
-                proyek: "",
-                cabang: "",
-                email_pembuat: emailPembuat,
-                status: GANTT_STATUS.ACTIVE,
-                kategori_pekerjaan: uniqueKategori,
-                day_items: dayItems,
+                nama_toko:        String(gRow["Nama_Toko"]       || "").trim() || "Data Toko",
+                kode_toko:        String(gRow["Kode_Toko"]       || "").trim(),
+                proyek:           String(gRow["Proyek"]          || "").trim(),
+                cabang:           String(gRow["Cabang"]          || "").trim(),
+                email_pembuat:    String(gRow["Email_Pembuat"]   || emailPembuat).trim(),
+                status:           String(gRow["Status"]          || GANTT_STATUS.ACTIVE).trim().toLowerCase(),
+                kategori_pekerjaan: kategoriPekerjaan,
+                day_items:          dayItems,
+                pengawasan:         pengawasanItems,
+                dependencies:       depItems,
             });
 
             await releaseRabApprovalAfterGantt(ganttData.toko_id, "MIGRASI_SUPER_HUMAN");
@@ -665,9 +688,9 @@ export const ganttService = {
 
         return {
             inserted_count: insertedCount,
-            skipped_count: skippedCount,
-            total_groups: Object.keys(groups).length,
-            limit_applied: limit
+            skipped_count:  skippedCount,
+            total_groups:   ganttRows.length,
+            limit_applied:  limit,
         };
     }
 };
