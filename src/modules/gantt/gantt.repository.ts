@@ -195,6 +195,19 @@ export const ganttRepository = {
         return result.rows[0] ?? null;
     },
 
+    async findLatestByTokoId(tokoId: number): Promise<GanttRow | null> {
+        const result = await pool.query<GanttRow>(
+            `SELECT id, id_toko, status, email_pembuat, timestamp
+             FROM gantt_chart
+             WHERE id_toko = $1
+             ORDER BY id DESC
+             LIMIT 1`,
+            [tokoId]
+        );
+
+        return result.rows[0] ?? null;
+    },
+
     async listNotes(ganttId: string | number): Promise<GanttNoteRow[]> {
         const result = await pool.query<GanttNoteRow>(
             `SELECT id, id_gantt, author_email, author_name, author_role, note, created_at
@@ -284,9 +297,12 @@ export const ganttRepository = {
         kode_toko?: string | null;
         proyek?: string | null;
         cabang?: string | null;
+        alamat?: string | null;
+        nama_kontraktor?: string | null;
         // gantt
         email_pembuat: string;
         status: GanttStatus;
+        gantt_timestamp?: string | null;
         // children
         kategori_pekerjaan: string[];
         day_items: DayGanttItemInput[];
@@ -315,13 +331,17 @@ export const ganttRepository = {
                      SET nama_toko = COALESCE($1, nama_toko),
                          kode_toko = COALESCE($2, kode_toko),
                          proyek = COALESCE($3, proyek),
-                         cabang = COALESCE($4, cabang)
-                     WHERE id = $5`,
+                         cabang = COALESCE($4, cabang),
+                         alamat = COALESCE($5, alamat),
+                         nama_kontraktor = COALESCE($6, nama_kontraktor)
+                     WHERE id = $7`,
                     [
                         payload.nama_toko ?? null,
                         payload.kode_toko ?? null,
                         payload.proyek ?? null,
                         payload.cabang ?? null,
+                        payload.alamat ?? null,
+                        payload.nama_kontraktor ?? null,
                         tokoId
                     ]
                 );
@@ -329,8 +349,8 @@ export const ganttRepository = {
                 const insertedTokoRes = await client.query<{ id: number }>(
                     `INSERT INTO toko (
                         nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko,
-                        proyek, cabang
-                    ) VALUES ($1,$2,$3,$4,$5,$6)
+                        proyek, cabang, alamat, nama_kontraktor
+                    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
                     RETURNING id`,
                     [
                         payload.nomor_ulok,
@@ -338,7 +358,9 @@ export const ganttRepository = {
                         payload.nama_toko ?? null,
                         payload.kode_toko ?? null,
                         payload.proyek ?? null,
-                        payload.cabang ?? null
+                        payload.cabang ?? null,
+                        payload.alamat ?? null,
+                        payload.nama_kontraktor ?? null
                     ]
                 );
 
@@ -346,11 +368,12 @@ export const ganttRepository = {
             }
 
             // 2. Insert gantt_chart header
+            const tsParam = payload.gantt_timestamp || null;
             const ganttRes = await client.query<GanttRow>(
                 `INSERT INTO gantt_chart (id_toko, status, email_pembuat, timestamp)
-                 VALUES ($1, $2, $3, CURRENT_DATE)
+                 VALUES ($1, $2, $3, COALESCE($4::date, (NOW() AT TIME ZONE 'Asia/Jakarta')::date))
                  RETURNING *`,
-                [tokoId, payload.status, payload.email_pembuat]
+                [tokoId, payload.status, payload.email_pembuat, tsParam]
             );
             const gantt = ganttRes.rows[0];
 

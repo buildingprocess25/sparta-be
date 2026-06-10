@@ -480,8 +480,8 @@ export const ganttService = {
 
             const existingToko = await tokoRepository.findByNomorUlokAndLingkup(noUlok, lingkup);
             if (existingToko) {
-                const activeGantt = await ganttRepository.findLatestActiveByTokoId(existingToko.id);
-                if (activeGantt) {
+                const existingGantt = await ganttRepository.findLatestByTokoId(existingToko.id);
+                if (existingGantt) {
                     skippedCount++;
                     details.push({ nomor_ulok: noUlok, lingkup_pekerjaan: lingkup, status: "Di-skip (Sudah ada Gantt)", sheet_count: dayCount });
                     continue;
@@ -565,8 +565,8 @@ export const ganttService = {
             // Cek duplikasi
             const existingToko = await tokoRepository.findByNomorUlokAndLingkup(noUlok, lingkup);
             if (existingToko) {
-                const activeGantt = await ganttRepository.findLatestActiveByTokoId(existingToko.id);
-                if (activeGantt) { skippedCount++; continue; }
+                const existingGantt = await ganttRepository.findLatestByTokoId(existingToko.id);
+                if (existingGantt) { skippedCount++; continue; }
             }
 
             // ─── 1. Kategori Pekerjaan (dari kolom Kategori_1 … Kategori_30) ────────
@@ -668,13 +668,22 @@ export const ganttService = {
 
             // ─── 5. Simpan ke DB ─────────────────────────────────────────────────────
             const ganttData = await ganttRepository.createWithDetails({
-                nomor_ulok:       noUlok,
+                nomor_ulok:        noUlok,
                 lingkup_pekerjaan: lingkup,
-                nama_toko:        String(gRow["Nama_Toko"]       || "").trim() || "Data Toko",
-                kode_toko:        String(gRow["Kode_Toko"]       || "").trim(),
-                proyek:           String(gRow["Proyek"]          || "").trim(),
-                cabang:           String(gRow["Cabang"]          || "").trim(),
-                email_pembuat:    String(gRow["Email_Pembuat"]   || emailPembuat).trim(),
+                nama_toko:         String(gRow["Nama_Toko"]       || "").trim() || "Data Toko",
+                kode_toko:         String(gRow["Kode_Toko"]       || "").trim() || null,
+                proyek:            String(gRow["Proyek"]          || "").trim() || null,
+                cabang:            String(gRow["Cabang"]          || "").trim() || null,
+                alamat:            String(gRow["Alamat"]          || "").trim() || null,
+                nama_kontraktor:   String(gRow["Nama_Kontraktor"] || "").trim() || null,
+                email_pembuat:     String(gRow["Email_Pembuat"]   || emailPembuat).trim(),
+                gantt_timestamp:   (() => {
+                    const ts = String(gRow["Timestamp"] || "").trim();
+                    if (!ts) return null;
+                    // Timestamp bisa berupa ISO string: "2025-12-29T11:18:39..."
+                    const match = ts.match(/^(\d{4}-\d{2}-\d{2})/);
+                    return match ? match[1] : null;
+                })(),
                 status: (() => {
                     const raw = String(gRow["Status"] || "").trim().toLowerCase();
                     if (raw === GANTT_STATUS.TERKUNCI) return GANTT_STATUS.TERKUNCI;
