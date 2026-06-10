@@ -675,7 +675,11 @@ export const ganttService = {
                 proyek:           String(gRow["Proyek"]          || "").trim(),
                 cabang:           String(gRow["Cabang"]          || "").trim(),
                 email_pembuat:    String(gRow["Email_Pembuat"]   || emailPembuat).trim(),
-                status:           String(gRow["Status"]          || GANTT_STATUS.ACTIVE).trim().toLowerCase(),
+                status: (() => {
+                    const raw = String(gRow["Status"] || "").trim().toLowerCase();
+                    if (raw === GANTT_STATUS.TERKUNCI) return GANTT_STATUS.TERKUNCI;
+                    return GANTT_STATUS.ACTIVE;
+                })(),
                 kategori_pekerjaan: kategoriPekerjaan,
                 day_items:          dayItems,
                 pengawasan:         pengawasanItems,
