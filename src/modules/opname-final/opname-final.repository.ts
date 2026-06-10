@@ -667,6 +667,7 @@ export const opnameFinalRepository = {
                     grand_total_opname = $4,
                     grand_total_rab = $5,
                     status_opname_final = $6,
+                    tipe_opname = 'OPNAME_FINAL',
                     alasan_penolakan = NULL,
                     pemberi_persetujuan_direktur = NULL,
                     waktu_persetujuan_direktur = NULL,
