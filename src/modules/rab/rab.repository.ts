@@ -518,8 +518,8 @@ export const rabRepository = {
     }): Promise<RabRow & { toko_id: number }> {
         return withTransaction(async (client) => {
             // 1. Ambil toko by nomor_ulok+lingkup. Jika tidak ada, insert baru.
-            const existingTokoRes = await client.query<{ id: number }>(
-                `SELECT id
+            const existingTokoRes = await client.query<{ id: number; cabang: string | null; nama_toko: string | null }>(
+                `SELECT id, cabang, nama_toko
                  FROM toko
                  WHERE nomor_ulok = $1
                    AND LOWER(COALESCE(lingkup_pekerjaan, '')) = LOWER(COALESCE($2, ''))
@@ -532,7 +532,13 @@ export const rabRepository = {
             let tokoId: number;
 
             if ((existingTokoRes.rowCount ?? 0) > 0) {
-                tokoId = existingTokoRes.rows[0].id;
+                const existing = existingTokoRes.rows[0];
+                tokoId = existing.id;
+
+                if (existing.cabang && payload.cabang && existing.cabang.toUpperCase() !== payload.cabang.toUpperCase()) {
+                    throw new Error(`Gagal menyimpan RAB: Nomor ULOK ${payload.nomor_ulok} sudah terdaftar untuk cabang ${existing.cabang} (Toko: ${existing.nama_toko || '-'}). Anda mencoba menyimpan untuk cabang ${payload.cabang}. Harap periksa kembali Nomor ULOK Anda.`);
+                }
+
 
                 await client.query(
                     `UPDATE toko
