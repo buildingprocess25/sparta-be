@@ -586,19 +586,62 @@ export const ganttService = {
                 }
             }
 
-            const dayItems: DayGanttItemInput[] = groupRows.map((row) => {
+            // Kumpulkan semua raw data
+            const rawItems = groupRows.map((row) => {
+                const haStr = parseDateString(row["h_awal"]);
+                const hkStr = parseDateString(row["h_akhir"]);
                 return {
                     kategori_pekerjaan: String(row["Kategori"] || "").trim(),
-                    h_awal: parseDateString(row["h_awal"]),
-                    h_akhir: parseDateString(row["h_akhir"]),
+                    raw_h_awal: haStr,
+                    raw_h_akhir: hkStr,
                     keterlambatan: row["keterlambatan"] !== undefined && row["keterlambatan"] !== "" ? String(row["keterlambatan"]) : null,
                     kecepatan: row["kecepatan"] !== undefined && row["kecepatan"] !== "" ? String(row["kecepatan"]) : null,
                 };
-            }).filter(item => item.kategori_pekerjaan && item.h_awal && item.h_akhir);
+            }).filter(item => item.kategori_pekerjaan && item.raw_h_awal && item.raw_h_akhir);
 
-            if (dayItems.length === 0) {
+            if (rawItems.length === 0) {
                 skippedCount++;
                 continue;
+            }
+
+            // Cek apakah data di Excel berupa index relative day (angka biasa seperti "1", "10") atau tanggal aktual ("2025-12-29")
+            const isDatePattern = /^\d{4}-\d{2}-\d{2}$/;
+            const allAwalAreDates = rawItems.every(r => isDatePattern.test(r.raw_h_awal));
+            
+            let dayItems: DayGanttItemInput[] = [];
+
+            if (allAwalAreDates) {
+                // Convert literal dates to relative day numbers
+                let minDate = new Date(rawItems[0].raw_h_awal);
+                for (const item of rawItems) {
+                    const d = new Date(item.raw_h_awal);
+                    if (d < minDate) minDate = d;
+                }
+
+                dayItems = rawItems.map(item => {
+                    const startD = new Date(item.raw_h_awal);
+                    const endD = new Date(item.raw_h_akhir);
+                    
+                    const diffAwal = Math.floor((startD.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24));
+                    const diffAkhir = Math.floor((endD.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24));
+                    
+                    return {
+                        kategori_pekerjaan: item.kategori_pekerjaan,
+                        h_awal: String(diffAwal + 1), // Day 1 is the minDate
+                        h_akhir: String(diffAkhir + 1),
+                        keterlambatan: item.keterlambatan,
+                        kecepatan: item.kecepatan
+                    };
+                });
+            } else {
+                // Asumsikan data sudah berupa relative day (e.g. "1", "5")
+                dayItems = rawItems.map(item => ({
+                    kategori_pekerjaan: item.kategori_pekerjaan,
+                    h_awal: item.raw_h_awal,
+                    h_akhir: item.raw_h_akhir,
+                    keterlambatan: item.keterlambatan,
+                    kecepatan: item.kecepatan
+                }));
             }
 
             const uniqueKategori = Array.from(new Set(dayItems.map(d => d.kategori_pekerjaan)));
