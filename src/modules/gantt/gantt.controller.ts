@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { asyncHandler } from "../../common/async-handler";
+import { AppError } from "../../common/app-error";
 import {
     addDayItemsSchema,
     createGanttNoteSchema,
