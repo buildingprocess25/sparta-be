@@ -23,6 +23,34 @@ import type {
 // Service
 // ---------------------------------------------------------------------------
 
+const normalizeKategoriKey = (value: string) =>
+    value
+        .trim()
+        .replace(/\s*\/\s*/g, "/")
+        .replace(/\s+/g, " ")
+        .toUpperCase();
+
+const appendUniqueKategori = (kategoriList: string[], kategori: string) => {
+    const cleanKategori = kategori.trim();
+    const key = normalizeKategoriKey(cleanKategori);
+    if (!key) return;
+
+    const exists = kategoriList.some((existing) => normalizeKategoriKey(existing) === key);
+    if (!exists) kategoriList.push(cleanKategori);
+};
+
+const includeDependencyCategories = (
+    kategoriList: string[],
+    dependencies?: Array<{ kategori_pekerjaan: string; kategori_pekerjaan_terikat: string }>
+) => {
+    if (!dependencies) return;
+
+    dependencies.forEach((dependency) => {
+        appendUniqueKategori(kategoriList, dependency.kategori_pekerjaan);
+        appendUniqueKategori(kategoriList, dependency.kategori_pekerjaan_terikat);
+    });
+};
+
 const normalizeUpdateDayItems = (dayItems?: UpdateGanttInput["day_items"]): DayGanttItemInput[] | undefined => {
     if (!dayItems) return undefined;
 
@@ -86,6 +114,9 @@ const releaseRabApprovalAfterGantt = async (tokoId: number, source: string) => {
 
 export const ganttService = {
     async submit(payload: SubmitGanttInput) {
+        const kategoriPekerjaan = [...payload.kategori_pekerjaan];
+        includeDependencyCategories(kategoriPekerjaan, payload.dependencies);
+
         // 1. Jika sudah ada gantt aktif untuk ULOK ini, lakukan replace data (bukan create baru)
         const existingToko = await tokoRepository.findByNomorUlokAndLingkup(
             payload.nomor_ulok,
@@ -103,7 +134,7 @@ export const ganttService = {
                 });
 
                 await ganttRepository.updateWithDetails(String(activeGantt.id), {
-                    kategori_pekerjaan: payload.kategori_pekerjaan,
+                    kategori_pekerjaan: kategoriPekerjaan,
                     day_items: payload.day_items,
                     pengawasan: payload.pengawasan,
                     dependencies: payload.dependencies,
@@ -136,7 +167,7 @@ export const ganttService = {
             email_pembuat: payload.email_pembuat,
             status: GANTT_STATUS.ACTIVE,
             // children
-            kategori_pekerjaan: payload.kategori_pekerjaan,
+            kategori_pekerjaan: kategoriPekerjaan,
             day_items: payload.day_items,
             pengawasan: payload.pengawasan,
             dependencies: payload.dependencies
@@ -191,6 +222,9 @@ export const ganttService = {
         const normalizedKategoriPekerjaan =
             normalizeUpdateKategoriPekerjaan(payload.kategori_pekerjaan)
             ?? deriveKategoriPekerjaanFromDayItems(normalizedDayItems);
+        if (normalizedKategoriPekerjaan) {
+            includeDependencyCategories(normalizedKategoriPekerjaan, payload.dependencies);
+        }
         const normalizedPengawasan = normalizeUpdatePengawasan(payload.pengawasan);
 
         const shouldReplaceMainData = Boolean(
@@ -573,7 +607,7 @@ export const ganttService = {
             const kategoriPekerjaan: string[] = [];
             for (let i = 1; i <= 30; i++) {
                 const kName = String(gRow[`Kategori_${i}`] || "").trim();
-                if (kName && !kategoriPekerjaan.includes(kName)) kategoriPekerjaan.push(kName);
+                appendUniqueKategori(kategoriPekerjaan, kName);
             }
 
             // ─── 2. Day Items (dari sheet day_gantt_chart) ────────────────────────────
@@ -626,32 +660,12 @@ export const ganttService = {
 
             // Tambahkan kategori yang muncul di day_items tapi belum ada di list
             dayItems.forEach(d => {
-                if (!kategoriPekerjaan.includes(d.kategori_pekerjaan)) {
-                    kategoriPekerjaan.push(d.kategori_pekerjaan);
-                }
+                appendUniqueKategori(kategoriPekerjaan, d.kategori_pekerjaan);
             });
             if (kategoriPekerjaan.length === 0) { skippedCount++; continue; }
 
-            // ─── 3. Pengawasan (Pengawasan_1 … Pengawasan_20) ────────────────────────
+            // Kolom Pengawasan_1 ... Pengawasan_20 pada sheet migrasi diabaikan.
             const pengawasanItems: { tanggal_pengawasan: string }[] = [];
-            for (let i = 1; i <= 20; i++) {
-                const pVal = String(gRow[`Pengawasan_${i}`] || "").trim();
-                if (!pVal) continue;
-
-                if (isDatePattern.test(pVal) || pVal.includes('/')) {
-                    // Sudah berupa tanggal
-                    const dateStr = parseDateString(pVal);
-                    if (dateStr) pengawasanItems.push({ tanggal_pengawasan: dateStr });
-                } else if (!isNaN(Number(pVal)) && minDate) {
-                    // Berupa indeks hari → konversi ke tanggal
-                    const pDate = new Date(minDate.getTime());
-                    pDate.setDate(pDate.getDate() + (Number(pVal) - 1));
-                    const yyyy = pDate.getFullYear();
-                    const mm   = String(pDate.getMonth() + 1).padStart(2, '0');
-                    const dd   = String(pDate.getDate()).padStart(2, '0');
-                    pengawasanItems.push({ tanggal_pengawasan: `${yyyy}-${mm}-${dd}` });
-                }
-            }
 
             // ─── 4. Dependencies (dari sheet dependency_gantt) ───────────────────────
             const depItems: { kategori_pekerjaan: string; kategori_pekerjaan_terikat: string }[] = [];
@@ -665,6 +679,7 @@ export const ganttService = {
                     const k2 = String(r["Kategori_Terikat"] || "").trim();
                     if (k1 && k2) depItems.push({ kategori_pekerjaan: k1, kategori_pekerjaan_terikat: k2 });
                 });
+            includeDependencyCategories(kategoriPekerjaan, depItems);
 
             // ─── 5. Simpan ke DB ─────────────────────────────────────────────────────
             const ganttData = await ganttRepository.createWithDetails({

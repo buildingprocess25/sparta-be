@@ -86,6 +86,16 @@ const GANTT_COLUMNS = `
     g.id, g.id_toko, g.status, g.email_pembuat, g.timestamp
 `;
 
+const normalizeKategoriKey = (value: string) =>
+    value
+        .trim()
+        .replace(/\s*\/\s*/g, "/")
+        .replace(/\s+/g, " ")
+        .toUpperCase();
+
+const getKategoriId = (kategoriMap: Map<string, number>, kategori: string) =>
+    kategoriMap.get(normalizeKategoriKey(kategori));
+
 /**
  * Insert kategori pekerjaan dan return map nama -> id
  */
@@ -96,13 +106,16 @@ const insertKategoriPekerjaan = async (
 ): Promise<Map<string, number>> => {
     const kategoriMap = new Map<string, number>();
     for (const kategori of kategoriList) {
+        const kategoriKey = normalizeKategoriKey(kategori);
+        if (!kategoriKey || kategoriMap.has(kategoriKey)) continue;
+
         const res = await client.query<{ id: number }>(
             `INSERT INTO kategori_pekerjaan_gantt (id_gantt, kategori_pekerjaan)
              VALUES ($1, $2)
              RETURNING id`,
             [ganttId, kategori]
         );
-        kategoriMap.set(kategori, res.rows[0].id);
+        kategoriMap.set(kategoriKey, res.rows[0].id);
     }
     return kategoriMap;
 };
@@ -117,7 +130,7 @@ const insertDayItems = async (
     kategoriMap: Map<string, number>
 ): Promise<void> => {
     for (const item of dayItems) {
-        const kategoriId = kategoriMap.get(item.kategori_pekerjaan);
+        const kategoriId = getKategoriId(kategoriMap, item.kategori_pekerjaan);
         if (!kategoriId) continue;
 
         await client.query(
@@ -164,8 +177,8 @@ const insertDependencies = async (
     kategoriMap: Map<string, number>
 ): Promise<void> => {
     for (const dep of dependencies) {
-        const idKategori = kategoriMap.get(dep.kategori_pekerjaan);
-        const idKategoriTerikat = kategoriMap.get(dep.kategori_pekerjaan_terikat);
+        const idKategori = getKategoriId(kategoriMap, dep.kategori_pekerjaan);
+        const idKategoriTerikat = getKategoriId(kategoriMap, dep.kategori_pekerjaan_terikat);
         if (!idKategori || !idKategoriTerikat) continue;
 
         await client.query(
@@ -706,7 +719,7 @@ export const ganttRepository = {
         );
         const map = new Map<string, number>();
         for (const row of result.rows) {
-            map.set(row.kategori_pekerjaan, row.id);
+            map.set(normalizeKategoriKey(row.kategori_pekerjaan), row.id);
         }
         return map;
     },
@@ -720,7 +733,7 @@ export const ganttRepository = {
         let inserted = 0;
 
         for (const item of dayItems) {
-            const kategoriId = kategoriMap.get(item.kategori_pekerjaan);
+            const kategoriId = getKategoriId(kategoriMap, item.kategori_pekerjaan);
             if (!kategoriId) continue;
 
             await pool.query(
