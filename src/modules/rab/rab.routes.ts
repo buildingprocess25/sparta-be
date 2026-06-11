@@ -14,6 +14,7 @@ import {
 	updateRabItemsBulk,
 	updateRabStatus,
 } from "./rab.controller";
+import { commitRabMigration, previewRabMigration } from "./rab-migration.controller";
 
 const rabRouter = Router();
 const RAB_UPLOAD_LIMIT_BYTES = 10 * 1024 * 1024;
@@ -22,6 +23,13 @@ const rabUpload = multer({
 	limits: {
 		fileSize: RAB_UPLOAD_LIMIT_BYTES,
 		fieldSize: RAB_UPLOAD_LIMIT_BYTES,
+	}
+});
+const rabMigrationUpload = multer({
+	storage: multer.memoryStorage(),
+	limits: {
+		fileSize: 50 * 1024 * 1024,
+		fieldSize: 10 * 1024 * 1024,
 	}
 });
 
@@ -35,6 +43,8 @@ rabRouter.post(
 	submitRab
 );
 rabRouter.get("/", listRab);
+rabRouter.post("/migration/preview", rabMigrationUpload.single("file"), previewRabMigration);
+rabRouter.post("/migration/commit", rabMigrationUpload.single("file"), commitRabMigration);
 rabRouter.get("/:id", getRabById);
 rabRouter.put("/:id/items", updateRabItemsBulk);
 rabRouter.put("/:id/items/replace", replaceRabItems);
