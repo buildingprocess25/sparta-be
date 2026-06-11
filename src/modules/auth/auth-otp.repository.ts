@@ -6,9 +6,9 @@ type AuthOtpRow = {
     cabang: string;
     otp_hash: string;
     otp_token: string;
-    expires_at: Date;
-    created_at: Date;
-    consumed_at: Date | null;
+    expires_at: Date | string;
+    created_at: Date | string;
+    consumed_at: Date | string | null;
 };
 
 export const authOtpRepository = {

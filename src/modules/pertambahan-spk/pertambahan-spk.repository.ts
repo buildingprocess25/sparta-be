@@ -140,7 +140,7 @@ export const pertambahanSpkRepository = {
                 ${PERTAMBAHAN_SPK_DETAIL_COLUMNS}
             FROM pertambahan_spk p
             LEFT JOIN pengajuan_spk s ON s.id = p.id_spk
-            LEFT JOIN toko t ON t.nomor_ulok = s.nomor_ulok
+            LEFT JOIN toko t ON t.id = s.id_toko
             WHERE p.id_spk = $1
               AND p.status_persetujuan = 'Ditolak BM'
             ORDER BY p.created_at DESC
@@ -215,7 +215,7 @@ export const pertambahanSpkRepository = {
                 ${PERTAMBAHAN_SPK_DETAIL_COLUMNS}
             FROM pertambahan_spk p
             LEFT JOIN pengajuan_spk s ON s.id = p.id_spk
-            LEFT JOIN toko t ON t.nomor_ulok = s.nomor_ulok
+            LEFT JOIN toko t ON t.id = s.id_toko
             ${whereClause}
             ORDER BY p.created_at DESC
             `,
@@ -232,7 +232,7 @@ export const pertambahanSpkRepository = {
                 ${PERTAMBAHAN_SPK_DETAIL_COLUMNS}
             FROM pertambahan_spk p
             LEFT JOIN pengajuan_spk s ON s.id = p.id_spk
-            LEFT JOIN toko t ON t.nomor_ulok = s.nomor_ulok
+            LEFT JOIN toko t ON t.id = s.id_toko
             WHERE p.id = $1
             `,
             [id]

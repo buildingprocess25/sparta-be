@@ -78,6 +78,12 @@ const hashOtpCode = (otpCode: string) => {
     return crypto.createHash("sha256").update(otpCode).digest("hex");
 };
 
+const toTimestampMs = (value: Date | string): number => {
+    if (value instanceof Date) return value.getTime();
+    const parsed = new Date(value);
+    return parsed.getTime();
+};
+
 export const authOtpService = {
     async createAndSend(input: { email_sat: string; cabang: string; nama_lengkap?: string | null }) {
         const otpCode = generateOtpCode();
@@ -139,7 +145,12 @@ export const authOtpService = {
             throw new AppError("OTP tidak ditemukan atau sudah digunakan", 401);
         }
 
-        if (record.expires_at.getTime() < Date.now()) {
+        const expiresAtMs = toTimestampMs(record.expires_at);
+        if (Number.isNaN(expiresAtMs)) {
+            throw new AppError("Waktu kadaluarsa OTP tidak valid", 500);
+        }
+
+        if (expiresAtMs < Date.now()) {
             throw new AppError("OTP sudah kadaluarsa", 401);
         }
 

@@ -3,6 +3,7 @@ import { GoogleProvider } from "../../common/google";
 import { renderHtmlTemplate, resolveTemplatePath } from "../../common/html-pdf";
 import { env } from "../../config/env";
 import { rabRepository } from "../rab/rab.repository";
+import { spkRepository } from "../spk/spk.repository";
 import { userCabangRepository } from "../user-cabang/user-cabang.repository";
 import type { SendEmailNotificationInput } from "./email-notification.schema";
 
@@ -85,6 +86,14 @@ const normalizeEmailList = (emails: Array<string | null | undefined>) => {
     return Array.from(new Set(cleaned));
 };
 
+const normalizeCompanyName = (value?: string | null): string =>
+    String(value ?? "")
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "")
+        .replace(/\b(PT|CV)\b/g, "")
+        .replace(/^(PT|CV)/, "")
+        .replace(/(PT|CV)$/, "");
+
 const buildRawEmail = (input: { from: string; to: string; cc?: string; subject: string; html: string }) => {
     const encodedHtml = wrapBase64(Buffer.from(input.html, "utf-8").toString("base64"));
     const message = [
@@ -116,9 +125,19 @@ export const emailNotificationService = {
         }
 
         const isKontraktorTarget = templateConfig.targetJabatan.toUpperCase() === "KONTRAKTOR";
+        const shouldUseSpkContractorEmails =
+            Boolean(payload.id_spk) &&
+            (payload.flag === "notification-spk-has-approve" || payload.flag === "notification-spk-has-reject");
         const shouldUseRabEmails =
+            !shouldUseSpkContractorEmails &&
             Boolean(payload.id_toko) &&
             (payload.flag === "notification-spk-has-approve" || payload.flag === "notification-spk-has-reject");
+        const spkData = shouldUseSpkContractorEmails
+            ? await spkRepository.findById(String(payload.id_spk))
+            : null;
+        if (shouldUseSpkContractorEmails && !spkData) {
+            throw new AppError(`SPK dengan id ${payload.id_spk} tidak ditemukan`, 404);
+        }
         const rabData = shouldUseRabEmails
             ? await rabRepository.findLatestByTokoId(payload.id_toko as number)
             : null;
@@ -126,21 +145,31 @@ export const emailNotificationService = {
             throw new AppError(`RAB untuk id_toko ${payload.id_toko} tidak ditemukan`, 404);
         }
 
-        const targetUsers = !shouldUseRabEmails && isKontraktorTarget
+        const targetUsers = !shouldUseRabEmails && !shouldUseSpkContractorEmails && isKontraktorTarget
             ? await userCabangRepository.findAll({ cabang: payload.cabang, jabatan: templateConfig.targetJabatan })
             : [];
-        const targetUser = !shouldUseRabEmails && !isKontraktorTarget
+        const spkContractorUsers = shouldUseSpkContractorEmails && isKontraktorTarget
+            ? (await userCabangRepository.findAll({ cabang: payload.cabang, jabatan: templateConfig.targetJabatan }))
+                .filter((user) => normalizeCompanyName(user.nama_pt) === normalizeCompanyName(spkData?.pengajuan.nama_kontraktor))
+            : [];
+        const targetUser = !shouldUseRabEmails && !shouldUseSpkContractorEmails && !isKontraktorTarget
             ? await userCabangRepository.findByCabangAndJabatan(payload.cabang, templateConfig.targetJabatan)
             : null;
 
-        if (!shouldUseRabEmails && !targetUser && targetUsers.length === 0) {
+        if (!shouldUseRabEmails && !shouldUseSpkContractorEmails && !targetUser && targetUsers.length === 0) {
             throw new AppError(
                 `User dengan jabatan "${templateConfig.targetJabatan}" untuk cabang tersebut tidak ditemukan`,
                 404
             );
         }
+        if (shouldUseSpkContractorEmails && spkContractorUsers.length === 0) {
+            throw new AppError(
+                `User kontraktor untuk ${spkData?.pengajuan.nama_kontraktor ?? "-"} di cabang ${payload.cabang} tidak ditemukan`,
+                404
+            );
+        }
 
-        const ccUser = !shouldUseRabEmails && templateConfig.ccJabatan
+        const ccUser = !shouldUseRabEmails && !shouldUseSpkContractorEmails && templateConfig.ccJabatan
             ? await userCabangRepository.findByCabangAndJabatan(payload.cabang, templateConfig.ccJabatan)
             : null;
 
@@ -167,6 +196,8 @@ export const emailNotificationService = {
 
         const targetEmails = shouldUseRabEmails
             ? normalizeEmailList([rabData?.email_pembuat])
+            : shouldUseSpkContractorEmails
+                ? normalizeEmailList(spkContractorUsers.map((user) => user.email_sat))
             : normalizeEmailList(
                   isKontraktorTarget
                       ? targetUsers.map((user) => user.email_sat)
@@ -177,6 +208,8 @@ export const emailNotificationService = {
             throw new AppError(
                 shouldUseRabEmails
                     ? `Email pembuat RAB untuk id_toko ${payload.id_toko} tidak ditemukan`
+                    : shouldUseSpkContractorEmails
+                        ? `Email kontraktor SPK id ${payload.id_spk} tidak ditemukan`
                     : `User dengan jabatan "${templateConfig.targetJabatan}" untuk cabang tersebut tidak ditemukan`,
                 404
             );
