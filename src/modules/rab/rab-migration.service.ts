@@ -83,7 +83,28 @@ type Candidate = {
 type ExistingRab = {
     existing_toko_id: number | null;
     existing_rab_id: number | null;
+    existing_created_at: string | null;
     existing_item_count: number;
+};
+
+let rabCreatedAtColumnCache: boolean | null = null;
+
+const ensureRabCreatedAtColumnKnown = async (db: PoolClient | typeof pool): Promise<boolean> => {
+    if (rabCreatedAtColumnCache !== null) return rabCreatedAtColumnCache;
+
+    const columnCheck = await db.query<{ exists: boolean }>(
+        `
+        SELECT EXISTS (
+            SELECT 1
+            FROM pg_attribute
+            WHERE attrelid = 'rab'::regclass
+              AND attname = 'created_at'
+              AND NOT attisdropped
+        ) AS exists
+        `
+    );
+    rabCreatedAtColumnCache = columnCheck.rows[0]?.exists ?? false;
+    return rabCreatedAtColumnCache;
 };
 
 const REQUIRED_SHEETS = ["toko", "rab", "rab_item"];
@@ -268,32 +289,39 @@ const parseWorkbook = (buffer: Buffer): Candidate[] => {
 
 const findExistingRab = async (candidate: Candidate, client?: PoolClient): Promise<ExistingRab> => {
     if (!candidate.toko) {
-        return { existing_toko_id: null, existing_rab_id: null, existing_item_count: 0 };
+        return { existing_toko_id: null, existing_rab_id: null, existing_created_at: null, existing_item_count: 0 };
     }
 
     const db = client ?? pool;
+    await ensureRabCreatedAtColumnKnown(db);
+
+    const createdAtSelect = rabCreatedAtColumnCache ? "r.created_at AS rab_created_at," : "NULL::timestamp AS rab_created_at,";
+    const createdAtInnerSelect = rabCreatedAtColumnCache ? "id, created_at" : "id";
+    const createdAtOrder = rabCreatedAtColumnCache ? "created_at DESC," : "";
     const result = await db.query<{
         toko_id: number;
         rab_id: number | null;
+        rab_created_at: string | null;
         item_count: string | number | null;
     }>(
         `
         SELECT
             t.id AS toko_id,
             r.id AS rab_id,
+            ${createdAtSelect}
             COUNT(ri.id) AS item_count
         FROM toko t
         LEFT JOIN LATERAL (
-            SELECT id
+            SELECT ${createdAtInnerSelect}
             FROM rab
             WHERE id_toko = t.id
-            ORDER BY created_at DESC, id DESC
+            ORDER BY ${createdAtOrder} id DESC
             LIMIT 1
         ) r ON TRUE
         LEFT JOIN rab_item ri ON ri.id_rab = r.id
         WHERE t.nomor_ulok = $1
           AND LOWER(COALESCE(t.lingkup_pekerjaan, '')) = LOWER(COALESCE($2, ''))
-        GROUP BY t.id, r.id
+        GROUP BY 1, 2, 3
         ORDER BY t.id DESC
         LIMIT 1
         `,
@@ -301,13 +329,92 @@ const findExistingRab = async (candidate: Candidate, client?: PoolClient): Promi
     );
 
     const row = result.rows[0];
-    if (!row) return { existing_toko_id: null, existing_rab_id: null, existing_item_count: 0 };
+    if (!row) return { existing_toko_id: null, existing_rab_id: null, existing_created_at: null, existing_item_count: 0 };
 
     return {
         existing_toko_id: row.toko_id,
         existing_rab_id: row.rab_id,
+        existing_created_at: row.rab_created_at ?? null,
         existing_item_count: Number(row.item_count ?? 0)
     };
+};
+
+const existingKey = (nomorUlok: string, lingkup?: string | null) =>
+    `${nomorUlok.trim()}\u0000${String(lingkup ?? "").trim().toLowerCase()}`;
+
+const findExistingRabs = async (candidates: Candidate[]): Promise<Map<string, ExistingRab>> => {
+    const validCandidates = candidates.filter((candidate): candidate is Candidate & { toko: SourceToko } => Boolean(candidate.toko));
+    const resultMap = new Map<string, ExistingRab>();
+    if (validCandidates.length === 0) return resultMap;
+
+    await ensureRabCreatedAtColumnKnown(pool);
+    const createdAtSelect = rabCreatedAtColumnCache ? "r.created_at AS rab_created_at," : "NULL::timestamp AS rab_created_at,";
+    const createdAtInnerSelect = rabCreatedAtColumnCache ? "id, created_at" : "id";
+    const createdAtOrder = rabCreatedAtColumnCache ? "created_at DESC," : "";
+
+    const uniqueKeys = new Set<string>();
+    const values: string[] = [];
+    const placeholders: string[] = [];
+    for (const candidate of validCandidates) {
+        const key = existingKey(candidate.toko.nomor_ulok, candidate.toko.lingkup_pekerjaan);
+        if (uniqueKeys.has(key)) continue;
+        uniqueKeys.add(key);
+        const base = values.length;
+        placeholders.push(`($${base + 1}, $${base + 2})`);
+        values.push(candidate.toko.nomor_ulok, candidate.toko.lingkup_pekerjaan ?? "");
+    }
+
+    const existingRows = await pool.query<{
+        nomor_ulok: string;
+        lingkup_pekerjaan: string;
+        toko_id: number | null;
+        rab_id: number | null;
+        rab_created_at: string | null;
+        item_count: string | number | null;
+    }>(
+        `
+        WITH wanted(nomor_ulok, lingkup_pekerjaan) AS (
+            VALUES ${placeholders.join(", ")}
+        )
+        SELECT
+            w.nomor_ulok,
+            w.lingkup_pekerjaan,
+            t.id AS toko_id,
+            r.id AS rab_id,
+            ${createdAtSelect}
+            COUNT(ri.id) AS item_count
+        FROM wanted w
+        LEFT JOIN LATERAL (
+            SELECT id
+            FROM toko
+            WHERE nomor_ulok = w.nomor_ulok
+              AND LOWER(COALESCE(lingkup_pekerjaan, '')) = LOWER(COALESCE(w.lingkup_pekerjaan, ''))
+            ORDER BY id DESC
+            LIMIT 1
+        ) t ON TRUE
+        LEFT JOIN LATERAL (
+            SELECT ${createdAtInnerSelect}
+            FROM rab
+            WHERE id_toko = t.id
+            ORDER BY ${createdAtOrder} id DESC
+            LIMIT 1
+        ) r ON TRUE
+        LEFT JOIN rab_item ri ON ri.id_rab = r.id
+        GROUP BY 1, 2, 3, 4, 5
+        `,
+        values
+    );
+
+    for (const row of existingRows.rows) {
+        resultMap.set(existingKey(row.nomor_ulok, row.lingkup_pekerjaan), {
+            existing_toko_id: row.toko_id,
+            existing_rab_id: row.rab_id,
+            existing_created_at: row.rab_created_at ?? null,
+            existing_item_count: Number(row.item_count ?? 0)
+        });
+    }
+
+    return resultMap;
 };
 
 const insertOrUpdateToko = async (
@@ -369,6 +476,67 @@ const insertOrUpdateToko = async (
 };
 
 const insertRab = async (client: PoolClient, tokoId: number, rab: SourceRab): Promise<number> => {
+    if (!rabCreatedAtColumnCache) {
+        const result = await client.query<{ id: number }>(
+            `
+            INSERT INTO rab (
+                id_toko, status, nama_pt, link_pdf_gabungan, link_pdf_non_sbo,
+                link_pdf_rekapitulasi, link_pdf_sph, logo, email_pembuat,
+                pemberi_persetujuan_direktur, waktu_persetujuan_direktur,
+                pemberi_persetujuan_koordinator, waktu_persetujuan_koordinator,
+                pemberi_persetujuan_manager, waktu_persetujuan_manager,
+                alasan_penolakan, waktu_penolakan, ditolak_oleh, durasi_pekerjaan,
+                kategori_lokasi, no_polis, berlaku_polis, file_asuransi,
+                luas_bangunan, luas_terbangun, luas_area_terbuka, luas_area_parkir,
+                luas_area_sales, luas_gudang, grand_total, grand_total_non_sbo,
+                grand_total_final
+            ) VALUES (
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+                $11::timestamp, $12, $13::timestamp, $14, $15::timestamp,
+                $16, $17::timestamp, $18, $19, $20, $21, $22, $23,
+                $24, $25, $26, $27, $28, $29, $30, $31, $32
+            )
+            RETURNING id
+            `,
+            [
+                tokoId,
+                rab.status,
+                rab.nama_pt,
+                rab.link_pdf_gabungan,
+                rab.link_pdf_non_sbo,
+                rab.link_pdf_rekapitulasi,
+                rab.link_pdf_sph,
+                rab.logo,
+                rab.email_pembuat,
+                rab.pemberi_persetujuan_direktur,
+                rab.waktu_persetujuan_direktur,
+                rab.pemberi_persetujuan_koordinator,
+                rab.waktu_persetujuan_koordinator,
+                rab.pemberi_persetujuan_manager,
+                rab.waktu_persetujuan_manager,
+                rab.alasan_penolakan,
+                rab.waktu_penolakan,
+                rab.ditolak_oleh,
+                rab.durasi_pekerjaan,
+                rab.kategori_lokasi,
+                rab.no_polis,
+                rab.berlaku_polis,
+                rab.file_asuransi,
+                rab.luas_bangunan,
+                rab.luas_terbangun,
+                rab.luas_area_terbuka,
+                rab.luas_area_parkir,
+                rab.luas_area_sales,
+                rab.luas_gudang,
+                rab.grand_total,
+                rab.grand_total_non_sbo,
+                rab.grand_total_final
+            ]
+        );
+
+        return result.rows[0].id;
+    }
+
     const result = await client.query<{ id: number }>(
         `
         INSERT INTO rab (
@@ -432,6 +600,48 @@ const insertRab = async (client: PoolClient, tokoId: number, rab: SourceRab): Pr
 };
 
 const updateRab = async (client: PoolClient, rabId: number, rab: SourceRab): Promise<void> => {
+    const createdAtSet = rabCreatedAtColumnCache
+        ? `,
+            created_at = COALESCE($32::timestamp, created_at)`
+        : "";
+
+    const values: Array<string | number | null> = [
+        rab.status,
+        rab.nama_pt,
+        rab.link_pdf_gabungan,
+        rab.link_pdf_non_sbo,
+        rab.link_pdf_rekapitulasi,
+        rab.link_pdf_sph,
+        rab.logo,
+        rab.email_pembuat,
+        rab.pemberi_persetujuan_direktur,
+        rab.waktu_persetujuan_direktur,
+        rab.pemberi_persetujuan_koordinator,
+        rab.waktu_persetujuan_koordinator,
+        rab.pemberi_persetujuan_manager,
+        rab.waktu_persetujuan_manager,
+        rab.alasan_penolakan,
+        rab.waktu_penolakan,
+        rab.ditolak_oleh,
+        rab.durasi_pekerjaan,
+        rab.kategori_lokasi,
+        rab.no_polis,
+        rab.berlaku_polis,
+        rab.file_asuransi,
+        rab.luas_bangunan,
+        rab.luas_terbangun,
+        rab.luas_area_terbuka,
+        rab.luas_area_parkir,
+        rab.luas_area_sales,
+        rab.luas_gudang,
+        rab.grand_total,
+        rab.grand_total_non_sbo,
+        rab.grand_total_final
+    ];
+
+    if (rabCreatedAtColumnCache) values.push(rab.created_at);
+    values.push(rabId);
+
     await client.query(
         `
         UPDATE rab
@@ -466,42 +676,10 @@ const updateRab = async (client: PoolClient, rabId: number, rab: SourceRab): Pro
             grand_total = $29,
             grand_total_non_sbo = $30,
             grand_total_final = $31
-        WHERE id = $32
+            ${createdAtSet}
+        WHERE id = $${values.length}
         `,
-        [
-            rab.status,
-            rab.nama_pt,
-            rab.link_pdf_gabungan,
-            rab.link_pdf_non_sbo,
-            rab.link_pdf_rekapitulasi,
-            rab.link_pdf_sph,
-            rab.logo,
-            rab.email_pembuat,
-            rab.pemberi_persetujuan_direktur,
-            rab.waktu_persetujuan_direktur,
-            rab.pemberi_persetujuan_koordinator,
-            rab.waktu_persetujuan_koordinator,
-            rab.pemberi_persetujuan_manager,
-            rab.waktu_persetujuan_manager,
-            rab.alasan_penolakan,
-            rab.waktu_penolakan,
-            rab.ditolak_oleh,
-            rab.durasi_pekerjaan,
-            rab.kategori_lokasi,
-            rab.no_polis,
-            rab.berlaku_polis,
-            rab.file_asuransi,
-            rab.luas_bangunan,
-            rab.luas_terbangun,
-            rab.luas_area_terbuka,
-            rab.luas_area_parkir,
-            rab.luas_area_sales,
-            rab.luas_gudang,
-            rab.grand_total,
-            rab.grand_total_non_sbo,
-            rab.grand_total_final,
-            rabId
-        ]
+        values
     );
 };
 
@@ -575,6 +753,29 @@ const applyCandidate = async (
         throw new AppError(`RAB existing untuk source ${candidate.source_rab_id} tidak ditemukan. Gunakan insert.`, 404);
     }
 
+    if (action === "update_created_at") {
+        if (!rabCreatedAtColumnCache) {
+            throw new AppError("Kolom rab.created_at belum tersedia. Jalankan migration add-rab-created-at terlebih dahulu.", 409);
+        }
+        if (!candidate.rab.created_at) {
+            throw new AppError(`RAB source ${candidate.source_rab_id} tidak memiliki created_at di Excel`, 422);
+        }
+
+        const rabId = existing.existing_rab_id!;
+        await client.query(
+            `UPDATE rab SET created_at = $1::timestamp WHERE id = $2`,
+            [candidate.rab.created_at, rabId]
+        );
+
+        return {
+            action,
+            source_rab_id: candidate.source_rab_id,
+            target_rab_id: rabId,
+            item_count: 0,
+            status: "updated_created_at"
+        };
+    }
+
     if (action === "insert") {
         const tokoId = await insertOrUpdateToko(client, candidate.toko, existing.existing_toko_id, false);
         const rabId = await insertRab(client, tokoId, candidate.rab);
@@ -613,23 +814,31 @@ export const rabMigrationService = {
         }
 
         const candidates = parseWorkbook(buffer);
+        const existingByKey = await findExistingRabs(candidates);
         const details = [];
         let readyCount = 0;
         let conflictCount = 0;
+        let missingCreatedAtCount = 0;
         let invalidCount = 0;
         let totalItems = 0;
 
         for (const candidate of candidates) {
             totalItems += candidate.items.length;
-            const existing = await findExistingRab(candidate);
+            const existing = candidate.toko
+                ? existingByKey.get(existingKey(candidate.toko.nomor_ulok, candidate.toko.lingkup_pekerjaan))
+                    ?? { existing_toko_id: null, existing_rab_id: null, existing_created_at: null, existing_item_count: 0 }
+                : { existing_toko_id: null, existing_rab_id: null, existing_created_at: null, existing_item_count: 0 };
             const state = candidate.issues.length > 0
                 ? "invalid"
                 : existing.existing_rab_id
-                    ? "conflict"
+                    ? existing.existing_created_at
+                        ? "conflict"
+                        : "missing_created_at"
                     : "ready";
 
             if (state === "ready") readyCount += 1;
             if (state === "conflict") conflictCount += 1;
+            if (state === "missing_created_at") missingCreatedAtCount += 1;
             if (state === "invalid") invalidCount += 1;
 
             details.push({
@@ -645,6 +854,7 @@ export const rabMigrationService = {
                 db_state: state,
                 existing_toko_id: existing.existing_toko_id,
                 existing_rab_id: existing.existing_rab_id,
+                existing_created_at: existing.existing_created_at,
                 existing_item_count: existing.existing_item_count,
                 issues: candidate.issues
             });
@@ -655,6 +865,7 @@ export const rabMigrationService = {
             total_items: totalItems,
             ready_count: readyCount,
             conflict_count: conflictCount,
+            missing_created_at_count: missingCreatedAtCount,
             invalid_count: invalidCount,
             ignored_sheets: ["RAB import ", "RAB ITEM Import"].filter(Boolean),
             details
@@ -701,6 +912,7 @@ export const rabMigrationService = {
 
         const inserted = results.filter((row) => row.status === "inserted").length;
         const replaced = results.filter((row) => row.status === "replaced").length;
+        const updatedCreatedAt = results.filter((row) => row.status === "updated_created_at").length;
         const skipped = results.filter((row) => row.status === "skipped").length;
         const itemCount = results.reduce((sum, row) => sum + row.item_count, 0);
 
@@ -708,6 +920,7 @@ export const rabMigrationService = {
             total_selected: input.selections.length,
             inserted,
             replaced,
+            updated_created_at: updatedCreatedAt,
             skipped,
             migrated_items: itemCount,
             details: results

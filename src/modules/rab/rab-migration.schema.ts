@@ -3,6 +3,7 @@ import { z } from "zod";
 export const rabMigrationActionSchema = z.enum([
     "insert",
     "skip",
+    "update_created_at",
     "replace_rab_items",
     "replace_toko_rab_items",
     "replace_items"
