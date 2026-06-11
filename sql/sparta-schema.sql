@@ -1041,9 +1041,9 @@ CREATE TABLE IF NOT EXISTS instruksi_lapangan_item (
     volume DOUBLE PRECISION,
     harga_material INTEGER,
     harga_upah INTEGER,
-    total_material INTEGER,
-    total_upah INTEGER,
-    total_harga INTEGER,
+    total_material NUMERIC(18,2),
+    total_upah NUMERIC(18,2),
+    total_harga NUMERIC(18,2),
     CONSTRAINT fk_instruksi_lapangan_item_header FOREIGN KEY (id_instruksi_lapangan) REFERENCES instruksi_lapangan(id) ON DELETE CASCADE
 );
 

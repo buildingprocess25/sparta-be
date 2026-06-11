@@ -10,7 +10,7 @@ type BuildInstruksiLapanganPdfInput = {
     toko: TokoRow;
 };
 
-const rupiah = (value: number): string => {
+const rupiah = (value: number | string): string => {
     return new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(Number(value) || 0);
 };
 
@@ -97,9 +97,9 @@ const buildGroupedItems = (items: InstruksiLapanganItemRow[]) => {
             totalHargaFormatted: rupiah(item.total_harga),
             catatan: ""
         });
-        group.subTotalMaterial += item.total_material;
-        group.subTotalUpah += item.total_upah;
-        group.subTotalHarga += item.total_harga;
+        group.subTotalMaterial += Number(item.total_material || 0);
+        group.subTotalUpah += Number(item.total_upah || 0);
+        group.subTotalHarga += Number(item.total_harga || 0);
     }
     return Array.from(grouped.values()).map((group) => ({
         ...group,

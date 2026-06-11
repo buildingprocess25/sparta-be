@@ -38,9 +38,9 @@ export interface InstruksiLapanganItemRow {
     volume: number;
     harga_material: number;
     harga_upah: number;
-    total_material: number;
-    total_upah: number;
-    total_harga: number;
+    total_material: number | string;
+    total_upah: number | string;
+    total_harga: number | string;
 }
 
 export interface TokoRow {
@@ -56,6 +56,10 @@ export interface TokoRow {
 }
 
 export const instruksiLapanganRepository = {
+    toCurrency(value: number) {
+        return Number(value.toFixed(2));
+    },
+
     async insertWithItems(
         input: SubmitInstruksiLapanganInput,
         idToko: number,
@@ -69,9 +73,9 @@ export const instruksiLapanganRepository = {
             // Hitung grand total
             let grandTotal = 0;
             const items = input.detail_items.map(item => {
-                const totalMaterial = item.harga_material * item.volume;
-                const totalUpah = item.harga_upah * item.volume;
-                const totalHarga = totalMaterial + totalUpah;
+                const totalMaterial = this.toCurrency(item.harga_material * item.volume);
+                const totalUpah = this.toCurrency(item.harga_upah * item.volume);
+                const totalHarga = this.toCurrency(totalMaterial + totalUpah);
                 grandTotal += totalHarga;
                 return {
                     ...item,
@@ -163,9 +167,9 @@ export const instruksiLapanganRepository = {
 
             let grandTotal = 0;
             const items = input.detail_items.map(item => {
-                const totalMaterial = item.harga_material * item.volume;
-                const totalUpah = item.harga_upah * item.volume;
-                const totalHarga = totalMaterial + totalUpah;
+                const totalMaterial = this.toCurrency(item.harga_material * item.volume);
+                const totalUpah = this.toCurrency(item.harga_upah * item.volume);
+                const totalHarga = this.toCurrency(totalMaterial + totalUpah);
                 grandTotal += totalHarga;
                 return { ...item, totalMaterial, totalUpah, totalHarga };
             });
