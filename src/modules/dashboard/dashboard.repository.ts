@@ -251,6 +251,9 @@ export type DashboardOpnameItemRow = {
     id_toko: number;
     id_opname_final: number;
     id_rab_item: number;
+    kategori_pekerjaan: string | null;
+    jenis_pekerjaan: string | null;
+    satuan: string | null;
     status: string | null;
     volume_akhir: number | null;
     selisih_volume: number | null;
@@ -268,6 +271,15 @@ export type DashboardBerkasSerahTerimaRow = {
     id: number;
     id_toko: number;
     link_pdf: string | null;
+    created_at: string | null;
+};
+
+export type DashboardDokumentasiBangunanRow = {
+    nomor_ulok: string | null;
+    nama_toko: string | null;
+    kode_toko: string | null;
+    cabang: string | null;
+    tanggal_go: string | null;
     created_at: string | null;
 };
 
@@ -546,11 +558,15 @@ export const dashboardRepository = {
         const opnameFinalIds = opnameFinalResult.rows.map((row) => row.id);
         const opnameItemResult = await pool.query<DashboardOpnameItemRow>(
             `
-            SELECT id, id_toko, id_opname_final, id_rab_item, status, volume_akhir, selisih_volume,
-                   total_selisih, total_harga_opname, desain, kualitas, spesifikasi, foto, catatan, created_at
-            FROM opname_item
-            WHERE id_opname_final = ANY($1::int[])
-            ORDER BY id ASC
+            SELECT oi.id, oi.id_toko, oi.id_opname_final, oi.id_rab_item,
+                   ri.kategori_pekerjaan, ri.jenis_pekerjaan, ri.satuan,
+                   oi.status, oi.volume_akhir, oi.selisih_volume, oi.total_selisih,
+                   oi.total_harga_opname, oi.desain, oi.kualitas, oi.spesifikasi,
+                   oi.foto, oi.catatan, oi.created_at
+            FROM opname_item oi
+            LEFT JOIN rab_item ri ON ri.id = oi.id_rab_item
+            WHERE oi.id_opname_final = ANY($1::int[])
+            ORDER BY oi.id ASC
             `,
             [toArrayParam(opnameFinalIds)]
         );
@@ -945,11 +961,15 @@ export const dashboardRepository = {
         const opnameFinalIds = opnameFinalResult.rows.map((row) => row.id);
         const opnameItemResult = await client.query<DashboardOpnameItemRow>(
             `
-            SELECT id, id_toko, id_opname_final, id_rab_item, status, volume_akhir, selisih_volume,
-                   total_selisih, total_harga_opname, desain, kualitas, spesifikasi, foto, catatan, created_at
-            FROM opname_item
-            WHERE id_opname_final = ANY($1::int[])
-            ORDER BY id ASC
+            SELECT oi.id, oi.id_toko, oi.id_opname_final, oi.id_rab_item,
+                   ri.kategori_pekerjaan, ri.jenis_pekerjaan, ri.satuan,
+                   oi.status, oi.volume_akhir, oi.selisih_volume, oi.total_selisih,
+                   oi.total_harga_opname, oi.desain, oi.kualitas, oi.spesifikasi,
+                   oi.foto, oi.catatan, oi.created_at
+            FROM opname_item oi
+            LEFT JOIN rab_item ri ON ri.id = oi.id_rab_item
+            WHERE oi.id_opname_final = ANY($1::int[])
+            ORDER BY oi.id ASC
             `,
             [toArrayParam(opnameFinalIds)]
         );
@@ -1106,5 +1126,19 @@ export const dashboardRepository = {
         } finally {
             client.release();
         }
+    },
+
+    async findDokumentasiBangunanForExport(): Promise<DashboardDokumentasiBangunanRow[]> {
+        const result = await pool.query<DashboardDokumentasiBangunanRow>(
+            `
+            SELECT nomor_ulok, nama_toko, kode_toko, cabang, tanggal_go, created_at
+            FROM dokumentasi_bangunan
+            WHERE tanggal_go IS NOT NULL
+              AND TRIM(COALESCE(tanggal_go, '')) <> ''
+            ORDER BY created_at DESC, id DESC
+            `
+        );
+
+        return result.rows;
     }
 };

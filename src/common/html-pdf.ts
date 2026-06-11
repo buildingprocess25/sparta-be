@@ -448,7 +448,14 @@ export const resolveTemplatePath = async (templateFilename: string): Promise<str
 };
 
 export const renderPdfFromHtml = async (html: string): Promise<Buffer> => {
-    const executablePath = env.PUPPETEER_EXECUTABLE_PATH?.trim() || undefined;
+    const localChromeCandidates = [
+        "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+        "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
+    ];
+    const executablePath = env.PUPPETEER_EXECUTABLE_PATH?.trim()
+        || localChromeCandidates.find((candidate) => fsSync.existsSync(candidate))
+        || undefined;
     const navigationTimeoutMs = env.PUPPETEER_NAVIGATION_TIMEOUT_MS ?? 120000;
     const browser = await puppeteer.launch({
         headless: true,

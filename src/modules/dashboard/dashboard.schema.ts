@@ -15,3 +15,13 @@ export const dashboardAllQuerySchema = z.object({
 });
 
 export type DashboardAllQueryInput = z.infer<typeof dashboardAllQuerySchema>;
+
+export const dashboardExportQuerySchema = z.object({
+    format: z.enum(["xlsx", "csv", "pdf"]).default("xlsx"),
+    search: z.string().trim().min(1).optional(),
+    cabang: z.string().trim().optional(),
+    actor_role: z.string().trim().min(1),
+    actor_cabang: z.string().trim().min(1)
+});
+
+export type DashboardExportQueryInput = z.infer<typeof dashboardExportQuerySchema>;
