@@ -39,7 +39,7 @@ export type DashboardExportRow = {
     akhir_spk: string;
     tambah_spk: string;
     akhir_spk_setelah: string;
-    real_spk: string;
+    real_spk: number;
     tanggal_serah_terima: string;
     keterlambatan: number;
     denda: number;
@@ -52,7 +52,7 @@ export type DashboardExportRow = {
     nilai_toko: number;
     total_investasi_bangunan: number;
     total_investasi_area_terbuka: number;
-    total_biaya_investasi_sipil_me: number;
+    total_investasi_non_sbo: number;
 };
 
 export const dashboardExportColumns: DashboardExportColumn[] = [
@@ -98,7 +98,7 @@ export const dashboardExportColumns: DashboardExportColumn[] = [
     { key: "nilai_toko", label: "Nilai Toko" },
     { key: "total_investasi_bangunan", label: "TOTAL INVESTASI  BIAYA \n(BANGUNAN)\n(CF+CG)-BB)" },
     { key: "total_investasi_area_terbuka", label: "TOTAL INVESTASI  BIAYA \n(AREA TERBUKA)\n(BB) " },
-    { key: "total_biaya_investasi_sipil_me", label: "TOTAL BIAYA INVESTASI \nSIPIL +ME\n(Rp)\n(CJ+CK)" }
+    { key: "total_investasi_non_sbo", label: "TOTAL INVESTASI BIAYA NON SBO" }
 ];
 
 const normalize = (value: unknown) => String(value ?? "").trim();
@@ -193,6 +193,35 @@ const calculatePenalty = (lateDays: number): number => {
     const firstTier = Math.min(lateDays, 5);
     const secondTier = Math.max(0, Math.min(lateDays - 5, 10));
     return Math.min(firstTier * 1000000 + secondTier * 500000, 10000000);
+};
+
+const roundDownTenThousand = (value: number): number => {
+    const sign = value < 0 ? -1 : 1;
+    return sign * Math.floor(Math.abs(value) / 10000) * 10000;
+};
+
+const roundUpTenThousand = (value: number): number => {
+    if (value === 0) return 0;
+    const sign = value < 0 ? -1 : 1;
+    return sign * Math.ceil(Math.abs(value) / 10000) * 10000;
+};
+
+const isNoPpnArea = (project: DashboardData): boolean => {
+    const values = [
+        project.toko.cabang,
+        project.toko.nama_toko,
+        project.toko.alamat
+    ].map((value) => normalizeUpper(value));
+
+    return values.some((value) => value === "BATAM" || value === "BINTAN" || /\bBATAM\b|\bBINTAN\b/.test(value));
+};
+
+const buildFinancialGrandTotal = (total: number, direction: "down" | "up", noPpn = false): number => {
+    const pembulatan = direction === "down"
+        ? roundDownTenThousand(total)
+        : roundUpTenThousand(total);
+    const ppn = noPpn ? 0 : Math.round(pembulatan * 0.11);
+    return pembulatan + ppn;
 };
 
 const latestByDate = <T>(items: T[], picker: (item: T) => unknown): T | null => {
@@ -297,17 +326,22 @@ export const buildDashboardExportRows = (
             spk.pertambahan_spk.filter((item) => isApprovedExtension(item.status_persetujuan)),
             (item) => item.created_at
         ) : null;
-        const opname = latestByDate(project.opname_final, (item) => item.created_at);
+        const finalOpnames = project.opname_final.filter((item) => normalizeUpper(item.tipe_opname) === "OPNAME_FINAL");
+        const opname = latestByDate(finalOpnames, (item) => item.created_at);
         const st = latestByDate(project.berkas_serah_terima, (item) => item.created_at);
         const items = opname?.items ?? [];
 
         const totalPenawaran = toNumber(rab?.grand_total_final ?? rab?.grand_total ?? 0);
-        const kerjaTambah = sumBy(items, (item) => toNumber(item.total_selisih) > 0, (item) => item.total_selisih);
-        const kerjaKurang = Math.abs(sumBy(items, (item) => toNumber(item.total_selisih) < 0, (item) => item.total_selisih));
+        const noPpn = isNoPpnArea(project);
+        const kerjaTambahRaw = sumBy(items, (item) => toNumber(item.total_selisih) > 0, (item) => item.total_selisih);
+        const kerjaKurangRaw = sumBy(items, (item) => toNumber(item.total_selisih) < 0, (item) => item.total_selisih);
+        const kerjaTambah = buildFinancialGrandTotal(kerjaTambahRaw, "up", noPpn);
+        const kerjaKurang = Math.abs(buildFinancialGrandTotal(kerjaKurangRaw, "up", noPpn));
         const areaTerbuka = sumBy(items, isAreaTerbuka, (item) => item.total_harga_opname);
         const beanspot = sumBy(items, isBeanspot, (item) => item.total_harga_opname);
-        const grandTotalOpname = toNumber(opname?.grand_total_opname) || totalPenawaran + kerjaTambah - kerjaKurang;
+        const grandTotalOpname = opname ? totalPenawaran + kerjaTambah - kerjaKurang : 0;
         const spkEndDate = toDate(latestExtension?.tanggal_spk_akhir_setelah_perpanjangan) ?? toDate(spk?.waktu_selesai);
+        const realSpk = Math.max(0, toNumber(spk?.durasi) + toNumber(latestExtension?.pertambahan_hari));
         const stDate = toDate(st?.created_at ?? opname?.tanggal_serah_terima_denda);
         const lateDaysFromDb = Number(opname?.hari_denda ?? NaN);
         const lateDays = Number.isFinite(lateDaysFromDb) && (opname?.tanggal_akhir_spk_denda || opname?.tanggal_serah_terima_denda)
@@ -347,7 +381,7 @@ export const buildDashboardExportRows = (
             akhir_spk: toIsoDate(spk?.waktu_selesai),
             tambah_spk: normalize(latestExtension?.pertambahan_hari),
             akhir_spk_setelah: toIsoDate(latestExtension?.tanggal_spk_akhir_setelah_perpanjangan),
-            real_spk: spkEndDate ? toIsoDate(spkEndDate) : "",
+            real_spk: realSpk,
             tanggal_serah_terima: toIsoDate(st?.created_at ?? opname?.tanggal_serah_terima_denda),
             keterlambatan: lateDays,
             denda: penalty,
@@ -360,7 +394,7 @@ export const buildDashboardExportRows = (
             nilai_toko: grandTotalOpname,
             total_investasi_bangunan: totalInvestBuilding,
             total_investasi_area_terbuka: totalInvestArea,
-            total_biaya_investasi_sipil_me: totalInvestBuilding + totalInvestArea
+            total_investasi_non_sbo: totalInvestBuilding + totalInvestArea
         };
 
         const requiredKeys: Array<keyof DashboardExportRow> = [

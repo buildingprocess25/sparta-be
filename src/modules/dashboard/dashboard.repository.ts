@@ -226,6 +226,7 @@ export type DashboardInstruksiLapanganItemRow = {
 export type DashboardOpnameFinalRow = {
     id: number;
     id_toko: number;
+    tipe_opname: string | null;
     aksi: string | null;
     status_opname_final: string | null;
     link_pdf_opname: string | null;
@@ -543,7 +544,7 @@ export const dashboardRepository = {
 
         const opnameFinalResult = await pool.query<DashboardOpnameFinalRow>(
             `
-            SELECT id, id_toko, aksi, status_opname_final, link_pdf_opname, email_pembuat,
+            SELECT id, id_toko, tipe_opname, aksi, status_opname_final, link_pdf_opname, email_pembuat,
                    pemberi_persetujuan_direktur, waktu_persetujuan_direktur, pemberi_persetujuan_koordinator,
                    waktu_persetujuan_koordinator, pemberi_persetujuan_manager, waktu_persetujuan_manager,
                    alasan_penolakan, grand_total_opname, grand_total_rab, hari_denda, nilai_denda,
@@ -946,7 +947,7 @@ export const dashboardRepository = {
 
         const opnameFinalResult = await client.query<DashboardOpnameFinalRow>(
             `
-            SELECT id, id_toko, aksi, status_opname_final, link_pdf_opname, email_pembuat,
+            SELECT id, id_toko, tipe_opname, aksi, status_opname_final, link_pdf_opname, email_pembuat,
                    pemberi_persetujuan_direktur, waktu_persetujuan_direktur, pemberi_persetujuan_koordinator,
                    waktu_persetujuan_koordinator, pemberi_persetujuan_manager, waktu_persetujuan_manager,
                    alasan_penolakan, grand_total_opname, grand_total_rab, hari_denda, nilai_denda,
