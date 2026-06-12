@@ -150,27 +150,6 @@ const excelDateToIso = (value: unknown): string | null => {
     return raw;
 };
 
-const toTime = (value: string | null): number => {
-    if (!value) return Number.POSITIVE_INFINITY;
-    const parsed = new Date(value.replace(" ", "T")).getTime();
-    return Number.isFinite(parsed) ? parsed : Number.POSITIVE_INFINITY;
-};
-
-const resolveRabCreatedAt = (row: CellRecord): { value: string | null; source: string | null } => {
-    const explicit = excelDateToIso(row.created_at);
-    if (explicit) return { value: explicit, source: "created_at" };
-
-    const fallbacks = [
-        { source: "waktu_persetujuan_koordinator", value: excelDateToIso(row.waktu_persetujuan_koordinator) },
-        { source: "waktu_persetujuan_manager", value: excelDateToIso(row.waktu_persetujuan_manager) },
-        { source: "waktu_persetujuan_direktur", value: excelDateToIso(row.waktu_persetujuan_direktur) },
-        { source: "waktu_penolakan", value: excelDateToIso(row.waktu_penolakan) }
-    ].filter((candidate): candidate is { source: string; value: string } => Boolean(candidate.value));
-
-    fallbacks.sort((left, right) => toTime(left.value) - toTime(right.value));
-    return fallbacks[0] ?? { value: null, source: null };
-};
-
 const numberText = (value: unknown): string => {
     const text = normalizeCell(value);
     if (!text) return "0";
@@ -269,7 +248,6 @@ const parseWorkbook = (buffer: Buffer): Candidate[] => {
         const sourceRabId = toSourceId(row.id);
         const sourceTokoId = toSourceId(row.id_toko);
         if (!sourceRabId || !sourceTokoId) continue;
-        const resolvedCreatedAt = resolveRabCreatedAt(row);
 
         const rab: SourceRab = {
             source_rab_id: sourceRabId,
@@ -305,7 +283,7 @@ const parseWorkbook = (buffer: Buffer): Candidate[] => {
             grand_total: integerMoneyText(row.grand_total),
             grand_total_non_sbo: integerMoneyText(row.grand_total_non_sbo),
             grand_total_final: integerMoneyText(row.grand_total_final),
-            created_at: resolvedCreatedAt.value
+            created_at: excelDateToIso(row.created_at)
         };
 
         const toko = tokoById.get(sourceTokoId) ?? null;
@@ -319,9 +297,6 @@ const parseWorkbook = (buffer: Buffer): Candidate[] => {
         const fallbackItemCount = fallbackItemsByRabId.get(sourceRabId) ?? 0;
         if (skippedItemCount > 0) issues.push(`${skippedItemCount} baris item tidak ikut masuk karena jenis_pekerjaan kosong`);
         if (fallbackItemCount > 0) warnings.push(`${fallbackItemCount} item memakai fallback kategori/satuan`);
-        if (resolvedCreatedAt.source && resolvedCreatedAt.source !== "created_at") {
-            warnings.push(`Tanggal dibuat memakai fallback ${resolvedCreatedAt.source}`);
-        }
 
         candidates.push({
             source_rab_id: sourceRabId,
