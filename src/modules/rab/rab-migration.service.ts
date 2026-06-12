@@ -156,7 +156,11 @@ const excelDateToIso = (value: unknown): string | null => {
             return `${year.padStart(4, "0")}-${month.padStart(2, "0")}-${day.padStart(2, "0")} 00:00:00`;
         }
     }
-    return raw;
+    const parsed = new Date(raw);
+    if (!Number.isNaN(parsed.getTime()) && /\d/.test(raw)) {
+        return parsed.toISOString().slice(0, 19).replace("T", " ");
+    }
+    return null;
 };
 
 const numberText = (value: unknown): string => {
