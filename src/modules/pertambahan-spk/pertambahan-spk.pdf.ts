@@ -21,16 +21,27 @@ const monthNames = [
     "Juli", "Agustus", "September", "Oktober", "November", "Desember",
 ];
 
+const parseDateValue = (value: string): Date => {
+    const trimmed = value.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+        return new Date(`${trimmed}T00:00:00+07:00`);
+    }
+    if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(trimmed) && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(trimmed)) {
+        return new Date(`${trimmed.replace(" ", "T")}+07:00`);
+    }
+    return new Date(trimmed);
+};
+
 const formatDateIndonesia = (value?: string | null): string => {
     if (!value) return "-";
-    const date = new Date(value);
+    const date = parseDateValue(value);
     if (Number.isNaN(date.getTime())) return String(value);
     return `${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
 };
 
 const formatDateTimeIndonesia = (value?: string | null): string => {
     if (!value) return "-";
-    const date = new Date(value);
+    const date = parseDateValue(value);
     if (Number.isNaN(date.getTime())) return "-";
 
     const formatter = new Intl.DateTimeFormat("id-ID", {

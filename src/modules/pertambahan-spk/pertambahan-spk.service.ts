@@ -177,6 +177,29 @@ async function ensureSpkExists(idSpk: number) {
     return spk;
 }
 
+const buildAndUploadPdfForDetail = async (data: PertambahanSpkDetailRow): Promise<string> => {
+    const spk = await ensureSpkExists(Number(data.id_spk));
+    const toko = data.toko ?? await tokoRepository.findByNomorUlok(spk.pengajuan.nomor_ulok);
+
+    const pdfBuffer = await buildPertambahanSpkPdfBuffer({
+        nomorUlok: spk.pengajuan.nomor_ulok,
+        nomorSpk: data.nomor_spk ?? data.spk?.nomor_spk ?? spk.pengajuan.nomor_spk,
+        cabang: toko?.cabang,
+        tanggalSpkAkhir: data.tanggal_spk_akhir,
+        tanggalSpkAkhirSetelahPerpanjangan: data.tanggal_spk_akhir_setelah_perpanjangan,
+        pertambahanHari: data.pertambahan_hari,
+        alasanPerpanjangan: data.alasan_perpanjangan,
+        dibuatOleh: data.dibuat_oleh,
+        dibuatPada: data.created_at,
+        disetujuiOleh: data.disetujui_oleh,
+        disetujuiPada: data.waktu_persetujuan,
+    });
+
+    const safeNomorSpk = sanitizeFilenamePart(data.nomor_spk ?? data.spk?.nomor_spk ?? spk.pengajuan.nomor_spk, "SPK");
+    const pdfFilename = `FORM_PERPANJANGAN_SPK_${safeNomorSpk}_${Date.now()}.pdf`;
+    return uploadPdfToDrive(pdfBuffer, pdfFilename);
+};
+
 export const pertambahanSpkService = {
     async create(
         payload: CreatePertambahanSpkInput,
@@ -386,6 +409,16 @@ export const pertambahanSpkService = {
         }
 
         const spk = await ensureSpkExists(Number(updated.id_spk));
+        if (action.tindakan === "APPROVE") {
+            const linkPdf = await buildAndUploadPdfForDetail(updated);
+            const withUpdatedPdf = await pertambahanSpkRepository.updateById(id, { link_pdf: linkPdf });
+            if (!withUpdatedPdf) {
+                throw new AppError("PDF pertambahan SPK berhasil dibuat tetapi data gagal diperbarui", 500);
+            }
+            await opnameFinalService.refreshDendaByTokoId(spk.pengajuan.id_toko);
+            return withUpdatedPdf;
+        }
+
         await opnameFinalService.refreshDendaByTokoId(spk.pengajuan.id_toko);
 
         return updated;
@@ -423,6 +456,16 @@ export const pertambahanSpkService = {
         }
 
         const spk = await ensureSpkExists(Number(updated.id_spk));
+        if (targetStatus === PERTAMBAHAN_SPK_STATUS.APPROVED_BY_BM) {
+            const linkPdf = await buildAndUploadPdfForDetail(updated);
+            const withUpdatedPdf = await pertambahanSpkRepository.updateById(id, { link_pdf: linkPdf });
+            if (!withUpdatedPdf) {
+                throw new AppError("PDF pertambahan SPK berhasil dibuat tetapi data gagal diperbarui", 500);
+            }
+            await opnameFinalService.refreshDendaByTokoId(spk.pengajuan.id_toko);
+            return withUpdatedPdf;
+        }
+
         await opnameFinalService.refreshDendaByTokoId(spk.pengajuan.id_toko);
 
         return updated;
