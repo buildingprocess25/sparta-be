@@ -123,6 +123,14 @@ export const regenerateRabPdf = asyncHandler(async (req: Request, res: Response)
     });
 });
 
+export const regenerateAndDownloadRabPdf = asyncHandler(async (req: Request, res: Response) => {
+    const result = await rabService.getRegeneratedPdfDownloadPayload(req.params.id);
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);
+    res.send(result.pdfBuffer);
+});
+
 export const downloadRabLogo = asyncHandler(async (req: Request, res: Response) => {
     const result = await rabService.getAssetDownloadPayload(req.params.id, "logo");
 

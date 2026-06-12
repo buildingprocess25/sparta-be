@@ -1,4 +1,5 @@
 import { PDFDocument as PdfLibDocument } from "pdf-lib";
+import { PDFParse } from "pdf-parse";
 import fs from "fs";
 import path from "path";
 import { renderHtmlTemplate, renderPdfFromHtml, resolveTemplatePath } from "../../common/html-pdf";
@@ -442,4 +443,57 @@ export const extractFirstPdfPageBuffer = async (pdfBuffer: Buffer): Promise<Buff
 
     const bytes = await singlePage.save();
     return Buffer.from(bytes);
+};
+
+const extractSinglePdfPageBuffer = async (pdfBuffer: Buffer, pageIndex: number): Promise<Buffer | null> => {
+    if (!pdfBuffer || pdfBuffer.length === 0) return null;
+
+    const source = await PdfLibDocument.load(pdfBuffer);
+    const pageCount = source.getPageCount();
+    if (pageCount === 0) return null;
+
+    const safeIndex = Math.max(0, Math.min(pageIndex, pageCount - 1));
+    const singlePage = await PdfLibDocument.create();
+    const [page] = await singlePage.copyPages(source, [safeIndex]);
+    singlePage.addPage(page);
+
+    const bytes = await singlePage.save();
+    return Buffer.from(bytes);
+};
+
+const normalizePdfText = (text: string): string =>
+    text.toUpperCase().replace(/\s+/g, " ").trim();
+
+export const extractMateraiCoverPageBuffer = async (pdfBuffer: Buffer): Promise<Buffer | null> => {
+    if (!pdfBuffer || pdfBuffer.length === 0) return null;
+
+    const source = await PdfLibDocument.load(pdfBuffer);
+    const pageCount = source.getPageCount();
+    if (pageCount === 0) return null;
+
+    const parser = new PDFParse({ data: pdfBuffer });
+    try {
+        let fallbackRabPageIndex: number | null = null;
+        for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+            const result = await parser.getText({ partial: [pageNumber] });
+            const text = normalizePdfText(result.text ?? "");
+            if (!text.includes("RENCANA ANGGARAN BIAYA")) continue;
+
+            const pageIndex = pageNumber - 1;
+            if (text.includes("NOMOR ULOK")) {
+                return await extractSinglePdfPageBuffer(pdfBuffer, Math.max(pageIndex - 1, 0));
+            }
+            if (fallbackRabPageIndex === null) {
+                fallbackRabPageIndex = pageIndex;
+            }
+        }
+
+        if (fallbackRabPageIndex !== null) {
+            return await extractSinglePdfPageBuffer(pdfBuffer, Math.max(fallbackRabPageIndex - 1, 0));
+        }
+    } finally {
+        await parser.destroy();
+    }
+
+    return await extractSinglePdfPageBuffer(pdfBuffer, 0);
 };

@@ -8,6 +8,7 @@ import {
 	getRabById,
 	handleRabApproval,
 	listRab,
+	regenerateAndDownloadRabPdf,
 	regenerateRabPdf,
 	replaceRabItems,
 	syncRabItemsWithBranchPrices,
@@ -66,6 +67,7 @@ rabRouter.put("/:id/items/replace", replaceRabItems);
 rabRouter.post("/:id/sync-branch-prices", syncRabItemsWithBranchPrices);
 rabRouter.delete("/:id/items", deleteRabItems);
 rabRouter.post("/:id/pdf/regenerate", regenerateRabPdf);
+rabRouter.post("/:id/pdf/regenerate-download", regenerateAndDownloadRabPdf);
 rabRouter.get("/:id/pdf", downloadRabPdf);
 rabRouter.get("/:id/logo", downloadRabLogo);
 rabRouter.get("/:id/file-asuransi", downloadRabInsuranceFile);

@@ -7,7 +7,7 @@ import type { ApprovalActionInput } from "../approval/approval.schema";
 import { activityLogRepository } from "../activity-log/activity-log.repository";
 import { priceRabService, type PriceResult } from "../price-rab/price-rab.service";
 import { RAB_STATUS, REJECTED_RAB_STATUSES, type RabStatus } from "./rab.constants";
-import { buildRabPdfBuffer, buildRecapPdfBuffer, extractFirstPdfPageBuffer, mergePdfBuffers, generateSphPdf } from "./rab.pdf";
+import { buildRabPdfBuffer, buildRecapPdfBuffer, extractMateraiCoverPageBuffer, mergePdfBuffers, generateSphPdf } from "./rab.pdf";
 import { rabRepository } from "./rab.repository";
 import type { RabItemRow } from "./rab.repository";
 import type {
@@ -919,6 +919,26 @@ async function regenerateRabPdfs(
     let linkSph: string | undefined;
     const logoDataUri = await resolveLogoForPdf(fullData.rab.logo);
 
+    const materaiLink = fullData.rab.link_pdf_materai?.trim();
+    if (materaiLink) {
+        try {
+            const materaiFile = await fetchFileBufferByLink(materaiLink);
+            if (materaiFile?.buffer?.length) {
+                const isPdf = (materaiFile.mimeType ?? "").toLowerCase() === "application/pdf"
+                    || isPdfBuffer(materaiFile.buffer);
+                if (isPdf) {
+                    const materaiPage = await extractMateraiCoverPageBuffer(materaiFile.buffer);
+                    if (materaiPage) {
+                        pdfBuffersToMerge.push(materaiPage);
+                        logRab("PDF", "Halaman materai sebelum RAB ditambahkan sebagai halaman awal merge", { rabId });
+                    }
+                }
+            }
+        } catch (err) {
+            console.error("Warning: Gagal mengambil PDF materai untuk merge:", err);
+        }
+    }
+
     const pdfSph = await generateSphPdf({
         rab: rabForPdf,
         items: fullData.items,
@@ -934,26 +954,6 @@ async function regenerateRabPdfs(
         `SPH_${proyek}_${nomorUlok}.pdf`
     );
     logRab("PDF", "PDF SPH diupload", { rabId, linkSph });
-
-    const materaiLink = fullData.rab.link_pdf_materai?.trim();
-    if (materaiLink) {
-        try {
-            const materaiFile = await fetchFileBufferByLink(materaiLink);
-            if (materaiFile?.buffer?.length) {
-                const isPdf = (materaiFile.mimeType ?? "").toLowerCase() === "application/pdf"
-                    || isPdfBuffer(materaiFile.buffer);
-                if (isPdf) {
-                    const firstPage = await extractFirstPdfPageBuffer(materaiFile.buffer);
-                    if (firstPage) {
-                        pdfBuffersToMerge.push(firstPage);
-                        logRab("PDF", "Halaman pertama PDF materai ditambahkan ke merge", { rabId });
-                    }
-                }
-            }
-        } catch (err) {
-            console.error("Warning: Gagal mengambil PDF materai untuk merge:", err);
-        }
-    }
 
     pdfBuffersToMerge.push(pdfRecap, pdfNonSbo);
 
@@ -1281,6 +1281,28 @@ export const rabService = {
         return {
             ...links,
             has_materai_pdf: Boolean(data.rab.link_pdf_materai)
+        };
+    },
+
+    async getRegeneratedPdfDownloadPayload(id: string) {
+        const data = await rabRepository.findById(id);
+        if (!data) {
+            throw new AppError("Pengajuan RAB tidak ditemukan", 404);
+        }
+
+        const links = await this.regeneratePdf(id);
+        const downloaded = await fetchFileBufferByLink(links.link_pdf_gabungan);
+        if (!downloaded?.buffer?.length) {
+            throw new AppError("PDF hasil generate tidak bisa diambil dari Drive", 502);
+        }
+
+        const filename = links.has_materai_pdf
+            ? `RAB_GABUNGAN_MATERAI_${data.toko.nomor_ulok}_${data.rab.id}.pdf`
+            : `RAB_GABUNGAN_${data.toko.nomor_ulok}_${data.rab.id}.pdf`;
+
+        return {
+            filename,
+            pdfBuffer: downloaded.buffer
         };
     },
 
