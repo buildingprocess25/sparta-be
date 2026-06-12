@@ -145,6 +145,8 @@ type NumericPrice = {
     satuan: string;
     hargaMaterial: number | null;
     hargaUpah: number | null;
+    inputMaterialManual: boolean;
+    inputUpahManual: boolean;
 };
 
 type PriceLookup = {
@@ -172,6 +174,9 @@ const priceValueToNumberOrNull = (value: unknown): number | null => {
     return null;
 };
 
+const isManualInputFlag = (value: unknown): boolean =>
+    value === true || value === 1 || String(value ?? "").trim().toLowerCase() === "true";
+
 const buildPriceLookup = (priceData: PriceResult): PriceLookup => {
     const byJob = new Map<string, NumericPrice>();
     const byCategoryAndJob = new Map<string, NumericPrice>();
@@ -187,7 +192,9 @@ const buildPriceLookup = (priceData: PriceResult): PriceLookup => {
                 jenisPekerjaan,
                 satuan: item["Satuan"] ?? "",
                 hargaMaterial: priceValueToNumberOrNull(item["Harga Material"]),
-                hargaUpah: priceValueToNumberOrNull(item["Harga Upah"])
+                hargaUpah: priceValueToNumberOrNull(item["Harga Upah"]),
+                inputMaterialManual: isManualInputFlag(item["Input Material Manual"]),
+                inputUpahManual: isManualInputFlag(item["Input Upah Manual"])
             };
 
             byCategoryAndJob.set(`${normalizePriceLookupKey(category)}|${key}`, price);
@@ -377,8 +384,12 @@ const syncDetailItemsWithBranchPrices = async (
                 ?? lookup.byJob.get(itemJobKey);
             if (!price) return item;
 
-            const hargaMaterial = price.hargaMaterial ?? item.harga_material;
-            const hargaUpah = price.hargaUpah ?? item.harga_upah;
+            const hargaMaterial = price.inputMaterialManual
+                ? item.harga_material
+                : price.hargaMaterial ?? item.harga_material;
+            const hargaUpah = price.inputUpahManual
+                ? item.harga_upah
+                : price.hargaUpah ?? item.harga_upah;
             const totalMaterial = roundCurrency(item.volume * hargaMaterial);
             const totalUpah = roundCurrency(item.volume * hargaUpah);
             matchedCount += 1;
