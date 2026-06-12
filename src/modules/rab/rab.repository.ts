@@ -389,11 +389,11 @@ export const rabRepository = {
 
             await client.query(
                 `UPDATE toko
-                 SET lingkup_pekerjaan = COALESCE(NULLIF(TRIM(lingkup_pekerjaan), ''), $1, lingkup_pekerjaan),
-                     nama_toko = COALESCE(NULLIF(TRIM(nama_toko), ''), $2, nama_toko),
-                     proyek = COALESCE(NULLIF(TRIM(proyek), ''), $3, proyek),
-                     cabang = COALESCE(NULLIF(TRIM(cabang), ''), $4, cabang),
-                     alamat = COALESCE(NULLIF(TRIM(alamat), ''), $5, alamat),
+                 SET lingkup_pekerjaan = COALESCE(NULLIF(TRIM($1), ''), lingkup_pekerjaan),
+                     nama_toko = COALESCE(NULLIF(TRIM($2), ''), nama_toko),
+                     proyek = COALESCE(NULLIF(TRIM($3), ''), proyek),
+                     cabang = COALESCE(NULLIF(TRIM($4), ''), cabang),
+                     alamat = COALESCE(NULLIF(TRIM($5), ''), alamat),
                      nama_kontraktor = COALESCE(NULLIF(TRIM(nama_kontraktor), ''), $6, nama_kontraktor)
                  WHERE id = $7`,
                 [
@@ -544,10 +544,10 @@ export const rabRepository = {
 
                 await client.query(
                     `UPDATE toko
-                     SET nama_toko = COALESCE(NULLIF(TRIM(nama_toko), ''), $1, nama_toko),
-                         proyek = COALESCE(NULLIF(TRIM(proyek), ''), $2, proyek),
-                         cabang = COALESCE(NULLIF(TRIM(cabang), ''), $3, cabang),
-                         alamat = COALESCE(NULLIF(TRIM(alamat), ''), $4, alamat),
+                     SET nama_toko = COALESCE(NULLIF(TRIM($1), ''), nama_toko),
+                         proyek = COALESCE(NULLIF(TRIM($2), ''), proyek),
+                         cabang = COALESCE(NULLIF(TRIM($3), ''), cabang),
+                         alamat = COALESCE(NULLIF(TRIM($4), ''), alamat),
                          nama_kontraktor = COALESCE(NULLIF(TRIM(nama_kontraktor), ''), $5, nama_kontraktor)
                      WHERE id = $6`,
                     [
