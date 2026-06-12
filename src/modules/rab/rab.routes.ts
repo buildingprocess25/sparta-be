@@ -8,6 +8,7 @@ import {
 	getRabById,
 	handleRabApproval,
 	listRab,
+	regenerateRabPdf,
 	replaceRabItems,
 	syncRabItemsWithBranchPrices,
 	submitRab,
@@ -43,13 +44,28 @@ rabRouter.post(
 	submitRab
 );
 rabRouter.get("/", listRab);
-rabRouter.post("/migration/preview", rabMigrationUpload.single("file"), previewRabMigration);
-rabRouter.post("/migration/commit", rabMigrationUpload.single("file"), commitRabMigration);
+rabRouter.post(
+	"/migration/preview",
+	rabMigrationUpload.fields([
+		{ name: "file", maxCount: 1 },
+		{ name: "materai_file", maxCount: 1 },
+	]),
+	previewRabMigration
+);
+rabRouter.post(
+	"/migration/commit",
+	rabMigrationUpload.fields([
+		{ name: "file", maxCount: 1 },
+		{ name: "materai_file", maxCount: 1 },
+	]),
+	commitRabMigration
+);
 rabRouter.get("/:id", getRabById);
 rabRouter.put("/:id/items", updateRabItemsBulk);
 rabRouter.put("/:id/items/replace", replaceRabItems);
 rabRouter.post("/:id/sync-branch-prices", syncRabItemsWithBranchPrices);
 rabRouter.delete("/:id/items", deleteRabItems);
+rabRouter.post("/:id/pdf/regenerate", regenerateRabPdf);
 rabRouter.get("/:id/pdf", downloadRabPdf);
 rabRouter.get("/:id/logo", downloadRabLogo);
 rabRouter.get("/:id/file-asuransi", downloadRabInsuranceFile);

@@ -429,3 +429,17 @@ export const mergePdfBuffers = async (pdfBuffers: Buffer[]): Promise<Buffer> => 
     const bytes = await merged.save();
     return Buffer.from(bytes);
 };
+
+export const extractFirstPdfPageBuffer = async (pdfBuffer: Buffer): Promise<Buffer | null> => {
+    if (!pdfBuffer || pdfBuffer.length === 0) return null;
+
+    const source = await PdfLibDocument.load(pdfBuffer);
+    if (source.getPageCount() === 0) return null;
+
+    const singlePage = await PdfLibDocument.create();
+    const [firstPage] = await singlePage.copyPages(source, [0]);
+    singlePage.addPage(firstPage);
+
+    const bytes = await singlePage.save();
+    return Buffer.from(bytes);
+};

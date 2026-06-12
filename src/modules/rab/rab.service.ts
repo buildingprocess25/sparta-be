@@ -7,7 +7,7 @@ import type { ApprovalActionInput } from "../approval/approval.schema";
 import { activityLogRepository } from "../activity-log/activity-log.repository";
 import { priceRabService, type PriceResult } from "../price-rab/price-rab.service";
 import { RAB_STATUS, REJECTED_RAB_STATUSES, type RabStatus } from "./rab.constants";
-import { buildRabPdfBuffer, buildRecapPdfBuffer, mergePdfBuffers, generateSphPdf } from "./rab.pdf";
+import { buildRabPdfBuffer, buildRecapPdfBuffer, extractFirstPdfPageBuffer, mergePdfBuffers, generateSphPdf } from "./rab.pdf";
 import { rabRepository } from "./rab.repository";
 import type { RabItemRow } from "./rab.repository";
 import type {
@@ -935,6 +935,26 @@ async function regenerateRabPdfs(
     );
     logRab("PDF", "PDF SPH diupload", { rabId, linkSph });
 
+    const materaiLink = fullData.rab.link_pdf_materai?.trim();
+    if (materaiLink) {
+        try {
+            const materaiFile = await fetchFileBufferByLink(materaiLink);
+            if (materaiFile?.buffer?.length) {
+                const isPdf = (materaiFile.mimeType ?? "").toLowerCase() === "application/pdf"
+                    || isPdfBuffer(materaiFile.buffer);
+                if (isPdf) {
+                    const firstPage = await extractFirstPdfPageBuffer(materaiFile.buffer);
+                    if (firstPage) {
+                        pdfBuffersToMerge.push(firstPage);
+                        logRab("PDF", "Halaman pertama PDF materai ditambahkan ke merge", { rabId });
+                    }
+                }
+            }
+        } catch (err) {
+            console.error("Warning: Gagal mengambil PDF materai untuk merge:", err);
+        }
+    }
+
     pdfBuffersToMerge.push(pdfRecap, pdfNonSbo);
 
     const insuranceLink = fullData.rab.file_asuransi?.trim();
@@ -1228,6 +1248,39 @@ export const rabService = {
         return {
             ...data,
             rab: normalizeRabFileLinks(data.rab),
+        };
+    },
+
+    async regeneratePdf(id: string) {
+        const data = await rabRepository.findById(id);
+        if (!data) {
+            throw new AppError("Pengajuan RAB tidak ditemukan", 404);
+        }
+        if (!hasRenderableRabValue(data)) {
+            throw new AppError("Data RAB tidak memiliki nilai untuk generate PDF", 422);
+        }
+
+        const links = await regenerateRabPdfs(id, {
+            proyek: data.toko.proyek,
+            nomorUlok: data.toko.nomor_ulok
+        });
+
+        if (!links) {
+            throw new AppError("Gagal generate PDF RAB", 500);
+        }
+
+        await rabRepository.updatePdfLinks(id, {
+            link_pdf_gabungan: links.link_pdf_gabungan,
+            link_pdf_non_sbo: links.link_pdf_non_sbo,
+            link_pdf_rekapitulasi: links.link_pdf_rekapitulasi
+        });
+        if (links.link_pdf_sph) {
+            await rabRepository.updateSphPdfLink(id, links.link_pdf_sph);
+        }
+
+        return {
+            ...links,
+            has_materai_pdf: Boolean(data.rab.link_pdf_materai)
         };
     },
 

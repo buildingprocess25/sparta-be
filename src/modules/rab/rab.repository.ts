@@ -19,6 +19,7 @@ export type RabRow = {
     link_pdf_gabungan: string | null;
     link_pdf_non_sbo: string | null;
     link_pdf_rekapitulasi: string | null;
+    link_pdf_materai: string | null;
     pemberi_persetujuan_koordinator: string | null;
     nama_persetujuan_koordinator: string | null;
     waktu_persetujuan_koordinator: string | null;
@@ -111,6 +112,7 @@ export type RabMinimalRow = {
 const RAB_COLUMNS = `
     r.id, r.id_toko, r.no_sph, r.status, r.nama_pt, r.email_pembuat, r.logo,
     r.link_pdf_gabungan, r.link_pdf_non_sbo, r.link_pdf_rekapitulasi,
+    r.link_pdf_materai,
     r.pemberi_persetujuan_koordinator, r.nama_persetujuan_koordinator, r.waktu_persetujuan_koordinator,
     r.pemberi_persetujuan_manager, r.nama_persetujuan_manager, r.waktu_persetujuan_manager,
     r.pemberi_persetujuan_direktur, r.nama_persetujuan_direktur, r.waktu_persetujuan_direktur,
@@ -678,6 +680,7 @@ export const rabRepository = {
             link_pdf_gabungan: row.link_pdf_gabungan,
             link_pdf_non_sbo: row.link_pdf_non_sbo,
             link_pdf_rekapitulasi: row.link_pdf_rekapitulasi,
+            link_pdf_materai: row.link_pdf_materai,
             pemberi_persetujuan_koordinator: row.pemberi_persetujuan_koordinator,
             nama_persetujuan_koordinator: row.nama_persetujuan_koordinator,
             waktu_persetujuan_koordinator: row.waktu_persetujuan_koordinator,
@@ -1136,6 +1139,13 @@ export const rabRepository = {
         await pool.query(
             `UPDATE rab SET link_pdf_sph = $1 WHERE id = $2`,
             [linkPdfSph, rabId]
+        );
+    },
+
+    async updateMateraiPdfLink(rabId: string, linkPdfMaterai: string | null): Promise<void> {
+        await pool.query(
+            `UPDATE rab SET link_pdf_materai = $1 WHERE id = $2`,
+            [linkPdfMaterai, rabId]
         );
     },
 

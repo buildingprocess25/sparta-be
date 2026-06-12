@@ -28,6 +28,7 @@ type SourceRab = {
     link_pdf_non_sbo: string | null;
     link_pdf_rekapitulasi: string | null;
     link_pdf_sph: string | null;
+    link_pdf_materai: string | null;
     logo: string | null;
     email_pembuat: string | null;
     pemberi_persetujuan_direktur: string | null;
@@ -93,6 +94,8 @@ type ParsedWorkbook = {
     candidates: Candidate[];
     source_format: "legacy_tables" | "data_form_form2";
     ignored_sheets: string[];
+    materai_count: number;
+    materai_ambiguous_count: number;
 };
 
 let rabCreatedAtColumnCache: boolean | null = null;
@@ -199,6 +202,87 @@ const appendDuplicateIssues = (candidates: Candidate[]): void => {
 
 const naturalKey = (nomorUlok: unknown, lingkup: unknown): string =>
     `${normalizeCell(nomorUlok).toUpperCase()}\u0000${normalizeCell(lingkup).toUpperCase()}`;
+
+type MateraiMapping = {
+    byNaturalKey: Map<string, string>;
+    byUlokUnique: Map<string, string>;
+    ambiguousUloks: Set<string>;
+};
+
+const parseMateraiWorkbook = (buffer?: Buffer): MateraiMapping | null => {
+    if (!buffer?.length) return null;
+
+    const workbook = xlsx.read(buffer, { type: "buffer", cellDates: true });
+    const rows = readRows(workbook, "dokumen");
+    if (rows.length === 0) {
+        throw new AppError("File MATERAI harus memiliki sheet dokumen dengan kolom ulok dan dokumen.", 400);
+    }
+
+    const byNaturalKey = new Map<string, string>();
+    const linksByUlok = new Map<string, Set<string>>();
+
+    for (const row of rows) {
+        const nomorUlok = nullableText(row.ulok);
+        const link = nullableText(row.dokumen);
+        if (!nomorUlok || !link) continue;
+
+        const lingkup = nullableText(row.lingkup_kerja) ?? nullableText(row.lingkup_pekerjaan) ?? "";
+        const key = naturalKey(nomorUlok, lingkup);
+        if (!byNaturalKey.has(key)) byNaturalKey.set(key, link);
+
+        const ulokKey = nomorUlok.trim().toUpperCase();
+        const links = linksByUlok.get(ulokKey) ?? new Set<string>();
+        links.add(link);
+        linksByUlok.set(ulokKey, links);
+    }
+
+    const byUlokUnique = new Map<string, string>();
+    const ambiguousUloks = new Set<string>();
+    for (const [ulok, links] of linksByUlok.entries()) {
+        if (links.size === 1) {
+            byUlokUnique.set(ulok, Array.from(links)[0]);
+        } else {
+            ambiguousUloks.add(ulok);
+        }
+    }
+
+    return { byNaturalKey, byUlokUnique, ambiguousUloks };
+};
+
+const attachMateraiLinks = (parsed: ParsedWorkbook, materai: MateraiMapping | null): ParsedWorkbook => {
+    if (!materai) return parsed;
+
+    let materaiCount = 0;
+    let ambiguousCount = 0;
+    for (const candidate of parsed.candidates) {
+        if (!candidate.toko) continue;
+
+        const ulokKey = candidate.toko.nomor_ulok.trim().toUpperCase();
+        const key = naturalKey(candidate.toko.nomor_ulok, candidate.toko.lingkup_pekerjaan ?? "");
+        const exactLink = materai.byNaturalKey.get(key);
+        const fallbackLink = materai.byUlokUnique.get(ulokKey);
+        const link = exactLink ?? fallbackLink ?? null;
+
+        if (link) {
+            candidate.rab.link_pdf_materai = link;
+            materaiCount += 1;
+            if (exactLink) {
+                candidate.warnings.push("PDF materai ditemukan dari file MATERAI");
+            } else {
+                candidate.warnings.push("PDF materai ditemukan dari fallback ULOK unik");
+            }
+        } else if (materai.ambiguousUloks.has(ulokKey)) {
+            ambiguousCount += 1;
+            candidate.warnings.push("PDF materai tidak dipasang karena ULOK punya beberapa link dan lingkup tidak cocok");
+        }
+    }
+
+    return {
+        ...parsed,
+        materai_count: materaiCount,
+        materai_ambiguous_count: ambiguousCount
+    };
+};
 
 const buildCompanyByEmail = async (emails: string[]): Promise<Map<string, string>> => {
     const uniqueEmails = Array.from(new Set(emails.map((email) => email.trim().toLowerCase()).filter(Boolean)));
@@ -447,6 +531,7 @@ const parseLegacyWorkbook = (workbook: xlsx.WorkBook): ParsedWorkbook => {
             link_pdf_non_sbo: nullableText(row.link_pdf_non_sbo),
             link_pdf_rekapitulasi: nullableText(row.link_pdf_rekapitulasi),
             link_pdf_sph: nullableText(row.link_pdf_sph),
+            link_pdf_materai: null,
             logo: nullableText(row.logo),
             email_pembuat: nullableText(row.email_pembuat),
             pemberi_persetujuan_direktur: nullableText(row.pemberi_persetujuan_direktur),
@@ -503,7 +588,9 @@ const parseLegacyWorkbook = (workbook: xlsx.WorkBook): ParsedWorkbook => {
     return {
         candidates,
         source_format: "legacy_tables",
-        ignored_sheets: ["RAB import ", "RAB ITEM Import"]
+        ignored_sheets: ["RAB import ", "RAB ITEM Import"],
+        materai_count: 0,
+        materai_ambiguous_count: 0
     };
 };
 
@@ -580,6 +667,7 @@ const parseDataFormWorkbook = async (workbook: xlsx.WorkBook): Promise<ParsedWor
                 link_pdf_non_sbo: nullableText(row["Link PDF Non-SBO"]),
                 link_pdf_rekapitulasi: nullableText(row["Link PDF Rekapitulasi"]),
                 link_pdf_sph: nullableText(row["Link Surat Penawaran"]),
+                link_pdf_materai: null,
                 logo: nullableText(row.Logo),
                 email_pembuat: nullableText(row.Email_Pembuat),
                 pemberi_persetujuan_direktur: nullableText(row["Pemberi Persetujuan Direktur"]),
@@ -618,17 +706,20 @@ const parseDataFormWorkbook = async (workbook: xlsx.WorkBook): Promise<ParsedWor
     return {
         candidates,
         source_format: "data_form_form2",
-        ignored_sheets: workbook.SheetNames.filter((sheet) => sheet !== "Form2" && sheet !== "SPK_Data" && sheet !== "dokumentasi_bangunan")
+        ignored_sheets: workbook.SheetNames.filter((sheet) => sheet !== "Form2" && sheet !== "SPK_Data" && sheet !== "dokumentasi_bangunan"),
+        materai_count: 0,
+        materai_ambiguous_count: 0
     };
 };
 
-const parseWorkbook = async (buffer: Buffer): Promise<ParsedWorkbook> => {
+const parseWorkbook = async (buffer: Buffer, materaiBuffer?: Buffer): Promise<ParsedWorkbook> => {
     if (!buffer.length) throw new AppError("File Excel wajib diupload", 400);
 
     const workbook = xlsx.read(buffer, { type: "buffer", cellDates: true });
+    const materai = parseMateraiWorkbook(materaiBuffer);
     const hasLegacySheets = REQUIRED_SHEETS.every((sheet) => workbook.Sheets[sheet]);
-    if (hasLegacySheets) return parseLegacyWorkbook(workbook);
-    if (workbook.Sheets.Form2) return await parseDataFormWorkbook(workbook);
+    if (hasLegacySheets) return attachMateraiLinks(parseLegacyWorkbook(workbook), materai);
+    if (workbook.Sheets.Form2) return attachMateraiLinks(await parseDataFormWorkbook(workbook), materai);
 
     const missingSheets = REQUIRED_SHEETS.filter((sheet) => !workbook.Sheets[sheet]);
     throw new AppError(`Format file tidak dikenali. Upload file dengan sheet ${REQUIRED_SHEETS.join(", ")} atau DATA FORM sheet Form2. Sheet legacy yang kurang: ${missingSheets.join(", ")}`, 400);
@@ -845,12 +936,12 @@ const insertRab = async (client: PoolClient, tokoId: number, rab: SourceRab): Pr
                 kategori_lokasi, no_polis, berlaku_polis, file_asuransi,
                 luas_bangunan, luas_terbangun, luas_area_terbuka, luas_area_parkir,
                 luas_area_sales, luas_gudang, grand_total, grand_total_non_sbo,
-                grand_total_final
+                grand_total_final, link_pdf_materai
             ) VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
                 $11::timestamp, $12, $13::timestamp, $14, $15::timestamp,
                 $16, $17::timestamp, $18, $19, $20, $21, $22, $23,
-                $24, $25, $26, $27, $28, $29, $30, $31, $32
+                $24, $25, $26, $27, $28, $29, $30, $31, $32, $33
             )
             RETURNING id
             `,
@@ -886,7 +977,8 @@ const insertRab = async (client: PoolClient, tokoId: number, rab: SourceRab): Pr
                 rab.luas_gudang,
                 rab.grand_total,
                 rab.grand_total_non_sbo,
-                rab.grand_total_final
+                rab.grand_total_final,
+                rab.link_pdf_materai
             ]
         );
 
@@ -905,13 +997,13 @@ const insertRab = async (client: PoolClient, tokoId: number, rab: SourceRab): Pr
             kategori_lokasi, no_polis, berlaku_polis, file_asuransi,
             luas_bangunan, luas_terbangun, luas_area_terbuka, luas_area_parkir,
             luas_area_sales, luas_gudang, grand_total, grand_total_non_sbo,
-            grand_total_final, created_at
+            grand_total_final, created_at, link_pdf_materai
         ) VALUES (
             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
             $11::timestamp, $12, $13::timestamp, $14, $15::timestamp,
             $16, $17::timestamp, $18, $19, $20, $21, $22, $23,
             $24, $25, $26, $27, $28, $29, $30, $31, $32,
-            COALESCE($33::timestamp, timezone('Asia/Jakarta', now()))
+            COALESCE($33::timestamp, timezone('Asia/Jakarta', now())), $34
         )
         RETURNING id
         `,
@@ -948,7 +1040,8 @@ const insertRab = async (client: PoolClient, tokoId: number, rab: SourceRab): Pr
             rab.grand_total,
             rab.grand_total_non_sbo,
             rab.grand_total_final,
-            rab.created_at
+            rab.created_at,
+            rab.link_pdf_materai
         ]
     );
 
@@ -958,7 +1051,7 @@ const insertRab = async (client: PoolClient, tokoId: number, rab: SourceRab): Pr
 const updateRab = async (client: PoolClient, rabId: number, rab: SourceRab): Promise<void> => {
     const createdAtSet = rabCreatedAtColumnCache
         ? `,
-            created_at = COALESCE($32::timestamp, created_at)`
+            created_at = COALESCE($33::timestamp, created_at)`
         : "";
 
     const values: Array<string | number | null> = [
@@ -992,7 +1085,8 @@ const updateRab = async (client: PoolClient, rabId: number, rab: SourceRab): Pro
         rab.luas_gudang,
         rab.grand_total,
         rab.grand_total_non_sbo,
-        rab.grand_total_final
+        rab.grand_total_final,
+        rab.link_pdf_materai
     ];
 
     if (rabCreatedAtColumnCache) values.push(rab.created_at);
@@ -1031,7 +1125,8 @@ const updateRab = async (client: PoolClient, rabId: number, rab: SourceRab): Pro
             luas_gudang = COALESCE($28, luas_gudang),
             grand_total = $29,
             grand_total_non_sbo = $30,
-            grand_total_final = $31
+            grand_total_final = $31,
+            link_pdf_materai = COALESCE($32, link_pdf_materai)
             ${createdAtSet}
         WHERE id = $${values.length}
         `,
@@ -1171,12 +1266,12 @@ const applyCandidate = async (
 };
 
 export const rabMigrationService = {
-    async preview(buffer: Buffer, actorRole: string) {
+    async preview(buffer: Buffer, actorRole: string, materaiBuffer?: Buffer) {
         if (!hasSuperHumanRole(actorRole)) {
             throw new AppError("Hanya Super Human yang dapat melakukan migrasi RAB", 403);
         }
 
-        const parsed = await parseWorkbook(buffer);
+        const parsed = await parseWorkbook(buffer, materaiBuffer);
         const candidates = parsed.candidates;
         const existingByKey = await findExistingRabs(candidates);
         const details = [];
@@ -1225,6 +1320,7 @@ export const rabMigrationService = {
                 existing_created_at: existing.existing_created_at,
                 existing_item_count: existing.existing_item_count,
                 existing_match_count: existing.existing_match_count,
+                has_materai_pdf: Boolean(candidate.rab.link_pdf_materai),
                 issues: rowIssues,
                 warnings: candidate.warnings
             });
@@ -1237,18 +1333,20 @@ export const rabMigrationService = {
             conflict_count: conflictCount,
             missing_created_at_count: missingCreatedAtCount,
             invalid_count: invalidCount,
+            materai_count: parsed.materai_count,
+            materai_ambiguous_count: parsed.materai_ambiguous_count,
             source_format: parsed.source_format,
             ignored_sheets: parsed.ignored_sheets,
             details
         };
     },
 
-    async commit(buffer: Buffer, input: RabMigrationCommitInput) {
+    async commit(buffer: Buffer, input: RabMigrationCommitInput, materaiBuffer?: Buffer) {
         if (!hasSuperHumanRole(input.actor_role)) {
             throw new AppError("Hanya Super Human yang dapat melakukan migrasi RAB", 403);
         }
 
-        const parsed = await parseWorkbook(buffer);
+        const parsed = await parseWorkbook(buffer, materaiBuffer);
         const candidates = parsed.candidates;
         const candidateBySourceId = new Map(candidates.map((candidate) => [candidate.source_rab_id, candidate]));
         const selected = input.selections.filter((selection) => selection.action !== "skip");
@@ -1274,6 +1372,8 @@ export const rabMigrationService = {
                 reason: "Migrasi RAB dari file Excel",
                 metadata: {
                     source_format: parsed.source_format,
+                    materai_count: parsed.materai_count,
+                    materai_ambiguous_count: parsed.materai_ambiguous_count,
                     total_selected: input.selections.length,
                     total_executed: selected.length,
                     source_rab_ids: input.selections.map((selection) => selection.source_rab_id)

@@ -111,6 +111,18 @@ export const downloadRabPdf = asyncHandler(async (req: Request, res: Response) =
     res.send(result.pdfBuffer);
 });
 
+export const regenerateRabPdf = asyncHandler(async (req: Request, res: Response) => {
+    const data = await rabService.regeneratePdf(req.params.id);
+
+    res.json({
+        status: "success",
+        message: data.has_materai_pdf
+            ? "PDF RAB + materai berhasil digenerate ulang"
+            : "PDF RAB berhasil digenerate ulang",
+        data
+    });
+});
+
 export const downloadRabLogo = asyncHandler(async (req: Request, res: Response) => {
     const result = await rabService.getAssetDownloadPayload(req.params.id, "logo");
 
