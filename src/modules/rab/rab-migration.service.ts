@@ -89,6 +89,12 @@ type ExistingRab = {
     existing_match_count: number;
 };
 
+type ParsedWorkbook = {
+    candidates: Candidate[];
+    source_format: "legacy_tables" | "data_form_form2";
+    ignored_sheets: string[];
+};
+
 let rabCreatedAtColumnCache: boolean | null = null;
 
 const ensureRabCreatedAtColumnKnown = async (db: PoolClient | typeof pool): Promise<boolean> => {
@@ -173,15 +179,198 @@ const readRows = (workbook: xlsx.WorkBook, sheetName: string): CellRecord[] => {
     return xlsx.utils.sheet_to_json<CellRecord>(sheet, { defval: "", raw: true });
 };
 
-const parseWorkbook = (buffer: Buffer): Candidate[] => {
-    if (!buffer.length) throw new AppError("File Excel wajib diupload", 400);
-
-    const workbook = xlsx.read(buffer, { type: "buffer", cellDates: true });
-    const missingSheets = REQUIRED_SHEETS.filter((sheet) => !workbook.Sheets[sheet]);
-    if (missingSheets.length > 0) {
-        throw new AppError(`Sheet wajib tidak ditemukan: ${missingSheets.join(", ")}`, 400);
+const appendDuplicateIssues = (candidates: Candidate[]): void => {
+    const duplicateCountByKey = new Map<string, number>();
+    for (const candidate of candidates) {
+        const key = sourceNaturalKey(candidate.toko);
+        if (!key) continue;
+        duplicateCountByKey.set(key, (duplicateCountByKey.get(key) ?? 0) + 1);
     }
 
+    for (const candidate of candidates) {
+        const key = sourceNaturalKey(candidate.toko);
+        if (!key) continue;
+        const count = duplicateCountByKey.get(key) ?? 0;
+        if (count > 1) {
+            candidate.issues.push(`Duplicate di Excel: ${candidate.toko!.nomor_ulok} / ${candidate.toko!.lingkup_pekerjaan ?? "-"} muncul ${count} kali`);
+        }
+    }
+};
+
+const naturalKey = (nomorUlok: unknown, lingkup: unknown): string =>
+    `${normalizeCell(nomorUlok).toUpperCase()}\u0000${normalizeCell(lingkup).toUpperCase()}`;
+
+const buildCompanyByEmail = async (emails: string[]): Promise<Map<string, string>> => {
+    const uniqueEmails = Array.from(new Set(emails.map((email) => email.trim().toLowerCase()).filter(Boolean)));
+    const companyByEmail = new Map<string, string>();
+    if (uniqueEmails.length === 0) return companyByEmail;
+
+    const result = await pool.query<{ email: string; nama_pt: string | null }>(
+        `
+        SELECT LOWER(email_sat) AS email, nama_pt
+        FROM user_cabang
+        WHERE LOWER(email_sat) = ANY($1::text[])
+          AND NULLIF(TRIM(COALESCE(nama_pt, '')), '') IS NOT NULL
+        `,
+        [uniqueEmails]
+    );
+
+    const companiesByEmail = new Map<string, Set<string>>();
+    for (const row of result.rows) {
+        const email = row.email;
+        const company = normalizeCell(row.nama_pt);
+        if (!email || !company) continue;
+        const companies = companiesByEmail.get(email) ?? new Set<string>();
+        companies.add(company);
+        companiesByEmail.set(email, companies);
+    }
+
+    for (const [email, companies] of companiesByEmail.entries()) {
+        if (companies.size === 1) {
+            companyByEmail.set(email, Array.from(companies)[0]);
+        }
+    }
+
+    return companyByEmail;
+};
+
+const buildExistingKodeTokoByKey = async (rows: CellRecord[]): Promise<{ byNaturalKey: Map<string, string>; byUlok: Map<string, string> }> => {
+    const uniqueKeys = new Set<string>();
+    const uniqueUloks = new Set<string>();
+    const values: string[] = [];
+    const placeholders: string[] = [];
+
+    for (const row of rows) {
+        const nomorUlok = nullableText(row["Nomor Ulok"]);
+        const lingkup = nullableText(row["Lingkup_Pekerjaan"]);
+        if (!nomorUlok || !lingkup) continue;
+        uniqueUloks.add(nomorUlok.trim().toUpperCase());
+        const key = naturalKey(nomorUlok, lingkup);
+        if (uniqueKeys.has(key)) continue;
+        uniqueKeys.add(key);
+        const base = values.length;
+        placeholders.push(`($${base + 1}, $${base + 2})`);
+        values.push(nomorUlok.trim().toUpperCase(), lingkup.trim().toUpperCase());
+    }
+
+    const kodeByKey = new Map<string, string>();
+    const kodeByUlok = new Map<string, string>();
+    if (placeholders.length === 0) return { byNaturalKey: kodeByKey, byUlok: kodeByUlok };
+
+    const [keyResult, ulokResult] = await Promise.all([
+        pool.query<{ nomor_ulok: string; lingkup_pekerjaan: string; kode_toko: string | null }>(
+        `
+        WITH wanted(nomor_ulok, lingkup_pekerjaan) AS (
+            VALUES ${placeholders.join(", ")}
+        )
+        SELECT w.nomor_ulok, w.lingkup_pekerjaan, t.kode_toko
+        FROM wanted w
+        LEFT JOIN LATERAL (
+            SELECT kode_toko
+            FROM toko
+            WHERE UPPER(TRIM(nomor_ulok)) = w.nomor_ulok
+              AND UPPER(TRIM(COALESCE(lingkup_pekerjaan, ''))) = w.lingkup_pekerjaan
+              AND NULLIF(TRIM(COALESCE(kode_toko, '')), '') IS NOT NULL
+            ORDER BY id DESC
+            LIMIT 1
+        ) t ON TRUE
+        `,
+        values
+        ),
+        pool.query<{ nomor_ulok: string; kode_toko: string | null; kode_count: string | number }>(
+        `
+        SELECT UPPER(TRIM(nomor_ulok)) AS nomor_ulok,
+               MIN(TRIM(kode_toko)) AS kode_toko,
+               COUNT(DISTINCT UPPER(TRIM(kode_toko))) AS kode_count
+        FROM toko
+        WHERE UPPER(TRIM(nomor_ulok)) = ANY($1::text[])
+          AND NULLIF(TRIM(COALESCE(kode_toko, '')), '') IS NOT NULL
+        GROUP BY UPPER(TRIM(nomor_ulok))
+        HAVING COUNT(DISTINCT UPPER(TRIM(kode_toko))) = 1
+        `,
+        [Array.from(uniqueUloks)]
+        )
+    ]);
+
+    for (const row of keyResult.rows) {
+        const kode = nullableText(row.kode_toko);
+        if (!kode) continue;
+        kodeByKey.set(naturalKey(row.nomor_ulok, row.lingkup_pekerjaan), kode);
+    }
+
+    for (const row of ulokResult.rows) {
+        const kode = nullableText(row.kode_toko);
+        if (!kode) continue;
+        kodeByUlok.set(normalizeCell(row.nomor_ulok).toUpperCase(), kode);
+    }
+
+    return { byNaturalKey: kodeByKey, byUlok: kodeByUlok };
+};
+
+const buildDataFormEnrichment = async (workbook: xlsx.WorkBook, formRows: CellRecord[]): Promise<Map<string, { kode_toko: string | null; nama_kontraktor: string | null; nama_toko: string | null }>> => {
+    const enrichment = new Map<string, { kode_toko: string | null; nama_kontraktor: string | null; nama_toko: string | null }>();
+    const companyByEmail = await buildCompanyByEmail(formRows.map((row) => normalizeCell(row.Email_Pembuat)));
+    const existingKodeToko = await buildExistingKodeTokoByKey(formRows);
+
+    for (const row of readRows(workbook, "SPK_Data")) {
+        const nomorUlok = nullableText(row["Nomor Ulok"]);
+        const lingkup = nullableText(row["Lingkup Pekerjaan"]);
+        if (!nomorUlok || !lingkup) continue;
+
+        const key = naturalKey(nomorUlok, lingkup);
+        if (enrichment.has(key)) continue;
+        enrichment.set(key, {
+            kode_toko: nullableText(row["Kode Toko"]),
+            nama_kontraktor: nullableText(row["Nama Kontraktor"]),
+            nama_toko: nullableText(row["Nama_Toko"])
+        });
+    }
+
+    for (const row of readRows(workbook, "dokumentasi_bangunan")) {
+        const nomorUlok = nullableText(row["Nomor Ulok"]);
+        if (!nomorUlok) continue;
+
+        const matchingKeys = Array.from(enrichment.keys()).filter((key) => key.startsWith(`${nomorUlok.trim().toUpperCase()}\u0000`));
+        for (const key of matchingKeys) {
+            const current = enrichment.get(key);
+            if (!current) continue;
+            enrichment.set(key, {
+                kode_toko: current.kode_toko ?? nullableText(row["Kode Toko"]),
+                nama_kontraktor: current.nama_kontraktor ?? nullableText(row["Kontraktor Sipil"]) ?? nullableText(row["Kontraktor ME"]),
+                nama_toko: current.nama_toko ?? nullableText(row["Nama Toko"])
+            });
+        }
+    }
+
+    for (const row of formRows) {
+        const nomorUlok = nullableText(row["Nomor Ulok"]);
+        const lingkup = nullableText(row["Lingkup_Pekerjaan"]);
+        if (!nomorUlok || !lingkup) continue;
+
+        const key = naturalKey(nomorUlok, lingkup);
+        const current = enrichment.get(key);
+        const company = companyByEmail.get(normalizeCell(row.Email_Pembuat).toLowerCase()) ?? null;
+        const existingKodeTokoForRow = existingKodeToko.byNaturalKey.get(key) ?? existingKodeToko.byUlok.get(nomorUlok.trim().toUpperCase()) ?? null;
+        if (!current) {
+            enrichment.set(key, {
+                kode_toko: existingKodeTokoForRow,
+                nama_kontraktor: company,
+                nama_toko: null
+            });
+            continue;
+        }
+
+        enrichment.set(key, {
+            ...current,
+            kode_toko: current.kode_toko ?? existingKodeTokoForRow,
+            nama_kontraktor: current.nama_kontraktor ?? company
+        });
+    }
+
+    return enrichment;
+};
+
+const parseLegacyWorkbook = (workbook: xlsx.WorkBook): ParsedWorkbook => {
     const tokoRows = readRows(workbook, "toko");
     const rabRows = readRows(workbook, "rab");
     const itemRows = readRows(workbook, "rab_item");
@@ -309,23 +498,140 @@ const parseWorkbook = (buffer: Buffer): Candidate[] => {
         });
     }
 
-    const duplicateCountByKey = new Map<string, number>();
-    for (const candidate of candidates) {
-        const key = sourceNaturalKey(candidate.toko);
-        if (!key) continue;
-        duplicateCountByKey.set(key, (duplicateCountByKey.get(key) ?? 0) + 1);
-    }
+    appendDuplicateIssues(candidates);
 
-    for (const candidate of candidates) {
-        const key = sourceNaturalKey(candidate.toko);
-        if (!key) continue;
-        const count = duplicateCountByKey.get(key) ?? 0;
-        if (count > 1) {
-            candidate.issues.push(`Duplicate di Excel: ${candidate.toko!.nomor_ulok} / ${candidate.toko!.lingkup_pekerjaan ?? "-"} muncul ${count} kali`);
+    return {
+        candidates,
+        source_format: "legacy_tables",
+        ignored_sheets: ["RAB import ", "RAB ITEM Import"]
+    };
+};
+
+const parseDataFormWorkbook = async (workbook: xlsx.WorkBook): Promise<ParsedWorkbook> => {
+    const rows = readRows(workbook, "Form2");
+    const enrichmentByKey = await buildDataFormEnrichment(workbook, rows);
+    const candidates: Candidate[] = [];
+
+    for (let index = 0; index < rows.length; index += 1) {
+        const row = rows[index];
+        const nomorUlok = nullableText(row["Nomor Ulok"]);
+        if (!nomorUlok) continue;
+
+        const sourceId = 200000 + index + 2;
+        const lingkup = nullableText(row["Lingkup_Pekerjaan"]);
+        const enriched = enrichmentByKey.get(naturalKey(nomorUlok, lingkup ?? ""));
+
+        const toko: SourceToko = {
+            source_toko_id: sourceId,
+            nomor_ulok: nomorUlok,
+            lingkup_pekerjaan: lingkup,
+            nama_toko: nullableText(row.nama_toko) ?? enriched?.nama_toko ?? null,
+            kode_toko: enriched?.kode_toko ?? null,
+            proyek: nullableText(row.Proyek),
+            cabang: nullableText(row.Cabang),
+            alamat: nullableText(row.Alamat),
+            nama_kontraktor: nullableText(row.Nama_PT) ?? enriched?.nama_kontraktor ?? null
+        };
+
+        const items: SourceRabItem[] = [];
+        let fallbackItemCount = 0;
+        for (let itemNumber = 1; itemNumber <= 200; itemNumber += 1) {
+            const jenis = nullableText(row[`Jenis_Pekerjaan_${itemNumber}`]);
+            if (!jenis) continue;
+
+            const kategori = nullableText(row[`Kategori_Pekerjaan_${itemNumber}`]);
+            const satuan = nullableText(row[`Satuan_Item_${itemNumber}`]);
+            if (!kategori || !satuan) fallbackItemCount += 1;
+
+            items.push({
+                source_item_id: toSourceId(row[`No_Item_${itemNumber}`]) ?? itemNumber,
+                source_rab_id: sourceId,
+                kategori_pekerjaan: kategori ?? "LAINNYA",
+                jenis_pekerjaan: jenis,
+                satuan: satuan ?? "-",
+                volume: numberText(row[`Volume_Item_${itemNumber}`]),
+                harga_material: integerMoneyText(row[`Harga_Material_Item_${itemNumber}`]),
+                harga_upah: integerMoneyText(row[`Harga_Upah_Item_${itemNumber}`]),
+                total_material: integerMoneyText(row[`Total_Material_Item_${itemNumber}`]),
+                total_upah: integerMoneyText(row[`Total_Upah_Item_${itemNumber}`]),
+                total_harga: integerMoneyText(row[`Total_Harga_Item_${itemNumber}`]),
+                catatan: null
+            });
         }
+
+        const issues: string[] = [];
+        const warnings: string[] = [];
+        if (items.length === 0) issues.push("RAB tidak memiliki item");
+        if (!toko.nomor_ulok) issues.push("Nomor ULOK kosong");
+        if (fallbackItemCount > 0) warnings.push(`${fallbackItemCount} item memakai fallback kategori/satuan`);
+        if (!toko.nama_kontraktor) warnings.push("Nama kontraktor tidak ditemukan di Form2.Nama_PT/SPK_Data/user_cabang");
+        if (!enriched?.kode_toko) warnings.push("Kode toko tidak ditemukan di SPK_Data/dokumentasi_bangunan/DB existing");
+
+        candidates.push({
+            source_rab_id: sourceId,
+            source_toko_id: sourceId,
+            toko,
+            rab: {
+                source_rab_id: sourceId,
+                source_toko_id: sourceId,
+                status: nullableText(row.Status),
+                nama_pt: nullableText(row.Nama_PT),
+                link_pdf_gabungan: nullableText(row["Link PDF"]),
+                link_pdf_non_sbo: nullableText(row["Link PDF Non-SBO"]),
+                link_pdf_rekapitulasi: nullableText(row["Link PDF Rekapitulasi"]),
+                link_pdf_sph: nullableText(row["Link Surat Penawaran"]),
+                logo: nullableText(row.Logo),
+                email_pembuat: nullableText(row.Email_Pembuat),
+                pemberi_persetujuan_direktur: nullableText(row["Pemberi Persetujuan Direktur"]),
+                waktu_persetujuan_direktur: excelDateToIso(row["Waktu Persetujuan Direktur"]),
+                pemberi_persetujuan_koordinator: nullableText(row["Pemberi Persetujuan Koordinator"]),
+                waktu_persetujuan_koordinator: excelDateToIso(row["Waktu Persetujuan Koordinator"]),
+                pemberi_persetujuan_manager: nullableText(row["Pemberi Persetujuan Manager"]),
+                waktu_persetujuan_manager: excelDateToIso(row["Waktu Persetujuan Manager"]),
+                alasan_penolakan: nullableText(row["Alasan Penolakan"]),
+                waktu_penolakan: null,
+                ditolak_oleh: null,
+                durasi_pekerjaan: nullableText(row.Durasi_Pekerjaan),
+                kategori_lokasi: nullableText(row.Kategori_Lokasi),
+                no_polis: null,
+                berlaku_polis: null,
+                file_asuransi: null,
+                luas_bangunan: nullableText(row["Luas Bangunan"]),
+                luas_terbangun: nullableText(row["Luas Terbangunan"]),
+                luas_area_terbuka: nullableText(row["Luas Area Terbuka"]),
+                luas_area_parkir: nullableText(row["Luas Area Parkir"]),
+                luas_area_sales: nullableText(row["Luas Area Sales"]),
+                luas_gudang: nullableText(row["Luas Gudang"]),
+                grand_total: integerMoneyText(row["Grand Total"]),
+                grand_total_non_sbo: integerMoneyText(row["Grand Total Non-SBO"]),
+                grand_total_final: integerMoneyText(row["Grand Total Final"]),
+                created_at: excelDateToIso(row.Timestamp)
+            },
+            items,
+            issues,
+            warnings
+        });
     }
 
-    return candidates;
+    appendDuplicateIssues(candidates);
+
+    return {
+        candidates,
+        source_format: "data_form_form2",
+        ignored_sheets: workbook.SheetNames.filter((sheet) => sheet !== "Form2" && sheet !== "SPK_Data" && sheet !== "dokumentasi_bangunan")
+    };
+};
+
+const parseWorkbook = async (buffer: Buffer): Promise<ParsedWorkbook> => {
+    if (!buffer.length) throw new AppError("File Excel wajib diupload", 400);
+
+    const workbook = xlsx.read(buffer, { type: "buffer", cellDates: true });
+    const hasLegacySheets = REQUIRED_SHEETS.every((sheet) => workbook.Sheets[sheet]);
+    if (hasLegacySheets) return parseLegacyWorkbook(workbook);
+    if (workbook.Sheets.Form2) return await parseDataFormWorkbook(workbook);
+
+    const missingSheets = REQUIRED_SHEETS.filter((sheet) => !workbook.Sheets[sheet]);
+    throw new AppError(`Format file tidak dikenali. Upload file dengan sheet ${REQUIRED_SHEETS.join(", ")} atau DATA FORM sheet Form2. Sheet legacy yang kurang: ${missingSheets.join(", ")}`, 400);
 };
 
 const findExistingRab = async (candidate: Candidate, client?: PoolClient): Promise<ExistingRab> => {
@@ -478,13 +784,13 @@ const insertOrUpdateToko = async (
             await client.query(
                 `
                 UPDATE toko
-                SET lingkup_pekerjaan = $1,
-                    nama_toko = $2,
-                    kode_toko = $3,
-                    proyek = $4,
-                    cabang = $5,
-                    alamat = $6,
-                    nama_kontraktor = $7
+                SET lingkup_pekerjaan = COALESCE($1, lingkup_pekerjaan),
+                    nama_toko = COALESCE($2, nama_toko),
+                    kode_toko = COALESCE($3, kode_toko),
+                    proyek = COALESCE($4, proyek),
+                    cabang = COALESCE($5, cabang),
+                    alamat = COALESCE($6, alamat),
+                    nama_kontraktor = COALESCE($7, nama_kontraktor)
                 WHERE id = $8
                 `,
                 [
@@ -695,34 +1001,34 @@ const updateRab = async (client: PoolClient, rabId: number, rab: SourceRab): Pro
     await client.query(
         `
         UPDATE rab
-        SET status = $1,
-            nama_pt = $2,
-            link_pdf_gabungan = $3,
-            link_pdf_non_sbo = $4,
-            link_pdf_rekapitulasi = $5,
-            link_pdf_sph = $6,
-            logo = $7,
-            email_pembuat = $8,
-            pemberi_persetujuan_direktur = $9,
-            waktu_persetujuan_direktur = $10::timestamp,
-            pemberi_persetujuan_koordinator = $11,
-            waktu_persetujuan_koordinator = $12::timestamp,
-            pemberi_persetujuan_manager = $13,
-            waktu_persetujuan_manager = $14::timestamp,
-            alasan_penolakan = $15,
-            waktu_penolakan = $16::timestamp,
-            ditolak_oleh = $17,
-            durasi_pekerjaan = $18,
-            kategori_lokasi = $19,
-            no_polis = $20,
-            berlaku_polis = $21,
-            file_asuransi = $22,
-            luas_bangunan = $23,
-            luas_terbangun = $24,
-            luas_area_terbuka = $25,
-            luas_area_parkir = $26,
-            luas_area_sales = $27,
-            luas_gudang = $28,
+        SET status = COALESCE($1, status),
+            nama_pt = COALESCE($2, nama_pt),
+            link_pdf_gabungan = COALESCE($3, link_pdf_gabungan),
+            link_pdf_non_sbo = COALESCE($4, link_pdf_non_sbo),
+            link_pdf_rekapitulasi = COALESCE($5, link_pdf_rekapitulasi),
+            link_pdf_sph = COALESCE($6, link_pdf_sph),
+            logo = COALESCE($7, logo),
+            email_pembuat = COALESCE($8, email_pembuat),
+            pemberi_persetujuan_direktur = COALESCE($9, pemberi_persetujuan_direktur),
+            waktu_persetujuan_direktur = COALESCE($10::timestamp, waktu_persetujuan_direktur),
+            pemberi_persetujuan_koordinator = COALESCE($11, pemberi_persetujuan_koordinator),
+            waktu_persetujuan_koordinator = COALESCE($12::timestamp, waktu_persetujuan_koordinator),
+            pemberi_persetujuan_manager = COALESCE($13, pemberi_persetujuan_manager),
+            waktu_persetujuan_manager = COALESCE($14::timestamp, waktu_persetujuan_manager),
+            alasan_penolakan = COALESCE($15, alasan_penolakan),
+            waktu_penolakan = COALESCE($16::timestamp, waktu_penolakan),
+            ditolak_oleh = COALESCE($17, ditolak_oleh),
+            durasi_pekerjaan = COALESCE($18, durasi_pekerjaan),
+            kategori_lokasi = COALESCE($19, kategori_lokasi),
+            no_polis = COALESCE($20, no_polis),
+            berlaku_polis = COALESCE($21, berlaku_polis),
+            file_asuransi = COALESCE($22, file_asuransi),
+            luas_bangunan = COALESCE($23, luas_bangunan),
+            luas_terbangun = COALESCE($24, luas_terbangun),
+            luas_area_terbuka = COALESCE($25, luas_area_terbuka),
+            luas_area_parkir = COALESCE($26, luas_area_parkir),
+            luas_area_sales = COALESCE($27, luas_area_sales),
+            luas_gudang = COALESCE($28, luas_gudang),
             grand_total = $29,
             grand_total_non_sbo = $30,
             grand_total_final = $31
@@ -870,7 +1176,8 @@ export const rabMigrationService = {
             throw new AppError("Hanya Super Human yang dapat melakukan migrasi RAB", 403);
         }
 
-        const candidates = parseWorkbook(buffer);
+        const parsed = await parseWorkbook(buffer);
+        const candidates = parsed.candidates;
         const existingByKey = await findExistingRabs(candidates);
         const details = [];
         let readyCount = 0;
@@ -930,7 +1237,8 @@ export const rabMigrationService = {
             conflict_count: conflictCount,
             missing_created_at_count: missingCreatedAtCount,
             invalid_count: invalidCount,
-            ignored_sheets: ["RAB import ", "RAB ITEM Import"].filter(Boolean),
+            source_format: parsed.source_format,
+            ignored_sheets: parsed.ignored_sheets,
             details
         };
     },
@@ -940,7 +1248,8 @@ export const rabMigrationService = {
             throw new AppError("Hanya Super Human yang dapat melakukan migrasi RAB", 403);
         }
 
-        const candidates = parseWorkbook(buffer);
+        const parsed = await parseWorkbook(buffer);
+        const candidates = parsed.candidates;
         const candidateBySourceId = new Map(candidates.map((candidate) => [candidate.source_rab_id, candidate]));
         const selected = input.selections.filter((selection) => selection.action !== "skip");
 
@@ -964,6 +1273,7 @@ export const rabMigrationService = {
                 status_after: "MIGRATION_COMMITTED",
                 reason: "Migrasi RAB dari file Excel",
                 metadata: {
+                    source_format: parsed.source_format,
                     total_selected: input.selections.length,
                     total_executed: selected.length,
                     source_rab_ids: input.selections.map((selection) => selection.source_rab_id)
