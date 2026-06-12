@@ -78,6 +78,7 @@ type Candidate = {
     rab: SourceRab;
     items: SourceRabItem[];
     issues: string[];
+    warnings: string[];
 };
 
 type ExistingRab = {
@@ -85,6 +86,7 @@ type ExistingRab = {
     existing_rab_id: number | null;
     existing_created_at: string | null;
     existing_item_count: number;
+    existing_match_count: number;
 };
 
 let rabCreatedAtColumnCache: boolean | null = null;
@@ -160,6 +162,11 @@ const integerMoneyText = (value: unknown): string => {
     return Number.isFinite(numeric) ? String(Math.round(numeric)) : "0";
 };
 
+const sourceNaturalKey = (toko: SourceToko | null): string | null => {
+    if (!toko?.nomor_ulok) return null;
+    return `${toko.nomor_ulok.trim().toUpperCase()}\u0000${String(toko.lingkup_pekerjaan ?? "").trim().toUpperCase()}`;
+};
+
 const readRows = (workbook: xlsx.WorkBook, sheetName: string): CellRecord[] => {
     const sheet = workbook.Sheets[sheetName];
     if (!sheet) return [];
@@ -199,17 +206,29 @@ const parseWorkbook = (buffer: Buffer): Candidate[] => {
     }
 
     const itemsByRabId = new Map<number, SourceRabItem[]>();
+    const skippedItemsByRabId = new Map<number, number>();
+    const fallbackItemsByRabId = new Map<number, number>();
     for (const row of itemRows) {
         const sourceRabId = toSourceId(row.id_rab);
         const jenis = nullableText(row.jenis_pekerjaan);
-        if (!sourceRabId || !jenis) continue;
+        if (!sourceRabId) continue;
+        if (!jenis) {
+            skippedItemsByRabId.set(sourceRabId, (skippedItemsByRabId.get(sourceRabId) ?? 0) + 1);
+            continue;
+        }
+
+        const kategori = nullableText(row.kategori_pekerjaan);
+        const satuan = nullableText(row.satuan);
+        if (!kategori || !satuan) {
+            fallbackItemsByRabId.set(sourceRabId, (fallbackItemsByRabId.get(sourceRabId) ?? 0) + 1);
+        }
 
         const item: SourceRabItem = {
             source_item_id: toSourceId(row.id),
             source_rab_id: sourceRabId,
-            kategori_pekerjaan: nullableText(row.kategori_pekerjaan) ?? "LAINNYA",
+            kategori_pekerjaan: kategori ?? "LAINNYA",
             jenis_pekerjaan: jenis,
-            satuan: nullableText(row.satuan) ?? "-",
+            satuan: satuan ?? "-",
             volume: numberText(row.volume),
             harga_material: integerMoneyText(row.harga_material),
             harga_upah: integerMoneyText(row.harga_upah),
@@ -270,9 +289,14 @@ const parseWorkbook = (buffer: Buffer): Candidate[] => {
         const toko = tokoById.get(sourceTokoId) ?? null;
         const items = itemsByRabId.get(sourceRabId) ?? [];
         const issues: string[] = [];
+        const warnings: string[] = [];
         if (!toko) issues.push(`Toko source id ${sourceTokoId} tidak ditemukan`);
         if (items.length === 0) issues.push("RAB tidak memiliki item");
         if (toko && !toko.nomor_ulok) issues.push("Nomor ULOK kosong");
+        const skippedItemCount = skippedItemsByRabId.get(sourceRabId) ?? 0;
+        const fallbackItemCount = fallbackItemsByRabId.get(sourceRabId) ?? 0;
+        if (skippedItemCount > 0) issues.push(`${skippedItemCount} baris item tidak ikut masuk karena jenis_pekerjaan kosong`);
+        if (fallbackItemCount > 0) warnings.push(`${fallbackItemCount} item memakai fallback kategori/satuan`);
 
         candidates.push({
             source_rab_id: sourceRabId,
@@ -280,8 +304,25 @@ const parseWorkbook = (buffer: Buffer): Candidate[] => {
             toko,
             rab,
             items,
-            issues
+            issues,
+            warnings
         });
+    }
+
+    const duplicateCountByKey = new Map<string, number>();
+    for (const candidate of candidates) {
+        const key = sourceNaturalKey(candidate.toko);
+        if (!key) continue;
+        duplicateCountByKey.set(key, (duplicateCountByKey.get(key) ?? 0) + 1);
+    }
+
+    for (const candidate of candidates) {
+        const key = sourceNaturalKey(candidate.toko);
+        if (!key) continue;
+        const count = duplicateCountByKey.get(key) ?? 0;
+        if (count > 1) {
+            candidate.issues.push(`Duplicate di Excel: ${candidate.toko!.nomor_ulok} / ${candidate.toko!.lingkup_pekerjaan ?? "-"} muncul ${count} kali`);
+        }
     }
 
     return candidates;
@@ -289,7 +330,7 @@ const parseWorkbook = (buffer: Buffer): Candidate[] => {
 
 const findExistingRab = async (candidate: Candidate, client?: PoolClient): Promise<ExistingRab> => {
     if (!candidate.toko) {
-        return { existing_toko_id: null, existing_rab_id: null, existing_created_at: null, existing_item_count: 0 };
+        return { existing_toko_id: null, existing_rab_id: null, existing_created_at: null, existing_item_count: 0, existing_match_count: 0 };
     }
 
     const db = client ?? pool;
@@ -303,14 +344,23 @@ const findExistingRab = async (candidate: Candidate, client?: PoolClient): Promi
         rab_id: number | null;
         rab_created_at: string | null;
         item_count: string | number | null;
+        toko_match_count: string | number | null;
     }>(
         `
         SELECT
             t.id AS toko_id,
+            t.match_count AS toko_match_count,
             r.id AS rab_id,
             ${createdAtSelect}
             COUNT(ri.id) AS item_count
-        FROM toko t
+        FROM (
+            SELECT id, COUNT(*) OVER () AS match_count
+            FROM toko
+            WHERE nomor_ulok = $1
+              AND LOWER(COALESCE(lingkup_pekerjaan, '')) = LOWER(COALESCE($2, ''))
+            ORDER BY id DESC
+            LIMIT 1
+        ) t
         LEFT JOIN LATERAL (
             SELECT ${createdAtInnerSelect}
             FROM rab
@@ -319,23 +369,20 @@ const findExistingRab = async (candidate: Candidate, client?: PoolClient): Promi
             LIMIT 1
         ) r ON TRUE
         LEFT JOIN rab_item ri ON ri.id_rab = r.id
-        WHERE t.nomor_ulok = $1
-          AND LOWER(COALESCE(t.lingkup_pekerjaan, '')) = LOWER(COALESCE($2, ''))
-        GROUP BY 1, 2, 3
-        ORDER BY t.id DESC
-        LIMIT 1
+        GROUP BY 1, 2, 3, 4
         `,
         [candidate.toko.nomor_ulok, candidate.toko.lingkup_pekerjaan]
     );
 
     const row = result.rows[0];
-    if (!row) return { existing_toko_id: null, existing_rab_id: null, existing_created_at: null, existing_item_count: 0 };
+    if (!row) return { existing_toko_id: null, existing_rab_id: null, existing_created_at: null, existing_item_count: 0, existing_match_count: 0 };
 
     return {
         existing_toko_id: row.toko_id,
         existing_rab_id: row.rab_id,
         existing_created_at: row.rab_created_at ?? null,
-        existing_item_count: Number(row.item_count ?? 0)
+        existing_item_count: Number(row.item_count ?? 0),
+        existing_match_count: Number(row.toko_match_count ?? 0)
     };
 };
 
@@ -371,6 +418,7 @@ const findExistingRabs = async (candidates: Candidate[]): Promise<Map<string, Ex
         rab_id: number | null;
         rab_created_at: string | null;
         item_count: string | number | null;
+        toko_match_count: string | number | null;
     }>(
         `
         WITH wanted(nomor_ulok, lingkup_pekerjaan) AS (
@@ -380,12 +428,13 @@ const findExistingRabs = async (candidates: Candidate[]): Promise<Map<string, Ex
             w.nomor_ulok,
             w.lingkup_pekerjaan,
             t.id AS toko_id,
+            t.match_count AS toko_match_count,
             r.id AS rab_id,
             ${createdAtSelect}
             COUNT(ri.id) AS item_count
         FROM wanted w
         LEFT JOIN LATERAL (
-            SELECT id
+            SELECT id, COUNT(*) OVER () AS match_count
             FROM toko
             WHERE nomor_ulok = w.nomor_ulok
               AND LOWER(COALESCE(lingkup_pekerjaan, '')) = LOWER(COALESCE(w.lingkup_pekerjaan, ''))
@@ -400,7 +449,7 @@ const findExistingRabs = async (candidates: Candidate[]): Promise<Map<string, Ex
             LIMIT 1
         ) r ON TRUE
         LEFT JOIN rab_item ri ON ri.id_rab = r.id
-        GROUP BY 1, 2, 3, 4, 5
+        GROUP BY 1, 2, 3, 4, 5, 6
         `,
         values
     );
@@ -410,7 +459,8 @@ const findExistingRabs = async (candidates: Candidate[]): Promise<Map<string, Ex
             existing_toko_id: row.toko_id,
             existing_rab_id: row.rab_id,
             existing_created_at: row.rab_created_at ?? null,
-            existing_item_count: Number(row.item_count ?? 0)
+            existing_item_count: Number(row.item_count ?? 0),
+            existing_match_count: Number(row.toko_match_count ?? 0)
         });
     }
 
@@ -745,6 +795,13 @@ const applyCandidate = async (
     }
 
     const existing = await findExistingRab(candidate, client);
+    if (existing.existing_match_count > 1) {
+        throw new AppError(
+            `RAB ${candidate.toko.nomor_ulok} ${candidate.toko.lingkup_pekerjaan ?? ""} ambigu: ada ${existing.existing_match_count} toko cocok di database.`,
+            409
+        );
+    }
+
     if (action === "insert" && existing.existing_rab_id) {
         throw new AppError(`RAB ${candidate.toko.nomor_ulok} ${candidate.toko.lingkup_pekerjaan ?? ""} sudah ada. Pilih replace atau skip.`, 409);
     }
@@ -826,9 +883,13 @@ export const rabMigrationService = {
             totalItems += candidate.items.length;
             const existing = candidate.toko
                 ? existingByKey.get(existingKey(candidate.toko.nomor_ulok, candidate.toko.lingkup_pekerjaan))
-                    ?? { existing_toko_id: null, existing_rab_id: null, existing_created_at: null, existing_item_count: 0 }
-                : { existing_toko_id: null, existing_rab_id: null, existing_created_at: null, existing_item_count: 0 };
-            const state = candidate.issues.length > 0
+                    ?? { existing_toko_id: null, existing_rab_id: null, existing_created_at: null, existing_item_count: 0, existing_match_count: 0 }
+                : { existing_toko_id: null, existing_rab_id: null, existing_created_at: null, existing_item_count: 0, existing_match_count: 0 };
+            const rowIssues = [...candidate.issues];
+            if (existing.existing_match_count > 1) {
+                rowIssues.push(`Ambigu di DB: ada ${existing.existing_match_count} toko dengan ULOK dan lingkup yang sama`);
+            }
+            const state = rowIssues.length > 0
                 ? "invalid"
                 : existing.existing_rab_id
                     ? existing.existing_created_at
@@ -856,7 +917,9 @@ export const rabMigrationService = {
                 existing_rab_id: existing.existing_rab_id,
                 existing_created_at: existing.existing_created_at,
                 existing_item_count: existing.existing_item_count,
-                issues: candidate.issues
+                existing_match_count: existing.existing_match_count,
+                issues: rowIssues,
+                warnings: candidate.warnings
             });
         }
 
