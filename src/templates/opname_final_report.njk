@@ -99,26 +99,80 @@
       text-align: center;
     }
 
-    .photo-col {
-      width: 78px;
-      text-align: center;
+    .opname-table {
+      table-layout: fixed;
+      font-size: 9px;
+    }
+
+    .opname-table th,
+    .opname-table td {
+      padding: 4px 5px;
+      vertical-align: top;
+      overflow-wrap: normal;
+      word-break: normal;
+    }
+
+    .opname-table .no-col {
+      width: 28px;
+    }
+
+    .opname-table .work-col {
+      width: 31%;
+      line-height: 1.35;
+    }
+
+    .opname-table .unit-col {
+      width: 38px;
+    }
+
+    .opname-table .volume-col {
+      width: 55px;
+    }
+
+    .opname-table .amount-col {
+      width: 76px;
+      white-space: nowrap;
+    }
+
+    .opname-table .note-col {
+      width: 82px;
+    }
+
+    .photo-row td {
+      background: #fbfdff;
+      border-top: 0;
+      padding: 6px 8px;
+    }
+
+    .photo-wrap {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .photo-label {
+      min-width: 78px;
+      font-size: 9px;
+      font-weight: 700;
+      color: #475569;
+      text-transform: uppercase;
+      padding-top: 2px;
     }
 
     .item-photo {
-      width: 68px;
-      height: 52px;
+      width: 104px;
+      height: 78px;
       object-fit: cover;
       border: 1px solid #cbd5e1;
       border-radius: 4px;
       background: #f8fafc;
-      display: block;
-      margin: 0 auto;
     }
 
     .photo-placeholder {
-      font-size: 8px;
+      font-size: 9px;
       color: #94a3b8;
       line-height: 1.25;
+      padding-top: 2px;
     }
 
     .summary {
@@ -267,7 +321,7 @@
 
   {% for group in grouped_items_list %}
   <div class="category-header">{{ loop.index }}. {{ group.category }}</div>
-  <table class="items">
+  <table class="items opname-table">
     <thead>
       <tr>
         <th class="no-col">No</th>
@@ -279,7 +333,6 @@
         <th class="amount-col">Total RAB</th>
         <th class="amount-col">Total Selisih</th>
         <th class="note-col">Catatan</th>
-        <th class="photo-col">Dokumentasi</th>
       </tr>
     </thead>
     <tbody>
@@ -294,12 +347,17 @@
         <td class="amount-col">{{ item.total_harga_rab_formatted }}</td>
         <td class="amount-col">{{ item.total_selisih_formatted }}</td>
         <td>{{ item.catatan or '-' }}</td>
-        <td class="photo-col">
+      </tr>
+      <tr class="photo-row">
+        <td colspan="9">
+          <div class="photo-wrap">
+            <div class="photo-label">Dokumentasi</div>
           {% if item.foto_data_url %}
-          <img class="item-photo" src="{{ item.foto_data_url }}" alt="Foto opname {{ loop.index }}" />
+            <img class="item-photo" src="{{ item.foto_data_url }}" alt="Foto opname {{ loop.index }}" />
           {% else %}
-          <span class="photo-placeholder">Foto tidak tersedia</span>
+            <span class="photo-placeholder">Foto tidak tersedia</span>
           {% endif %}
+          </div>
         </td>
       </tr>
       {% endfor %}
@@ -323,7 +381,7 @@
 
   {% for group in rab_grouped_items_list %}
   <div class="category-header">{{ loop.index }}. {{ group.category }}</div>
-  <table class="items">
+  <table class="items opname-table">
     <thead>
       <tr>
         <th class="no-col">No</th>
@@ -436,7 +494,6 @@
         <th class="amount-col">Total RAB</th>
         <th class="amount-col">Total Selisih</th>
         <th class="note-col">Catatan</th>
-        <th class="photo-col">Dokumentasi</th>
       </tr>
     </thead>
     <tbody>
@@ -451,12 +508,17 @@
         <td class="amount-col">{{ item.total_harga_rab_formatted }}</td>
         <td class="amount-col">{{ item.total_selisih_formatted }}</td>
         <td>{{ item.catatan or '-' }}</td>
-        <td class="photo-col">
+      </tr>
+      <tr class="photo-row">
+        <td colspan="9">
+          <div class="photo-wrap">
+            <div class="photo-label">Dokumentasi</div>
           {% if item.foto_data_url %}
-          <img class="item-photo" src="{{ item.foto_data_url }}" alt="Foto kerja tambah {{ loop.index }}" />
+            <img class="item-photo" src="{{ item.foto_data_url }}" alt="Foto kerja tambah {{ loop.index }}" />
           {% else %}
-          <span class="photo-placeholder">Foto tidak tersedia</span>
+            <span class="photo-placeholder">Foto tidak tersedia</span>
           {% endif %}
+          </div>
         </td>
       </tr>
       {% endfor %}
@@ -480,7 +542,7 @@
 
   {% for group in kerja_kurang_groups %}
   <div class="category-header">{{ loop.index }}. {{ group.category }}</div>
-  <table class="items">
+  <table class="items opname-table">
     <thead>
       <tr>
         <th class="no-col">No</th>
@@ -492,7 +554,6 @@
         <th class="amount-col">Total RAB</th>
         <th class="amount-col">Total Selisih</th>
         <th class="note-col">Catatan</th>
-        <th class="photo-col">Dokumentasi</th>
       </tr>
     </thead>
     <tbody>
@@ -507,12 +568,17 @@
         <td class="amount-col">{{ item.total_harga_rab_formatted }}</td>
         <td class="amount-col">{{ item.total_selisih_formatted }}</td>
         <td>{{ item.catatan or '-' }}</td>
-        <td class="photo-col">
+      </tr>
+      <tr class="photo-row">
+        <td colspan="9">
+          <div class="photo-wrap">
+            <div class="photo-label">Dokumentasi</div>
           {% if item.foto_data_url %}
-          <img class="item-photo" src="{{ item.foto_data_url }}" alt="Foto kerja kurang {{ loop.index }}" />
+            <img class="item-photo" src="{{ item.foto_data_url }}" alt="Foto kerja kurang {{ loop.index }}" />
           {% else %}
-          <span class="photo-placeholder">Foto tidak tersedia</span>
+            <span class="photo-placeholder">Foto tidak tersedia</span>
           {% endif %}
+          </div>
         </td>
       </tr>
       {% endfor %}
