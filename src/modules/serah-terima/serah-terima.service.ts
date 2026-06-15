@@ -67,6 +67,14 @@ export const serahTerimaService = {
                 alamat: row.alamat,
                 nama_kontraktor: row.nama_kontraktor,
             },
+            nilai_penawaran: row.nilai_penawaran,
+            nilai_spk: row.nilai_spk,
+            nilai_opname: row.nilai_opname,
+            hari_denda: row.hari_denda,
+            nilai_denda: row.nilai_denda,
+            tanggal_akhir_spk_denda: row.tanggal_akhir_spk_denda,
+            tanggal_serah_terima_denda: row.tanggal_serah_terima_denda,
+            nomor_spk: row.nomor_spk,
         }));
     },
 

@@ -16,6 +16,14 @@ export type BerkasSerahTerimaWithTokoRow = BerkasSerahTerimaRow & {
     cabang: string | null;
     alamat: string | null;
     nama_kontraktor: string | null;
+    nilai_penawaran: string | null;
+    nilai_spk: string | null;
+    nilai_opname: string | null;
+    hari_denda: number | null;
+    nilai_denda: string | null;
+    tanggal_akhir_spk_denda: string | null;
+    tanggal_serah_terima_denda: string | null;
+    nomor_spk: string | null;
 };
 
 export type OpnameFinalRow = {
@@ -235,9 +243,39 @@ export const serahTerimaRepository = {
                 t.proyek,
                 t.cabang,
                 t.alamat,
-                t.nama_kontraktor
+                t.nama_kontraktor,
+                rab_latest.grand_total_final AS nilai_penawaran,
+                spk_latest.grand_total AS nilai_spk,
+                opname_latest.grand_total_opname AS nilai_opname,
+                opname_latest.hari_denda,
+                opname_latest.nilai_denda,
+                opname_latest.tanggal_akhir_spk_denda,
+                opname_latest.tanggal_serah_terima_denda,
+                spk_latest.nomor_spk
             FROM berkas_serah_terima bst
             JOIN toko t ON t.id = bst.id_toko
+            LEFT JOIN LATERAL (
+                SELECT grand_total_final
+                FROM rab
+                WHERE id_toko = bst.id_toko
+                ORDER BY id DESC
+                LIMIT 1
+            ) rab_latest ON true
+            LEFT JOIN LATERAL (
+                SELECT nomor_spk, grand_total
+                FROM spk
+                WHERE id_toko = bst.id_toko
+                  AND UPPER(COALESCE(status, '')) NOT IN ('REJECTED', 'REJECT', 'CANCELLED', 'CANCEL')
+                ORDER BY id DESC
+                LIMIT 1
+            ) spk_latest ON true
+            LEFT JOIN LATERAL (
+                SELECT grand_total_opname, hari_denda, nilai_denda, tanggal_akhir_spk_denda, tanggal_serah_terima_denda
+                FROM opname_final
+                WHERE id_toko = bst.id_toko
+                ORDER BY id DESC
+                LIMIT 1
+            ) opname_latest ON true
             ${whereClause}
             ORDER BY bst.created_at DESC, bst.id DESC
             `,
