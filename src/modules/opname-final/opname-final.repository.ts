@@ -134,6 +134,18 @@ export type OpnameFinalIdRow = {
     id_toko: number;
 };
 
+export type RukoConversionContext = {
+    id_toko: number;
+    nomor_ulok: string | null;
+    is_ruko: boolean | null;
+    luas_area_terbangun: string | null;
+};
+
+export type RukoConversionUpdateResult = {
+    projek_planning_updated: number;
+    rab_updated: number;
+};
+
 const OPNAME_FINAL_COLUMNS = `
     ofn.id,
     ofn.id_toko,
@@ -454,6 +466,88 @@ export const opnameFinalRepository = {
         );
 
         return result.rows;
+    },
+
+    async getRukoConversionContext(idToko: number): Promise<RukoConversionContext | null> {
+        const result = await pool.query<RukoConversionContext>(
+            `
+            SELECT
+                t.id AS id_toko,
+                t.nomor_ulok,
+                pp.is_ruko,
+                pp.luas_area_terbangun
+            FROM toko t
+            LEFT JOIN LATERAL (
+                SELECT is_ruko, luas_area_terbangun
+                FROM projek_planning pp
+                WHERE pp.id_toko = t.id
+                   OR (
+                       t.nomor_ulok IS NOT NULL
+                       AND pp.nomor_ulok IS NOT NULL
+                       AND UPPER(pp.nomor_ulok) = UPPER(t.nomor_ulok)
+                   )
+                ORDER BY pp.updated_at DESC NULLS LAST, pp.created_at DESC NULLS LAST, pp.id DESC
+                LIMIT 1
+            ) pp ON TRUE
+            WHERE t.id = $1
+            `,
+            [idToko]
+        );
+
+        return result.rows[0] ?? null;
+    },
+
+    async applyNonRukoConversion(idToko: number): Promise<RukoConversionUpdateResult> {
+        return withTransaction(async (client) => {
+            const projekPlanningResult = await client.query(
+                `
+                UPDATE projek_planning pp
+                SET is_ruko = false,
+                    updated_at = NOW()
+                FROM toko t
+                WHERE t.id = $1
+                  AND (
+                      pp.id_toko = t.id
+                      OR (
+                          t.nomor_ulok IS NOT NULL
+                          AND pp.nomor_ulok IS NOT NULL
+                          AND UPPER(pp.nomor_ulok) = UPPER(t.nomor_ulok)
+                      )
+                  )
+                  AND COALESCE(pp.is_ruko, false) = true
+                `,
+                [idToko]
+            );
+
+            const rabResult = await client.query(
+                `
+                UPDATE rab r
+                SET kategori_lokasi = 'Non-Ruko'
+                FROM toko source_toko, toko target_toko
+                WHERE source_toko.id = $1
+                  AND target_toko.id = r.id_toko
+                  AND (
+                      target_toko.id = source_toko.id
+                      OR (
+                          source_toko.nomor_ulok IS NOT NULL
+                          AND target_toko.nomor_ulok IS NOT NULL
+                          AND UPPER(target_toko.nomor_ulok) = UPPER(source_toko.nomor_ulok)
+                      )
+                  )
+                  AND COALESCE(r.kategori_lokasi, '') <> 'Non-Ruko'
+                  AND (
+                      r.kategori_lokasi IS NULL
+                      OR UPPER(r.kategori_lokasi) LIKE '%RUKO%'
+                  )
+                `,
+                [idToko]
+            );
+
+            return {
+                projek_planning_updated: projekPlanningResult.rowCount ?? 0,
+                rab_updated: rabResult.rowCount ?? 0,
+            };
+        });
     },
 
     async updateApproval(

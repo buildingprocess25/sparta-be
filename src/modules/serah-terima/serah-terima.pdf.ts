@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { resolveDriveImageDataUrl } from "../../common/drive-image";
 import { renderHtmlTemplate, renderPdfFromHtml, resolveTemplatePath } from "../../common/html-pdf";
 import type { SerahTerimaDetail } from "./serah-terima.repository";
 
@@ -123,25 +124,22 @@ export const buildSerahTerimaPdfBuffer = async (detail: SerahTerimaDetail, tangg
 
     const grandTotalOpname = toNumber(detail.opname_final.grand_total_opname);
     const grandTotalRab = toNumber(detail.opname_final.grand_total_rab);
+    const itemsWithPhotos = await Promise.all(detail.items.map(async (item) => ({
+        ...item,
+        foto_data_url: await resolveDriveImageDataUrl(item.foto),
+        total_selisih_formatted: rupiah(item.total_selisih),
+        total_harga_rab_formatted: rupiah(toNumber(item.total_harga_rab)),
+        total_harga_opname_formatted: rupiah(item.total_harga_opname),
+    })));
 
     const html = await renderHtmlTemplate(templatePath, {
         generated_at: formatDateIndonesia(tanggalAktual ? new Date(tanggalAktual).toISOString() : new Date().toISOString()),
         opname_final: detail.opname_final,
         toko: detail.toko,
-        items: detail.items.map((item) => ({
-            ...item,
-            total_selisih_formatted: rupiah(item.total_selisih),
-            total_harga_rab_formatted: rupiah(toNumber(item.total_harga_rab)),
-            total_harga_opname_formatted: rupiah(item.total_harga_opname),
-        })),
-        grouped_items_list: groupItemsByCategory(detail.items).map((group) => ({
+        items: itemsWithPhotos,
+        grouped_items_list: groupItemsByCategory(itemsWithPhotos).map((group) => ({
             category: group.category,
-            items: group.items.map((item) => ({
-                ...item,
-                total_selisih_formatted: rupiah(item.total_selisih),
-                total_harga_rab_formatted: rupiah(toNumber(item.total_harga_rab)),
-                total_harga_opname_formatted: rupiah(item.total_harga_opname),
-            })),
+            items: group.items,
         })),
         assessment_summary: buildAssessmentSummary(detail.items),
         total_item_count: detail.items.length,

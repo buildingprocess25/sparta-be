@@ -8,6 +8,7 @@ import { rabRepository } from "../rab/rab.repository";
 import { buildOpnameFinalPdfBuffer } from "./opname-final.pdf";
 import { OPNAME_FINAL_STATUS, type OpnameFinalStatus } from "./opname-final.constants";
 import { opnameFinalRepository } from "./opname-final.repository";
+import type { OpnameFinalDetail } from "./opname-final.repository";
 import type { LockOpnameFinalInput, OpnameFinalListQueryInput } from "./opname-final.schema";
 
 type PgError = {
@@ -56,6 +57,47 @@ const mapPgError = (error: unknown): never => {
 const sanitizeFilenamePart = (value: string | undefined, fallback: string): string => {
     const normalized = (value ?? "").trim().replace(/[^a-zA-Z0-9_-]+/g, "_");
     return normalized || fallback;
+};
+
+const toNumber = (value: string | number | null | undefined): number => {
+    const parsed = Number(value ?? 0);
+    return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const parseAreaNumber = (value?: string | number | null): number => {
+    const raw = String(value ?? "").trim();
+    if (!raw) return 0;
+    const normalized = raw
+        .replace(/\s+/g, "")
+        .replace(/,/g, ".")
+        .replace(/[^0-9.-]/g, "");
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const roundDownTenThousand = (value: number): number => {
+    const numeric = Number(value) || 0;
+    const sign = numeric < 0 ? -1 : 1;
+    return sign * Math.floor(Math.abs(numeric) / 10000) * 10000;
+};
+
+const roundUpTenThousand = (value: number): number => {
+    const numeric = Number(value) || 0;
+    if (numeric === 0) return 0;
+    const sign = numeric < 0 ? -1 : 1;
+    return sign * Math.ceil(Math.abs(numeric) / 10000) * 10000;
+};
+
+const buildFinancialGrandTotal = (total: number, direction: "down" | "up", noPpn = false): number => {
+    const pembulatan = direction === "down" ? roundDownTenThousand(total) : roundUpTenThousand(total);
+    return pembulatan + (noPpn ? 0 : Math.round(pembulatan * 0.11));
+};
+
+const normalizeNoPpnText = (value?: string | null): string => String(value ?? "").trim().toUpperCase();
+
+const isNoPpnArea = (toko: { cabang?: string | null; nama_toko?: string | null; alamat?: string | null }): boolean => {
+    const identity = [toko.cabang, toko.nama_toko, toko.alamat].map(normalizeNoPpnText);
+    return identity.some(value => value === "BATAM" || value === "BINTAN" || /\bBATAM\b|\bBINTAN\b/.test(value));
 };
 
 const resolveStatusTransition = (
@@ -152,6 +194,64 @@ const loadRabData = async (idToko: number) => {
     return { header: latestRab, items };
 };
 
+const calculateOpnameKtkTotal = (
+    detail: OpnameFinalDetail,
+    instruksiLapanganItems: Awaited<ReturnType<typeof loadInstruksiLapanganItems>>,
+    rabData: Awaited<ReturnType<typeof loadRabData>>
+): number => {
+    const noPpn = isNoPpnArea(detail.toko);
+    const opnameItems = detail.items ?? [];
+    const rabItems = rabData.items ?? [];
+    const kerjaTambahItems = opnameItems.filter((item) => toNumber(item.total_selisih) > 0);
+    const kerjaKurangItems = opnameItems.filter((item) => toNumber(item.total_selisih) < 0);
+    const totalRabItems = rabItems.reduce((acc, item) => acc + toNumber(item.total_harga), 0);
+    const totalIl = instruksiLapanganItems.reduce((acc, item) => acc + toNumber(item.total_harga), 0);
+    const totalKerjaTambah = kerjaTambahItems.reduce((acc, item) => acc + toNumber(item.total_selisih), 0);
+    const totalKerjaKurang = kerjaKurangItems.reduce((acc, item) => acc + toNumber(item.total_selisih), 0);
+    const nilaiDenda = toNumber(detail.opname_final.nilai_denda);
+
+    return buildFinancialGrandTotal(totalRabItems, "down", noPpn)
+        + buildFinancialGrandTotal(totalIl, "up", noPpn)
+        + buildFinancialGrandTotal(totalKerjaTambah, "up", noPpn)
+        - Math.abs(buildFinancialGrandTotal(totalKerjaKurang, "up", noPpn))
+        - nilaiDenda;
+};
+
+const applyRukoConversionIfNeeded = async (
+    detail: OpnameFinalDetail,
+    instruksiLapanganItems: Awaited<ReturnType<typeof loadInstruksiLapanganItems>>,
+    rabData: Awaited<ReturnType<typeof loadRabData>>
+) => {
+    if (detail.opname_final.status_opname_final !== OPNAME_FINAL_STATUS.APPROVED) return null;
+
+    const context = await opnameFinalRepository.getRukoConversionContext(detail.toko.id);
+    if (!context?.is_ruko) return null;
+
+    const luasAreaTerbangun = parseAreaNumber(context.luas_area_terbangun);
+    if (luasAreaTerbangun <= 0) return null;
+
+    const totalOpnameKtk = calculateOpnameKtkTotal(detail, instruksiLapanganItems, rabData);
+    const costPerM2 = totalOpnameKtk / luasAreaTerbangun;
+    if (costPerM2 <= 900000) return null;
+
+    const result = await opnameFinalRepository.applyNonRukoConversion(detail.toko.id);
+    console.info("[opname-final] Ruko dikonversi otomatis ke Non-Ruko", {
+        id_toko: detail.toko.id,
+        nomor_ulok: detail.toko.nomor_ulok,
+        total_opname_ktk: totalOpnameKtk,
+        luas_area_terbangun: luasAreaTerbangun,
+        cost_per_m2: costPerM2,
+        ...result,
+    });
+
+    return {
+        total_opname_ktk: totalOpnameKtk,
+        luas_area_terbangun: luasAreaTerbangun,
+        cost_per_m2: costPerM2,
+        ...result,
+    };
+};
+
 const refreshDenda = async (opnameFinalId: string, idToko: number) => {
     const denda = await calculateDendaByTokoId(idToko);
 
@@ -189,10 +289,11 @@ const regeneratePdfAndUpload = async (opnameFinalId: string): Promise<string> =>
 
     const instruksiLapanganItems = await loadInstruksiLapanganItems(detail.toko.id);
     const rabData = await loadRabData(detail.toko.id);
+    await applyRukoConversionIfNeeded(detail, instruksiLapanganItems, rabData);
     const pdfBuffer = await buildOpnameFinalPdfBuffer(detail, instruksiLapanganItems, rabData);
     const proyek = sanitizeFilenamePart(detail.toko.proyek ?? undefined, "PROYEK");
     const nomorUlok = sanitizeFilenamePart(detail.toko.nomor_ulok ?? undefined, "ULOK");
-    const filenamePrefix = detail.opname_final.tipe_opname === "OPNAME_FINAL" ? "OPNAME_FINAL" : "OPNAME";
+    const filenamePrefix = "OPNAME";
     const filename = `${filenamePrefix}_${proyek}_${nomorUlok}_${detail.opname_final.id}.pdf`;
 
     return uploadPdfToDrive(pdfBuffer, filename);
@@ -254,10 +355,11 @@ export const opnameFinalService = {
 
         const instruksiLapanganItems = await loadInstruksiLapanganItems(refreshedDetail.toko.id);
         const rabData = await loadRabData(refreshedDetail.toko.id);
+        await applyRukoConversionIfNeeded(refreshedDetail, instruksiLapanganItems, rabData);
         const pdfBuffer = await buildOpnameFinalPdfBuffer(refreshedDetail, instruksiLapanganItems, rabData);
         const proyek = sanitizeFilenamePart(refreshedDetail.toko.proyek ?? undefined, "PROYEK");
         const nomorUlok = sanitizeFilenamePart(refreshedDetail.toko.nomor_ulok ?? undefined, "ULOK");
-        const filenamePrefix = refreshedDetail.opname_final.tipe_opname === "OPNAME_FINAL" ? "OPNAME_FINAL" : "OPNAME";
+        const filenamePrefix = "OPNAME";
 
         return {
             filename: `${filenamePrefix}_${proyek}_${nomorUlok}_${id}.pdf`,

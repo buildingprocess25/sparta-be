@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { resolveDriveImageDataUrl } from "../../common/drive-image";
 import { renderHtmlTemplate, renderPdfFromHtml, resolveTemplatePath } from "../../common/html-pdf";
 import type { InstruksiLapanganItemRow } from "../instruksi-lapangan/instruksi-lapangan.repository";
 import type { OpnameFinalDetail, OpnameFinalItemRow } from "./opname-final.repository";
@@ -91,6 +92,7 @@ type OpnameItemView = {
     selisih_volume: number;
     total_harga_rab_formatted: string;
     total_selisih_formatted: string;
+    foto_data_url: string | null;
     catatan: string | null;
 };
 
@@ -133,7 +135,7 @@ const resolveOpnameSatuan = (item: OpnameFinalItemRow): string => {
         .trim() || "-";
 };
 
-const buildOpnameGroupedItems = (items: OpnameFinalItemRow[], noPpn = false): GroupedItems<OpnameItemView> => {
+const buildOpnameGroupedItems = async (items: OpnameFinalItemRow[], noPpn = false): Promise<GroupedItems<OpnameItemView>> => {
     const grouped = new Map<string, OpnameItemView[]>();
     const totals = new Map<string, number>();
 
@@ -149,6 +151,7 @@ const buildOpnameGroupedItems = (items: OpnameFinalItemRow[], noPpn = false): Gr
             selisih_volume: toNumber(item.selisih_volume),
             total_harga_rab_formatted: rupiah(totalHargaRab),
             total_selisih_formatted: rupiah(totalSelisih),
+            foto_data_url: await resolveDriveImageDataUrl(item.foto),
             catatan: item.catatan
         };
 
@@ -327,7 +330,7 @@ export const buildOpnameFinalPdfBuffer = async (
     const grandTotalKerjaKurang = sumOpnameTotalSelisih(kerjaKurangItems);
     const nilaiDenda = toNumber(detail.opname_final.nilai_denda);
     const hariDenda = Number(detail.opname_final.hari_denda ?? 0) || 0;
-    const documentLabel = detail.opname_final.tipe_opname === "OPNAME_FINAL" ? "Opname Final" : "Opname";
+    const documentLabel = "Opname";
     const rabSummary = buildFinancialSummary(totalRabItems, "down", noPpn);
     const instruksiLapanganSummary = buildFinancialSummary(grandTotalIl, "up", noPpn);
     const kerjaTambahSummary = buildFinancialSummary(grandTotalKerjaTambah, "up", noPpn);
@@ -347,11 +350,11 @@ export const buildOpnameFinalPdfBuffer = async (
         header_left_logo_path: staticAssetPath("Alfamart-Emblem.png"),
         header_right_logo_path: staticAssetPath("Building-Logo.png"),
         watermark_logo_path: staticAssetPath("Building-Logo.png"),
-        grouped_items_list: buildOpnameGroupedItems(opnameItems, noPpn),
+        grouped_items_list: await buildOpnameGroupedItems(opnameItems, noPpn),
         rab_grouped_items_list: buildRabGroupedItems(rabItems, noPpn),
         instruksi_lapangan_groups: buildInstruksiLapanganGroups(instruksiLapanganItems, noPpn),
-        kerja_tambah_groups: buildOpnameGroupedItems(kerjaTambahItems, noPpn),
-        kerja_kurang_groups: buildOpnameGroupedItems(kerjaKurangItems, noPpn),
+        kerja_tambah_groups: await buildOpnameGroupedItems(kerjaTambahItems, noPpn),
+        kerja_kurang_groups: await buildOpnameGroupedItems(kerjaKurangItems, noPpn),
         opname_summary: buildFinancialSummary(totalOpnameSelisih, "up", noPpn),
         rab_summary: rabSummary,
         instruksi_lapangan_summary: instruksiLapanganSummary,
