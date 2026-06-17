@@ -191,6 +191,7 @@ const parseWorkbook = (buffer: Buffer): Candidate[] => {
         if (!spk.lingkup_pekerjaan) issues.push("Lingkup pekerjaan kosong");
         if (!spk.email_pembuat || !spk.email_pembuat.includes("@")) issues.push("Email pembuat kosong/tidak valid");
         if (!spk.nama_kontraktor) issues.push("Nama kontraktor kosong");
+        if (!spk.proyek) issues.push("Proyek kosong");
         if (!spk.waktu_mulai) issues.push("Waktu mulai kosong/tidak valid");
         if (!spk.waktu_selesai) issues.push("Waktu selesai kosong/tidak valid");
         if (spk.durasi <= 0) issues.push("Durasi kosong/tidak valid");
