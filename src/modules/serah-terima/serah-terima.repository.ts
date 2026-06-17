@@ -263,7 +263,7 @@ export const serahTerimaRepository = {
             ) rab_latest ON true
             LEFT JOIN LATERAL (
                 SELECT nomor_spk, grand_total
-                FROM spk
+                FROM pengajuan_spk
                 WHERE id_toko = bst.id_toko
                   AND UPPER(COALESCE(status, '')) NOT IN ('REJECTED', 'REJECT', 'CANCELLED', 'CANCEL')
                 ORDER BY id DESC
