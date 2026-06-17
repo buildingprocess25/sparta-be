@@ -313,6 +313,8 @@ const pushMapArray = <T>(map: Map<number, T[]>, key: number, value: T) => {
     map.set(key, items);
 };
 
+const normalizeDashboardUlok = (value: string | null | undefined) => String(value || "").trim().toUpperCase();
+
 export const dashboardRepository = {
     async findTokoByQuery(query: DashboardQueryInput): Promise<DashboardTokoRow | null> {
         const filters: string[] = [];
@@ -475,9 +477,10 @@ export const dashboardRepository = {
                    alasan_penolakan, created_at
             FROM pengajuan_spk
             WHERE id_toko = $1
+               OR ($2::text IS NOT NULL AND nomor_ulok = $2::text)
             ORDER BY created_at DESC, id DESC
             `,
-            [tokoId]
+            [tokoId, toko?.nomor_ulok ?? null]
         );
 
         const spkIds = spkResult.rows.map((row) => row.id);
@@ -734,6 +737,14 @@ export const dashboardRepository = {
         }
 
         const tokoIds = tokoResult.rows.map((row) => row.id);
+        const tokoIdsByUlok = new Map<string, number[]>();
+        for (const row of tokoResult.rows) {
+            const ulokKey = normalizeDashboardUlok(row.nomor_ulok);
+            if (!ulokKey) continue;
+            const ids = tokoIdsByUlok.get(ulokKey) ?? [];
+            ids.push(row.id);
+            tokoIdsByUlok.set(ulokKey, ids);
+        }
 
         const rabResult = await client.query<DashboardRabRow>(
             `
@@ -870,6 +881,15 @@ export const dashboardRepository = {
               ON t.nomor_ulok = p.nomor_ulok
              AND LOWER(COALESCE(t.lingkup_pekerjaan, '')) = LOWER(COALESCE(p.lingkup_pekerjaan, ''))
             WHERE COALESCE(p.id_toko, t.id) = ANY($1::int[])
+               OR (
+                   p.nomor_ulok IS NOT NULL
+                   AND p.nomor_ulok IN (
+                       SELECT DISTINCT nomor_ulok
+                       FROM toko
+                       WHERE id = ANY($1::int[])
+                         AND nomor_ulok IS NOT NULL
+                   )
+               )
             ORDER BY p.created_at DESC, p.id DESC
             `,
             [toArrayParam(tokoIds)]
@@ -1071,7 +1091,11 @@ export const dashboardRepository = {
                 approval_logs: spkLogsBySpkId.get(row.id) ?? [],
                 pertambahan_spk: pertambahanBySpkId.get(row.id) ?? []
             };
-            pushMapArray(spkByTokoId, row.id_toko, mapped);
+            const scopedTokoIds = tokoIdsByUlok.get(normalizeDashboardUlok(row.nomor_ulok)) ?? [];
+            const targetTokoIds = scopedTokoIds.length > 0 ? scopedTokoIds : [row.id_toko];
+            for (const targetTokoId of targetTokoIds) {
+                pushMapArray(spkByTokoId, targetTokoId, mapped);
+            }
         }
 
         const picByTokoId = new Map<number, DashboardPicPengawasanRow>();
