@@ -90,18 +90,46 @@ export const serahTerimaService = {
         const detail = { toko, opname_final: opnameFinal, items };
         const pdfBuffer = await buildSerahTerimaPdfBuffer(detail, tanggalAktual);
 
-        // 5. Upload ke Google Drive
+        // 2. Upload ke Google Drive
         const proyek = sanitizeFilenamePart(toko.proyek ?? undefined, "PROYEK");
         const nomorUlok = sanitizeFilenamePart(toko.nomor_ulok ?? undefined, "ULOK");
         const filename = `SERAH_TERIMA_${proyek}_${nomorUlok}_${opnameFinal.id}.pdf`;
 
         const linkPdf = await uploadPdfToDrive(pdfBuffer, filename);
 
-        // 6. Simpan link di tabel berkas_serah_terima
+        // 3. Simpan link di tabel berkas_serah_terima
         const berkas = await serahTerimaRepository.upsertBerkasSerahTerima(idToko, linkPdf, tanggalAktual);
 
-        // 7. Regenerate Opname Final PDF since penalty was updated
+        // 4. Regenerate Opname Final PDF since penalty was updated
         const opnameFinalRefreshed = await opnameFinalService.refreshDendaAndPdfById(String(opnameFinal.id));
+
+        // 5. Auto-cascade: generate ST untuk toko saudara (nomor_ulok sama, lingkup berbeda)
+        //    yang opname-nya sudah Disetujui tapi belum punya berkas_serah_terima.
+        //    Jalankan di background — tidak memblok response ke client.
+        if (toko.nomor_ulok) {
+            serahTerimaRepository
+                .findSiblingTokosReadyForST(toko.nomor_ulok, idToko)
+                .then(async (siblings) => {
+                    for (const sibling of siblings) {
+                        try {
+                            await serahTerimaService.createPdfSerahTerima(sibling.id, tanggalAktual);
+                            console.log(
+                                `[ST Cascade] Berhasil generate ST untuk toko id=${sibling.id}` +
+                                ` (${sibling.lingkup_pekerjaan ?? "?"}) dari ULOK ${toko.nomor_ulok}`
+                            );
+                        } catch (err: any) {
+                            // Jangan sampai error sibling menggagalkan response utama
+                            console.error(
+                                `[ST Cascade] Gagal generate ST untuk toko id=${sibling.id}` +
+                                ` (${sibling.lingkup_pekerjaan ?? "?"}): ${err?.message ?? err}`
+                            );
+                        }
+                    }
+                })
+                .catch((err) => {
+                    console.error(`[ST Cascade] Gagal query sibling tokos: ${err?.message ?? err}`);
+                });
+        }
 
         return {
             id: berkas.id,

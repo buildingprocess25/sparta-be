@@ -333,4 +333,33 @@ export const serahTerimaRepository = {
 
         return inserted.rows[0];
     },
+
+    /**
+     * Temukan toko dengan nomor_ulok yang sama (lingkup berbeda) yang:
+     * 1. Opname Final-nya sudah Disetujui
+     * 2. Belum punya berkas_serah_terima
+     * Digunakan untuk auto-cascade ST generation.
+     */
+    async findSiblingTokosReadyForST(nomorUlok: string, excludeIdToko: number): Promise<{ id: number; lingkup_pekerjaan: string | null }[]> {
+        const result = await pool.query(
+            `
+            SELECT t.id, t.lingkup_pekerjaan
+            FROM toko t
+            WHERE t.nomor_ulok = $1
+              AND t.id != $2
+              AND EXISTS (
+                  SELECT 1 FROM opname_final of2
+                  WHERE of2.id_toko = t.id
+                    AND LOWER(COALESCE(of2.status_opname_final, '')) = 'disetujui'
+                    AND LOWER(COALESCE(of2.aksi, '')) = 'terkunci'
+              )
+              AND NOT EXISTS (
+                  SELECT 1 FROM berkas_serah_terima bst
+                  WHERE bst.id_toko = t.id
+              )
+            `,
+            [nomorUlok, excludeIdToko]
+        );
+        return result.rows;
+    },
 };
