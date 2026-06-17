@@ -10,12 +10,20 @@ import {
     updateBulkPengawasan,
     updatePengawasan
 } from "./pengawasan.controller";
+import { commitPengawasanMigration, previewPengawasanMigration } from "./pengawasan-migration.controller";
 
 const pengawasanRouter = Router();
 const pengawasanUpload = multer({
     storage: multer.memoryStorage(),
     limits: {
         fileSize: 10 * 1024 * 1024
+    }
+});
+const pengawasanMigrationUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+        fileSize: 50 * 1024 * 1024,
+        fieldSize: 10 * 1024 * 1024
     }
 });
 
@@ -34,6 +42,8 @@ pengawasanRouter.post(
     ]),
     createBulkPengawasan
 );
+pengawasanRouter.post("/migration/preview", pengawasanMigrationUpload.single("file"), previewPengawasanMigration);
+pengawasanRouter.post("/migration/commit", pengawasanMigrationUpload.single("file"), commitPengawasanMigration);
 pengawasanRouter.get("/", listPengawasan);
 pengawasanRouter.get("/:id/pdf", downloadPengawasanPdf);
 pengawasanRouter.get("/:id", getPengawasanById);
