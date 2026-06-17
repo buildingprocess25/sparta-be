@@ -464,6 +464,29 @@ const extractSinglePdfPageBuffer = async (pdfBuffer: Buffer, pageIndex: number):
 const normalizePdfText = (text: string): string =>
     text.toUpperCase().replace(/\s+/g, " ").trim();
 
+const hasMeaningfulPdfText = (text: string): boolean => {
+    const withoutPageMarker = normalizePdfText(text)
+        .replace(/--\s*\d+\s+OF\s+\d+\s*--/g, "")
+        .replace(/[-\s]+/g, "")
+        .trim();
+    return withoutPageMarker.length > 0;
+};
+
+const extractNearestNonBlankPageBefore = async (
+    pdfBuffer: Buffer,
+    parser: PDFParse,
+    pageIndex: number
+): Promise<Buffer | null> => {
+    for (let previousPageIndex = pageIndex - 1; previousPageIndex >= 0; previousPageIndex -= 1) {
+        const previousResult = await parser.getText({ partial: [previousPageIndex + 1] });
+        if (hasMeaningfulPdfText(previousResult.text ?? "")) {
+            return await extractSinglePdfPageBuffer(pdfBuffer, previousPageIndex);
+        }
+    }
+
+    return null;
+};
+
 export const extractMateraiCoverPageBuffer = async (pdfBuffer: Buffer): Promise<Buffer | null> => {
     if (!pdfBuffer || pdfBuffer.length === 0) return null;
 
@@ -481,7 +504,7 @@ export const extractMateraiCoverPageBuffer = async (pdfBuffer: Buffer): Promise<
 
             const pageIndex = pageNumber - 1;
             if (text.includes("NOMOR ULOK")) {
-                return await extractSinglePdfPageBuffer(pdfBuffer, Math.max(pageIndex - 1, 0));
+                return await extractNearestNonBlankPageBefore(pdfBuffer, parser, pageIndex);
             }
             if (fallbackRabPageIndex === null) {
                 fallbackRabPageIndex = pageIndex;
@@ -489,11 +512,23 @@ export const extractMateraiCoverPageBuffer = async (pdfBuffer: Buffer): Promise<
         }
 
         if (fallbackRabPageIndex !== null) {
-            return await extractSinglePdfPageBuffer(pdfBuffer, Math.max(fallbackRabPageIndex - 1, 0));
+            return await extractNearestNonBlankPageBefore(pdfBuffer, parser, fallbackRabPageIndex);
         }
     } finally {
         await parser.destroy();
     }
 
-    return await extractSinglePdfPageBuffer(pdfBuffer, 0);
+    const fallbackParser = new PDFParse({ data: pdfBuffer });
+    try {
+        for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+            const result = await fallbackParser.getText({ partial: [pageNumber] });
+            if (hasMeaningfulPdfText(result.text ?? "")) {
+                return await extractSinglePdfPageBuffer(pdfBuffer, pageNumber - 1);
+            }
+        }
+    } finally {
+        await fallbackParser.destroy();
+    }
+
+    return null;
 };
