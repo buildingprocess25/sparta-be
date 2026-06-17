@@ -856,6 +856,96 @@ async function uploadPdfToDrive(buffer: Buffer, filename: string): Promise<strin
     return result.webViewLink ?? `https://drive.google.com/file/d/${result.id}/view`;
 }
 
+async function resolveMateraiCoverPageForMerge(input: {
+    rabId: number;
+    nomorUlok: string;
+    currentLingkup?: string | null;
+    currentMateraiLink?: string | null;
+}): Promise<Buffer | null> {
+    const candidates: Array<{ rabId: number; lingkup?: string | null; link: string; source: "current" | "sibling" }> = [];
+    const seenLinks = new Set<string>();
+    const addCandidate = (candidate: { rabId: number; lingkup?: string | null; link?: string | null; source: "current" | "sibling" }) => {
+        const link = candidate.link?.trim();
+        if (!link || seenLinks.has(link)) return;
+        seenLinks.add(link);
+        candidates.push({ ...candidate, link });
+    };
+
+    addCandidate({
+        rabId: input.rabId,
+        lingkup: input.currentLingkup,
+        link: input.currentMateraiLink,
+        source: "current"
+    });
+
+    const siblingMateraiLinks = await rabRepository.findMateraiLinksByNomorUlok(input.nomorUlok);
+    for (const sibling of siblingMateraiLinks) {
+        if (Number(sibling.id) === Number(input.rabId)) continue;
+        addCandidate({
+            rabId: sibling.id,
+            lingkup: sibling.lingkup_pekerjaan,
+            link: sibling.link_pdf_materai,
+            source: "sibling"
+        });
+    }
+
+    for (const candidate of candidates) {
+        try {
+            const materaiFile = await fetchFileBufferByLink(candidate.link);
+            if (!materaiFile?.buffer?.length) {
+                logRab("PDF", "PDF materai tidak bisa diambil, coba kandidat berikutnya", {
+                    rabId: input.rabId,
+                    candidateRabId: candidate.rabId,
+                    source: candidate.source,
+                    lingkup: candidate.lingkup ?? "-"
+                });
+                continue;
+            }
+
+            const isPdf = (materaiFile.mimeType ?? "").toLowerCase() === "application/pdf"
+                || isPdfBuffer(materaiFile.buffer);
+            if (!isPdf) {
+                logRab("PDF", "Link materai bukan PDF, coba kandidat berikutnya", {
+                    rabId: input.rabId,
+                    candidateRabId: candidate.rabId,
+                    source: candidate.source,
+                    mimeType: materaiFile.mimeType ?? "-"
+                });
+                continue;
+            }
+
+            const materaiPage = await extractMateraiCoverPageBuffer(materaiFile.buffer);
+            if (!materaiPage) {
+                logRab("PDF", "PDF materai tidak punya halaman untuk merge, coba kandidat berikutnya", {
+                    rabId: input.rabId,
+                    candidateRabId: candidate.rabId,
+                    source: candidate.source
+                });
+                continue;
+            }
+
+            logRab("PDF", "Halaman materai ditambahkan sebagai halaman awal merge", {
+                rabId: input.rabId,
+                candidateRabId: candidate.rabId,
+                source: candidate.source,
+                lingkup: candidate.lingkup ?? "-"
+            });
+            return materaiPage;
+        } catch (err) {
+            console.error("Warning: Gagal mengambil PDF materai untuk merge, coba kandidat berikutnya:", {
+                rabId: input.rabId,
+                candidateRabId: candidate.rabId,
+                source: candidate.source,
+                lingkup: candidate.lingkup ?? "-",
+                error: err instanceof Error ? err.message : err
+            });
+        }
+    }
+
+    logRab("PDF", "Tidak ada PDF materai yang bisa dipakai untuk halaman awal merge", { rabId: input.rabId });
+    return null;
+}
+
 async function regenerateRabPdfs(
     rabId: string,
     filenameParts: { proyek?: string | null; nomorUlok?: string | null },
@@ -930,24 +1020,14 @@ async function regenerateRabPdfs(
     let linkSph: string | undefined;
     const logoDataUri = await resolveLogoForPdf(fullData.rab.logo);
 
-    const materaiLink = fullData.rab.link_pdf_materai?.trim();
-    if (materaiLink) {
-        try {
-            const materaiFile = await fetchFileBufferByLink(materaiLink);
-            if (materaiFile?.buffer?.length) {
-                const isPdf = (materaiFile.mimeType ?? "").toLowerCase() === "application/pdf"
-                    || isPdfBuffer(materaiFile.buffer);
-                if (isPdf) {
-                    const materaiPage = await extractMateraiCoverPageBuffer(materaiFile.buffer);
-                    if (materaiPage) {
-                        pdfBuffersToMerge.push(materaiPage);
-                        logRab("PDF", "Halaman materai sebelum RAB ditambahkan sebagai halaman awal merge", { rabId });
-                    }
-                }
-            }
-        } catch (err) {
-            console.error("Warning: Gagal mengambil PDF materai untuk merge:", err);
-        }
+    const materaiPage = await resolveMateraiCoverPageForMerge({
+        rabId: fullData.rab.id,
+        nomorUlok,
+        currentLingkup: fullData.toko.lingkup_pekerjaan,
+        currentMateraiLink: fullData.rab.link_pdf_materai
+    });
+    if (materaiPage) {
+        pdfBuffersToMerge.push(materaiPage);
     }
 
     const pdfSph = await generateSphPdf({

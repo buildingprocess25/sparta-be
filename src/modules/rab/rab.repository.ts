@@ -730,6 +730,37 @@ export const rabRepository = {
         return { rab, toko, items: items.rows, revisi_items: revisiItems.rows };
     },
 
+    async findMateraiLinksByNomorUlok(nomorUlok: string): Promise<Array<{
+        id: number;
+        id_toko: number;
+        lingkup_pekerjaan: string | null;
+        link_pdf_materai: string | null;
+    }>> {
+        const result = await pool.query<{
+            id: number;
+            id_toko: number;
+            lingkup_pekerjaan: string | null;
+            link_pdf_materai: string | null;
+        }>(
+            `SELECT r.id, r.id_toko, t.lingkup_pekerjaan, r.link_pdf_materai
+             FROM rab r
+             JOIN toko t ON t.id = r.id_toko
+             WHERE t.nomor_ulok = $1
+               AND r.link_pdf_materai IS NOT NULL
+               AND TRIM(r.link_pdf_materai) <> ''
+             ORDER BY
+               CASE
+                 WHEN UPPER(COALESCE(t.lingkup_pekerjaan, '')) LIKE '%SIPIL%' THEN 1
+                 WHEN UPPER(COALESCE(t.lingkup_pekerjaan, '')) LIKE '%ME%' THEN 2
+                 ELSE 3
+               END,
+               r.id ASC`,
+            [nomorUlok]
+        );
+
+        return result.rows;
+    },
+
     async listItemsByRabId(rabId: number | string): Promise<RabItemRow[]> {
         const result = await pool.query<RabItemRow>(
             `SELECT id, id_rab, kategori_pekerjaan, jenis_pekerjaan, satuan,
