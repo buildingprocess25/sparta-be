@@ -174,6 +174,12 @@ const PP_COLUMNS = `
     created_at, updated_at
 `;
 
+const nullIfBlank = (value: unknown) => {
+    if (value === undefined || value === null) return null;
+    if (typeof value === "string" && value.trim() === "") return null;
+    return value;
+};
+
 // ============================================================
 // REPOSITORY
 // ============================================================
@@ -483,7 +489,7 @@ export const projekPlanningRepository = {
                     payload.proyek,
                     payload.lingkup_pekerjaan,
                     payload.jenis_proyek,
-                    payload.estimasi_biaya ?? null,
+                    nullIfBlank(payload.estimasi_biaya),
                     payload.keterangan ?? null,
                     payload.link_fpd ?? null,
                     (payload as any).link_siteplan ?? null,
@@ -495,14 +501,14 @@ export const projekPlanningRepository = {
                     (payload as any).luas_area_sales ?? null,
                     (payload as any).pxl_bangunan ?? null,
                     (payload as any).pxl_area_parkir ?? null,
-                    (payload as any).p_bangunan ?? null,
-                    (payload as any).l_bangunan ?? null,
-                    (payload as any).p_area_parkir ?? null,
-                    (payload as any).l_area_parkir ?? null,
-                    (payload as any).jumlah_ac ?? null,
-                    (payload as any).pk_ac ?? null,
-                    (payload as any).listrik_va ?? null,
-                    (payload as any).listrik_phase ?? null,
+                    nullIfBlank((payload as any).p_bangunan),
+                    nullIfBlank((payload as any).l_bangunan),
+                    nullIfBlank((payload as any).p_area_parkir),
+                    nullIfBlank((payload as any).l_area_parkir),
+                    nullIfBlank((payload as any).jumlah_ac),
+                    nullIfBlank((payload as any).pk_ac),
+                    nullIfBlank((payload as any).listrik_va),
+                    nullIfBlank((payload as any).listrik_phase),
                     (payload as any).sumber_air_bersih ?? null,
                     (payload as any).drainase_air_kotor ?? null,
                     payload.nama_pengaju,
@@ -512,7 +518,7 @@ export const projekPlanningRepository = {
                     (payload as any).link_gambar_kerja ?? null,
                     (payload as any).link_gambar_kompetitor ?? null,
                     (payload as any).is_ruko ?? false,
-                    (payload as any).jumlah_lantai ?? null,
+                    nullIfBlank((payload as any).jumlah_lantai),
                     (payload as any).is_head_to_head ?? false,
                     (payload as any).jarak_head_to_head ?? null,
                     (payload as any).is_seating_area ?? false,
@@ -633,7 +639,7 @@ export const projekPlanningRepository = {
                     payload.email_pembuat,
                     payload.lingkup_pekerjaan,
                     payload.jenis_proyek,
-                    payload.estimasi_biaya ?? null,
+                    nullIfBlank(payload.estimasi_biaya),
                     payload.keterangan ?? null,
                     payload.link_fpd ?? null,
                     payload.nama_toko,
@@ -658,7 +664,7 @@ export const projekPlanningRepository = {
                     (payload as any).link_gambar_kerja ?? null,
                     (payload as any).link_gambar_kompetitor ?? null,
                     (payload as any).is_ruko ?? false,
-                    (payload as any).jumlah_lantai ?? null,
+                    nullIfBlank((payload as any).jumlah_lantai),
                     (payload as any).is_head_to_head ?? false,
                     (payload as any).jarak_head_to_head ?? null,
                     (payload as any).is_seating_area ?? false,
@@ -666,14 +672,14 @@ export const projekPlanningRepository = {
                     (payload as any).beanspot_tipe ?? null,
                     payload.status,
                     id,
-                    (payload as any).p_bangunan ?? null,
-                    (payload as any).l_bangunan ?? null,
-                    (payload as any).p_area_parkir ?? null,
-                    (payload as any).l_area_parkir ?? null,
-                    (payload as any).jumlah_ac ?? null,
-                    (payload as any).pk_ac ?? null,
-                    (payload as any).listrik_va ?? null,
-                    (payload as any).listrik_phase ?? null,
+                    nullIfBlank((payload as any).p_bangunan),
+                    nullIfBlank((payload as any).l_bangunan),
+                    nullIfBlank((payload as any).p_area_parkir),
+                    nullIfBlank((payload as any).l_area_parkir),
+                    nullIfBlank((payload as any).jumlah_ac),
+                    nullIfBlank((payload as any).pk_ac),
+                    nullIfBlank((payload as any).listrik_va),
+                    nullIfBlank((payload as any).listrik_phase),
                     (payload as any).sumber_air_bersih ?? null,
                     (payload as any).drainase_air_kotor ?? null,
                 ]
