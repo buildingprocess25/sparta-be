@@ -855,6 +855,70 @@ export const ganttRepository = {
         return (result.rowCount ?? 0) > 0;
     },
 
+    async ensureLastPengawasanMatchesEffectiveSpkEnd(nomorUlok: string): Promise<{ tanggal_pengawasan: string | null; inserted_count: number }> {
+        const effectiveEndResult = await pool.query<{ effective_end: string | null }>(
+            `
+            WITH spk_effective AS (
+                SELECT
+                    GREATEST(
+                        ps.waktu_selesai::date,
+                        COALESCE(MAX(
+                            CASE
+                                WHEN pt.tanggal_spk_akhir_setelah_perpanjangan ~ '^\\d{4}-\\d{2}-\\d{2}'
+                                    THEN LEFT(pt.tanggal_spk_akhir_setelah_perpanjangan, 10)::date
+                                WHEN pt.tanggal_spk_akhir_setelah_perpanjangan ~ '^\\d{1,2}/\\d{1,2}/\\d{4}$'
+                                    THEN to_date(pt.tanggal_spk_akhir_setelah_perpanjangan, 'DD/MM/YYYY')
+                                ELSE NULL
+                            END
+                        ), ps.waktu_selesai::date)
+                    ) AS effective_end
+                FROM pengajuan_spk ps
+                LEFT JOIN pertambahan_spk pt ON pt.id_spk = ps.id
+                    AND UPPER(TRIM(COALESCE(pt.status_persetujuan, ''))) IN ('APPROVED', 'DISETUJUI', 'DISETUJUI BM')
+                WHERE ps.nomor_ulok = $1
+                  AND UPPER(TRIM(COALESCE(ps.status, ''))) IN ('SPK_APPROVED', 'APPROVED', 'DISETUJUI', 'AKTIF', 'ACTIVE', 'SELESAI')
+                GROUP BY ps.id, ps.waktu_selesai
+            )
+            SELECT MAX(effective_end)::text AS effective_end
+            FROM spk_effective
+            `,
+            [nomorUlok]
+        );
+
+        const effectiveEnd = effectiveEndResult.rows[0]?.effective_end ?? null;
+        if (!effectiveEnd) {
+            return { tanggal_pengawasan: null, inserted_count: 0 };
+        }
+
+        const formattedDate = await pool.query<{ tanggal_pengawasan: string }>(
+            `SELECT to_char($1::date, 'DD/MM/YYYY') AS tanggal_pengawasan`,
+            [effectiveEnd]
+        );
+        const tanggalPengawasan = formattedDate.rows[0].tanggal_pengawasan;
+
+        const insertResult = await pool.query(
+            `
+            INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan)
+            SELECT g.id, $2
+            FROM gantt_chart g
+            JOIN toko t ON t.id = g.id_toko
+            WHERE t.nomor_ulok = $1
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM pengawasan_gantt pg
+                  WHERE pg.id_gantt = g.id
+                    AND pg.tanggal_pengawasan = $2
+              )
+            `,
+            [nomorUlok, tanggalPengawasan]
+        );
+
+        return {
+            tanggal_pengawasan: tanggalPengawasan,
+            inserted_count: insertResult.rowCount ?? 0
+        };
+    },
+
     /**
      * Detail Gantt Chart berdasarkan id_toko.
      * - Ambil RAB terbaru → rab_item → unique kategori_pekerjaan (filtered_categories)

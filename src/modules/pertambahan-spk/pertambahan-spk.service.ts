@@ -1,6 +1,7 @@
 import { AppError } from "../../common/app-error";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
+import { ganttRepository } from "../gantt/gantt.repository";
 import { opnameFinalService } from "../opname-final/opname-final.service";
 import { spkRepository } from "../spk/spk.repository";
 import { tokoRepository } from "../toko/toko.repository";
@@ -415,6 +416,7 @@ export const pertambahanSpkService = {
             if (!withUpdatedPdf) {
                 throw new AppError("PDF pertambahan SPK berhasil dibuat tetapi data gagal diperbarui", 500);
             }
+            await ganttRepository.ensureLastPengawasanMatchesEffectiveSpkEnd(spk.pengajuan.nomor_ulok);
             await opnameFinalService.refreshDendaByTokoId(spk.pengajuan.id_toko);
             return withUpdatedPdf;
         }
@@ -462,6 +464,7 @@ export const pertambahanSpkService = {
             if (!withUpdatedPdf) {
                 throw new AppError("PDF pertambahan SPK berhasil dibuat tetapi data gagal diperbarui", 500);
             }
+            await ganttRepository.ensureLastPengawasanMatchesEffectiveSpkEnd(spk.pengajuan.nomor_ulok);
             await opnameFinalService.refreshDendaByTokoId(spk.pengajuan.id_toko);
             return withUpdatedPdf;
         }

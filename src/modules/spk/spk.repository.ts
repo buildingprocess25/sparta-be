@@ -39,6 +39,9 @@ export type SpkTokoSummary = {
 
 export type SpkListRow = PengajuanSpkRow & {
     toko: SpkTokoSummary;
+    effective_waktu_selesai: string | null;
+    effective_durasi: number | null;
+    pertambahan_spk_approved_until: string | null;
 };
 
 export type SpkApprovalLogRow = {
@@ -59,6 +62,9 @@ export type SpkApprovedRabTotalsRow = {
 };
 
 type SpkListJoinRow = PengajuanSpkRow & {
+    effective_waktu_selesai: string | null;
+    effective_durasi: number | null;
+    pertambahan_spk_approved_until: string | null;
     toko_id: number | null;
     toko_nomor_ulok: string;
     toko_kode_toko: string | null;
@@ -348,6 +354,14 @@ export const spkRepository = {
                 p.waktu_mulai, p.durasi, p.waktu_selesai, p.grand_total, p.terbilang, p.nomor_spk,
                 p.par, p.spk_manual_1, p.spk_manual_2, p.status, p.link_pdf, p.approver_email,
                 p.waktu_persetujuan, p.alasan_penolakan, p.created_at,
+        COALESCE(psp.approved_until, p.waktu_selesai::date)::text AS effective_waktu_selesai,
+        CASE
+            WHEN p.waktu_mulai IS NOT NULL
+             AND COALESCE(psp.approved_until, p.waktu_selesai::date) IS NOT NULL
+            THEN (COALESCE(psp.approved_until, p.waktu_selesai::date) - p.waktu_mulai::date + 1)::int
+            ELSE p.durasi
+        END AS effective_durasi,
+        psp.approved_until::text AS pertambahan_spk_approved_until,
         t.id AS toko_id,
         t.nomor_ulok AS toko_nomor_ulok,
         t.kode_toko AS toko_kode_toko,
@@ -356,6 +370,21 @@ export const spkRepository = {
         t.alamat AS toko_alamat
       FROM pengajuan_spk p
         LEFT JOIN toko t ON t.id = p.id_toko
+        LEFT JOIN LATERAL (
+            SELECT MAX(
+                CASE
+                    WHEN pt.tanggal_spk_akhir_setelah_perpanjangan ~ '^\\d{4}-\\d{2}-\\d{2}'
+                        THEN LEFT(pt.tanggal_spk_akhir_setelah_perpanjangan, 10)::date
+                    WHEN pt.tanggal_spk_akhir_setelah_perpanjangan ~ '^\\d{1,2}/\\d{1,2}/\\d{4}$'
+                        THEN to_date(pt.tanggal_spk_akhir_setelah_perpanjangan, 'DD/MM/YYYY')
+                    ELSE NULL
+                END
+            ) AS approved_until
+            FROM pengajuan_spk ps_scope
+            JOIN pertambahan_spk pt ON pt.id_spk = ps_scope.id
+            WHERE ps_scope.nomor_ulok = p.nomor_ulok
+              AND UPPER(TRIM(COALESCE(pt.status_persetujuan, ''))) IN ('APPROVED', 'DISETUJUI', 'DISETUJUI BM')
+        ) psp ON true
       ${whereClause}
       ORDER BY p.created_at DESC
       `,
@@ -370,11 +399,17 @@ export const spkRepository = {
                 toko_nama_toko,
                 toko_cabang,
                 toko_alamat,
+                effective_waktu_selesai,
+                effective_durasi,
+                pertambahan_spk_approved_until,
                 ...spk
             } = row;
 
             return {
                 ...spk,
+                effective_waktu_selesai,
+                effective_durasi,
+                pertambahan_spk_approved_until,
                 toko: {
                     id: toko_id,
                     nomor_ulok: toko_nomor_ulok ?? spk.nomor_ulok,
