@@ -442,93 +442,65 @@ export const projekPlanningRepository = {
         status: PpStatus;
     }): Promise<ProjekPlanningRow> {
         return withTransaction(async (client) => {
+            const insertFields: Array<[string, unknown]> = [
+                ["id_toko", payload.id_toko],
+                ["nomor_ulok", payload.nomor_ulok],
+                ["email_pembuat", payload.email_pembuat],
+                ["nama_toko", payload.nama_toko],
+                ["kode_toko", payload.kode_toko],
+                ["cabang", payload.cabang],
+                ["alamat_toko", payload.alamat_toko],
+                ["link_google_maps", (payload as any).link_google_maps ?? null],
+                ["proyek", payload.proyek],
+                ["lingkup_pekerjaan", payload.lingkup_pekerjaan],
+                ["jenis_proyek", payload.jenis_proyek],
+                ["estimasi_biaya", nullIfBlank(payload.estimasi_biaya)],
+                ["keterangan", payload.keterangan ?? null],
+                ["link_fpd", payload.link_fpd ?? null],
+                ["link_siteplan", (payload as any).link_siteplan ?? null],
+                ["luas_bangunan", (payload as any).luas_bangunan ?? null],
+                ["luas_area_terbuka", (payload as any).luas_area_terbuka ?? null],
+                ["luas_area_terbangun", (payload as any).luas_area_terbangun ?? null],
+                ["luas_gudang", (payload as any).luas_gudang ?? null],
+                ["luas_area_parkir", (payload as any).luas_area_parkir ?? null],
+                ["luas_area_sales", (payload as any).luas_area_sales ?? null],
+                ["pxl_bangunan", (payload as any).pxl_bangunan ?? null],
+                ["pxl_area_parkir", (payload as any).pxl_area_parkir ?? null],
+                ["p_bangunan", nullIfBlank((payload as any).p_bangunan)],
+                ["l_bangunan", nullIfBlank((payload as any).l_bangunan)],
+                ["p_area_parkir", nullIfBlank((payload as any).p_area_parkir)],
+                ["l_area_parkir", nullIfBlank((payload as any).l_area_parkir)],
+                ["jumlah_ac", null],
+                ["pk_ac", null],
+                ["listrik_va", null],
+                ["listrik_phase", null],
+                ["sumber_air_bersih", null],
+                ["drainase_air_kotor", null],
+                ["nama_pengaju", payload.nama_pengaju],
+                ["nama_lokasi", payload.nama_lokasi],
+                ["jenis_pengajuan", payload.jenis_pengajuan],
+                ["jenis_pengajuan_lainnya", payload.jenis_pengajuan_lainnya ?? null],
+                ["link_gambar_kerja", (payload as any).link_gambar_kerja ?? null],
+                ["link_gambar_kompetitor", (payload as any).link_gambar_kompetitor ?? null],
+                ["is_ruko", (payload as any).is_ruko ?? false],
+                ["jumlah_lantai", nullIfBlank((payload as any).jumlah_lantai)],
+                ["is_head_to_head", (payload as any).is_head_to_head ?? false],
+                ["jarak_head_to_head", (payload as any).jarak_head_to_head ?? null],
+                ["is_seating_area", (payload as any).is_seating_area ?? false],
+                ["is_dark_store", (payload as any).is_dark_store ?? false],
+                ["beanspot_tipe", (payload as any).beanspot_tipe ?? null],
+                ["status", payload.status],
+                ["butuh_desain_3d", false],
+            ];
+            const insertColumns = insertFields.map(([column]) => column).join(", ");
+            const insertPlaceholders = insertFields.map((_, index) => `$${index + 1}`).join(", ");
+            const insertValues = insertFields.map(([, value]) => value);
+
             const result = await client.query<ProjekPlanningRow>(
-                `INSERT INTO projek_planning (
-                    id_toko, nomor_ulok, email_pembuat,
-                    nama_toko, kode_toko, cabang, alamat_toko, link_google_maps, proyek, lingkup_pekerjaan,
-                    jenis_proyek, estimasi_biaya, keterangan, link_fpd,
-                    link_siteplan,
-                    luas_bangunan, luas_area_terbuka, luas_area_terbangun, luas_gudang,
-                    luas_area_parkir, luas_area_sales, pxl_bangunan, pxl_area_parkir,
-                    p_bangunan, l_bangunan, p_area_parkir, l_area_parkir,
-                    jumlah_ac, pk_ac, listrik_va, listrik_phase, sumber_air_bersih, drainase_air_kotor,
-                    nama_pengaju, nama_lokasi,
-                    jenis_pengajuan, jenis_pengajuan_lainnya,
-                    link_gambar_kerja, link_gambar_kompetitor,
-                    is_ruko, jumlah_lantai,
-                    is_head_to_head, jarak_head_to_head, is_seating_area, is_dark_store, beanspot_tipe,
-                    status, butuh_desain_3d,
-                    created_at, updated_at
-                ) VALUES (
-                    $1, $2, $3,
-                    $4, $5, $6, $7, $8, $9, $10,
-                    $11, $12, $13, $14,
-                    $15,
-                    $16, $17, $18, $19,
-                    $20, $21, $22, $23,
-                    $24, $25,
-                    $26, $27,
-                    $28, $29,
-                    $30, $31,
-                    $32, $33,
-                    $34, $35,
-                    $36, $37,
-                    $38, $39,
-                    $40, $41,
-                    $42, $43, $44, $45, $46,
-                    $47, FALSE,
-                    NOW(), NOW()
-                )
+                `INSERT INTO projek_planning (${insertColumns}, created_at, updated_at)
+                VALUES (${insertPlaceholders}, NOW(), NOW())
                 RETURNING ${PP_COLUMNS}`,
-                [
-                    payload.id_toko,
-                    payload.nomor_ulok,
-                    payload.email_pembuat,
-                    payload.nama_toko,
-                    payload.kode_toko,
-                    payload.cabang,
-                    payload.alamat_toko,
-                    (payload as any).link_google_maps ?? null,
-                    payload.proyek,
-                    payload.lingkup_pekerjaan,
-                    payload.jenis_proyek,
-                    nullIfBlank(payload.estimasi_biaya),
-                    payload.keterangan ?? null,
-                    payload.link_fpd ?? null,
-                    (payload as any).link_siteplan ?? null,
-                    (payload as any).luas_bangunan ?? null,
-                    (payload as any).luas_area_terbuka ?? null,
-                    (payload as any).luas_area_terbangun ?? null,
-                    (payload as any).luas_gudang ?? null,
-                    (payload as any).luas_area_parkir ?? null,
-                    (payload as any).luas_area_sales ?? null,
-                    (payload as any).pxl_bangunan ?? null,
-                    (payload as any).pxl_area_parkir ?? null,
-                    nullIfBlank((payload as any).p_bangunan),
-                    nullIfBlank((payload as any).l_bangunan),
-                    nullIfBlank((payload as any).p_area_parkir),
-                    nullIfBlank((payload as any).l_area_parkir),
-                    nullIfBlank((payload as any).jumlah_ac),
-                    nullIfBlank((payload as any).pk_ac),
-                    nullIfBlank((payload as any).listrik_va),
-                    nullIfBlank((payload as any).listrik_phase),
-                    (payload as any).sumber_air_bersih ?? null,
-                    (payload as any).drainase_air_kotor ?? null,
-                    payload.nama_pengaju,
-                    payload.nama_lokasi,
-                    payload.jenis_pengajuan,
-                    payload.jenis_pengajuan_lainnya ?? null,
-                    (payload as any).link_gambar_kerja ?? null,
-                    (payload as any).link_gambar_kompetitor ?? null,
-                    (payload as any).is_ruko ?? false,
-                    nullIfBlank((payload as any).jumlah_lantai),
-                    (payload as any).is_head_to_head ?? false,
-                    (payload as any).jarak_head_to_head ?? null,
-                    (payload as any).is_seating_area ?? false,
-                    (payload as any).is_dark_store ?? false,
-                    (payload as any).beanspot_tipe ?? null,
-                    payload.status,
-                ]
+                insertValues
             );
             const row = result.rows[0];
             const ppId = row.id;
@@ -549,18 +521,9 @@ export const projekPlanningRepository = {
                     );
                 }
             }
-            if (payload.fasilitas && payload.fasilitas.length > 0) {
-                for (const f of payload.fasilitas) {
-                    await client.query(
-                        `INSERT INTO projek_planning_fasilitas (projek_planning_id, jenis_fasilitas, nama_fasilitas_lainnya, is_tersedia, keterangan) VALUES ($1, $2, $3, $4, $5)`,
-                        [ppId, f.jenis_fasilitas, f.nama_fasilitas_lainnya ?? null, f.is_tersedia, f.keterangan ?? null]
-                    );
-                }
-            }
-            
             row.ketentuan = payload.ketentuan?.map(k => ({ isi_ketentuan: k })) || [];
             row.catatan_design = payload.catatan_design?.map(c => ({ isi_catatan: c })) || [];
-            row.fasilitas = payload.fasilitas || [];
+            row.fasilitas = [];
             
             return row;
         });
@@ -579,120 +542,102 @@ export const projekPlanningRepository = {
         status: PpStatus;
     }): Promise<ProjekPlanningRow> {
         return withTransaction(async (client) => {
+            // Build update fields as paired array to avoid manual placeholder numbering errors
+            const updateFields: Array<[string, unknown]> = [
+                ["email_pembuat",            payload.email_pembuat],
+                ["lingkup_pekerjaan",        payload.lingkup_pekerjaan],
+                ["jenis_proyek",             payload.jenis_proyek],
+                ["estimasi_biaya",           nullIfBlank(payload.estimasi_biaya)],
+                ["keterangan",               payload.keterangan ?? null],
+                ["nama_toko",               payload.nama_toko],
+                ["kode_toko",               payload.kode_toko],
+                ["cabang",                  payload.cabang],
+                ["alamat_toko",             payload.alamat_toko],
+                ["link_google_maps",        (payload as any).link_google_maps ?? null],
+                ["proyek",                  payload.proyek],
+                ["luas_bangunan",           (payload as any).luas_bangunan ?? null],
+                ["luas_area_terbuka",       (payload as any).luas_area_terbuka ?? null],
+                ["luas_area_terbangun",     (payload as any).luas_area_terbangun ?? null],
+                ["luas_gudang",             (payload as any).luas_gudang ?? null],
+                ["luas_area_parkir",        (payload as any).luas_area_parkir ?? null],
+                ["luas_area_sales",         (payload as any).luas_area_sales ?? null],
+                ["pxl_bangunan",            (payload as any).pxl_bangunan ?? null],
+                ["pxl_area_parkir",         (payload as any).pxl_area_parkir ?? null],
+                ["p_bangunan",              nullIfBlank((payload as any).p_bangunan)],
+                ["l_bangunan",              nullIfBlank((payload as any).l_bangunan)],
+                ["p_area_parkir",           nullIfBlank((payload as any).p_area_parkir)],
+                ["l_area_parkir",           nullIfBlank((payload as any).l_area_parkir)],
+                // Fasilitas teknis diset NULL di tahap 1 — diisi pada tahap 2
+                ["jumlah_ac",               null],
+                ["pk_ac",                   null],
+                ["listrik_va",              null],
+                ["listrik_phase",           null],
+                ["sumber_air_bersih",       null],
+                ["drainase_air_kotor",      null],
+                ["nama_pengaju",            payload.nama_pengaju],
+                ["nama_lokasi",             payload.nama_lokasi],
+                ["jenis_pengajuan",         payload.jenis_pengajuan],
+                ["jenis_pengajuan_lainnya", payload.jenis_pengajuan_lainnya ?? null],
+                ["is_ruko",                 (payload as any).is_ruko ?? false],
+                ["jumlah_lantai",           nullIfBlank((payload as any).jumlah_lantai)],
+                ["is_head_to_head",         (payload as any).is_head_to_head ?? false],
+                ["jarak_head_to_head",      (payload as any).jarak_head_to_head ?? null],
+                ["is_seating_area",         (payload as any).is_seating_area ?? false],
+                ["is_dark_store",           (payload as any).is_dark_store ?? false],
+                ["beanspot_tipe",           (payload as any).beanspot_tipe ?? null],
+                ["status",                  payload.status],
+                ["butuh_desain_3d",         false],
+                // Reset approval stamps
+                ["bm_approver_email",               null],
+                ["bm_waktu_persetujuan",            null],
+                ["pp1_approver_email",              null],
+                ["pp1_waktu_persetujuan",           null],
+                ["pp_manager_approver_email",       null],
+                ["pp_manager_waktu_persetujuan",    null],
+                ["pp2_approver_email",              null],
+                ["pp2_waktu_persetujuan",           null],
+            ];
+
+            // COALESCE columns: only overwrite if new value is not null
+            const coalesceColumns = new Set(["link_fpd", "link_siteplan", "link_gambar_kerja", "link_gambar_kompetitor"]);
+
+            // Append COALESCE columns separately so they are not overwritten with NULL
+            const coalesceFields: Array<[string, unknown]> = [
+                ["link_fpd",                payload.link_fpd ?? null],
+                ["link_siteplan",           (payload as any).link_siteplan ?? null],
+                ["link_gambar_kerja",       (payload as any).link_gambar_kerja ?? null],
+                ["link_gambar_kompetitor",  (payload as any).link_gambar_kompetitor ?? null],
+            ];
+
+            // Build SET clause
+            const values: unknown[] = [];
+            const setClauses: string[] = [];
+
+            for (const [col, val] of updateFields) {
+                values.push(val);
+                setClauses.push(`${col} = $${values.length}`);
+            }
+            for (const [col, val] of coalesceFields) {
+                values.push(val);
+                setClauses.push(`${col} = COALESCE($${values.length}, ${col})`);
+            }
+            // Append updated_at and id
+            setClauses.push(`updated_at = NOW()`);
+            values.push(id);
+            const idPlaceholder = `$${values.length}`;
+
             const result = await client.query<ProjekPlanningRow>(
-                 `UPDATE projek_planning
-                 SET email_pembuat = $1,
-                     lingkup_pekerjaan = $2,
-                     jenis_proyek = $3,
-                     estimasi_biaya = $4,
-                     keterangan = $5,
-                     link_fpd = COALESCE($6, link_fpd),
-                     nama_toko = $7,
-                     kode_toko = $8,
-                     cabang = $9,
-                     alamat_toko = $10,
-                     link_google_maps = $11,
-                     link_siteplan = COALESCE($12, link_siteplan),
-                     luas_bangunan = $13,
-                     luas_area_terbuka = $14,
-                     luas_area_terbangun = $15,
-                     luas_gudang = $16,
-                     luas_area_parkir = $17,
-                     luas_area_sales = $18,
-                     pxl_bangunan = $19,
-                     pxl_area_parkir = $20,
-                     p_bangunan = $37,
-                     l_bangunan = $38,
-                     p_area_parkir = $39,
-                     l_area_parkir = $40,
-                     jumlah_ac = $41,
-                     pk_ac = $42,
-                     listrik_va = $43,
-                     listrik_phase = $44,
-                     sumber_air_bersih = $45,
-                     drainase_air_kotor = $46,
-                     proyek = $21,
-                     nama_pengaju = $22,
-                     nama_lokasi = $23,
-                     jenis_pengajuan = $24,
-                     jenis_pengajuan_lainnya = $25,
-                     link_gambar_kerja = COALESCE($26, link_gambar_kerja),
-                     link_gambar_kompetitor = COALESCE($27, link_gambar_kompetitor),
-                     is_ruko = $28,
-                     jumlah_lantai = $29,
-                     is_head_to_head = $30,
-                     jarak_head_to_head = $31,
-                     is_seating_area = $32,
-                     is_dark_store = $33,
-                     beanspot_tipe = $34,
-                     status = $35,
-                     butuh_desain_3d = FALSE,
-                     bm_approver_email = NULL,
-                     bm_waktu_persetujuan = NULL,
-                     pp1_approver_email = NULL,
-                     pp1_waktu_persetujuan = NULL,
-                     pp_manager_approver_email = NULL,
-                     pp_manager_waktu_persetujuan = NULL,
-                     pp2_approver_email = NULL,
-                     pp2_waktu_persetujuan = NULL,
-                     updated_at = NOW()
-                 WHERE id = $36
+                `UPDATE projek_planning
+                 SET ${setClauses.join(",\n                     ")}
+                 WHERE id = ${idPlaceholder}
                  RETURNING ${PP_COLUMNS}`,
-                [
-                    payload.email_pembuat,
-                    payload.lingkup_pekerjaan,
-                    payload.jenis_proyek,
-                    nullIfBlank(payload.estimasi_biaya),
-                    payload.keterangan ?? null,
-                    payload.link_fpd ?? null,
-                    payload.nama_toko,
-                    payload.kode_toko,
-                    payload.cabang,
-                    payload.alamat_toko,
-                    (payload as any).link_google_maps ?? null,
-                    (payload as any).link_siteplan ?? null,
-                    (payload as any).luas_bangunan ?? null,
-                    (payload as any).luas_area_terbuka ?? null,
-                    (payload as any).luas_area_terbangun ?? null,
-                    (payload as any).luas_gudang ?? null,
-                    (payload as any).luas_area_parkir ?? null,
-                    (payload as any).luas_area_sales ?? null,
-                    (payload as any).pxl_bangunan ?? null,
-                    (payload as any).pxl_area_parkir ?? null,
-                    payload.proyek,
-                    payload.nama_pengaju,
-                    payload.nama_lokasi,
-                    payload.jenis_pengajuan,
-                    payload.jenis_pengajuan_lainnya ?? null,
-                    (payload as any).link_gambar_kerja ?? null,
-                    (payload as any).link_gambar_kompetitor ?? null,
-                    (payload as any).is_ruko ?? false,
-                    nullIfBlank((payload as any).jumlah_lantai),
-                    (payload as any).is_head_to_head ?? false,
-                    (payload as any).jarak_head_to_head ?? null,
-                    (payload as any).is_seating_area ?? false,
-                    (payload as any).is_dark_store ?? false,
-                    (payload as any).beanspot_tipe ?? null,
-                    payload.status,
-                    id,
-                    nullIfBlank((payload as any).p_bangunan),
-                    nullIfBlank((payload as any).l_bangunan),
-                    nullIfBlank((payload as any).p_area_parkir),
-                    nullIfBlank((payload as any).l_area_parkir),
-                    nullIfBlank((payload as any).jumlah_ac),
-                    nullIfBlank((payload as any).pk_ac),
-                    nullIfBlank((payload as any).listrik_va),
-                    nullIfBlank((payload as any).listrik_phase),
-                    (payload as any).sumber_air_bersih ?? null,
-                    (payload as any).drainase_air_kotor ?? null,
-                ]
+                values
             );
             const row = result.rows[0];
 
             // Re-create relations
             await client.query(`DELETE FROM projek_planning_ketentuan WHERE projek_planning_id = $1`, [id]);
             await client.query(`DELETE FROM projek_planning_catatan WHERE projek_planning_id = $1`, [id]);
-            await client.query(`DELETE FROM projek_planning_fasilitas WHERE projek_planning_id = $1`, [id]);
 
             if (payload.ketentuan && payload.ketentuan.length > 0) {
                 for (const k of payload.ketentuan) {
@@ -704,19 +649,10 @@ export const projekPlanningRepository = {
                     await client.query(`INSERT INTO projek_planning_catatan (projek_planning_id, isi_catatan) VALUES ($1, $2)`, [id, c]);
                 }
             }
-            if (payload.fasilitas && payload.fasilitas.length > 0) {
-                for (const f of payload.fasilitas) {
-                    await client.query(
-                        `INSERT INTO projek_planning_fasilitas (projek_planning_id, jenis_fasilitas, nama_fasilitas_lainnya, is_tersedia, keterangan) VALUES ($1, $2, $3, $4, $5)`,
-                        [id, f.jenis_fasilitas, f.nama_fasilitas_lainnya ?? null, f.is_tersedia, f.keterangan ?? null]
-                    );
-                }
-            }
-            
             row.ketentuan = payload.ketentuan?.map(k => ({ isi_ketentuan: k })) || [];
             row.catatan_design = payload.catatan_design?.map(c => ({ isi_catatan: c })) || [];
-            row.fasilitas = payload.fasilitas || [];
-            
+            row.fasilitas = [];
+
             return row;
         });
     },
