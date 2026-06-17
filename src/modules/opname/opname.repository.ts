@@ -1,5 +1,6 @@
+import { AppError } from "../../common/app-error";
 import { pool, withTransaction } from "../../db/pool";
-import { REJECTED_OPNAME_FINAL_STATUSES } from "../opname-final/opname-final.constants";
+import { OPNAME_FINAL_STATUS, REJECTED_OPNAME_FINAL_STATUSES } from "../opname-final/opname-final.constants";
 import type {
     CreateBulkOpnameItemData,
     CreateOpnameData,
@@ -16,6 +17,19 @@ const sanitizeFotoValue = (foto: string | null | undefined): string | null => {
     if (/^\/api\/opname\/\d+\/foto$/.test(foto)) return null;
     return foto;
 };
+
+const CONTRACTOR_PROCESS_STATUS = "Proses KTK/Approval Kontraktor";
+
+const getOpnameFinalLookupTypes = (tipeOpname: string): string[] => {
+    if (tipeOpname === "OPNAME") return ["OPNAME", "OPNAME_FINAL"];
+    return [tipeOpname];
+};
+
+const isRejectedOpnameFinalStatus = (status: string): boolean =>
+    REJECTED_OPNAME_FINAL_STATUSES.includes(status as (typeof REJECTED_OPNAME_FINAL_STATUSES)[number]);
+
+const isFinalApprovalStatus = (status: string): boolean =>
+    (Object.values(OPNAME_FINAL_STATUS) as string[]).includes(status);
 export type OpnameRow = {
     id: number;
     id_toko: number;
@@ -186,25 +200,40 @@ export const opnameRepository = {
         items: CreateBulkOpnameItemData[];
     }): Promise<{ opnameFinal: OpnameFinalHeaderRow; items: OpnameRow[] }> {
         return withTransaction(async (client) => {
+            const tipeOpname = payload.tipe_opname || "OPNAME";
             const existingFinalResult = await client.query<OpnameFinalHeaderRow>(
                 `
                 SELECT ${opnameFinalColumns}
                 FROM opname_final
-                WHERE id_toko = $1 AND tipe_opname = $2
+                WHERE id_toko = $1 AND tipe_opname = ANY($2::text[])
                 ORDER BY id DESC
                 LIMIT 1
                 FOR UPDATE
                 `,
-                [payload.id_toko, payload.tipe_opname || "OPNAME"]
+                [payload.id_toko, getOpnameFinalLookupTypes(tipeOpname)]
             );
 
             let opnameFinalId: number;
             let shouldResetItemsToPending = false;
             if ((existingFinalResult.rowCount ?? 0) > 0) {
-                opnameFinalId = existingFinalResult.rows[0].id;
-                shouldResetItemsToPending = REJECTED_OPNAME_FINAL_STATUSES.includes(
-                    existingFinalResult.rows[0].status_opname_final as (typeof REJECTED_OPNAME_FINAL_STATUSES)[number]
-                );
+                const existingFinal = existingFinalResult.rows[0];
+                const existingStatus = existingFinal.status_opname_final || "";
+                const isRejected = isRejectedOpnameFinalStatus(existingStatus);
+                const isLockedOrInApproval = !isRejected
+                    && (
+                        existingFinal.aksi === "terkunci"
+                        || (isFinalApprovalStatus(existingStatus) && existingStatus !== CONTRACTOR_PROCESS_STATUS)
+                    );
+
+                if (isLockedOrInApproval) {
+                    throw new AppError(
+                        "Opname sudah dikunci atau sedang dalam proses approval. Data tidak bisa disubmit ulang.",
+                        409
+                    );
+                }
+
+                opnameFinalId = existingFinal.id;
+                shouldResetItemsToPending = isRejected;
                 await client.query(
                     `
                     UPDATE opname_final
@@ -213,6 +242,7 @@ export const opnameRepository = {
                         grand_total_opname = $3,
                         grand_total_rab = $4,
                         status_opname_final = $5,
+                        tipe_opname = $6,
                         alasan_penolakan = NULL,
                         pemberi_persetujuan_direktur = NULL,
                         waktu_persetujuan_direktur = NULL,
@@ -220,14 +250,15 @@ export const opnameRepository = {
                         waktu_persetujuan_koordinator = NULL,
                         pemberi_persetujuan_manager = NULL,
                         waktu_persetujuan_manager = NULL
-                    WHERE id = $6
+                    WHERE id = $7
                     `,
                     [
                         payload.email_pembuat,
                         "active",
                         payload.grand_total_opname,
                         payload.grand_total_rab,
-                        "Proses KTK/Approval Kontraktor",
+                        CONTRACTOR_PROCESS_STATUS,
+                        tipeOpname,
                         opnameFinalId
                     ]
                 );
@@ -248,12 +279,12 @@ export const opnameRepository = {
                     `,
                     [
                         payload.id_toko,
-                        payload.tipe_opname || "OPNAME",
+                        tipeOpname,
                         payload.email_pembuat,
                         "active",
                         payload.grand_total_opname,
                         payload.grand_total_rab,
-                        "Proses KTK/Approval Kontraktor"
+                        CONTRACTOR_PROCESS_STATUS
                     ]
                 );
 
