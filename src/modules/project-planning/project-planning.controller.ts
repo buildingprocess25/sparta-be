@@ -9,6 +9,8 @@ import {
     upload3dSchema,
     uploadRabSchema,
     listProjekPlanningQuerySchema,
+    rabPrefillQuerySchema,
+    rabRequestQuerySchema,
     projekPlanningInterventionSchema,
 } from "./project-planning.schema";
 import { projekPlanningService } from "./project-planning.service";
@@ -107,6 +109,23 @@ export const getProjekPlanningTaskCounts = asyncHandler(async (req: Request, res
         email: req.query.email ? String(req.query.email) : undefined,
     });
 
+    res.json({ status: "success", data });
+});
+
+export const getRabRequests = asyncHandler(async (req: Request, res: Response) => {
+    const query = rabRequestQuerySchema.parse(req.query);
+    const result = await projekPlanningService.listRabRequests(query.actor_email);
+    res.json({ status: "success", ...result });
+});
+
+export const getRabPrefill = asyncHandler(async (req: Request, res: Response) => {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+        res.status(400).json({ status: "error", message: "ID tidak valid" });
+        return;
+    }
+    const query = rabPrefillQuerySchema.parse(req.query);
+    const data = await projekPlanningService.getRabPrefill(id, query);
     res.json({ status: "success", data });
 });
 

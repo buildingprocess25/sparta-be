@@ -13,6 +13,8 @@ import {
     handlePpApproval2,
     getProjekPlanningLogs,
     getProjekPlanningTaskCounts,
+    getRabRequests,
+    getRabPrefill,
     handleProjekPlanningIntervention,
     downloadPdf,
     proxyFile,
@@ -40,6 +42,8 @@ projekPlanningRouter.post(
 // ── Query ─────────────────────────────────────────────────────
 projekPlanningRouter.get("/", listProjekPlanning);
 projekPlanningRouter.get("/task-counts", getProjekPlanningTaskCounts);
+projekPlanningRouter.get("/rab-requests", getRabRequests);
+projekPlanningRouter.get("/:id/rab-prefill", getRabPrefill);
 projekPlanningRouter.get("/:id", getProjekPlanningById);
 projekPlanningRouter.get("/:id/logs", getProjekPlanningLogs);
 projekPlanningRouter.get("/:id/pdf", downloadPdf);

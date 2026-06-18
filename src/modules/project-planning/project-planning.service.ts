@@ -186,6 +186,7 @@ import type {
     Upload3dInput,
     UploadRabInput,
     ListProjekPlanningQuery,
+    RabPrefillQuery,
     ProjekPlanningInterventionInput,
 } from "./project-planning.schema";
 
@@ -466,6 +467,50 @@ export const projekPlanningService = {
 
     async list(query: ListProjekPlanningQuery) {
         return projekPlanningRepository.list(query);
+    },
+
+    async listRabRequests(actorEmail: string) {
+        const data = await projekPlanningRepository.listRabRequests(actorEmail);
+        return { count: data.length, data };
+    },
+
+    async getRabPrefill(id: number, query: RabPrefillQuery) {
+        const data = await projekPlanningRepository.findById(id);
+        if (!data) throw new AppError("Project planning tidak ditemukan", 404);
+
+        const { projek } = data;
+        if (projek.status !== PP_STATUS.WAITING_RAB_UPLOAD) {
+            throw new AppError("Permintaan RAB Project Planning sudah tidak aktif.", 409);
+        }
+
+        const canAccess = await projekPlanningRepository.canActorAccessBranch(query.actor_email, projek.cabang);
+        if (!canAccess) {
+            throw new AppError("Anda tidak memiliki akses ke permintaan RAB cabang ini.", 403);
+        }
+
+        const alreadyExists = await projekPlanningRepository.existsRabByNomorUlokAndLingkup(
+            projek.nomor_ulok,
+            query.lingkup
+        );
+        if (alreadyExists) {
+            throw new AppError("RAB untuk ULOK dan lingkup ini sudah disubmit.", 409);
+        }
+
+        return {
+            projek_planning_id: projek.id,
+            nomor_ulok: projek.nomor_ulok,
+            nama_toko: projek.nama_toko || projek.nama_lokasi || null,
+            cabang: projek.cabang,
+            alamat: projek.alamat_toko,
+            proyek: projek.proyek || projek.jenis_proyek || null,
+            lingkup_pekerjaan: query.lingkup,
+            luas_bangunan: projek.luas_bangunan,
+            luas_area_terbuka: projek.luas_area_terbuka,
+            luas_terbangun: projek.luas_area_terbangun,
+            luas_area_parkir: projek.luas_area_parkir,
+            luas_area_sales: projek.luas_area_sales,
+            luas_gudang: projek.luas_gudang,
+        };
     },
 
 

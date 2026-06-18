@@ -143,6 +143,25 @@ export type ProjekPlanningLogRow = {
     created_at: string;
 };
 
+export type RabRequestRow = {
+    projek_planning_id: number;
+    id_toko: number | null;
+    nomor_ulok: string;
+    nama_toko: string | null;
+    nama_lokasi: string | null;
+    cabang: string | null;
+    alamat_toko: string | null;
+    proyek: string | null;
+    lingkup_pekerjaan: "SIPIL" | "ME";
+    luas_bangunan: string | null;
+    luas_area_terbuka: string | null;
+    luas_area_terbangun: string | null;
+    luas_area_parkir: string | null;
+    luas_area_sales: string | null;
+    luas_gudang: string | null;
+    created_at: string;
+};
+
 // ============================================================
 // COLUMNS
 // ============================================================
@@ -354,6 +373,77 @@ export const projekPlanningRepository = {
         );
 
         return result.rows;
+    },
+
+    async listRabRequests(actorEmail: string): Promise<RabRequestRow[]> {
+        const result = await pool.query<RabRequestRow>(
+            `SELECT
+                pp.id AS projek_planning_id,
+                pp.id_toko,
+                pp.nomor_ulok,
+                pp.nama_toko,
+                pp.nama_lokasi,
+                pp.cabang,
+                pp.alamat_toko,
+                COALESCE(NULLIF(pp.proyek, ''), NULLIF(pp.jenis_proyek, '')) AS proyek,
+                scope.lingkup_pekerjaan,
+                pp.luas_bangunan,
+                pp.luas_area_terbuka,
+                pp.luas_area_terbangun,
+                pp.luas_area_parkir,
+                pp.luas_area_sales,
+                pp.luas_gudang,
+                pp.created_at
+             FROM projek_planning pp
+             CROSS JOIN (VALUES ('SIPIL'::text), ('ME'::text)) AS scope(lingkup_pekerjaan)
+             WHERE pp.status = 'WAITING_RAB_UPLOAD'
+               AND EXISTS (
+                    SELECT 1
+                    FROM user_cabang uc
+                    WHERE LOWER(TRIM(uc.email_sat)) = LOWER(TRIM($1))
+                      AND LOWER(TRIM(uc.cabang)) = LOWER(TRIM(pp.cabang))
+                      AND UPPER(COALESCE(uc.jabatan, '')) LIKE '%KONTRAKTOR%'
+               )
+               AND NOT EXISTS (
+                    SELECT 1
+                    FROM toko t
+                    JOIN rab r ON r.id_toko = t.id
+                    WHERE t.nomor_ulok = pp.nomor_ulok
+                      AND UPPER(TRIM(COALESCE(t.lingkup_pekerjaan, ''))) = scope.lingkup_pekerjaan
+               )
+             ORDER BY pp.created_at ASC, pp.id ASC, scope.lingkup_pekerjaan DESC`,
+            [actorEmail]
+        );
+        return result.rows;
+    },
+
+    async canActorAccessBranch(actorEmail: string, cabang: string | null): Promise<boolean> {
+        if (!cabang) return false;
+        const result = await pool.query<{ exists: boolean }>(
+            `SELECT EXISTS(
+                SELECT 1
+                FROM user_cabang
+                WHERE LOWER(TRIM(email_sat)) = LOWER(TRIM($1))
+                  AND LOWER(TRIM(cabang)) = LOWER(TRIM($2))
+                  AND UPPER(COALESCE(jabatan, '')) LIKE '%KONTRAKTOR%'
+            ) AS exists`,
+            [actorEmail, cabang]
+        );
+        return result.rows[0]?.exists ?? false;
+    },
+
+    async existsRabByNomorUlokAndLingkup(nomorUlok: string, lingkup: "SIPIL" | "ME"): Promise<boolean> {
+        const result = await pool.query<{ exists: boolean }>(
+            `SELECT EXISTS(
+                SELECT 1
+                FROM toko t
+                JOIN rab r ON r.id_toko = t.id
+                WHERE t.nomor_ulok = $1
+                  AND UPPER(TRIM(COALESCE(t.lingkup_pekerjaan, ''))) = $2
+            ) AS exists`,
+            [nomorUlok, lingkup]
+        );
+        return result.rows[0]?.exists ?? false;
     },
 
     async countByStatuses(statuses: PpStatus[], cabang?: string): Promise<number> {

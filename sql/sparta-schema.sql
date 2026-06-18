@@ -1098,3 +1098,26 @@ ALTER TABLE projek_planning
     ADD COLUMN IF NOT EXISTS sumber_air_bersih VARCHAR(100) DEFAULT NULL,
     ADD COLUMN IF NOT EXISTS drainase_air_kotor VARCHAR(100) DEFAULT NULL;
 
+-- Migration: 2026-06-18-add-rab-project-planning-source.sql
+ALTER TABLE rab
+    ADD COLUMN IF NOT EXISTS projek_planning_id INTEGER NULL;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_rab_projek_planning'
+          AND conrelid = 'rab'::regclass
+    ) THEN
+        ALTER TABLE rab
+            ADD CONSTRAINT fk_rab_projek_planning
+            FOREIGN KEY (projek_planning_id)
+            REFERENCES projek_planning(id)
+            ON DELETE SET NULL;
+    END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_rab_projek_planning_id
+    ON rab(projek_planning_id);
+

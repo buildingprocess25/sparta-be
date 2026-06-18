@@ -22,6 +22,7 @@ export const submitRabSchema = z.object({
     cabang: z.string().optional(),
     alamat: z.string().optional(),
     nama_kontraktor: z.string().optional(),
+    projek_planning_id: z.coerce.number().int().positive().optional(),
 
     // --- field rab ---
     email_pembuat: z.string().email(),

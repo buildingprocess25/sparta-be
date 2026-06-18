@@ -326,6 +326,18 @@ export const listProjekPlanningQuerySchema = z.object({
 
 export type ListProjekPlanningQuery = z.infer<typeof listProjekPlanningQuerySchema>;
 
+export const rabRequestQuerySchema = z.object({
+    actor_email: z.string().trim().email(),
+});
+
+export const rabPrefillQuerySchema = z.object({
+    actor_email: z.string().trim().email(),
+    lingkup: z.enum(["SIPIL", "ME"]),
+});
+
+export type RabRequestQuery = z.infer<typeof rabRequestQuerySchema>;
+export type RabPrefillQuery = z.infer<typeof rabPrefillQuerySchema>;
+
 export const projekPlanningInterventionSchema = z.object({
     actor_email: z.string().trim().email(),
     actor_role: z.string().trim().min(1),

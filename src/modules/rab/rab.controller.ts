@@ -34,6 +34,9 @@ export const submitRab = asyncHandler(async (req: Request, res: Response) => {
         id_rab_revisi: typeof req.body.id_rab_revisi === "string"
             ? req.body.id_rab_revisi
             : req.body.id_rab_revisi,
+        projek_planning_id: typeof req.body.projek_planning_id === "string"
+            ? req.body.projek_planning_id
+            : req.body.projek_planning_id,
     };
 
     // Debug: log raw body toko fields yang diterima dari frontend

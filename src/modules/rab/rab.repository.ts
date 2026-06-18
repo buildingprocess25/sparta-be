@@ -11,6 +11,7 @@ import type { DetailItemInput } from "./rab.schema";
 export type RabRow = {
     id: number;
     id_toko: number;
+    projek_planning_id: number | null;
     no_sph: number | null;
     status: RabStatus;
     nama_pt: string | null;
@@ -110,7 +111,7 @@ export type RabMinimalRow = {
 // ---------------------------------------------------------------------------
 
 const RAB_COLUMNS = `
-    r.id, r.id_toko, r.no_sph, r.status, r.nama_pt, r.email_pembuat, r.logo,
+    r.id, r.id_toko, r.projek_planning_id, r.no_sph, r.status, r.nama_pt, r.email_pembuat, r.logo,
     r.link_pdf_gabungan, r.link_pdf_non_sbo, r.link_pdf_rekapitulasi,
     r.link_pdf_materai,
     r.pemberi_persetujuan_koordinator, r.nama_persetujuan_koordinator, r.waktu_persetujuan_koordinator,
@@ -497,6 +498,7 @@ export const rabRepository = {
         cabang?: string;
         alamat?: string;
         nama_kontraktor?: string;
+        projek_planning_id?: number;
         // rab fields
         email_pembuat: string;
         nama_pt: string;
@@ -579,23 +581,38 @@ export const rabRepository = {
                 tokoId = tokoInsertRes.rows[0].id;
             }
 
+            const existingRabRes = await client.query<{ id: number }>(
+                `SELECT id
+                 FROM rab
+                 WHERE id_toko = $1
+                 LIMIT 1
+                 FOR UPDATE`,
+                [tokoId]
+            );
+            if ((existingRabRes.rowCount ?? 0) > 0) {
+                const duplicateError = new Error("RAB untuk kombinasi ULOK dan lingkup ini sudah ada") as Error & { code?: string };
+                duplicateError.code = "RAB_DUPLICATE";
+                throw duplicateError;
+            }
+
             const logoToPersist = toPersistedAssetLink(payload.logo);
             const insuranceToPersist = toPersistedAssetLink(payload.file_asuransi);
 
             // 2. Insert RAB header
             const res = await client.query<RabRow>(
                 `INSERT INTO rab (
-                    id_toko, status, nama_pt, email_pembuat, logo,
+                    id_toko, projek_planning_id, status, nama_pt, email_pembuat, logo,
                     durasi_pekerjaan, kategori_lokasi,
                     no_polis, berlaku_polis, file_asuransi,
                     luas_bangunan, luas_terbangun, luas_area_terbuka,
                     luas_area_parkir, luas_area_sales, luas_gudang,
                     grand_total, grand_total_non_sbo, grand_total_final,
                     created_at
-                ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,timezone('Asia/Jakarta', now()))
+                ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,timezone('Asia/Jakarta', now()))
                 RETURNING *`,
                 [
                     tokoId,
+                    payload.projek_planning_id ?? null,
                     payload.status,
                     payload.nama_pt,
                     payload.email_pembuat,
@@ -672,6 +689,7 @@ export const rabRepository = {
         const rab: RabRow = {
             id: row.id,
             id_toko: row.id_toko,
+            projek_planning_id: row.projek_planning_id,
             no_sph: row.no_sph,
             status: row.status,
             nama_pt: row.nama_pt,

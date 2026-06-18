@@ -6,6 +6,8 @@ import { userCabangRepository } from "../user-cabang/user-cabang.repository";
 import type { ApprovalActionInput } from "../approval/approval.schema";
 import { activityLogRepository } from "../activity-log/activity-log.repository";
 import { priceRabService, type PriceResult } from "../price-rab/price-rab.service";
+import { projekPlanningRepository } from "../project-planning/project-planning.repository";
+import { PP_STATUS } from "../project-planning/project-planning.constants";
 import { RAB_STATUS, REJECTED_RAB_STATUSES, type RabStatus } from "./rab.constants";
 import { buildRabPdfBuffer, buildRecapPdfBuffer, extractMateraiCoverPageBuffer, mergePdfBuffers, generateSphPdf } from "./rab.pdf";
 import { rabRepository } from "./rab.repository";
@@ -1107,6 +1109,34 @@ export const rabService = {
 
         const submittedNamaPt = await validateSubmitterCompanyMapping(payload);
 
+        if (payload.projek_planning_id) {
+            const planningData = await projekPlanningRepository.findById(payload.projek_planning_id);
+            if (!planningData) {
+                throw new AppError("Permintaan RAB Project Planning tidak ditemukan", 404);
+            }
+            const projek = planningData.projek;
+            if (projek.status !== PP_STATUS.WAITING_RAB_UPLOAD) {
+                throw new AppError("Permintaan RAB Project Planning sudah tidak aktif", 409);
+            }
+            if (String(projek.nomor_ulok || "").trim().toUpperCase() !== String(payload.nomor_ulok || "").trim().toUpperCase()) {
+                throw new AppError("Nomor ULOK tidak cocok dengan Project Planning", 422);
+            }
+            if (String(projek.cabang || "").trim().toUpperCase() !== String(payload.cabang || "").trim().toUpperCase()) {
+                throw new AppError("Cabang tidak cocok dengan Project Planning", 422);
+            }
+            const canAccess = await projekPlanningRepository.canActorAccessBranch(payload.email_pembuat, projek.cabang);
+            if (!canAccess) {
+                throw new AppError("Akun tidak memiliki akses ke permintaan RAB cabang ini", 403);
+            }
+            const exists = await projekPlanningRepository.existsRabByNomorUlokAndLingkup(
+                projek.nomor_ulok,
+                normalizedLingkupPekerjaan
+            );
+            if (exists) {
+                throw new AppError("RAB untuk ULOK dan lingkup ini sudah disubmit", 409);
+            }
+        }
+
         logRab("SUBMIT", "Mulai submit RAB", {
             nomor_ulok: payload.nomor_ulok,
             lingkup_pekerjaan: normalizedLingkupPekerjaan,
@@ -1273,6 +1303,7 @@ export const rabService = {
             cabang: payload.cabang,
             alamat: payload.alamat,
             nama_kontraktor: submittedNamaPt,
+            projek_planning_id: payload.projek_planning_id,
             // rab fields
             email_pembuat: payload.email_pembuat,
             nama_pt: submittedNamaPt,
@@ -1295,9 +1326,20 @@ export const rabService = {
             detail_items: detailItems
         };
 
-        const rab = rejectedRabToReplaceId !== null
-            ? await rabRepository.replaceRejectedWithDetails(rejectedRabToReplaceId, submitPayload)
-            : await rabRepository.createWithDetails(submitPayload);
+        let rab;
+        try {
+            rab = rejectedRabToReplaceId !== null
+                ? await rabRepository.replaceRejectedWithDetails(rejectedRabToReplaceId, submitPayload)
+                : await rabRepository.createWithDetails(submitPayload);
+        } catch (error: unknown) {
+            const code = typeof error === "object" && error !== null && "code" in error
+                ? String((error as { code?: string }).code || "")
+                : "";
+            if (code === "RAB_DUPLICATE" || code === "23505") {
+                throw new AppError("RAB untuk ULOK dan lingkup ini sudah disubmit", 409);
+            }
+            throw error;
+        }
         logRab("SUBMIT", "RAB tersimpan di database", { rabId: rab.id });
 
         // 4. Generate & upload 3 PDF ke Drive (sama seperti server Python)
