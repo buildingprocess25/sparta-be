@@ -118,6 +118,12 @@ export const listPengawasan = asyncHandler(async (req: Request, res: Response) =
     res.json({ status: "success", data });
 });
 
+export const listPendingPengawasanMigrationPdfs = asyncHandler(async (req: Request, res: Response) => {
+    const nomorUlok = typeof req.query.nomor_ulok === "string" ? req.query.nomor_ulok : undefined;
+    const data = await pengawasanService.listPendingMigrationPdfs(nomorUlok);
+    res.json({ status: "success", data });
+});
+
 export const getPengawasanById = asyncHandler(async (req: Request, res: Response) => {
     const data = await pengawasanService.getById(req.params.id);
     res.json({ status: "success", data });

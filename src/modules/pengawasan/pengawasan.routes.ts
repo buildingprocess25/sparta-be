@@ -6,6 +6,7 @@ import {
     deletePengawasan,
     downloadPengawasanPdf,
     getPengawasanById,
+    listPendingPengawasanMigrationPdfs,
     listPengawasan,
     updateBulkPengawasan,
     updatePengawasan
@@ -44,6 +45,7 @@ pengawasanRouter.post(
 );
 pengawasanRouter.post("/migration/preview", pengawasanMigrationUpload.single("file"), previewPengawasanMigration);
 pengawasanRouter.post("/migration/commit", pengawasanMigrationUpload.single("file"), commitPengawasanMigration);
+pengawasanRouter.get("/migration/pending", listPendingPengawasanMigrationPdfs);
 pengawasanRouter.get("/", listPengawasan);
 pengawasanRouter.get("/:id/pdf", downloadPengawasanPdf);
 pengawasanRouter.get("/:id", getPengawasanById);

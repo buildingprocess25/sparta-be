@@ -123,6 +123,19 @@ export type DashboardBerkasPengawasanRow = {
     created_at: string | null;
 };
 
+export type DashboardPengawasanPdfPendingRow = {
+    id: number;
+    nomor_ulok: string;
+    lingkup_pekerjaan: string;
+    h_day: number;
+    tanggal_pengawasan: string | null;
+    link_pdf_pengawasan: string;
+    source_sheet: string;
+    source_row: number;
+    status: string;
+    created_at: string | null;
+};
+
 export type DashboardSpkRow = {
     id: number;
     id_toko: number;
@@ -300,6 +313,7 @@ export type DashboardData = {
         pertambahan_spk: DashboardPertambahanSpkRow[];
     }>;
     pic_pengawasan: DashboardPicPengawasanRow | null;
+    pengawasan_pdf_pending: DashboardPengawasanPdfPendingRow[];
     instruksi_lapangan: Array<DashboardInstruksiLapanganRow & { items: DashboardInstruksiLapanganItemRow[] }>;
     opname_final: Array<DashboardOpnameFinalRow & { items: DashboardOpnameItemRow[] }>;
     berkas_serah_terima: DashboardBerkasSerahTerimaRow[];
@@ -585,6 +599,18 @@ export const dashboardRepository = {
             [tokoId]
         );
 
+        const pengawasanPdfPendingResult = await pool.query<DashboardPengawasanPdfPendingRow>(
+            `
+            SELECT id, nomor_ulok, lingkup_pekerjaan, h_day, tanggal_pengawasan,
+                   link_pdf_pengawasan, source_sheet, source_row, status, created_at
+            FROM pengawasan_pdf_migration_pending
+            WHERE status = 'PENDING'
+              AND UPPER(nomor_ulok) = UPPER($1)
+            ORDER BY created_at DESC, id DESC
+            `,
+            [toko?.nomor_ulok ?? ""]
+        );
+
         const rabItemsByRabId = new Map<number, DashboardRabItemRow[]>();
         for (const item of rabItemResult.rows) {
             const items = rabItemsByRabId.get(item.id_rab) ?? [];
@@ -700,6 +726,7 @@ export const dashboardRepository = {
             gantt,
             spk,
             pic_pengawasan: picResult.rows[0] ?? null,
+            pengawasan_pdf_pending: pengawasanPdfPendingResult.rows,
             instruksi_lapangan,
             opname_final,
             berkas_serah_terima: berkasSerahTerimaResult.rows
@@ -1005,6 +1032,18 @@ export const dashboardRepository = {
             [toArrayParam(tokoIds)]
         );
 
+        const pengawasanPdfPendingResult = await client.query<DashboardPengawasanPdfPendingRow>(
+            `
+            SELECT id, nomor_ulok, lingkup_pekerjaan, h_day, tanggal_pengawasan,
+                   link_pdf_pengawasan, source_sheet, source_row, status, created_at
+            FROM pengawasan_pdf_migration_pending
+            WHERE status = 'PENDING'
+              AND UPPER(nomor_ulok) = ANY($1::text[])
+            ORDER BY created_at DESC, id DESC
+            `,
+            [[...new Set(tokoResult.rows.map((row) => normalizeDashboardUlok(row.nomor_ulok)).filter(Boolean))]]
+        );
+
         const rabItemsByRabId = new Map<number, DashboardRabItemRow[]>();
         for (const item of rabItemResult.rows) {
             pushMapArray(rabItemsByRabId, item.id_rab, item);
@@ -1138,12 +1177,21 @@ export const dashboardRepository = {
             pushMapArray(berkasSerahByTokoId, row.id_toko, row);
         }
 
+        const pendingPdfByUlok = new Map<string, DashboardPengawasanPdfPendingRow[]>();
+        for (const row of pengawasanPdfPendingResult.rows) {
+            const key = normalizeDashboardUlok(row.nomor_ulok);
+            const items = pendingPdfByUlok.get(key) ?? [];
+            items.push(row);
+            pendingPdfByUlok.set(key, items);
+        }
+
         return tokoResult.rows.map((toko) => ({
             toko,
             rab: rabByTokoId.get(toko.id) ?? [],
             gantt: ganttByTokoId.get(toko.id) ?? [],
             spk: spkByTokoId.get(toko.id) ?? [],
             pic_pengawasan: picByTokoId.get(toko.id) ?? null,
+            pengawasan_pdf_pending: pendingPdfByUlok.get(normalizeDashboardUlok(toko.nomor_ulok)) ?? [],
             instruksi_lapangan: instruksiByTokoId.get(toko.id) ?? [],
             opname_final: opnameFinalByTokoId.get(toko.id) ?? [],
             berkas_serah_terima: berkasSerahByTokoId.get(toko.id) ?? []

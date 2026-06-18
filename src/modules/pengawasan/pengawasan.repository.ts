@@ -35,11 +35,48 @@ export type PengawasanGanttInfoRow = {
     tanggal_pengawasan: string;
 };
 
+export type PengawasanPdfMigrationPendingRow = {
+    id: number;
+    nomor_ulok: string;
+    lingkup_pekerjaan: string;
+    h_day: number;
+    tanggal_pengawasan: string | null;
+    link_pdf_pengawasan: string;
+    source_sheet: string;
+    source_row: number;
+    status: "PENDING" | "LINKED";
+    id_pengawasan_gantt: number | null;
+    created_at: string;
+    updated_at: string;
+};
+
 export type PengawasanRowWithBerkas = PengawasanRow & {
     berkas_pengawasan: BerkasPengawasanRow | null;
 };
 
 export const pengawasanRepository = {
+    async findPendingMigrationPdfs(nomorUlok?: string): Promise<PengawasanPdfMigrationPendingRow[]> {
+        const values: string[] = [];
+        const conditions = [`status = 'PENDING'`];
+        if (nomorUlok?.trim()) {
+            values.push(nomorUlok.trim());
+            conditions.push(`UPPER(nomor_ulok) = UPPER($${values.length})`);
+        }
+
+        const result = await pool.query<PengawasanPdfMigrationPendingRow>(
+            `
+            SELECT id, nomor_ulok, lingkup_pekerjaan, h_day, tanggal_pengawasan,
+                   link_pdf_pengawasan, source_sheet, source_row, status,
+                   id_pengawasan_gantt, created_at, updated_at
+            FROM pengawasan_pdf_migration_pending
+            WHERE ${conditions.join(" AND ")}
+            ORDER BY created_at DESC, id DESC
+            `,
+            values
+        );
+        return result.rows;
+    },
+
     async create(input: CreatePengawasanData): Promise<PengawasanRow> {
         const result = await pool.query<PengawasanRow>(
             `
