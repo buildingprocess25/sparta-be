@@ -174,7 +174,7 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
         if (error.code === "LIMIT_UNEXPECTED_FILE") {
             return res.status(400).json({
                 status: "error",
-                message: `Field file tidak valid atau jumlah file melebihi batas untuk field: ${error.field || "unknown"}`
+                message: `Jumlah file dalam satu pengiriman terlalu banyak atau field file tidak valid (${error.field || "unknown"}). Kirim file secara bertahap.`
             });
         }
 

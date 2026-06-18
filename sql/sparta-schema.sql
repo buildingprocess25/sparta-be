@@ -219,6 +219,7 @@ CREATE TABLE IF NOT EXISTS pengawasan (
     jenis_pekerjaan VARCHAR(255) NOT NULL,
     catatan VARCHAR(500),
     dokumentasi VARCHAR(500),
+    dokumentasi_base64 TEXT,
     status VARCHAR(50) NOT NULL DEFAULT 'progress',
     created_at TIMESTAMP NOT NULL DEFAULT timezone('Asia/Jakarta', now()),
     CONSTRAINT fk_pengawasan_gantt FOREIGN KEY (id_gantt) REFERENCES gantt_chart(id) ON DELETE CASCADE,
@@ -237,6 +238,7 @@ ALTER TABLE pengawasan
     ADD COLUMN IF NOT EXISTS id_pengawasan_gantt INT,
     ADD COLUMN IF NOT EXISTS catatan VARCHAR(500),
     ADD COLUMN IF NOT EXISTS dokumentasi VARCHAR(500),
+    ADD COLUMN IF NOT EXISTS dokumentasi_base64 TEXT,
     ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'progress',
     ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT timezone('Asia/Jakarta', now());
 
