@@ -104,8 +104,24 @@ export const serahTerimaService = {
         // 3. Simpan link di tabel berkas_serah_terima
         const berkas = await serahTerimaRepository.upsertBerkasSerahTerima(idToko, linkPdf, tanggalAktual);
 
-        // 4. Regenerate Opname Final PDF since penalty was updated
-        const opnameFinalRefreshed = await opnameFinalService.refreshDendaAndPdfById(String(opnameFinal.id));
+        // 4. Regenerate Opname Final PDF di background.
+        //    Proses ini berat karena memuat ulang seluruh foto dan merender PDF kedua.
+        //    Berkas Serah Terima sudah aman tersimpan, jadi response client tidak perlu
+        //    menunggu proses tambahan ini dan berisiko diputus oleh timeout proxy Render.
+        setImmediate(() => {
+            opnameFinalService
+                .refreshDendaAndPdfById(String(opnameFinal.id))
+                .then(() => {
+                    console.log(`[ST][OPNAME_PDF_BACKGROUND] Berhasil regenerate opname final id=${opnameFinal.id}`);
+                })
+                .catch((err) => {
+                    console.error("[ST][OPNAME_PDF_BACKGROUND] Gagal regenerate opname final", {
+                        opnameFinalId: opnameFinal.id,
+                        idToko,
+                        error: err instanceof Error ? err.message : String(err),
+                    });
+                });
+        });
 
         // 5. Auto-cascade: generate ST untuk toko saudara (nomor_ulok sama, lingkup berbeda)
         //    yang opname-nya sudah Disetujui tapi belum punya berkas_serah_terima.
@@ -140,7 +156,7 @@ export const serahTerimaService = {
             id_toko: idToko,
             link_pdf: linkPdf,
             opname_final_id: opnameFinal.id,
-            link_pdf_opname: opnameFinalRefreshed.link_pdf_opname,
+            link_pdf_opname: opnameFinal.link_pdf_opname,
             item_count: items.length,
             created_at: berkas.created_at,
             toko,
