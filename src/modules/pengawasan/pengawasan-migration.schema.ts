@@ -4,7 +4,8 @@ export const pengawasanMigrationActionSchema = z.enum([
     "insert",
     "skip",
     "replace_pengawasan",
-    "update_pdf"
+    "update_pdf",
+    "save_pdf_pending"
 ]);
 
 export const pengawasanMigrationPreviewSchema = z.object({

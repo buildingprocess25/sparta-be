@@ -480,6 +480,47 @@ const upsertBerkasPengawasan = async (client: PoolClient, idPengawasanGantt: num
     );
 };
 
+const savePendingPdf = async (client: PoolClient, item: WorkItem): Promise<number> => {
+    if (!item.source.link_pdf) {
+        throw new AppError(`Link PDF source ${item.source_pengawasan_id} kosong`, 422);
+    }
+
+    const result = await client.query<{ id: number }>(
+        `
+        INSERT INTO pengawasan_pdf_migration_pending (
+            nomor_ulok,
+            lingkup_pekerjaan,
+            h_day,
+            tanggal_pengawasan,
+            link_pdf_pengawasan,
+            source_sheet,
+            source_row,
+            status,
+            id_pengawasan_gantt,
+            updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'PENDING', NULL, timezone('Asia/Jakarta', now()))
+        ON CONFLICT (nomor_ulok, lingkup_pekerjaan, h_day, source_sheet, source_row)
+        DO UPDATE SET
+            tanggal_pengawasan = EXCLUDED.tanggal_pengawasan,
+            link_pdf_pengawasan = EXCLUDED.link_pdf_pengawasan,
+            status = 'PENDING',
+            id_pengawasan_gantt = NULL,
+            updated_at = timezone('Asia/Jakarta', now())
+        RETURNING id
+        `,
+        [
+            item.source.nomor_ulok,
+            item.target?.lingkup_pekerjaan ?? item.pic?.lingkup_pekerjaan ?? "",
+            item.source.h_day,
+            item.tanggal_pengawasan,
+            item.source.link_pdf,
+            item.source.sheet_name,
+            item.source.row_number
+        ]
+    );
+    return result.rows[0].id;
+};
+
 const insertPengawasanItems = async (client: PoolClient, item: WorkItem, idPengawasanGantt: number): Promise<number> => {
     if (!item.target?.gantt_id) return 0;
     let count = 0;
@@ -511,6 +552,17 @@ const applyWorkItem = async (
 ) => {
     if (action === "skip") {
         return { action, source_pengawasan_id: item.source_pengawasan_id, status: "skipped", inserted_items: 0, target_pengawasan_gantt_id: null };
+    }
+    if (action === "save_pdf_pending") {
+        const pendingId = await savePendingPdf(client, item);
+        return {
+            action,
+            source_pengawasan_id: item.source_pengawasan_id,
+            status: "saved_pdf_pending",
+            inserted_items: 0,
+            target_pengawasan_gantt_id: null,
+            pending_pdf_id: pendingId
+        };
     }
     if (item.issues.length > 0) {
         throw new AppError(`Pengawasan source ${item.source_pengawasan_id} tidak valid: ${item.issues.join(", ")}`, 422);
@@ -558,17 +610,22 @@ export const pengawasanMigrationService = {
         let invalidCount = 0;
         let missingTargetCount = 0;
         let missingGanttCount = 0;
+        let pdfPendingCount = 0;
         let totalPengawasanItems = 0;
 
         const details = items.map((item) => {
-            const state = item.issues.length > 0
-                ? "invalid"
+            const canSavePdfPending = !item.target?.gantt_id && Boolean(item.source.link_pdf);
+            const state = canSavePdfPending
+                ? "pdf_pending"
+                : item.issues.length > 0
+                    ? "invalid"
                 : item.target && (item.target.existing_pengawasan_count > 0 || item.target.existing_pdf_link)
                     ? "conflict"
                     : "ready";
             if (state === "ready") readyCount += 1;
             if (state === "conflict") conflictCount += 1;
             if (state === "invalid") invalidCount += 1;
+            if (state === "pdf_pending") pdfPendingCount += 1;
             if (!item.target) missingTargetCount += 1;
             if (item.target && !item.target.gantt_id) missingGanttCount += 1;
             totalPengawasanItems += item.pekerjaan.length;
@@ -589,6 +646,7 @@ export const pengawasanMigrationService = {
                 link_pdf: item.source.link_pdf ?? "",
                 mapped_item_count: item.pekerjaan.length,
                 gantt_id: item.target?.gantt_id ?? null,
+                can_save_pdf_pending: canSavePdfPending,
                 existing_pic_id: item.target?.existing_pic_id ?? null,
                 existing_pengawasan_gantt_id: item.target?.pengawasan_gantt_id ?? null,
                 existing_pengawasan_count: item.target?.existing_pengawasan_count ?? 0,
@@ -607,6 +665,7 @@ export const pengawasanMigrationService = {
             invalid_count: invalidCount,
             missing_target_count: missingTargetCount,
             missing_gantt_count: missingGanttCount,
+            pdf_pending_count: pdfPendingCount,
             details
         };
     },
@@ -654,6 +713,7 @@ export const pengawasanMigrationService = {
             inserted: results.filter((row) => row.status === "inserted").length,
             replaced: results.filter((row) => row.status === "replaced").length,
             updated_pdf: results.filter((row) => row.status === "updated_pdf").length,
+            saved_pdf_pending: results.filter((row) => row.status === "saved_pdf_pending").length,
             skipped: results.filter((row) => row.status === "skipped").length,
             inserted_items: results.reduce((sum, row) => sum + row.inserted_items, 0),
             details: results
