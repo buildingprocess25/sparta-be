@@ -218,7 +218,10 @@ export const pengawasanRepository = {
             SELECT
                 p.id, p.id_gantt, p.id_pengawasan_gantt,
                 p.kategori_pekerjaan, p.jenis_pekerjaan,
-                p.catatan, p.dokumentasi, p.dokumentasi_base64, p.status, p.created_at,
+                p.catatan, p.dokumentasi,
+                -- Base64 foto hanya dibutuhkan saat generate PDF, bukan untuk halaman daftar.
+                NULL::text AS dokumentasi_base64,
+                p.status, p.created_at,
                 bp.id AS bp_id,
                 bp.id_pengawasan_gantt AS bp_id_pengawasan_gantt,
                 bp.link_pdf_pengawasan AS bp_link_pdf_pengawasan,
