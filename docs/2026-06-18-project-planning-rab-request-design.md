@@ -192,10 +192,17 @@ dua request bersamaan lolos pemeriksaan keberadaan RAB.
 
 ### Halaman Penawaran `/rab`
 
-Tambahkan panel **Permintaan RAB Project Planning** yang terpisah dari dialog atau
-lonceng **Revisi RAB**.
+Tambahkan notifikasi **Permintaan RAB Project Planning** yang terpisah dari
+notifikasi **Revisi RAB**.
 
-Panel permintaan:
+Navbar memiliki dua tombol notifikasi terpisah:
+
+- lonceng revisi dengan badge jumlah RAB yang ditolak; dan
+- ikon clipboard Project Planning dengan badge jumlah permintaan RAB.
+
+Kedua tombol membuka dialognya masing-masing dan tidak berbagi state.
+
+Dialog permintaan:
 
 - dimuat hanya untuk pengguna yang boleh membuat RAB;
 - difilter berdasarkan cabang pengguna;
@@ -206,6 +213,19 @@ Panel permintaan:
 
 State, badge, dialog, dan handler permintaan tidak menggunakan `rejectedList`,
 `revisionListDialogOpen`, atau state revisi lainnya.
+
+Saat halaman `/rab` pertama kali dibuka:
+
+1. dialog Revisi RAB terbuka lebih dahulu jika ada revisi;
+2. setelah dialog revisi ditutup, dialog Permintaan RAB Project Planning terbuka
+   otomatis jika ada permintaan;
+3. jika tidak ada revisi, dialog permintaan terbuka langsung setelah datanya
+   selesai dimuat; dan
+4. setelah urutan otomatis selesai, pengguna tetap dapat membuka ulang setiap
+   dialog melalui ikon masing-masing.
+
+Panel Permintaan RAB Project Planning yang sebelumnya tampil di dalam body halaman
+tidak digunakan.
 
 Klik **Buat Penawaran** membuka:
 
@@ -290,7 +310,14 @@ masing-masing agar pengguna tidak mengira permintaan baru sebagai revisi.
 
 ### Frontend
 
-- Panel permintaan dan dialog revisi dapat tampil bersamaan tanpa mencampur data.
+- Data permintaan dan revisi dapat tersedia pada saat yang sama tanpa mencampur
+  state, tetapi dialog ditampilkan bergantian sesuai urutan prioritas.
+- Navbar menampilkan dua ikon dan badge terpisah.
+- Dialog revisi selalu mendapat prioritas pada pembukaan otomatis.
+- Menutup dialog revisi otomatis membuka dialog permintaan jika datanya tersedia.
+- Tanpa revisi, dialog permintaan langsung terbuka setelah request selesai dimuat.
+- Menutup dialog secara manual tidak membuat dialog yang sama terbuka berulang
+  akibat render ulang.
 - Klik Sipil mengunci lingkup Sipil; klik ME mengunci lingkup ME.
 - Header dan luasan terisi dari FPD.
 - Item pekerjaan tetap kosong.
