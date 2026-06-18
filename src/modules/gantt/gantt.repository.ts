@@ -158,11 +158,25 @@ const insertPengawasan = async (
     ganttId: number,
     pengawasanItems: PengawasanItemInput[]
 ): Promise<void> => {
-    for (const item of pengawasanItems) {
+    const uniqueDates = Array.from(new Set(
+        pengawasanItems
+            .map((item) => item.tanggal_pengawasan.trim())
+            .filter(Boolean)
+    ));
+
+    for (const tanggalPengawasan of uniqueDates) {
         await client.query(
-            `INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan)
-             VALUES ($1, $2)`,
-            [ganttId, item.tanggal_pengawasan]
+            `
+            INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan)
+            SELECT $1, $2
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM pengawasan_gantt
+                WHERE id_gantt = $1
+                  AND tanggal_pengawasan = $2
+            )
+            `,
+            [ganttId, tanggalPengawasan]
         );
     }
 };
@@ -678,15 +692,38 @@ export const ganttRepository = {
 
             // Update pengawasan jika ada
             if (payload.pengawasan) {
+                const desiredDates = Array.from(new Set(
+                    payload.pengawasan
+                        .map((item) => item.tanggal_pengawasan.trim())
+                        .filter(Boolean)
+                ));
+
                 await client.query(
-                    `DELETE FROM pengawasan_gantt WHERE id_gantt = $1`,
-                    [ganttId]
+                    `
+                    DELETE FROM pengawasan_gantt pg
+                    WHERE pg.id_gantt = $1
+                      AND NOT (pg.tanggal_pengawasan = ANY($2::text[]))
+                      AND NOT EXISTS (
+                          SELECT 1
+                          FROM pengawasan p
+                          WHERE p.id_pengawasan_gantt = pg.id
+                      )
+                      AND NOT EXISTS (
+                          SELECT 1
+                          FROM berkas_pengawasan bp
+                          WHERE bp.id_pengawasan_gantt = pg.id
+                      )
+                    `,
+                    [ganttId, desiredDates]
                 );
-                if (payload.pengawasan.length > 0) {
+
+                if (desiredDates.length > 0) {
                     await insertPengawasan(
                         client,
                         Number(ganttId),
-                        payload.pengawasan
+                        desiredDates.map((tanggalPengawasan) => ({
+                            tanggal_pengawasan: tanggalPengawasan
+                        }))
                     );
                 }
             }
