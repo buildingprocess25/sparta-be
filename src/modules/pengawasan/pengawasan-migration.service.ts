@@ -557,6 +557,7 @@ export const pengawasanMigrationService = {
         let conflictCount = 0;
         let invalidCount = 0;
         let missingTargetCount = 0;
+        let missingGanttCount = 0;
         let totalPengawasanItems = 0;
 
         const details = items.map((item) => {
@@ -569,6 +570,7 @@ export const pengawasanMigrationService = {
             if (state === "conflict") conflictCount += 1;
             if (state === "invalid") invalidCount += 1;
             if (!item.target) missingTargetCount += 1;
+            if (item.target && !item.target.gantt_id) missingGanttCount += 1;
             totalPengawasanItems += item.pekerjaan.length;
 
             return {
@@ -586,6 +588,7 @@ export const pengawasanMigrationService = {
                 status_lokasi: item.source.status_lokasi ?? "",
                 link_pdf: item.source.link_pdf ?? "",
                 mapped_item_count: item.pekerjaan.length,
+                gantt_id: item.target?.gantt_id ?? null,
                 existing_pic_id: item.target?.existing_pic_id ?? null,
                 existing_pengawasan_gantt_id: item.target?.pengawasan_gantt_id ?? null,
                 existing_pengawasan_count: item.target?.existing_pengawasan_count ?? 0,
@@ -603,6 +606,7 @@ export const pengawasanMigrationService = {
             conflict_count: conflictCount,
             invalid_count: invalidCount,
             missing_target_count: missingTargetCount,
+            missing_gantt_count: missingGanttCount,
             details
         };
     },
