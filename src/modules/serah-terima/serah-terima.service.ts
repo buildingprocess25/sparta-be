@@ -79,6 +79,10 @@ export const serahTerimaService = {
     },
 
     async createPdfSerahTerima(idToko: number, tanggalAktual?: string) {
+        // Validate the required opname data before writing a serah-terima placeholder.
+        // Previously, a failed generation could leave a row with link_pdf = NULL.
+        await buildDetailByTokoId(idToko);
+
         if (tanggalAktual) {
             await serahTerimaRepository.upsertTanggalAktual(idToko, tanggalAktual);
         }
