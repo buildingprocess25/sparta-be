@@ -11,27 +11,32 @@ type BuildSpkPdfInput = {
     tokoCabang: string;
 };
 
+const JAKARTA_TIME_ZONE = "Asia/Jakarta";
+
 const formatTanggal = (isoString: string): string => {
-    const bulan = [
-        "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-        "Juli", "Agustus", "September", "Oktober", "November", "Desember"
-    ];
     const d = new Date(isoString);
     if (Number.isNaN(d.getTime())) return String(isoString);
-    return `${d.getDate()} ${bulan[d.getMonth()]} ${d.getFullYear()}`;
+    return new Intl.DateTimeFormat("id-ID", {
+        timeZone: JAKARTA_TIME_ZONE,
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+    }).format(d);
 };
 
 const formatTanggalWib = (isoString?: string | null): string => {
     if (!isoString) return "Waktu tidak tersedia";
-    const bulan = [
-        "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-        "Juli", "Agustus", "September", "Oktober", "November", "Desember"
-    ];
     const d = new Date(isoString);
     if (Number.isNaN(d.getTime())) return "Waktu tidak tersedia";
-    const hh = String(d.getHours()).padStart(2, "0");
-    const mm = String(d.getMinutes()).padStart(2, "0");
-    return `${d.getDate()} ${bulan[d.getMonth()]} ${d.getFullYear()}, ${hh}:${mm} WIB`;
+    return `${new Intl.DateTimeFormat("id-ID", {
+        timeZone: JAKARTA_TIME_ZONE,
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+    }).format(d).replace(".", ":")} WIB`;
 };
 
 const staticAssetPath = (filename: string): string => {
