@@ -323,33 +323,51 @@ const findPekerjaanForHDay = async (
     progress: HRowSource["progress"]
 ): Promise<WorkItem["pekerjaan"]> => {
     if (!target.gantt_id || !target.rab_id) return [];
-    const result = await pool.query<{ kategori_pekerjaan: string; jenis_pekerjaan: string }>(
+    const result = await pool.query<{
+        kategori_pekerjaan: string;
+        jenis_pekerjaan: string;
+        progress_ordinal: number;
+    }>(
         `
         WITH scheduled AS (
-            SELECT DISTINCT k.kategori_pekerjaan, d.id AS day_id
+            SELECT
+                k.kategori_pekerjaan,
+                MIN(d.id) AS day_id
             FROM day_gantt_chart d
             JOIN kategori_pekerjaan_gantt k ON k.id = d.id_kategori_pekerjaan_gantt
             WHERE d.id_gantt = $1
               AND NULLIF(regexp_replace(COALESCE(d.h_awal, ''), '[^0-9]', '', 'g'), '')::int <= $2
               AND NULLIF(regexp_replace(COALESCE(d.h_akhir, ''), '[^0-9]', '', 'g'), '')::int >= $2
+            GROUP BY k.kategori_pekerjaan
+        ),
+        selected_categories AS (
+            SELECT
+                kategori_pekerjaan,
+                day_id,
+                ROW_NUMBER() OVER (ORDER BY day_id ASC, kategori_pekerjaan ASC)::int AS progress_ordinal
+            FROM scheduled
+            ORDER BY day_id ASC, kategori_pekerjaan ASC
+            LIMIT $4
         )
-        SELECT s.kategori_pekerjaan, ri.jenis_pekerjaan
-        FROM scheduled s
+        SELECT s.kategori_pekerjaan, ri.jenis_pekerjaan, s.progress_ordinal
+        FROM selected_categories s
         JOIN rab_item ri
           ON ri.id_rab = $3
          AND UPPER(ri.kategori_pekerjaan) = UPPER(s.kategori_pekerjaan)
-        ORDER BY s.day_id ASC, ri.id ASC
-        LIMIT $4
+        ORDER BY s.progress_ordinal ASC, ri.id ASC
         `,
         [target.gantt_id, hDay, target.rab_id, Math.max(progress.length, 1)]
     );
 
-    return result.rows.map((row, index) => ({
-        kategori_pekerjaan: row.kategori_pekerjaan,
-        jenis_pekerjaan: row.jenis_pekerjaan,
-        catatan: progress[index]?.catatan ?? null,
-        status: mapPengawasanStatus(progress[index]?.status ?? null)
-    }));
+    return result.rows.map((row) => {
+        const sourceProgress = progress[row.progress_ordinal - 1];
+        return {
+            kategori_pekerjaan: row.kategori_pekerjaan,
+            jenis_pekerjaan: row.jenis_pekerjaan,
+            catatan: sourceProgress?.catatan ?? null,
+            status: mapPengawasanStatus(sourceProgress?.status ?? null)
+        };
+    });
 };
 
 const buildWorkItems = async (buffer: Buffer): Promise<WorkItem[]> => {
@@ -395,8 +413,11 @@ const buildWorkItems = async (buffer: Buffer): Promise<WorkItem[]> => {
             if (target && source.progress.length > 0 && pekerjaan.length === 0) {
                 issues.push(`Item pekerjaan Gantt/RAB untuk H${source.h_day} tidak ditemukan`);
             }
-            if (target && pekerjaan.length > 0 && pekerjaan.length < source.progress.length) {
-                warnings.push(`Progress Excel ${source.progress.length}, item pekerjaan termapping ${pekerjaan.length}`);
+            const mappedCategoryCount = new Set(
+                pekerjaan.map((item) => normalizeKey(item.kategori_pekerjaan))
+            ).size;
+            if (target && pekerjaan.length > 0 && mappedCategoryCount < source.progress.length) {
+                warnings.push(`Progress Excel ${source.progress.length}, kategori Gantt termapping ${mappedCategoryCount}`);
             }
 
             items.push({
