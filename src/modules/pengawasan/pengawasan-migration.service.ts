@@ -53,6 +53,8 @@ type WorkItem = {
     target: TargetContext | null;
     tanggal_pengawasan: string | null;
     pekerjaan: Array<{ kategori_pekerjaan: string; jenis_pekerjaan: string; catatan: string | null; status: "progress" | "selesai" | "terlambat" }>;
+    existing_pending_pdf_id: number | null;
+    existing_pending_pdf_link: string | null;
     issues: string[];
     warnings: string[];
 };
@@ -67,6 +69,20 @@ const nullableText = (value: unknown): string | null => {
 };
 
 const normalizeKey = (value: unknown): string => normalizeCell(value).toUpperCase();
+
+const pendingPdfKey = (
+    nomorUlok: string,
+    lingkupPekerjaan: string,
+    hDay: number,
+    sourceSheet: string,
+    sourceRow: number
+): string => [
+    normalizeKey(nomorUlok),
+    normalizeKey(lingkupPekerjaan),
+    hDay,
+    normalizeKey(sourceSheet),
+    sourceRow
+].join("\u0000");
 
 const readRows = (workbook: xlsx.WorkBook, sheetName: string): CellRecord[] => {
     const sheet = workbook.Sheets[sheetName];
@@ -390,9 +406,51 @@ const buildWorkItems = async (buffer: Buffer): Promise<WorkItem[]> => {
                 target,
                 tanggal_pengawasan: tanggalPengawasan,
                 pekerjaan,
+                existing_pending_pdf_id: null,
+                existing_pending_pdf_link: null,
                 issues,
                 warnings
             });
+        }
+    }
+
+    const pendingResult = await pool.query<{
+        id: number;
+        nomor_ulok: string;
+        lingkup_pekerjaan: string;
+        h_day: number;
+        source_sheet: string;
+        source_row: number;
+        link_pdf_pengawasan: string;
+    }>(
+        `
+        SELECT id, nomor_ulok, lingkup_pekerjaan, h_day, source_sheet, source_row, link_pdf_pengawasan
+        FROM pengawasan_pdf_migration_pending
+        WHERE status = 'PENDING'
+          AND UPPER(nomor_ulok) = ANY($1::text[])
+        `,
+        [[...new Set(hRows.map((row) => row.nomor_ulok))]]
+    );
+    const pendingByKey = new Map(
+        pendingResult.rows.map((row) => [
+            pendingPdfKey(row.nomor_ulok, row.lingkup_pekerjaan, row.h_day, row.source_sheet, row.source_row),
+            row
+        ])
+    );
+    for (const item of items) {
+        const lingkup = item.target?.lingkup_pekerjaan ?? item.pic?.lingkup_pekerjaan ?? "";
+        const existing = pendingByKey.get(
+            pendingPdfKey(
+                item.source.nomor_ulok,
+                lingkup,
+                item.source.h_day,
+                item.source.sheet_name,
+                item.source.row_number
+            )
+        );
+        if (existing) {
+            item.existing_pending_pdf_id = existing.id;
+            item.existing_pending_pdf_link = existing.link_pdf_pengawasan;
         }
     }
 
@@ -611,12 +669,15 @@ export const pengawasanMigrationService = {
         let missingTargetCount = 0;
         let missingGanttCount = 0;
         let pdfPendingCount = 0;
+        let existingPdfPendingCount = 0;
         let totalPengawasanItems = 0;
 
         const details = items.map((item) => {
             const canSavePdfPending = !item.target?.gantt_id && Boolean(item.source.link_pdf);
-            const state = canSavePdfPending
-                ? "pdf_pending"
+            const state = item.existing_pending_pdf_id
+                ? "pdf_saved"
+                : canSavePdfPending
+                    ? "pdf_pending"
                 : item.issues.length > 0
                     ? "invalid"
                 : item.target && (item.target.existing_pengawasan_count > 0 || item.target.existing_pdf_link)
@@ -626,6 +687,7 @@ export const pengawasanMigrationService = {
             if (state === "conflict") conflictCount += 1;
             if (state === "invalid") invalidCount += 1;
             if (state === "pdf_pending") pdfPendingCount += 1;
+            if (state === "pdf_saved") existingPdfPendingCount += 1;
             if (!item.target) missingTargetCount += 1;
             if (item.target && !item.target.gantt_id) missingGanttCount += 1;
             totalPengawasanItems += item.pekerjaan.length;
@@ -647,6 +709,8 @@ export const pengawasanMigrationService = {
                 mapped_item_count: item.pekerjaan.length,
                 gantt_id: item.target?.gantt_id ?? null,
                 can_save_pdf_pending: canSavePdfPending,
+                existing_pending_pdf_id: item.existing_pending_pdf_id,
+                existing_pending_pdf_link: item.existing_pending_pdf_link,
                 existing_pic_id: item.target?.existing_pic_id ?? null,
                 existing_pengawasan_gantt_id: item.target?.pengawasan_gantt_id ?? null,
                 existing_pengawasan_count: item.target?.existing_pengawasan_count ?? 0,
@@ -666,6 +730,7 @@ export const pengawasanMigrationService = {
             missing_target_count: missingTargetCount,
             missing_gantt_count: missingGanttCount,
             pdf_pending_count: pdfPendingCount,
+            existing_pdf_pending_count: existingPdfPendingCount,
             details
         };
     },
