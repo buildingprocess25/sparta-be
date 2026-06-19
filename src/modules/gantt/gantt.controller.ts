@@ -15,6 +15,8 @@ import {
     updateKecepatanSchema,
     updateKeterlambatanSchema
 } from "./gantt.schema";
+import { ganttMigrationCommitSchema } from "./gantt-migration.schema";
+import { ganttMigrationService } from "./gantt-migration.service";
 import { ganttService } from "./gantt.service";
 
 export const submitGantt = asyncHandler(async (req: Request, res: Response) => {
@@ -175,7 +177,7 @@ export const previewGanttMigration = asyncHandler(async (req: Request, res: Resp
         throw new AppError("File tidak ditemukan", 400);
     }
     
-    const result = await ganttService.previewMigrationExcel(req.file.buffer);
+    const result = await ganttMigrationService.preview(req.file.buffer);
 
     res.status(200).json({
         status: "success",
@@ -189,10 +191,20 @@ export const commitGanttMigration = asyncHandler(async (req: Request, res: Respo
         throw new AppError("File tidak ditemukan", 400);
     }
     
-    const emailPembuat = req.body.email_pembuat || "system@import.com";
-    const limit = req.body.limit ? Number(req.body.limit) : undefined;
-    
-    const result = await ganttService.commitMigrationExcel(req.file.buffer, emailPembuat, limit);
+    let selections: unknown = req.body.selections;
+    if (typeof selections === "string") {
+        try {
+            selections = JSON.parse(selections);
+        } catch {
+            throw new AppError("Format selections migrasi Gantt tidak valid", 400);
+        }
+    }
+    const input = ganttMigrationCommitSchema.parse({
+        actor_email: req.body.actor_email,
+        actor_role: req.body.actor_role,
+        selections,
+    });
+    const result = await ganttMigrationService.commit(req.file.buffer, input);
 
     res.status(201).json({
         status: "success",
