@@ -3,7 +3,6 @@ import { z } from "zod";
 export const ganttMigrationActionSchema = z.enum([
     "insert_source",
     "replace_source",
-    "scale_to_spk",
     "skip",
 ]);
 

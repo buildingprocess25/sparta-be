@@ -115,39 +115,6 @@ const dependencySignature = (items: DependencyItemInput[]): string[] =>
 const equalStringArrays = (left: string[], right: string[]): boolean =>
     left.length === right.length && left.every((value, index) => value === right[index]);
 
-const scaleDayItems = (
-    dayItems: DayGanttItemInput[],
-    sourceMaxH: number,
-    spkDuration: number
-): DayGanttItemInput[] => {
-    if (sourceMaxH <= 0 || spkDuration <= 0 || sourceMaxH === spkDuration) {
-        return dayItems.map((item) => ({ ...item }));
-    }
-
-    if (sourceMaxH === 1) {
-        return dayItems.map((item) => ({
-            ...item,
-            h_awal: "1",
-            h_akhir: String(spkDuration),
-        }));
-    }
-
-    const scaleStart = (value: number): number =>
-        1 + Math.floor(((value - 1) * (spkDuration - 1)) / (sourceMaxH - 1));
-    const scaleEnd = (value: number): number =>
-        1 + Math.ceil(((value - 1) * (spkDuration - 1)) / (sourceMaxH - 1));
-
-    return dayItems.map((item) => {
-        const start = Math.max(1, Math.min(spkDuration, scaleStart(Number(item.h_awal))));
-        const end = Math.max(start, Math.min(spkDuration, scaleEnd(Number(item.h_akhir))));
-        return {
-            ...item,
-            h_awal: String(start),
-            h_akhir: String(end),
-        };
-    });
-};
-
 const parseWorkbook = (buffer: Buffer): MigrationCandidate[] => {
     if (!buffer.length) throw new AppError("File Excel wajib diupload", 400);
 
@@ -510,14 +477,6 @@ const analyzeCandidate = (
     const allowedActions: GanttMigrationAction[] = ["skip"];
     if (dbState === "ready_insert") allowedActions.unshift("insert_source");
     if (existing.gantt_id) allowedActions.unshift("replace_source");
-    if (
-        existing.spk_duration
-        && candidate.source_max_h !== existing.spk_duration
-        && dbState !== "invalid"
-    ) {
-        allowedActions.unshift("scale_to_spk");
-    }
-
     return {
         nomor_ulok: candidate.nomor_ulok,
         lingkup_pekerjaan: candidate.lingkup_pekerjaan,
@@ -638,24 +597,18 @@ export const ganttMigrationService = {
 
             if (selection.action === "insert_source" && existing.gantt_id) {
                 throw new AppError(
-                    `Gantt ${candidate.nomor_ulok} sudah ada. Pilih replace, skala, atau skip.`,
+                    `Gantt ${candidate.nomor_ulok} sudah ada. Pilih replace atau skip.`,
                     409
                 );
             }
             if (
-                (selection.action === "replace_source" || selection.action === "scale_to_spk")
+                selection.action === "replace_source"
                 && !existing.gantt_id
                 && !existing.toko_id
             ) {
                 throw new AppError(`Toko ${candidate.nomor_ulok} tidak ditemukan`, 404);
             }
-            if (selection.action === "scale_to_spk" && !existing.spk_duration) {
-                throw new AppError(`Durasi SPK ${candidate.nomor_ulok} tidak ditemukan`, 422);
-            }
-
-            const dayItems = selection.action === "scale_to_spk"
-                ? scaleDayItems(candidate.day_items, candidate.source_max_h, existing.spk_duration!)
-                : candidate.day_items;
+            const dayItems = candidate.day_items;
             let ganttId = existing.gantt_id;
             let resultStatus = "updated";
 
@@ -680,18 +633,14 @@ export const ganttMigrationService = {
                     dependencies: candidate.dependencies,
                 });
                 ganttId = created.id;
-                resultStatus = selection.action === "scale_to_spk"
-                    ? "inserted_scaled"
-                    : "inserted";
+                resultStatus = "inserted";
             } else {
                 await ganttRepository.updateWithDetails(String(existing.gantt_id), {
                     kategori_pekerjaan: candidate.kategori_pekerjaan,
                     day_items: dayItems,
                     dependencies: candidate.dependencies,
                 });
-                resultStatus = selection.action === "scale_to_spk"
-                    ? "scaled"
-                    : "replaced";
+                resultStatus = "replaced";
             }
 
             await activityLogRepository.insert({
