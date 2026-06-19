@@ -23,6 +23,26 @@ export const picPengawasanService = {
             const pgError = toPgError(error);
 
             if (pgError.code === "23505") {
+                if (pgError.constraint === "pic_pengawasan_id_rab_key") {
+                    try {
+                        return await picPengawasanRepository.createWithLegacyRabRepair(input);
+                    } catch (repairError: unknown) {
+                        const repairMessage = repairError instanceof Error ? repairError.message : "";
+                        if (repairMessage === "PIC_REFERENCE_SCOPE_MISMATCH") {
+                            throw new AppError("Relasi toko, RAB, dan SPK tidak berada pada lingkup yang sama.", 409);
+                        }
+                        if (
+                            repairMessage === "PIC_LEGACY_RAB_CONFLICT_NOT_REPAIRABLE" ||
+                            repairMessage === "PIC_LEGACY_REPLACEMENT_RAB_NOT_FOUND"
+                        ) {
+                            throw new AppError(
+                                "RAB sudah dipakai oleh data PIC lama dan tidak dapat diperbaiki otomatis.",
+                                409
+                            );
+                        }
+                        throw repairError;
+                    }
+                }
                 throw new AppError("Relasi 1:1 sudah terpakai. Pastikan nomor_ulok, id_rab, dan id_spk belum pernah dipakai.", 409);
             }
 
