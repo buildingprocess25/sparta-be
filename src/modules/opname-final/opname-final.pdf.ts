@@ -72,6 +72,21 @@ type GroupSummary = ReturnType<typeof buildFinancialSummary>;
 
 type GroupedItems<T> = Array<{ category: string; items: T[]; summary: GroupSummary }>;
 
+const sortOpnameItemsByRabOrder = (items: OpnameFinalItemRow[]): OpnameFinalItemRow[] => {
+    return [...items].sort((left, right) => {
+        const leftRabId = Number(left.rab_item?.id ?? left.id_rab_item ?? Number.MAX_SAFE_INTEGER);
+        const rightRabId = Number(right.rab_item?.id ?? right.id_rab_item ?? Number.MAX_SAFE_INTEGER);
+
+        if (leftRabId !== rightRabId) return leftRabId - rightRabId;
+
+        const leftIlId = Number(left.instruksi_lapangan_item?.id ?? left.id_instruksi_lapangan_item ?? Number.MAX_SAFE_INTEGER);
+        const rightIlId = Number(right.instruksi_lapangan_item?.id ?? right.id_instruksi_lapangan_item ?? Number.MAX_SAFE_INTEGER);
+        if (leftIlId !== rightIlId) return leftIlId - rightIlId;
+
+        return Number(left.id) - Number(right.id);
+    });
+};
+
 const sumOpnameTotalSelisih = (items: OpnameFinalItemRow[]): number => {
     return items.reduce((acc, item) => acc + toNumber(item.total_selisih), 0);
 };
@@ -312,7 +327,7 @@ export const buildOpnameFinalPdfBuffer = async (
 
     const grandTotalOpname = toNumber(detail.opname_final.grand_total_opname);
     const grandTotalRab = toNumber(detail.opname_final.grand_total_rab);
-    const opnameItems = detail.items ?? [];
+    const opnameItems = sortOpnameItemsByRabOrder(detail.items ?? []);
     const kerjaTambahItems = opnameItems.filter((item) => toNumber(item.total_selisih) > 0);
     const kerjaKurangItems = opnameItems.filter((item) => toNumber(item.total_selisih) < 0);
     const rabItems = rabData?.items ?? [];
