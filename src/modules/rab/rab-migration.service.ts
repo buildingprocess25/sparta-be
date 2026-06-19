@@ -204,6 +204,22 @@ const appendDuplicateIssues = (candidates: Candidate[]): void => {
     }
 };
 
+const appendItemTotalConsistencyIssue = (
+    issues: string[],
+    rab: SourceRab,
+    items: SourceRabItem[]
+): void => {
+    const itemTotal = items.reduce((sum, item) => sum + Number(item.total_harga || 0), 0);
+    const headerTotal = Number(rab.grand_total || 0);
+
+    if (!Number.isFinite(itemTotal) || !Number.isFinite(headerTotal)) return;
+    if (Math.abs(itemTotal - headerTotal) <= 1) return;
+
+    issues.push(
+        `Jumlah total_harga item (${Math.round(itemTotal)}) tidak sama dengan grand_total RAB (${Math.round(headerTotal)})`
+    );
+};
+
 const naturalKey = (nomorUlok: unknown, lingkup: unknown): string =>
     `${normalizeCell(nomorUlok).toUpperCase()}\u0000${normalizeCell(lingkup).toUpperCase()}`;
 
@@ -575,6 +591,7 @@ const parseLegacyWorkbook = (workbook: xlsx.WorkBook): ParsedWorkbook => {
         const fallbackItemCount = fallbackItemsByRabId.get(sourceRabId) ?? 0;
         if (skippedItemCount > 0) issues.push(`${skippedItemCount} baris item tidak ikut masuk karena jenis_pekerjaan kosong`);
         if (fallbackItemCount > 0) warnings.push(`${fallbackItemCount} item memakai fallback kategori/satuan`);
+        appendItemTotalConsistencyIssue(issues, rab, items);
 
         candidates.push({
             source_rab_id: sourceRabId,
@@ -658,47 +675,50 @@ const parseDataFormWorkbook = async (workbook: xlsx.WorkBook): Promise<ParsedWor
         if (!toko.nama_kontraktor) warnings.push("Nama kontraktor tidak ditemukan di Form2.Nama_PT/SPK_Data/user_cabang");
         if (!enriched?.kode_toko) warnings.push("Kode toko tidak ditemukan di SPK_Data/dokumentasi_bangunan/DB existing");
 
+        const rab: SourceRab = {
+            source_rab_id: sourceId,
+            source_toko_id: sourceId,
+            status: nullableText(row.Status),
+            nama_pt: nullableText(row.Nama_PT),
+            link_pdf_gabungan: nullableText(row["Link PDF"]),
+            link_pdf_non_sbo: nullableText(row["Link PDF Non-SBO"]),
+            link_pdf_rekapitulasi: nullableText(row["Link PDF Rekapitulasi"]),
+            link_pdf_sph: nullableText(row["Link Surat Penawaran"]),
+            link_pdf_materai: null,
+            logo: nullableText(row.Logo),
+            email_pembuat: nullableText(row.Email_Pembuat),
+            pemberi_persetujuan_direktur: nullableText(row["Pemberi Persetujuan Direktur"]),
+            waktu_persetujuan_direktur: excelDateToIso(row["Waktu Persetujuan Direktur"]),
+            pemberi_persetujuan_koordinator: nullableText(row["Pemberi Persetujuan Koordinator"]),
+            waktu_persetujuan_koordinator: excelDateToIso(row["Waktu Persetujuan Koordinator"]),
+            pemberi_persetujuan_manager: nullableText(row["Pemberi Persetujuan Manager"]),
+            waktu_persetujuan_manager: excelDateToIso(row["Waktu Persetujuan Manager"]),
+            alasan_penolakan: nullableText(row["Alasan Penolakan"]),
+            waktu_penolakan: null,
+            ditolak_oleh: null,
+            durasi_pekerjaan: nullableText(row.Durasi_Pekerjaan),
+            kategori_lokasi: nullableText(row.Kategori_Lokasi),
+            no_polis: null,
+            berlaku_polis: null,
+            file_asuransi: null,
+            luas_bangunan: nullableText(row["Luas Bangunan"]),
+            luas_terbangun: nullableText(row["Luas Terbangunan"]),
+            luas_area_terbuka: nullableText(row["Luas Area Terbuka"]),
+            luas_area_parkir: nullableText(row["Luas Area Parkir"]),
+            luas_area_sales: nullableText(row["Luas Area Sales"]),
+            luas_gudang: nullableText(row["Luas Gudang"]),
+            grand_total: integerMoneyText(row["Grand Total"]),
+            grand_total_non_sbo: integerMoneyText(row["Grand Total Non-SBO"]),
+            grand_total_final: integerMoneyText(row["Grand Total Final"]),
+            created_at: excelDateToIso(row.Timestamp)
+        };
+        appendItemTotalConsistencyIssue(issues, rab, items);
+
         candidates.push({
             source_rab_id: sourceId,
             source_toko_id: sourceId,
             toko,
-            rab: {
-                source_rab_id: sourceId,
-                source_toko_id: sourceId,
-                status: nullableText(row.Status),
-                nama_pt: nullableText(row.Nama_PT),
-                link_pdf_gabungan: nullableText(row["Link PDF"]),
-                link_pdf_non_sbo: nullableText(row["Link PDF Non-SBO"]),
-                link_pdf_rekapitulasi: nullableText(row["Link PDF Rekapitulasi"]),
-                link_pdf_sph: nullableText(row["Link Surat Penawaran"]),
-                link_pdf_materai: null,
-                logo: nullableText(row.Logo),
-                email_pembuat: nullableText(row.Email_Pembuat),
-                pemberi_persetujuan_direktur: nullableText(row["Pemberi Persetujuan Direktur"]),
-                waktu_persetujuan_direktur: excelDateToIso(row["Waktu Persetujuan Direktur"]),
-                pemberi_persetujuan_koordinator: nullableText(row["Pemberi Persetujuan Koordinator"]),
-                waktu_persetujuan_koordinator: excelDateToIso(row["Waktu Persetujuan Koordinator"]),
-                pemberi_persetujuan_manager: nullableText(row["Pemberi Persetujuan Manager"]),
-                waktu_persetujuan_manager: excelDateToIso(row["Waktu Persetujuan Manager"]),
-                alasan_penolakan: nullableText(row["Alasan Penolakan"]),
-                waktu_penolakan: null,
-                ditolak_oleh: null,
-                durasi_pekerjaan: nullableText(row.Durasi_Pekerjaan),
-                kategori_lokasi: nullableText(row.Kategori_Lokasi),
-                no_polis: null,
-                berlaku_polis: null,
-                file_asuransi: null,
-                luas_bangunan: nullableText(row["Luas Bangunan"]),
-                luas_terbangun: nullableText(row["Luas Terbangunan"]),
-                luas_area_terbuka: nullableText(row["Luas Area Terbuka"]),
-                luas_area_parkir: nullableText(row["Luas Area Parkir"]),
-                luas_area_sales: nullableText(row["Luas Area Sales"]),
-                luas_gudang: nullableText(row["Luas Gudang"]),
-                grand_total: integerMoneyText(row["Grand Total"]),
-                grand_total_non_sbo: integerMoneyText(row["Grand Total Non-SBO"]),
-                grand_total_final: integerMoneyText(row["Grand Total Final"]),
-                created_at: excelDateToIso(row.Timestamp)
-            },
+            rab,
             items,
             issues,
             warnings
