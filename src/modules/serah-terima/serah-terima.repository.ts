@@ -285,22 +285,11 @@ export const serahTerimaRepository = {
         return result.rows;
     },
 
-    async upsertTanggalAktual(idToko: number, tanggalAktual: string): Promise<void> {
-        const existing = await pool.query(
-            `SELECT id FROM berkas_serah_terima WHERE id_toko = $1 ORDER BY id DESC LIMIT 1`,
-            [idToko]
-        );
-        if ((existing.rowCount ?? 0) > 0) {
-            await pool.query(`UPDATE berkas_serah_terima SET created_at = $1 WHERE id = $2`, [tanggalAktual, existing.rows[0].id]);
-        } else {
-            await pool.query(`INSERT INTO berkas_serah_terima (id_toko, created_at) VALUES ($1, $2)`, [idToko, tanggalAktual]);
-        }
-    },
-
-    async upsertBerkasSerahTerima(idToko: number, linkPdf: string, tanggalAktual?: string): Promise<BerkasSerahTerimaRow> {
+    async ensureBerkasSerahTerima(idToko: number): Promise<BerkasSerahTerimaRow> {
         const existing = await pool.query<BerkasSerahTerimaRow>(
             `
-            SELECT id FROM berkas_serah_terima
+            SELECT id, id_toko, link_pdf, created_at
+            FROM berkas_serah_terima
             WHERE id_toko = $1
             ORDER BY id DESC
             LIMIT 1
@@ -309,29 +298,33 @@ export const serahTerimaRepository = {
         );
 
         if ((existing.rowCount ?? 0) > 0) {
-            const updated = await pool.query<BerkasSerahTerimaRow>(
-                `
-                UPDATE berkas_serah_terima
-                SET link_pdf = $1, created_at = COALESCE($3, created_at)
-                WHERE id = $2
-                RETURNING id, id_toko, link_pdf, created_at
-                `,
-                [linkPdf, existing.rows[0].id, tanggalAktual || null]
-            );
-
-            return updated.rows[0];
+            return existing.rows[0];
         }
 
         const inserted = await pool.query<BerkasSerahTerimaRow>(
             `
-            INSERT INTO berkas_serah_terima (id_toko, link_pdf, created_at)
-            VALUES ($1, $2, COALESCE($3, CURRENT_TIMESTAMP))
+            INSERT INTO berkas_serah_terima (id_toko)
+            VALUES ($1)
             RETURNING id, id_toko, link_pdf, created_at
             `,
-            [idToko, linkPdf, tanggalAktual || null]
+            [idToko]
         );
 
         return inserted.rows[0];
+    },
+
+    async updateBerkasSerahTerimaLink(id: number, linkPdf: string): Promise<BerkasSerahTerimaRow> {
+        const updated = await pool.query<BerkasSerahTerimaRow>(
+            `
+            UPDATE berkas_serah_terima
+            SET link_pdf = $1
+            WHERE id = $2
+            RETURNING id, id_toko, link_pdf, created_at
+            `,
+            [linkPdf, id]
+        );
+
+        return updated.rows[0];
     },
 
     /**

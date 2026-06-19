@@ -14,8 +14,8 @@ export const listBerkasSerahTerima = asyncHandler(async (req: Request, res: Resp
 });
 
 export const createPdfSerahTerima = asyncHandler(async (req: Request, res: Response) => {
-    const { id_toko, tanggal_aktual } = createSerahTerimaPdfSchema.parse(req.body);
-    const data = await serahTerimaService.createPdfSerahTerima(id_toko, tanggal_aktual);
+    const { id_toko } = createSerahTerimaPdfSchema.parse(req.body);
+    const data = await serahTerimaService.createPdfSerahTerima(id_toko);
 
     res.json({
         status: "success",

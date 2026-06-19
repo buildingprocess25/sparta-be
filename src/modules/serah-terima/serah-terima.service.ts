@@ -78,21 +78,19 @@ export const serahTerimaService = {
         }));
     },
 
-    async createPdfSerahTerima(idToko: number, tanggalAktual?: string) {
+    async createPdfSerahTerima(idToko: number) {
         // Validate the required opname data before writing a serah-terima placeholder.
         // Previously, a failed generation could leave a row with link_pdf = NULL.
         await buildDetailByTokoId(idToko);
 
-        if (tanggalAktual) {
-            await serahTerimaRepository.upsertTanggalAktual(idToko, tanggalAktual);
-        }
+        const placeholder = await serahTerimaRepository.ensureBerkasSerahTerima(idToko);
 
-        // 1. Refresh denda HANYA dengan tanggal terbaru di berkas
-        const refreshedOpnameFinal = await opnameFinalService.refreshDendaByTokoId(idToko);
+        // 1. Refresh denda dengan timestamp resmi ST yang ditentukan server.
+        await opnameFinalService.refreshDendaByTokoId(idToko);
 
         const { toko, opnameFinal, items } = await buildDetailByTokoId(idToko);
         const detail = { toko, opname_final: opnameFinal, items };
-        const pdfBuffer = await buildSerahTerimaPdfBuffer(detail, tanggalAktual);
+        const pdfBuffer = await buildSerahTerimaPdfBuffer(detail, placeholder.created_at);
 
         // 2. Upload ke Google Drive
         const proyek = sanitizeFilenamePart(toko.proyek ?? undefined, "PROYEK");
@@ -102,7 +100,7 @@ export const serahTerimaService = {
         const linkPdf = await uploadPdfToDrive(pdfBuffer, filename);
 
         // 3. Simpan link di tabel berkas_serah_terima
-        const berkas = await serahTerimaRepository.upsertBerkasSerahTerima(idToko, linkPdf, tanggalAktual);
+        const berkas = await serahTerimaRepository.updateBerkasSerahTerimaLink(placeholder.id, linkPdf);
 
         // 4. Regenerate Opname Final PDF di background.
         //    Proses ini berat karena memuat ulang seluruh foto dan merender PDF kedua.
@@ -132,7 +130,7 @@ export const serahTerimaService = {
                 .then(async (siblings) => {
                     for (const sibling of siblings) {
                         try {
-                            await serahTerimaService.createPdfSerahTerima(sibling.id, tanggalAktual);
+                            await serahTerimaService.createPdfSerahTerima(sibling.id);
                             console.log(
                                 `[ST Cascade] Berhasil generate ST untuk toko id=${sibling.id}` +
                                 ` (${sibling.lingkup_pekerjaan ?? "?"}) dari ULOK ${toko.nomor_ulok}`
@@ -177,6 +175,33 @@ export const serahTerimaService = {
         return {
             buffer,
             filename: `SERAH_TERIMA_${proyek}_${nomorUlok}_${opnameFinal.id}.pdf`,
+        };
+    },
+
+    async regeneratePdfByBerkasId(id: number) {
+        const berkas = await serahTerimaRepository.findBerkasSerahTerimaById(id);
+        if (!berkas) {
+            throw new AppError("Berkas serah terima tidak ditemukan", 404);
+        }
+
+        await opnameFinalService.refreshDendaByTokoId(berkas.id_toko);
+
+        const { toko, opnameFinal, items } = await buildDetailByTokoId(berkas.id_toko);
+        const pdfBuffer = await buildSerahTerimaPdfBuffer(
+            { toko, opname_final: opnameFinal, items },
+            berkas.created_at
+        );
+        const proyek = sanitizeFilenamePart(toko.proyek ?? undefined, "PROYEK");
+        const nomorUlok = sanitizeFilenamePart(toko.nomor_ulok ?? undefined, "ULOK");
+        const filename = `SERAH_TERIMA_${proyek}_${nomorUlok}_${opnameFinal.id}.pdf`;
+        const linkPdf = await uploadPdfToDrive(pdfBuffer, filename);
+        const updated = await serahTerimaRepository.updateBerkasSerahTerimaLink(berkas.id, linkPdf);
+        await opnameFinalService.refreshDendaAndPdfById(String(opnameFinal.id));
+
+        return {
+            ...updated,
+            opname_final_id: opnameFinal.id,
+            item_count: items.length,
         };
     },
 };

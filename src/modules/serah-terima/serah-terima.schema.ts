@@ -2,6 +2,8 @@ import { z } from "zod";
 
 export const createSerahTerimaPdfSchema = z.object({
     id_toko: z.coerce.number().int().positive(),
+    // Kompatibilitas client lama. Nilai ini sengaja diabaikan karena timestamp
+    // resmi Serah Terima selalu ditentukan oleh server.
     tanggal_aktual: z.string().optional(),
 });
 

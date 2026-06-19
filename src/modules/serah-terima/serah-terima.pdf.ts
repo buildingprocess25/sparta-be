@@ -119,7 +119,7 @@ const buildAssessmentSummary = (items: SerahTerimaDetail["items"]) => {
     ];
 };
 
-export const buildSerahTerimaPdfBuffer = async (detail: SerahTerimaDetail, tanggalAktual?: string): Promise<Buffer> => {
+export const buildSerahTerimaPdfBuffer = async (detail: SerahTerimaDetail, createdAt: string): Promise<Buffer> => {
     const templatePath = await resolveTemplatePath("serah_terima_report.njk");
 
     const grandTotalOpname = toNumber(detail.opname_final.grand_total_opname);
@@ -133,7 +133,7 @@ export const buildSerahTerimaPdfBuffer = async (detail: SerahTerimaDetail, tangg
     })));
 
     const html = await renderHtmlTemplate(templatePath, {
-        generated_at: formatDateIndonesia(tanggalAktual ? new Date(tanggalAktual).toISOString() : new Date().toISOString()),
+        generated_at: formatDateIndonesia(createdAt),
         opname_final: detail.opname_final,
         toko: detail.toko,
         items: itemsWithPhotos,
@@ -146,7 +146,7 @@ export const buildSerahTerimaPdfBuffer = async (detail: SerahTerimaDetail, tangg
         grand_total_opname_formatted: rupiah(grandTotalOpname),
         grand_total_rab_formatted: rupiah(grandTotalRab),
         selisih_total_formatted: rupiah(grandTotalOpname - grandTotalRab),
-        created_at_formatted: formatDateIndonesia(tanggalAktual ? new Date(tanggalAktual).toISOString() : new Date().toISOString()),
+        created_at_formatted: formatDateIndonesia(createdAt),
         watermark_logo_path: staticAssetPath("Building-Logo.png"),
     });
 
