@@ -190,7 +190,7 @@ export const calculateDendaByTokoId = async (idToko: number): Promise<DendaKeter
         SELECT created_at
         FROM berkas_serah_terima
         WHERE id_toko = ANY($1::int[])
-        ORDER BY created_at DESC, id DESC
+        ORDER BY created_at ASC, id ASC
         LIMIT 1
         `,
         [scope.tokoIds]

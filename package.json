@@ -13,6 +13,8 @@
         "start": "node dist/index.js",
         "backup:drive": "tsx src/scripts/backup-database-to-drive.ts",
         "backup:drive:prod": "node dist/scripts/backup-database-to-drive.js",
+        "repair:denda:first-st": "tsx src/scripts/repair-first-serah-terima-penalty.ts",
+        "test:denda": "tsx --test src/modules/denda/denda-keterlambatan.test.ts",
         "typecheck": "tsc --noEmit -p tsconfig.json"
     },
     "dependencies": {
