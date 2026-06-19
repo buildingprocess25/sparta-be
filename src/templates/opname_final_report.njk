@@ -438,7 +438,7 @@
         <th class="no-col">No</th>
         <th class="work-col">Jenis Pekerjaan</th>
         <th class="unit-col">Satuan</th>
-        <th class="volume-col">Volume</th>
+        <th class="volume-col">Volume Akhir</th>
         <th class="money-col">Harga Material</th>
         <th class="money-col">Harga Upah</th>
         <th class="money-col">Total Material</th>
@@ -459,6 +459,16 @@
         <td class="money-col">{{ item.total_upah_formatted }}</td>
         <td class="money-col">{{ item.total_harga_formatted }}</td>
       </tr>
+      {% if item.foto_data_url %}
+      <tr class="photo-row">
+        <td colspan="9">
+          <div class="photo-wrap">
+            <div class="photo-label">Dokumentasi</div>
+            <img class="item-photo" src="{{ item.foto_data_url }}" alt="Foto instruksi lapangan {{ loop.index }}" />
+          </div>
+        </td>
+      </tr>
+      {% endif %}
       {% endfor %}
     </tbody>
   </table>

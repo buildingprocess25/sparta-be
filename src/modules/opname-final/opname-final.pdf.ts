@@ -112,6 +112,7 @@ type OpnameItemView = {
 };
 
 type InstruksiLapanganItemView = {
+    id: number;
     jenis_pekerjaan: string;
     satuan: string;
     volume: number;
@@ -120,6 +121,7 @@ type InstruksiLapanganItemView = {
     total_material_formatted: string;
     total_upah_formatted: string;
     total_harga_formatted: string;
+    foto_data_url: string | null;
 };
 
 type RabItemView = {
@@ -185,25 +187,35 @@ const buildOpnameGroupedItems = async (items: OpnameFinalItemRow[], noPpn = fals
     }));
 };
 
-const buildInstruksiLapanganGroups = (
+const buildInstruksiLapanganGroups = async (
     items: InstruksiLapanganItemRow[],
+    opnameItems: OpnameFinalItemRow[],
     noPpn = false
-): GroupedItems<InstruksiLapanganItemView> => {
+): Promise<GroupedItems<InstruksiLapanganItemView>> => {
     const grouped = new Map<string, InstruksiLapanganItemView[]>();
     const totals = new Map<string, number>();
+    const opnameByInstruksiId = new Map<number, OpnameFinalItemRow>();
+
+    for (const opnameItem of opnameItems) {
+        const instruksiId = Number(opnameItem.id_instruksi_lapangan_item ?? 0);
+        if (instruksiId > 0) opnameByInstruksiId.set(instruksiId, opnameItem);
+    }
 
     for (const item of items) {
         const category = String(item.kategori_pekerjaan ?? "").trim().toUpperCase() || "LAIN-LAIN";
         const totalHarga = toNumber(item.total_harga);
+        const opnameItem = opnameByInstruksiId.get(Number(item.id));
         const view: InstruksiLapanganItemView = {
+            id: Number(item.id),
             jenis_pekerjaan: String(item.jenis_pekerjaan ?? "").trim() || "-",
             satuan: String(item.satuan ?? "").trim() || "-",
-            volume: toNumber(item.volume),
+            volume: opnameItem ? toNumber(opnameItem.volume_akhir) : toNumber(item.volume),
             harga_material_formatted: rupiah(toNumber(item.harga_material)),
             harga_upah_formatted: rupiah(toNumber(item.harga_upah)),
             total_material_formatted: rupiah(toNumber(item.total_material)),
             total_upah_formatted: rupiah(toNumber(item.total_upah)),
             total_harga_formatted: rupiah(totalHarga),
+            foto_data_url: await resolveDriveImageDataUrl(opnameItem?.foto),
         };
 
         if (!grouped.has(category)) {
@@ -327,7 +339,8 @@ export const buildOpnameFinalPdfBuffer = async (
 
     const grandTotalOpname = toNumber(detail.opname_final.grand_total_opname);
     const grandTotalRab = toNumber(detail.opname_final.grand_total_rab);
-    const opnameItems = sortOpnameItemsByRabOrder(detail.items ?? []);
+    const allOpnameItems = sortOpnameItemsByRabOrder(detail.items ?? []);
+    const opnameItems = allOpnameItems.filter((item) => item.id_rab_item !== null);
     const kerjaTambahItems = opnameItems.filter((item) => toNumber(item.total_selisih) > 0);
     const kerjaKurangItems = opnameItems.filter((item) => toNumber(item.total_selisih) < 0);
     const rabItems = rabData?.items ?? [];
@@ -367,7 +380,7 @@ export const buildOpnameFinalPdfBuffer = async (
         watermark_logo_path: staticAssetPath("Building-Logo.png"),
         grouped_items_list: await buildOpnameGroupedItems(opnameItems, noPpn),
         rab_grouped_items_list: buildRabGroupedItems(rabItems, noPpn),
-        instruksi_lapangan_groups: buildInstruksiLapanganGroups(instruksiLapanganItems, noPpn),
+        instruksi_lapangan_groups: await buildInstruksiLapanganGroups(instruksiLapanganItems, allOpnameItems, noPpn),
         kerja_tambah_groups: await buildOpnameGroupedItems(kerjaTambahItems, noPpn),
         kerja_kurang_groups: await buildOpnameGroupedItems(kerjaKurangItems, noPpn),
         opname_summary: buildFinancialSummary(totalOpnameSelisih, "up", noPpn),
