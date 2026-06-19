@@ -53,10 +53,31 @@ type WorkItem = {
     target: TargetContext | null;
     tanggal_pengawasan: string | null;
     pekerjaan: Array<{ kategori_pekerjaan: string; jenis_pekerjaan: string; catatan: string | null; status: "progress" | "selesai" | "terlambat" }>;
+    mapping_mode: "scheduled" | "reconstructed";
+    carried_from_h: number | null;
+    reconstructed_delay_days: number;
+    delay_updates: Array<{ kategori_pekerjaan: string; keterlambatan: number }>;
     existing_pending_pdf_id: number | null;
     existing_pending_pdf_link: string | null;
     issues: string[];
     warnings: string[];
+};
+
+type GanttCategorySchedule = {
+    kategori_pekerjaan: string;
+    h_awal: number;
+    h_akhir: number;
+    day_id: number;
+};
+
+type RabWorkItem = {
+    kategori_pekerjaan: string;
+    jenis_pekerjaan: string;
+};
+
+type ReconstructionState = {
+    carried_categories: string[];
+    last_h_day: number | null;
 };
 
 const hasSuperHumanRole = (role: string) => role.toUpperCase().includes("SUPER HUMAN");
@@ -69,6 +90,16 @@ const nullableText = (value: unknown): string | null => {
 };
 
 const normalizeKey = (value: unknown): string => normalizeCell(value).toUpperCase();
+
+const targetKey = (target: TargetContext): string =>
+    `${target.gantt_id ?? target.toko_id}\u0000${normalizeKey(target.lingkup_pekerjaan)}`;
+
+const parseDurationDays = (value: string | null | undefined): number | null => {
+    const match = normalizeCell(value).match(/\d+/);
+    if (!match) return null;
+    const days = Number(match[0]);
+    return Number.isFinite(days) && days > 0 ? days : null;
+};
 
 const pendingPdfKey = (
     nomorUlok: string,
@@ -317,66 +348,138 @@ const hydrateExistingForDate = async (target: TargetContext, tanggalPengawasan: 
     };
 };
 
-const findPekerjaanForHDay = async (
-    target: TargetContext,
-    hDay: number,
-    progress: HRowSource["progress"]
-): Promise<WorkItem["pekerjaan"]> => {
-    if (!target.gantt_id || !target.rab_id) return [];
+const loadGanttCategorySchedules = async (
+    target: TargetContext
+): Promise<GanttCategorySchedule[]> => {
+    if (!target.gantt_id) return [];
     const result = await pool.query<{
         kategori_pekerjaan: string;
-        jenis_pekerjaan: string;
-        progress_ordinal: number;
+        h_awal: number;
+        h_akhir: number;
+        day_id: number;
     }>(
         `
-        WITH scheduled AS (
-            SELECT
-                k.kategori_pekerjaan,
-                MIN(d.id) AS day_id
-            FROM day_gantt_chart d
-            JOIN kategori_pekerjaan_gantt k ON k.id = d.id_kategori_pekerjaan_gantt
-            WHERE d.id_gantt = $1
-              AND NULLIF(regexp_replace(COALESCE(d.h_awal, ''), '[^0-9]', '', 'g'), '')::int <= $2
-              AND NULLIF(regexp_replace(COALESCE(d.h_akhir, ''), '[^0-9]', '', 'g'), '')::int >= $2
-            GROUP BY k.kategori_pekerjaan
-        ),
-        selected_categories AS (
-            SELECT
-                kategori_pekerjaan,
-                day_id,
-                ROW_NUMBER() OVER (ORDER BY day_id ASC, kategori_pekerjaan ASC)::int AS progress_ordinal
-            FROM scheduled
-            ORDER BY day_id ASC, kategori_pekerjaan ASC
-            LIMIT $4
-        )
-        SELECT s.kategori_pekerjaan, ri.jenis_pekerjaan, s.progress_ordinal
-        FROM selected_categories s
-        JOIN rab_item ri
-          ON ri.id_rab = $3
-         AND UPPER(ri.kategori_pekerjaan) = UPPER(s.kategori_pekerjaan)
-        ORDER BY s.progress_ordinal ASC, ri.id ASC
+        SELECT
+            k.kategori_pekerjaan,
+            MIN(NULLIF(regexp_replace(COALESCE(d.h_awal, ''), '[^0-9]', '', 'g'), '')::int) AS h_awal,
+            MAX(NULLIF(regexp_replace(COALESCE(d.h_akhir, ''), '[^0-9]', '', 'g'), '')::int) AS h_akhir,
+            MIN(d.id)::int AS day_id
+        FROM day_gantt_chart d
+        JOIN kategori_pekerjaan_gantt k ON k.id = d.id_kategori_pekerjaan_gantt
+        WHERE d.id_gantt = $1
+        GROUP BY k.kategori_pekerjaan
+        HAVING
+            MIN(NULLIF(regexp_replace(COALESCE(d.h_awal, ''), '[^0-9]', '', 'g'), '')::int) IS NOT NULL
+            AND MAX(NULLIF(regexp_replace(COALESCE(d.h_akhir, ''), '[^0-9]', '', 'g'), '')::int) IS NOT NULL
+        ORDER BY MIN(d.id), k.kategori_pekerjaan
         `,
-        [target.gantt_id, hDay, target.rab_id, Math.max(progress.length, 1)]
+        [target.gantt_id]
     );
+    return result.rows.map((row) => ({
+        kategori_pekerjaan: row.kategori_pekerjaan,
+        h_awal: Number(row.h_awal),
+        h_akhir: Number(row.h_akhir),
+        day_id: Number(row.day_id)
+    }));
+};
 
-    return result.rows.map((row) => {
-        const sourceProgress = progress[row.progress_ordinal - 1];
-        return {
-            kategori_pekerjaan: row.kategori_pekerjaan,
-            jenis_pekerjaan: row.jenis_pekerjaan,
+const loadRabItemsByCategory = async (
+    target: TargetContext
+): Promise<Map<string, RabWorkItem[]>> => {
+    const itemsByCategory = new Map<string, RabWorkItem[]>();
+    if (!target.rab_id) return itemsByCategory;
+    const result = await pool.query<RabWorkItem>(
+        `
+        SELECT kategori_pekerjaan, jenis_pekerjaan
+        FROM rab_item
+        WHERE id_rab = $1
+        ORDER BY id
+        `,
+        [target.rab_id]
+    );
+    for (const row of result.rows) {
+        const key = normalizeKey(row.kategori_pekerjaan);
+        const items = itemsByCategory.get(key) ?? [];
+        items.push(row);
+        itemsByCategory.set(key, items);
+    }
+    return itemsByCategory;
+};
+
+const mapPekerjaanForCategories = (
+    rabItemsByCategory: Map<string, RabWorkItem[]>,
+    categories: string[],
+    progress: HRowSource["progress"]
+): WorkItem["pekerjaan"] => {
+    return categories.flatMap((category, index) => {
+        const sourceProgress = progress[index];
+        return (rabItemsByCategory.get(normalizeKey(category)) ?? []).map((item) => ({
+            kategori_pekerjaan: item.kategori_pekerjaan,
+            jenis_pekerjaan: item.jenis_pekerjaan,
             catatan: sourceProgress?.catatan ?? null,
             status: mapPengawasanStatus(sourceProgress?.status ?? null)
-        };
+        }));
     });
+};
+
+const selectCategoriesForCheckpoint = (
+    schedules: GanttCategorySchedule[],
+    hDay: number,
+    progressCount: number,
+    state: ReconstructionState
+): { categories: GanttCategorySchedule[]; mappingMode: WorkItem["mapping_mode"] } => {
+    if (progressCount <= 0) return { categories: [], mappingMode: "scheduled" };
+
+    const selected: GanttCategorySchedule[] = [];
+    const selectedKeys = new Set<string>();
+    const addCategory = (category: GanttCategorySchedule | undefined) => {
+        if (!category) return;
+        const key = normalizeKey(category.kategori_pekerjaan);
+        if (selectedKeys.has(key) || selected.length >= progressCount) return;
+        selected.push(category);
+        selectedKeys.add(key);
+    };
+
+    state.carried_categories.forEach((categoryName) => {
+        addCategory(schedules.find(
+            (schedule) => normalizeKey(schedule.kategori_pekerjaan) === normalizeKey(categoryName)
+        ));
+    });
+    schedules
+        .filter((schedule) => schedule.h_awal <= hDay && schedule.h_akhir >= hDay)
+        .forEach(addCategory);
+    schedules.forEach(addCategory);
+
+    return {
+        categories: selected,
+        mappingMode: state.carried_categories.length > 0
+            || selected.some((category) => !(category.h_awal <= hDay && category.h_akhir >= hDay))
+            ? "reconstructed"
+            : "scheduled"
+    };
 };
 
 const buildWorkItems = async (buffer: Buffer): Promise<WorkItem[]> => {
     const { pics, hRows } = parseWorkbook(buffer);
     const targetsByUlok = await findTargetsByUlok([...new Set(hRows.map((row) => row.nomor_ulok))]);
     const items: WorkItem[] = [];
+    const sortedRows = [...hRows].sort((left, right) =>
+        left.nomor_ulok.localeCompare(right.nomor_ulok)
+        || left.h_day - right.h_day
+        || left.row_number - right.row_number
+    );
+    const checkpointDaysByUlok = new Map<string, number[]>();
+    for (const source of sortedRows) {
+        const days = checkpointDaysByUlok.get(source.nomor_ulok) ?? [];
+        if (!days.includes(source.h_day)) days.push(source.h_day);
+        checkpointDaysByUlok.set(source.nomor_ulok, days);
+    }
+    const schedulesByGantt = new Map<number, GanttCategorySchedule[]>();
+    const rabItemsByRab = new Map<number, Map<string, RabWorkItem[]>>();
+    const reconstructionByTarget = new Map<string, ReconstructionState>();
 
     let expandedIndex = 0;
-    for (const source of hRows) {
+    for (const source of sortedRows) {
         const pic = pics.get(source.nomor_ulok) ?? null;
         const allowedScopes = normalizeLingkup(pic?.lingkup_pekerjaan);
         const baseTargets = targetsByUlok.get(source.nomor_ulok) ?? [];
@@ -407,9 +510,67 @@ const buildWorkItems = async (buffer: Buffer): Promise<WorkItem[]> => {
                 if (!target.spk_id) issues.push("SPK target tidak ditemukan");
             }
 
-            const pekerjaan = target
-                ? await findPekerjaanForHDay(target, source.h_day, source.progress)
-                : [];
+            let pekerjaan: WorkItem["pekerjaan"] = [];
+            let mappingMode: WorkItem["mapping_mode"] = "scheduled";
+            let carriedFromH: number | null = null;
+            let reconstructedDelayDays = 0;
+            let delayUpdates: WorkItem["delay_updates"] = [];
+
+            if (target?.gantt_id && target.rab_id) {
+                let schedules = schedulesByGantt.get(target.gantt_id);
+                if (!schedules) {
+                    schedules = await loadGanttCategorySchedules(target);
+                    schedulesByGantt.set(target.gantt_id, schedules);
+                }
+                let rabItems = rabItemsByRab.get(target.rab_id);
+                if (!rabItems) {
+                    rabItems = await loadRabItemsByCategory(target);
+                    rabItemsByRab.set(target.rab_id, rabItems);
+                }
+
+                const key = targetKey(target);
+                const state = reconstructionByTarget.get(key) ?? {
+                    carried_categories: [],
+                    last_h_day: null
+                };
+                carriedFromH = state.carried_categories.length > 0 ? state.last_h_day : null;
+                const selected = selectCategoriesForCheckpoint(
+                    schedules,
+                    source.h_day,
+                    source.progress.length,
+                    state
+                );
+                mappingMode = selected.mappingMode;
+                const selectedNames = selected.categories.map((category) => category.kategori_pekerjaan);
+                pekerjaan = mapPekerjaanForCategories(rabItems, selectedNames, source.progress);
+
+                const checkpointDays = checkpointDaysByUlok.get(source.nomor_ulok) ?? [];
+                const nextHDay = checkpointDays.find((day) => day > source.h_day)
+                    ?? parseDurationDays(target.durasi)
+                    ?? source.h_day;
+                delayUpdates = selected.categories.flatMap((category, index) => {
+                    const status = mapPengawasanStatus(source.progress[index]?.status ?? null);
+                    if (status !== "terlambat") return [];
+                    const delay = Math.max(0, nextHDay - category.h_akhir);
+                    if (delay <= 0) return [];
+                    return [{
+                        kategori_pekerjaan: category.kategori_pekerjaan,
+                        keterlambatan: delay
+                    }];
+                });
+                reconstructedDelayDays = delayUpdates.reduce(
+                    (max, update) => Math.max(max, update.keterlambatan),
+                    0
+                );
+
+                reconstructionByTarget.set(key, {
+                    carried_categories: selected.categories.flatMap((category, index) => {
+                        const status = mapPengawasanStatus(source.progress[index]?.status ?? null);
+                        return status === "selesai" ? [] : [category.kategori_pekerjaan];
+                    }),
+                    last_h_day: source.h_day
+                });
+            }
             if (target && source.progress.length > 0 && pekerjaan.length === 0) {
                 issues.push(`Item pekerjaan Gantt/RAB untuk H${source.h_day} tidak ditemukan`);
             }
@@ -419,6 +580,18 @@ const buildWorkItems = async (buffer: Buffer): Promise<WorkItem[]> => {
             if (target && pekerjaan.length > 0 && mappedCategoryCount < source.progress.length) {
                 warnings.push(`Progress Excel ${source.progress.length}, kategori Gantt termapping ${mappedCategoryCount}`);
             }
+            if (mappingMode === "reconstructed") {
+                warnings.push(
+                    carriedFromH
+                        ? `Pekerjaan belum selesai dibawa dari H${carriedFromH}`
+                        : "Kategori direkonstruksi berdasarkan urutan Gantt"
+                );
+            }
+            if (reconstructedDelayDays > 0) {
+                warnings.push(
+                    `Keterlambatan direkonstruksi sampai checkpoint berikutnya: maksimal ${reconstructedDelayDays} hari`
+                );
+            }
 
             items.push({
                 source_pengawasan_id: 400000 + expandedIndex,
@@ -427,6 +600,10 @@ const buildWorkItems = async (buffer: Buffer): Promise<WorkItem[]> => {
                 target,
                 tanggal_pengawasan: tanggalPengawasan,
                 pekerjaan,
+                mapping_mode: mappingMode,
+                carried_from_h: carriedFromH,
+                reconstructed_delay_days: reconstructedDelayDays,
+                delay_updates: delayUpdates,
                 existing_pending_pdf_id: null,
                 existing_pending_pdf_link: null,
                 issues,
@@ -624,6 +801,37 @@ const insertPengawasanItems = async (client: PoolClient, item: WorkItem, idPenga
     return count;
 };
 
+const applyReconstructedDelays = async (
+    client: PoolClient,
+    item: WorkItem
+): Promise<number> => {
+    if (!item.target?.gantt_id || item.delay_updates.length === 0) return 0;
+    let updated = 0;
+    for (const delay of item.delay_updates) {
+        const result = await client.query(
+            `
+            UPDATE day_gantt_chart day_item
+            SET keterlambatan = GREATEST(
+                COALESCE(NULLIF(regexp_replace(COALESCE(day_item.keterlambatan, ''), '[^0-9]', '', 'g'), '')::int, 0),
+                $3
+            )::text
+            FROM kategori_pekerjaan_gantt kategori
+            WHERE day_item.id_kategori_pekerjaan_gantt = kategori.id
+              AND day_item.id_gantt = $1
+              AND kategori.id_gantt = $1
+              AND UPPER(kategori.kategori_pekerjaan) = UPPER($2)
+            `,
+            [
+                item.target.gantt_id,
+                delay.kategori_pekerjaan,
+                delay.keterlambatan
+            ]
+        );
+        updated += result.rowCount ?? 0;
+    }
+    return updated;
+};
+
 const applyWorkItem = async (
     client: PoolClient,
     item: WorkItem,
@@ -667,12 +875,14 @@ const applyWorkItem = async (
     }
 
     const insertedItems = await insertPengawasanItems(client, item, idPengawasanGantt);
+    const updatedDelayRows = await applyReconstructedDelays(client, item);
     await upsertBerkasPengawasan(client, idPengawasanGantt, item.source.link_pdf);
     return {
         action,
         source_pengawasan_id: item.source_pengawasan_id,
         status: action === "replace_pengawasan" ? "replaced" : "inserted",
         inserted_items: insertedItems,
+        updated_delay_rows: updatedDelayRows,
         target_pengawasan_gantt_id: idPengawasanGantt
     };
 };
@@ -692,6 +902,7 @@ export const pengawasanMigrationService = {
         let pdfPendingCount = 0;
         let existingPdfPendingCount = 0;
         let totalPengawasanItems = 0;
+        let reconstructedCount = 0;
 
         const details = items.map((item) => {
             const canSavePdfPending = !item.target?.gantt_id && Boolean(item.source.link_pdf);
@@ -712,6 +923,7 @@ export const pengawasanMigrationService = {
             if (!item.target) missingTargetCount += 1;
             if (item.target && !item.target.gantt_id) missingGanttCount += 1;
             totalPengawasanItems += item.pekerjaan.length;
+            if (item.mapping_mode === "reconstructed") reconstructedCount += 1;
 
             return {
                 source_pengawasan_id: item.source_pengawasan_id,
@@ -728,6 +940,10 @@ export const pengawasanMigrationService = {
                 status_lokasi: item.source.status_lokasi ?? "",
                 link_pdf: item.source.link_pdf ?? "",
                 mapped_item_count: item.pekerjaan.length,
+                mapping_mode: item.mapping_mode,
+                carried_from_h: item.carried_from_h,
+                reconstructed_delay_days: item.reconstructed_delay_days,
+                reconstructed_categories: item.delay_updates,
                 gantt_id: item.target?.gantt_id ?? null,
                 can_save_pdf_pending: canSavePdfPending,
                 existing_pending_pdf_id: item.existing_pending_pdf_id,
@@ -752,6 +968,7 @@ export const pengawasanMigrationService = {
             missing_gantt_count: missingGanttCount,
             pdf_pending_count: pdfPendingCount,
             existing_pdf_pending_count: existingPdfPendingCount,
+            reconstructed_count: reconstructedCount,
             details
         };
     },
@@ -802,6 +1019,10 @@ export const pengawasanMigrationService = {
             saved_pdf_pending: results.filter((row) => row.status === "saved_pdf_pending").length,
             skipped: results.filter((row) => row.status === "skipped").length,
             inserted_items: results.reduce((sum, row) => sum + row.inserted_items, 0),
+            updated_delay_rows: results.reduce(
+                (sum, row) => sum + ("updated_delay_rows" in row ? Number(row.updated_delay_rows ?? 0) : 0),
+                0
+            ),
             details: results
         };
     }
