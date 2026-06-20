@@ -997,26 +997,34 @@ const savePendingPdf = async (client: PoolClient, item: WorkItem): Promise<numbe
 
 const insertPengawasanItems = async (client: PoolClient, item: WorkItem, idPengawasanGantt: number): Promise<number> => {
     if (!item.target?.gantt_id) return 0;
-    let count = 0;
-    for (const pekerjaan of item.pekerjaan) {
-        await client.query(
-            `
-            INSERT INTO pengawasan (
-                id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, dokumentasi_base64, status
-            ) VALUES ($1, $2, $3, $4, $5, NULL, NULL, $6)
-            `,
-            [
-                item.target.gantt_id,
+    const chunkSize = 300;
+    let inserted = 0;
+    for (let offset = 0; offset < item.pekerjaan.length; offset += chunkSize) {
+        const chunk = item.pekerjaan.slice(offset, offset + chunkSize);
+        const values: unknown[] = [];
+        const placeholders = chunk.map((pekerjaan, index) => {
+            const base = index * 6;
+            values.push(
+                item.target!.gantt_id,
                 idPengawasanGantt,
                 pekerjaan.kategori_pekerjaan,
                 pekerjaan.jenis_pekerjaan,
                 pekerjaan.catatan,
                 pekerjaan.status
-            ]
+            );
+            return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, NULL, NULL, $${base + 6})`;
+        });
+        const result = await client.query(
+            `
+            INSERT INTO pengawasan (
+                id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, dokumentasi_base64, status
+            ) VALUES ${placeholders.join(", ")}
+            `,
+            values
         );
-        count += 1;
+        inserted += result.rowCount ?? 0;
     }
-    return count;
+    return inserted;
 };
 
 const applyReconstructedDelays = async (
@@ -1024,27 +1032,26 @@ const applyReconstructedDelays = async (
     item: WorkItem
 ): Promise<number> => {
     if (!item.target?.gantt_id || item.delay_updates.length === 0) return 0;
-    let updated = 0;
-    for (const delay of item.delay_updates) {
-        const result = await client.query(
-            `
-            UPDATE day_gantt_chart day_item
-            SET keterlambatan = CASE WHEN $3 > 0 THEN $3::text ELSE NULL END
-            FROM kategori_pekerjaan_gantt kategori
-            WHERE day_item.id_kategori_pekerjaan_gantt = kategori.id
-              AND day_item.id_gantt = $1
-              AND kategori.id_gantt = $1
-              AND UPPER(kategori.kategori_pekerjaan) = UPPER($2)
-            `,
-            [
-                item.target.gantt_id,
-                delay.kategori_pekerjaan,
-                delay.keterlambatan
-            ]
-        );
-        updated += result.rowCount ?? 0;
-    }
-    return updated;
+    const values: unknown[] = [item.target.gantt_id];
+    const placeholders = item.delay_updates.map((delay, index) => {
+        const base = index * 2 + 2;
+        values.push(delay.kategori_pekerjaan, delay.keterlambatan);
+        return `($${base}::text, $${base + 1}::integer)`;
+    });
+    const result = await client.query(
+        `
+        UPDATE day_gantt_chart day_item
+        SET keterlambatan = CASE WHEN delay.keterlambatan > 0 THEN delay.keterlambatan::text ELSE NULL END
+        FROM kategori_pekerjaan_gantt kategori
+        JOIN (VALUES ${placeholders.join(", ")}) AS delay(kategori_pekerjaan, keterlambatan)
+          ON UPPER(kategori.kategori_pekerjaan) = UPPER(delay.kategori_pekerjaan)
+        WHERE day_item.id_kategori_pekerjaan_gantt = kategori.id
+          AND day_item.id_gantt = $1
+          AND kategori.id_gantt = $1
+        `,
+        values
+    );
+    return result.rowCount ?? 0;
 };
 
 const applyWorkItem = async (

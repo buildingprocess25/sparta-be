@@ -216,9 +216,9 @@ CREATE TABLE IF NOT EXISTS pengawasan (
     id_gantt INT NOT NULL,
     id_pengawasan_gantt INT,
     kategori_pekerjaan VARCHAR(255) NOT NULL,
-    jenis_pekerjaan VARCHAR(255) NOT NULL,
-    catatan VARCHAR(500),
-    dokumentasi VARCHAR(500),
+    jenis_pekerjaan TEXT NOT NULL,
+    catatan TEXT,
+    dokumentasi TEXT,
     dokumentasi_base64 TEXT,
     status VARCHAR(50) NOT NULL DEFAULT 'progress',
     created_at TIMESTAMP NOT NULL DEFAULT timezone('Asia/Jakarta', now()),
@@ -234,20 +234,20 @@ CREATE INDEX IF NOT EXISTS idx_pengawasan_status ON pengawasan(status);
 -- Migration safety untuk environment yang tabelnya sudah ada tetapi belum lengkap.
 ALTER TABLE pengawasan
     ADD COLUMN IF NOT EXISTS kategori_pekerjaan VARCHAR(255),
-    ADD COLUMN IF NOT EXISTS jenis_pekerjaan VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS jenis_pekerjaan TEXT,
     ADD COLUMN IF NOT EXISTS id_pengawasan_gantt INT,
-    ADD COLUMN IF NOT EXISTS catatan VARCHAR(500),
-    ADD COLUMN IF NOT EXISTS dokumentasi VARCHAR(500),
+    ADD COLUMN IF NOT EXISTS catatan TEXT,
+    ADD COLUMN IF NOT EXISTS dokumentasi TEXT,
     ADD COLUMN IF NOT EXISTS dokumentasi_base64 TEXT,
     ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'progress',
     ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT timezone('Asia/Jakarta', now());
 
--- Sinkronkan tipe kolom pada environment lama (kolom sudah ada tapi masih VARCHAR(255)).
+-- Sinkronkan tipe kolom pada environment lama.
 ALTER TABLE pengawasan
     ALTER COLUMN kategori_pekerjaan TYPE VARCHAR(255),
-    ALTER COLUMN jenis_pekerjaan TYPE VARCHAR(255),
-    ALTER COLUMN catatan TYPE VARCHAR(500),
-    ALTER COLUMN dokumentasi TYPE VARCHAR(500),
+    ALTER COLUMN jenis_pekerjaan TYPE TEXT,
+    ALTER COLUMN catatan TYPE TEXT,
+    ALTER COLUMN dokumentasi TYPE TEXT,
     ALTER COLUMN status TYPE VARCHAR(50);
 
 ALTER TABLE pengawasan
