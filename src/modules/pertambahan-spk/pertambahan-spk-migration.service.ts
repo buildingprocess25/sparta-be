@@ -129,7 +129,9 @@ const mapStatus = (value: unknown): string => {
 
 const buildDriveLink = (link: unknown, fileId: unknown): string | null => {
     const directLink = nullableText(link);
-    if (directLink) return directLink;
+    if (directLink && /^https?:\/\//i.test(directLink) && !/^https?:\/\/pengawasan-tambahspk\.onrender\.com/i.test(directLink)) {
+        return directLink;
+    }
     const id = nullableText(fileId);
     return id ? `https://drive.google.com/file/d/${id}/view` : null;
 };

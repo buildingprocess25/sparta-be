@@ -647,7 +647,31 @@ const parseLegacyWorkbook = (workbook: xlsx.WorkBook): ParsedWorkbook => {
 };
 
 const parseDataFormWorkbook = async (workbook: xlsx.WorkBook): Promise<ParsedWorkbook> => {
-    const rows = readRows(workbook, "Form2");
+    const form2Rows = readRows(workbook, "Form2");
+    const form2Keys = new Set(
+        form2Rows
+            .filter((row) => nullableText(row["Nomor Ulok"]))
+            .map((row) => naturalKey(row["Nomor Ulok"], row.Lingkup_Pekerjaan))
+    );
+    const supplementalForm3Rows = readRows(workbook, "Form3")
+        .map((row, index) => ({ row, index }))
+        .filter(({ row }) => {
+            const nomorUlok = nullableText(row["Nomor Ulok"]);
+            return Boolean(nomorUlok) && !form2Keys.has(naturalKey(nomorUlok, row.Lingkup_Pekerjaan));
+        });
+    const rowEntries = [
+        ...form2Rows.map((row, index) => ({
+            row,
+            sourceId: 200000 + index + 2,
+            sourceSheet: "Form2"
+        })),
+        ...supplementalForm3Rows.map(({ row, index }) => ({
+            row,
+            sourceId: 210000 + index + 2,
+            sourceSheet: "Form3"
+        }))
+    ];
+    const rows = rowEntries.map((entry) => entry.row);
     const enrichmentByKey = await buildDataFormEnrichment(workbook, rows);
     const itemMetadataByName = new Map<string, { kategori: string | null; satuan: string | null }>();
     for (const row of rows) {
@@ -664,12 +688,12 @@ const parseDataFormWorkbook = async (workbook: xlsx.WorkBook): Promise<ParsedWor
     }
     const candidates: Candidate[] = [];
 
-    for (let index = 0; index < rows.length; index += 1) {
-        const row = rows[index];
+    for (const entry of rowEntries) {
+        const row = entry.row;
         const nomorUlok = nullableText(row["Nomor Ulok"]);
         if (!nomorUlok) continue;
 
-        const sourceId = 200000 + index + 2;
+        const sourceId = entry.sourceId;
         const lingkup = nullableText(row["Lingkup_Pekerjaan"]);
         const enriched = enrichmentByKey.get(naturalKey(nomorUlok, lingkup ?? ""));
 
@@ -720,6 +744,9 @@ const parseDataFormWorkbook = async (workbook: xlsx.WorkBook): Promise<ParsedWor
 
         const issues: string[] = [];
         const warnings: string[] = [];
+        if (entry.sourceSheet === "Form3") {
+            warnings.push("Sumber Form3 digunakan karena ULOK + lingkup ini tidak tersedia di Form2");
+        }
         if (items.length === 0) issues.push("RAB tidak memiliki item");
         if (!toko.nomor_ulok) issues.push("Nomor ULOK kosong");
         if (inferredItemCount > 0) warnings.push(`${inferredItemCount} item dilengkapi kategori/satuan dari pekerjaan identik di DATA FORM`);
@@ -785,7 +812,9 @@ const parseDataFormWorkbook = async (workbook: xlsx.WorkBook): Promise<ParsedWor
     return {
         candidates,
         source_format: "data_form_form2",
-        ignored_sheets: workbook.SheetNames.filter((sheet) => sheet !== "Form2" && sheet !== "SPK_Data" && sheet !== "dokumentasi_bangunan"),
+        ignored_sheets: workbook.SheetNames.filter(
+            (sheet) => !["Form2", "Form3", "SPK_Data", "dokumentasi_bangunan"].includes(sheet)
+        ),
         materai_count: 0,
         materai_ambiguous_count: 0
     };
