@@ -76,9 +76,33 @@ type RabWorkItem = {
 };
 
 type ReconstructionState = {
-    carried_categories: string[];
+    slots: Array<{
+        kategori_pekerjaan: string;
+        status: "progress" | "selesai" | "terlambat";
+    }>;
+    delays: Record<string, number>;
     last_h_day: number | null;
 };
+
+const CATEGORY_KEYWORDS: Array<{ pattern: RegExp; keywords: string[] }> = [
+    { pattern: /BOBOK|BONGKAR|PUING/, keywords: ["BOBOK", "BONGKAR", "PUING"] },
+    { pattern: /PERSIAPAN/, keywords: ["PERSIAPAN", "PEMBERSIHAN", "PAGAR PROYEK", "BEDENG", "DIREKSI KEET"] },
+    { pattern: /TANAH/, keywords: ["TANAH", "GALIAN", "URUGAN"] },
+    { pattern: /PONDASI|BETON/, keywords: ["PONDASI", "BETON", "COR"] },
+    { pattern: /PASANGAN/, keywords: ["PASANGAN", "DINDING", "BATA", "PLESTER", "ACI"] },
+    { pattern: /BESI/, keywords: ["BESI", "TULANGAN"] },
+    { pattern: /KERAMIK/, keywords: ["KERAMIK"] },
+    { pattern: /PLUMBING/, keywords: ["PLUMBING", "PIPA", "SALURAN AIR"] },
+    { pattern: /SANITARY|SANITER/, keywords: ["SANITARY", "SANITER", "TOILET", "KLOSET", "WASTAFEL"] },
+    { pattern: /ATAP/, keywords: ["ATAP", "GENTENG"] },
+    { pattern: /KUSEN|PINTU|KACA/, keywords: ["KUSEN", "PINTU", "KACA"] },
+    { pattern: /FINISHING/, keywords: ["FINISHING", "PLAFOND", "PLAFON", "GYPSUM", "CAT "] },
+    { pattern: /BEANSPOT/, keywords: ["BEANSPOT"] },
+    { pattern: /AREA TERBUKA/, keywords: ["AREA TERBUKA", "PARKIR"] },
+    { pattern: /INSTALASI/, keywords: ["INSTALASI", "KABEL", "PANEL", "LISTRIK"] },
+    { pattern: /FIXTURE/, keywords: ["FIXTURE", "LAMPU", "STOP KONTAK", "SAKLAR", "EXHAUST"] },
+    { pattern: /TAMBAHAN/, keywords: ["PEKERJAAN TAMBAHAN", "TAMBAHAN"] }
+];
 
 const hasSuperHumanRole = (role: string) => role.toUpperCase().includes("SUPER HUMAN");
 
@@ -123,7 +147,12 @@ const readRows = (workbook: xlsx.WorkBook, sheetName: string): CellRecord[] => {
 
 const excelDateToDateOnly = (value: unknown): string | null => {
     if (value === null || value === undefined || value === "") return null;
-    if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+        const year = value.getFullYear();
+        const month = String(value.getMonth() + 1).padStart(2, "0");
+        const day = String(value.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+    }
     if (typeof value === "number" && Number.isFinite(value)) {
         const date = new Date((value - 25569) * 86400 * 1000);
         if (!Number.isNaN(date.getTime())) return date.toISOString().slice(0, 10);
@@ -234,7 +263,7 @@ const parseHRows = (workbook: xlsx.WorkBook): HRowSource[] => {
 
 const parseWorkbook = (buffer: Buffer): { pics: Map<string, PicSource>; hRows: HRowSource[] } => {
     if (!buffer.length) throw new AppError("File Excel wajib diupload", 400);
-    const workbook = xlsx.read(buffer, { type: "buffer", cellDates: true });
+    const workbook = xlsx.read(buffer, { type: "buffer", cellDates: false });
     if (!workbook.Sheets.InputPIC) {
         throw new AppError("Format file tidak dikenali. Sheet InputPIC tidak ditemukan.", 400);
     }
@@ -425,38 +454,159 @@ const mapPekerjaanForCategories = (
 const selectCategoriesForCheckpoint = (
     schedules: GanttCategorySchedule[],
     hDay: number,
-    progressCount: number,
+    progress: HRowSource["progress"],
     state: ReconstructionState
 ): { categories: GanttCategorySchedule[]; mappingMode: WorkItem["mapping_mode"] } => {
-    if (progressCount <= 0) return { categories: [], mappingMode: "scheduled" };
+    if (progress.length <= 0) return { categories: [], mappingMode: "scheduled" };
 
     const selected: GanttCategorySchedule[] = [];
     const selectedKeys = new Set<string>();
-    const addCategory = (category: GanttCategorySchedule | undefined) => {
+    let reconstructed = false;
+    const findSemanticCategory = (catatan: string | null): GanttCategorySchedule | undefined => {
+        const note = normalizeKey(catatan);
+        if (!note) return undefined;
+        let best: { schedule: GanttCategorySchedule; score: number } | undefined;
+        for (const schedule of schedules) {
+            const category = normalizeKey(schedule.kategori_pekerjaan);
+            const config = CATEGORY_KEYWORDS.find((entry) => entry.pattern.test(category));
+            if (!config) continue;
+            const score = config.keywords.reduce(
+                (total, keyword) => total + (note.includes(keyword) ? keyword.length : 0),
+                0
+            );
+            if (score > 0 && (!best || score > best.score)) best = { schedule, score };
+        }
+        return best?.schedule;
+    };
+
+    const findNextCategory = (afterCategory?: string): GanttCategorySchedule | undefined => {
+        const startIndex = afterCategory
+            ? schedules.findIndex(
+                (schedule) => normalizeKey(schedule.kategori_pekerjaan) === normalizeKey(afterCategory)
+            ) + 1
+            : 0;
+        for (let index = Math.max(0, startIndex); index < schedules.length; index += 1) {
+            const schedule = schedules[index];
+            if (!selectedKeys.has(normalizeKey(schedule.kategori_pekerjaan))) return schedule;
+        }
+        return undefined;
+    };
+
+    progress.forEach((progressItem, index) => {
+        const previousSlot = state.slots[index];
+        let category = findSemanticCategory(progressItem.catatan);
+        if (category) {
+            reconstructed ||= !(category.h_awal <= hDay && category.h_akhir >= hDay);
+        } else if (previousSlot && previousSlot.status !== "selesai") {
+            category = schedules.find(
+                (schedule) =>
+                    normalizeKey(schedule.kategori_pekerjaan)
+                    === normalizeKey(previousSlot.kategori_pekerjaan)
+            );
+            reconstructed = true;
+        } else if (previousSlot) {
+            category = findNextCategory(previousSlot.kategori_pekerjaan);
+            reconstructed = true;
+        } else {
+            category = schedules.find(
+                (schedule) =>
+                    schedule.h_awal <= hDay
+                    && schedule.h_akhir >= hDay
+                    && !selectedKeys.has(normalizeKey(schedule.kategori_pekerjaan))
+            ) ?? findNextCategory(selected[selected.length - 1]?.kategori_pekerjaan);
+        }
+
+        if (category && selectedKeys.has(normalizeKey(category.kategori_pekerjaan))) {
+            category = findNextCategory(category.kategori_pekerjaan);
+            reconstructed = true;
+        }
         if (!category) return;
-        const key = normalizeKey(category.kategori_pekerjaan);
-        if (selectedKeys.has(key) || selected.length >= progressCount) return;
         selected.push(category);
-        selectedKeys.add(key);
-    };
-
-    state.carried_categories.forEach((categoryName) => {
-        addCategory(schedules.find(
-            (schedule) => normalizeKey(schedule.kategori_pekerjaan) === normalizeKey(categoryName)
-        ));
+        selectedKeys.add(normalizeKey(category.kategori_pekerjaan));
     });
-    schedules
-        .filter((schedule) => schedule.h_awal <= hDay && schedule.h_akhir >= hDay)
-        .forEach(addCategory);
-    schedules.forEach(addCategory);
 
-    return {
-        categories: selected,
-        mappingMode: state.carried_categories.length > 0
-            || selected.some((category) => !(category.h_awal <= hDay && category.h_akhir >= hDay))
-            ? "reconstructed"
-            : "scheduled"
+    return { categories: selected, mappingMode: reconstructed ? "reconstructed" : "scheduled" };
+};
+
+const calculateDelayState = (
+    schedules: GanttCategorySchedule[],
+    selectedCategories: GanttCategorySchedule[],
+    progress: HRowSource["progress"],
+    nextHDay: number,
+    currentDelays: Record<string, number>
+): Record<string, number> => {
+    const nextDelays = { ...currentDelays };
+    const selectedByKey = new Map(
+        selectedCategories.map((category, index) => [normalizeKey(category.kategori_pekerjaan), index])
+    );
+
+    for (const schedule of schedules) {
+        const key = normalizeKey(schedule.kategori_pekerjaan);
+        const progressIndex = selectedByKey.get(key);
+        if (progressIndex === undefined) continue;
+        const status = mapPengawasanStatus(progress[progressIndex]?.status ?? null);
+        if (status !== "terlambat") {
+            nextDelays[key] = 0;
+            continue;
+        }
+
+        const categoryIndex = schedules.findIndex(
+            (item) => normalizeKey(item.kategori_pekerjaan) === key
+        );
+        const inheritedShift = schedules
+            .slice(0, Math.max(0, categoryIndex))
+            .reduce(
+                (total, item) => total + (nextDelays[normalizeKey(item.kategori_pekerjaan)] ?? 0),
+                0
+            );
+        nextDelays[key] = Math.max(0, nextHDay - schedule.h_akhir - inheritedShift);
+    }
+
+    return nextDelays;
+};
+
+const fitDelaysWithinDuration = (
+    schedules: GanttCategorySchedule[],
+    delays: Record<string, number>,
+    duration: number
+): Record<string, number> => {
+    const fitted = { ...delays };
+    const calculateEnds = () => {
+        let shift = 0;
+        return schedules.map((schedule) => {
+            const key = normalizeKey(schedule.kategori_pekerjaan);
+            const delay = fitted[key] ?? 0;
+            const end = schedule.h_akhir + shift + delay;
+            shift += delay;
+            return { key, end };
+        });
     };
+
+    for (;;) {
+        const ends = calculateEnds();
+        const overflowItem = ends.reduce(
+            (max, item) => item.end > max.end ? item : max,
+            { key: "", end: 0 }
+        );
+        const overflow = overflowItem.end - duration;
+        if (overflow <= 0) break;
+
+        const overflowIndex = schedules.findIndex(
+            (schedule) => normalizeKey(schedule.kategori_pekerjaan) === overflowItem.key
+        );
+        let reduced = false;
+        for (let index = overflowIndex; index >= 0; index -= 1) {
+            const key = normalizeKey(schedules[index].kategori_pekerjaan);
+            const current = fitted[key] ?? 0;
+            if (current <= 0) continue;
+            fitted[key] = Math.max(0, current - overflow);
+            reduced = true;
+            break;
+        }
+        if (!reduced) break;
+    }
+
+    return fitted;
 };
 
 const buildWorkItems = async (buffer: Buffer): Promise<WorkItem[]> => {
@@ -530,14 +680,17 @@ const buildWorkItems = async (buffer: Buffer): Promise<WorkItem[]> => {
 
                 const key = targetKey(target);
                 const state = reconstructionByTarget.get(key) ?? {
-                    carried_categories: [],
+                    slots: [],
+                    delays: {},
                     last_h_day: null
                 };
-                carriedFromH = state.carried_categories.length > 0 ? state.last_h_day : null;
+                carriedFromH = state.slots.some((slot) => slot.status !== "selesai")
+                    ? state.last_h_day
+                    : null;
                 const selected = selectCategoriesForCheckpoint(
                     schedules,
                     source.h_day,
-                    source.progress.length,
+                    source.progress,
                     state
                 );
                 mappingMode = selected.mappingMode;
@@ -545,29 +698,34 @@ const buildWorkItems = async (buffer: Buffer): Promise<WorkItem[]> => {
                 pekerjaan = mapPekerjaanForCategories(rabItems, selectedNames, source.progress);
 
                 const checkpointDays = checkpointDaysByUlok.get(source.nomor_ulok) ?? [];
-                const nextHDay = checkpointDays.find((day) => day > source.h_day)
-                    ?? parseDurationDays(target.durasi)
-                    ?? source.h_day;
-                delayUpdates = selected.categories.flatMap((category, index) => {
-                    const status = mapPengawasanStatus(source.progress[index]?.status ?? null);
-                    if (status !== "terlambat") return [];
-                    const delay = Math.max(0, nextHDay - category.h_akhir);
-                    if (delay <= 0) return [];
-                    return [{
-                        kategori_pekerjaan: category.kategori_pekerjaan,
-                        keterlambatan: delay
-                    }];
-                });
+                const nextCheckpoint = checkpointDays.find((day) => day > source.h_day);
+                const durationDays = parseDurationDays(target.durasi);
+                const nextHDay = nextCheckpoint ?? durationDays ?? source.h_day;
+                let nextDelays = calculateDelayState(
+                    schedules,
+                    selected.categories,
+                    source.progress,
+                    nextHDay,
+                    state.delays
+                );
+                if (!nextCheckpoint && durationDays) {
+                    nextDelays = fitDelaysWithinDuration(schedules, nextDelays, durationDays);
+                }
+                delayUpdates = schedules.map((category) => ({
+                    kategori_pekerjaan: category.kategori_pekerjaan,
+                    keterlambatan: nextDelays[normalizeKey(category.kategori_pekerjaan)] ?? 0
+                }));
                 reconstructedDelayDays = delayUpdates.reduce(
                     (max, update) => Math.max(max, update.keterlambatan),
                     0
                 );
 
                 reconstructionByTarget.set(key, {
-                    carried_categories: selected.categories.flatMap((category, index) => {
-                        const status = mapPengawasanStatus(source.progress[index]?.status ?? null);
-                        return status === "selesai" ? [] : [category.kategori_pekerjaan];
-                    }),
+                    slots: selected.categories.map((category, index) => ({
+                        kategori_pekerjaan: category.kategori_pekerjaan,
+                        status: mapPengawasanStatus(source.progress[index]?.status ?? null)
+                    })),
+                    delays: nextDelays,
                     last_h_day: source.h_day
                 });
             }
@@ -811,10 +969,7 @@ const applyReconstructedDelays = async (
         const result = await client.query(
             `
             UPDATE day_gantt_chart day_item
-            SET keterlambatan = GREATEST(
-                COALESCE(NULLIF(regexp_replace(COALESCE(day_item.keterlambatan, ''), '[^0-9]', '', 'g'), '')::int, 0),
-                $3
-            )::text
+            SET keterlambatan = CASE WHEN $3 > 0 THEN $3::text ELSE NULL END
             FROM kategori_pekerjaan_gantt kategori
             WHERE day_item.id_kategori_pekerjaan_gantt = kategori.id
               AND day_item.id_gantt = $1
@@ -943,7 +1098,9 @@ export const pengawasanMigrationService = {
                 mapping_mode: item.mapping_mode,
                 carried_from_h: item.carried_from_h,
                 reconstructed_delay_days: item.reconstructed_delay_days,
-                reconstructed_categories: item.delay_updates,
+                reconstructed_categories: item.delay_updates.filter(
+                    (update) => update.keterlambatan > 0
+                ),
                 gantt_id: item.target?.gantt_id ?? null,
                 can_save_pdf_pending: canSavePdfPending,
                 existing_pending_pdf_id: item.existing_pending_pdf_id,
