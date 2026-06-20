@@ -8,6 +8,10 @@ import {
     downloadInstruksiLapanganLampiran,
     handleInstruksiLapanganApproval
 } from "./instruksi-lapangan.controller";
+import {
+    commitInstruksiLapanganMigration,
+    previewInstruksiLapanganMigration
+} from "./instruksi-lapangan-migration.controller";
 
 const upload = multer({
     storage: multer.memoryStorage(),
@@ -15,6 +19,13 @@ const upload = multer({
 });
 
 const router = Router();
+const migrationUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 80 * 1024 * 1024, fieldSize: 10 * 1024 * 1024 }
+});
+
+router.post("/migration/preview", migrationUpload.single("file"), previewInstruksiLapanganMigration);
+router.post("/migration/commit", migrationUpload.single("file"), commitInstruksiLapanganMigration);
 
 router.post(
     "/submit",
