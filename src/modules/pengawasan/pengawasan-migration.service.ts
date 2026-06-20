@@ -883,6 +883,7 @@ const ensurePicPengawasan = async (client: PoolClient, item: WorkItem): Promise<
         INSERT INTO pic_pengawasan (
             id_toko, nomor_ulok, id_rab, id_spk, kategori_lokasi, durasi, tanggal_mulai_spk, plc_building_support
         ) VALUES ($1, $2, $3, $4, $5, $6, $7::date, $8)
+        ON CONFLICT DO NOTHING
         RETURNING id
         `,
         [
@@ -896,7 +897,41 @@ const ensurePicPengawasan = async (client: PoolClient, item: WorkItem): Promise<
             item.pic.plc_building_support ?? "-"
         ]
     );
-    return result.rows[0].id;
+    if (result.rows[0]) return result.rows[0].id;
+
+    const conflicted = await client.query<{ id: number }>(
+        `
+        SELECT id
+        FROM pic_pengawasan
+        WHERE id_toko = $1
+           OR UPPER(nomor_ulok) = UPPER($2)
+           OR id_rab = $3
+           OR id_spk = $4
+        ORDER BY
+            CASE
+                WHEN id_rab = $3 AND id_spk = $4 THEN 0
+                WHEN id_rab = $3 THEN 1
+                WHEN id_spk = $4 THEN 2
+                WHEN id_toko = $1 THEN 3
+                ELSE 4
+            END,
+            id ASC
+        LIMIT 1
+        FOR UPDATE
+        `,
+        [
+            target.toko_id,
+            target.nomor_ulok,
+            target.rab_id,
+            target.spk_id
+        ]
+    );
+    if (conflicted.rows[0]) return conflicted.rows[0].id;
+
+    throw new AppError(
+        `PIC Pengawasan ${target.nomor_ulok} gagal dibuat atau ditemukan setelah konflik database`,
+        409
+    );
 };
 
 const ensurePengawasanGantt = async (
