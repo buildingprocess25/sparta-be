@@ -519,11 +519,13 @@ const analyzeCandidate = (
             ? "ready_insert"
             : existingMatchesSource
                 ? "existing_source_match"
-                : "existing_changed";
+                : existing.pengawasan_count === 0
+                    ? "ready_reconcile"
+                    : "protected_changed";
 
     const allowedActions: GanttMigrationAction[] = ["skip"];
     if (dbState === "ready_insert") allowedActions.unshift("insert_source");
-    if (existing.gantt_id) allowedActions.unshift("replace_source");
+    if (dbState === "ready_reconcile") allowedActions.unshift("replace_source");
     return {
         nomor_ulok: candidate.nomor_ulok,
         lingkup_pekerjaan: candidate.lingkup_pekerjaan,
@@ -572,7 +574,11 @@ export const ganttMigrationService = {
             total_rows: candidates.reduce((total, candidate) => total + candidate.day_items.length, 0),
             ready_insert_count: details.filter((detail) => detail.db_state === "ready_insert").length,
             existing_source_match_count: details.filter((detail) => detail.db_state === "existing_source_match").length,
-            existing_changed_count: details.filter((detail) => detail.db_state === "existing_changed").length,
+            ready_reconcile_count: details.filter((detail) => detail.db_state === "ready_reconcile").length,
+            protected_changed_count: details.filter((detail) => detail.db_state === "protected_changed").length,
+            existing_changed_count: details.filter(
+                (detail) => detail.db_state === "ready_reconcile" || detail.db_state === "protected_changed"
+            ).length,
             invalid_count: details.filter((detail) => detail.db_state === "invalid").length,
             short_count: details.filter((detail) => detail.duration_status === "short").length,
             details,
