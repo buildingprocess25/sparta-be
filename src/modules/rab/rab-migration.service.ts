@@ -80,6 +80,9 @@ type Candidate = {
     items: SourceRabItem[];
     issues: string[];
     warnings: string[];
+    duplicate_group_key: string | null;
+    duplicate_count: number;
+    duplicate_recommended: boolean;
 };
 
 type ExistingRab = {
@@ -187,25 +190,50 @@ const readRows = (workbook: xlsx.WorkBook, sheetName: string): CellRecord[] => {
 };
 
 const appendDuplicateIssues = (candidates: Candidate[]): void => {
-    const duplicateCountByKey = new Map<string, number>();
+    const duplicatesByKey = new Map<string, Candidate[]>();
     for (const candidate of candidates) {
         const key = sourceNaturalKey(candidate.toko);
         if (!key) continue;
-        duplicateCountByKey.set(key, (duplicateCountByKey.get(key) ?? 0) + 1);
+        duplicatesByKey.set(key, [...(duplicatesByKey.get(key) ?? []), candidate]);
     }
 
-    for (const candidate of candidates) {
-        const key = sourceNaturalKey(candidate.toko);
-        if (!key) continue;
-        const count = duplicateCountByKey.get(key) ?? 0;
-        if (count > 1) {
-            candidate.issues.push(`Duplicate di Excel: ${candidate.toko!.nomor_ulok} / ${candidate.toko!.lingkup_pekerjaan ?? "-"} muncul ${count} kali`);
+    const statusRank = (status: string | null): number => {
+        const normalized = normalizeCell(status).toUpperCase();
+        if (normalized.includes("DISETUJUI") || normalized.includes("APPROVED")) return 3;
+        if (normalized.includes("MENUNGGU") || normalized.includes("WAITING")) return 2;
+        return 1;
+    };
+    const timeRank = (candidate: Candidate): number => {
+        if (!candidate.rab.created_at) return 0;
+        const parsed = new Date(candidate.rab.created_at).getTime();
+        return Number.isFinite(parsed) ? parsed : 0;
+    };
+
+    for (const [key, duplicateRows] of duplicatesByKey) {
+        if (duplicateRows.length <= 1) continue;
+        const ranked = [...duplicateRows].sort((left, right) =>
+            statusRank(right.rab.status) - statusRank(left.rab.status)
+            || right.items.length - left.items.length
+            || Number(right.rab.grand_total ?? 0) - Number(left.rab.grand_total ?? 0)
+            || timeRank(right) - timeRank(left)
+            || right.source_rab_id - left.source_rab_id
+        );
+        const winner = ranked[0];
+        for (const candidate of duplicateRows) {
+            candidate.duplicate_group_key = key;
+            candidate.duplicate_count = duplicateRows.length;
+            candidate.duplicate_recommended = candidate.source_rab_id === winner.source_rab_id;
+            candidate.warnings.push(
+                candidate.duplicate_recommended
+                    ? `Duplicate ${duplicateRows.length} baris: kandidat ini direkomendasikan berdasarkan status, jumlah item, nilai, dan tanggal`
+                    : `Duplicate ${duplicateRows.length} baris: kandidat rekomendasi adalah source RAB #${winner.source_rab_id}`
+            );
         }
     }
 };
 
 const appendItemTotalConsistencyIssue = (
-    issues: string[],
+    warnings: string[],
     rab: SourceRab,
     items: SourceRabItem[]
 ): void => {
@@ -215,7 +243,7 @@ const appendItemTotalConsistencyIssue = (
     if (!Number.isFinite(itemTotal) || !Number.isFinite(headerTotal)) return;
     if (Math.abs(itemTotal - headerTotal) <= 1) return;
 
-    issues.push(
+    warnings.push(
         `Jumlah total_harga item (${Math.round(itemTotal)}) tidak sama dengan grand_total RAB (${Math.round(headerTotal)})`
     );
 };
@@ -591,7 +619,7 @@ const parseLegacyWorkbook = (workbook: xlsx.WorkBook): ParsedWorkbook => {
         const fallbackItemCount = fallbackItemsByRabId.get(sourceRabId) ?? 0;
         if (skippedItemCount > 0) issues.push(`${skippedItemCount} baris item tidak ikut masuk karena jenis_pekerjaan kosong`);
         if (fallbackItemCount > 0) warnings.push(`${fallbackItemCount} item memakai fallback kategori/satuan`);
-        appendItemTotalConsistencyIssue(issues, rab, items);
+        appendItemTotalConsistencyIssue(warnings, rab, items);
 
         candidates.push({
             source_rab_id: sourceRabId,
@@ -600,7 +628,10 @@ const parseLegacyWorkbook = (workbook: xlsx.WorkBook): ParsedWorkbook => {
             rab,
             items,
             issues,
-            warnings
+            warnings,
+            duplicate_group_key: null,
+            duplicate_count: 1,
+            duplicate_recommended: true
         });
     }
 
@@ -618,6 +649,19 @@ const parseLegacyWorkbook = (workbook: xlsx.WorkBook): ParsedWorkbook => {
 const parseDataFormWorkbook = async (workbook: xlsx.WorkBook): Promise<ParsedWorkbook> => {
     const rows = readRows(workbook, "Form2");
     const enrichmentByKey = await buildDataFormEnrichment(workbook, rows);
+    const itemMetadataByName = new Map<string, { kategori: string | null; satuan: string | null }>();
+    for (const row of rows) {
+        for (let itemNumber = 1; itemNumber <= 200; itemNumber += 1) {
+            const jenis = nullableText(row[`Jenis_Pekerjaan_${itemNumber}`]);
+            if (!jenis) continue;
+            const key = normalizeCell(jenis).replace(/\s+/g, " ").toUpperCase();
+            const current = itemMetadataByName.get(key) ?? { kategori: null, satuan: null };
+            itemMetadataByName.set(key, {
+                kategori: current.kategori ?? nullableText(row[`Kategori_Pekerjaan_${itemNumber}`]),
+                satuan: current.satuan ?? nullableText(row[`Satuan_Item_${itemNumber}`])
+            });
+        }
+    }
     const candidates: Candidate[] = [];
 
     for (let index = 0; index < rows.length; index += 1) {
@@ -643,12 +687,19 @@ const parseDataFormWorkbook = async (workbook: xlsx.WorkBook): Promise<ParsedWor
 
         const items: SourceRabItem[] = [];
         let fallbackItemCount = 0;
+        let inferredItemCount = 0;
         for (let itemNumber = 1; itemNumber <= 200; itemNumber += 1) {
             const jenis = nullableText(row[`Jenis_Pekerjaan_${itemNumber}`]);
             if (!jenis) continue;
 
-            const kategori = nullableText(row[`Kategori_Pekerjaan_${itemNumber}`]);
-            const satuan = nullableText(row[`Satuan_Item_${itemNumber}`]);
+            const metadata = itemMetadataByName.get(
+                normalizeCell(jenis).replace(/\s+/g, " ").toUpperCase()
+            );
+            const rawKategori = nullableText(row[`Kategori_Pekerjaan_${itemNumber}`]);
+            const rawSatuan = nullableText(row[`Satuan_Item_${itemNumber}`]);
+            const kategori = rawKategori ?? metadata?.kategori ?? null;
+            const satuan = rawSatuan ?? metadata?.satuan ?? null;
+            if ((!rawKategori && kategori) || (!rawSatuan && satuan)) inferredItemCount += 1;
             if (!kategori || !satuan) fallbackItemCount += 1;
 
             items.push({
@@ -671,6 +722,7 @@ const parseDataFormWorkbook = async (workbook: xlsx.WorkBook): Promise<ParsedWor
         const warnings: string[] = [];
         if (items.length === 0) issues.push("RAB tidak memiliki item");
         if (!toko.nomor_ulok) issues.push("Nomor ULOK kosong");
+        if (inferredItemCount > 0) warnings.push(`${inferredItemCount} item dilengkapi kategori/satuan dari pekerjaan identik di DATA FORM`);
         if (fallbackItemCount > 0) warnings.push(`${fallbackItemCount} item memakai fallback kategori/satuan`);
         if (!toko.nama_kontraktor) warnings.push("Nama kontraktor tidak ditemukan di Form2.Nama_PT/SPK_Data/user_cabang");
         if (!enriched?.kode_toko) warnings.push("Kode toko tidak ditemukan di SPK_Data/dokumentasi_bangunan/DB existing");
@@ -712,7 +764,7 @@ const parseDataFormWorkbook = async (workbook: xlsx.WorkBook): Promise<ParsedWor
             grand_total_final: integerMoneyText(row["Grand Total Final"]),
             created_at: excelDateToIso(row.Timestamp)
         };
-        appendItemTotalConsistencyIssue(issues, rab, items);
+        appendItemTotalConsistencyIssue(warnings, rab, items);
 
         candidates.push({
             source_rab_id: sourceId,
@@ -721,7 +773,10 @@ const parseDataFormWorkbook = async (workbook: xlsx.WorkBook): Promise<ParsedWor
             rab,
             items,
             issues,
-            warnings
+            warnings,
+            duplicate_group_key: null,
+            duplicate_count: 1,
+            duplicate_recommended: true
         });
     }
 
@@ -1345,6 +1400,9 @@ export const rabMigrationService = {
                 existing_item_count: existing.existing_item_count,
                 existing_match_count: existing.existing_match_count,
                 has_materai_pdf: Boolean(candidate.rab.link_pdf_materai),
+                duplicate_group_key: candidate.duplicate_group_key,
+                duplicate_count: candidate.duplicate_count,
+                duplicate_recommended: candidate.duplicate_recommended,
                 issues: rowIssues,
                 warnings: candidate.warnings
             });
@@ -1373,6 +1431,24 @@ export const rabMigrationService = {
         const parsed = await parseWorkbook(buffer, materaiBuffer);
         const candidates = parsed.candidates;
         const candidateBySourceId = new Map(candidates.map((candidate) => [candidate.source_rab_id, candidate]));
+        const selectedDuplicateGroups = new Map<string, number[]>();
+        for (const selection of input.selections) {
+            if (selection.action === "skip") continue;
+            const candidate = candidateBySourceId.get(selection.source_rab_id);
+            if (!candidate?.duplicate_group_key) continue;
+            selectedDuplicateGroups.set(candidate.duplicate_group_key, [
+                ...(selectedDuplicateGroups.get(candidate.duplicate_group_key) ?? []),
+                candidate.source_rab_id
+            ]);
+        }
+        for (const sourceIds of selectedDuplicateGroups.values()) {
+            if (sourceIds.length > 1) {
+                throw new AppError(
+                    `Pilih hanya satu RAB dari grup duplicate. Source terpilih bersamaan: ${sourceIds.join(", ")}`,
+                    409
+                );
+            }
+        }
         const selected = input.selections.filter((selection) => selection.action !== "skip");
 
         const results = await withTransaction(async (client) => {

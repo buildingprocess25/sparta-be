@@ -31,6 +31,7 @@ type MigrationCandidate = {
     source_max_h: number;
     header_count: number;
     issues: string[];
+    warnings: string[];
 };
 
 type ExistingContext = {
@@ -47,6 +48,13 @@ const normalizeText = (value: unknown): string => String(value ?? "").trim();
 const normalizeKeyPart = (value: unknown): string => normalizeText(value).toUpperCase();
 const candidateKey = (nomorUlok: string, lingkup: string): string =>
     `${normalizeKeyPart(nomorUlok)}\u0000${normalizeKeyPart(lingkup)}`;
+const normalizeUlok = (value: unknown, lingkup: unknown): string => {
+    const raw = normalizeText(value);
+    const scope = normalizeKeyPart(lingkup);
+    if (scope === "SIPIL") return raw.replace(/[-_\s]+SIPIL$/i, "");
+    if (scope === "ME") return raw.replace(/[-_\s]+ME$/i, "");
+    return raw;
+};
 
 const normalizeCategory = (value: unknown): string =>
     normalizeText(value)
@@ -134,8 +142,8 @@ const parseWorkbook = (buffer: Buffer): MigrationCandidate[] => {
 
     const headersByKey = new Map<string, SheetRow[]>();
     for (const row of ganttRows) {
-        const nomorUlok = normalizeText(row["Nomor Ulok"]);
         const lingkup = normalizeText(row.Lingkup_Pekerjaan);
+        const nomorUlok = normalizeUlok(row["Nomor Ulok"], lingkup);
         if (!nomorUlok) continue;
         const key = candidateKey(nomorUlok, lingkup);
         const rows = headersByKey.get(key) ?? [];
@@ -146,7 +154,7 @@ const parseWorkbook = (buffer: Buffer): MigrationCandidate[] => {
     const daysByKey = new Map<string, SheetRow[]>();
     for (const row of dayRows) {
         const key = candidateKey(
-            normalizeText(row["Nomor Ulok"]),
+            normalizeUlok(row["Nomor Ulok"], row.Lingkup_Pekerjaan),
             normalizeText(row.Lingkup_Pekerjaan)
         );
         const rows = daysByKey.get(key) ?? [];
@@ -157,7 +165,7 @@ const parseWorkbook = (buffer: Buffer): MigrationCandidate[] => {
     const dependenciesByKey = new Map<string, SheetRow[]>();
     for (const row of dependencyRows) {
         const key = candidateKey(
-            normalizeText(row["Nomor Ulok"]),
+            normalizeUlok(row["Nomor Ulok"], row.Lingkup_Pekerjaan),
             normalizeText(row.Lingkup_Pekerjaan)
         );
         const rows = dependenciesByKey.get(key) ?? [];
@@ -167,15 +175,33 @@ const parseWorkbook = (buffer: Buffer): MigrationCandidate[] => {
 
     const candidates: MigrationCandidate[] = [];
     for (const [key, headers] of headersByKey) {
-        const header = headers[0];
-        const nomorUlok = normalizeText(header["Nomor Ulok"]);
+        const rankedHeaders = [...headers].sort((left, right) => {
+            const statusLeft = normalizeText(left.Status).toLowerCase() === GANTT_STATUS.TERKUNCI ? 1 : 0;
+            const statusRight = normalizeText(right.Status).toLowerCase() === GANTT_STATUS.TERKUNCI ? 1 : 0;
+            return statusRight - statusLeft
+                || normalizeText(right.Timestamp).localeCompare(normalizeText(left.Timestamp));
+        });
+        const header = rankedHeaders[0];
         const lingkup = normalizeText(header.Lingkup_Pekerjaan);
+        const nomorUlok = normalizeUlok(header["Nomor Ulok"], lingkup);
         const issues: string[] = [];
+        const warnings: string[] = [];
         if (headers.length > 1) {
-            issues.push(`Header duplikat di Excel: ${headers.length} baris`);
+            const headerSignatures = new Set(headers.map((row) => {
+                const categories: string[] = [];
+                for (let index = 1; index <= 30; index += 1) {
+                    appendCategory(categories, row[`Kategori_${index}`]);
+                }
+                return categories.map(normalizeCategory).sort().join("|");
+            }));
+            if (headerSignatures.size > 1) {
+                issues.push(`Header duplikat berbeda isi di Excel: ${headers.length} baris`);
+            } else {
+                warnings.push(`Header duplikat identik ${headers.length} baris; memakai status Terkunci/terbaru`);
+            }
         }
 
-        const rawDayItems = (daysByKey.get(key) ?? []).flatMap((row) => {
+        const rawDayItemsAll = (daysByKey.get(key) ?? []).flatMap((row) => {
             const category = normalizeText(row.Kategori);
             const start = parseDate(row.h_awal);
             const end = parseDate(row.h_akhir);
@@ -188,6 +214,19 @@ const parseWorkbook = (buffer: Buffer): MigrationCandidate[] => {
                 kecepatan: normalizeText(row.kecepatan) || null,
             }];
         });
+        const rawDayItems = Array.from(new Map(rawDayItemsAll.map((item) => [
+            [
+                normalizeCategory(item.category),
+                item.start,
+                item.end,
+                normalizeText(item.keterlambatan),
+                normalizeText(item.kecepatan)
+            ].join("|"),
+            item
+        ])).values());
+        if (rawDayItems.length < rawDayItemsAll.length) {
+            warnings.push(`${rawDayItemsAll.length - rawDayItems.length} periode day_gantt_chart identik dideduplikasi`);
+        }
 
         if (rawDayItems.length === 0) {
             issues.push("Tidak memiliki baris day_gantt_chart yang valid");
@@ -208,7 +247,7 @@ const parseWorkbook = (buffer: Buffer): MigrationCandidate[] => {
             }));
         }
 
-        const dependencies: DependencyItemInput[] = (dependenciesByKey.get(key) ?? [])
+        const rawDependencies: DependencyItemInput[] = (dependenciesByKey.get(key) ?? [])
             .flatMap((row) => {
                 const category = normalizeText(row.Kategori);
                 const boundCategory = normalizeText(row.Kategori_Terikat);
@@ -218,6 +257,13 @@ const parseWorkbook = (buffer: Buffer): MigrationCandidate[] => {
                     kategori_pekerjaan_terikat: boundCategory,
                 }];
             });
+        const dependencies = Array.from(new Map(rawDependencies.map((item) => [
+            `${normalizeCategory(item.kategori_pekerjaan)}|${normalizeCategory(item.kategori_pekerjaan_terikat)}`,
+            item
+        ])).values());
+        if (dependencies.length < rawDependencies.length) {
+            warnings.push(`${rawDependencies.length - dependencies.length} dependency identik dideduplikasi`);
+        }
 
         const categories: string[] = [];
         for (let index = 1; index <= 30; index += 1) {
@@ -256,6 +302,7 @@ const parseWorkbook = (buffer: Buffer): MigrationCandidate[] => {
             source_max_h: sourceMaxH,
             header_count: headers.length,
             issues,
+            warnings,
         });
     }
 
@@ -492,6 +539,7 @@ const analyzeCandidate = (
         existing_matches_source: existingMatchesSource,
         pengawasan_count: existing.pengawasan_count,
         issues,
+        warnings: candidate.warnings,
         allowed_actions: allowedActions,
     };
 };

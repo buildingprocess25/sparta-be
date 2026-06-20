@@ -114,6 +114,27 @@ const nullableText = (value: unknown): string | null => {
 };
 
 const normalizeKey = (value: unknown): string => normalizeCell(value).toUpperCase();
+const normalizeWorkCategory = (value: unknown): string =>
+    normalizeKey(value)
+        .replace(/[^A-Z0-9]+/g, " ")
+        .replace(/\bPEKERJAAN\b/g, "")
+        .replace(/ACECORIES|ACCESSORIES|AKSESORIS/g, "ACCESORIES")
+        .replace(/\bSANITER\b/g, "SANITARY")
+        .replace(/\bPLAFON\b/g, "PLAFOND")
+        .replace(/\s+/g, " ")
+        .trim();
+
+const inferWorkCategory = (jenisPekerjaan: string): string | null => {
+    const normalized = normalizeKey(jenisPekerjaan);
+    for (const rule of CATEGORY_KEYWORDS) {
+        if (rule.keywords.some((keyword) => normalized.includes(keyword))) {
+            const representative = rule.keywords[0];
+            if (representative === "BOBOK") return normalizeWorkCategory("BOBOKAN / BONGKARAN");
+            return normalizeWorkCategory(representative);
+        }
+    }
+    return null;
+};
 
 const targetKey = (target: TargetContext): string =>
     `${target.gantt_id ?? target.toko_id}\u0000${normalizeKey(target.lingkup_pekerjaan)}`;
@@ -427,7 +448,10 @@ const loadRabItemsByCategory = async (
         [target.rab_id]
     );
     for (const row of result.rows) {
-        const key = normalizeKey(row.kategori_pekerjaan);
+        const rawKey = normalizeWorkCategory(row.kategori_pekerjaan);
+        const key = rawKey === normalizeWorkCategory("LAINNYA")
+            ? inferWorkCategory(row.jenis_pekerjaan) ?? rawKey
+            : rawKey;
         const items = itemsByCategory.get(key) ?? [];
         items.push(row);
         itemsByCategory.set(key, items);
@@ -442,7 +466,7 @@ const mapPekerjaanForCategories = (
 ): WorkItem["pekerjaan"] => {
     return categories.flatMap((category, index) => {
         const sourceProgress = progress[index];
-        return (rabItemsByCategory.get(normalizeKey(category)) ?? []).map((item) => ({
+        return (rabItemsByCategory.get(normalizeWorkCategory(category)) ?? []).map((item) => ({
             kategori_pekerjaan: item.kategori_pekerjaan,
             jenis_pekerjaan: item.jenis_pekerjaan,
             catatan: sourceProgress?.catatan ?? null,
@@ -729,8 +753,20 @@ const buildWorkItems = async (buffer: Buffer): Promise<WorkItem[]> => {
                     last_h_day: source.h_day
                 });
             }
-            if (target && source.progress.length > 0 && pekerjaan.length === 0) {
-                issues.push(`Item pekerjaan Gantt/RAB untuk H${source.h_day} tidak ditemukan`);
+            if (target?.gantt_id && target.rab_id && source.progress.length > 0 && pekerjaan.length === 0) {
+                const scheduledCategories = target?.gantt_id
+                    ? (schedulesByGantt.get(target.gantt_id) ?? [])
+                        .filter((schedule) => source.h_day >= schedule.h_awal && source.h_day <= schedule.h_akhir)
+                        .map((schedule) => schedule.kategori_pekerjaan)
+                    : [];
+                const availableRabCategories = target?.rab_id
+                    ? [...(rabItemsByRab.get(target.rab_id)?.keys() ?? [])]
+                    : [];
+                issues.push(
+                    `Item pekerjaan Gantt/RAB untuk H${source.h_day} tidak ditemukan`
+                    + ` (kategori Gantt aktif: ${scheduledCategories.join(", ") || "-"};`
+                    + ` kategori RAB tersedia: ${availableRabCategories.join(", ") || "-"})`
+                );
             }
             const mappedCategoryCount = new Set(
                 pekerjaan.map((item) => normalizeKey(item.kategori_pekerjaan))
