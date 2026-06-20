@@ -196,6 +196,135 @@ const writeCandidate = async (
     return { status: "inserted", source_candidate_id: candidate.source_candidate_id, id_toko: candidate.toko_id };
 };
 
+const reconcileFinalPengawasan = async (
+    client: PoolClient,
+    candidate: Candidate
+): Promise<{ checkpoint_id: number | null; completed_items: number; warning: string | null }> => {
+    if (!candidate.toko_id || !candidate.created_at) {
+        return { checkpoint_id: null, completed_items: 0, warning: "Target toko/tanggal ST tidak tersedia" };
+    }
+
+    const ganttResult = await client.query<{ id: number }>(`
+        SELECT id
+        FROM gantt_chart
+        WHERE id_toko = $1
+        ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, id DESC
+        LIMIT 1
+    `, [candidate.toko_id]);
+    const ganttId = ganttResult.rows[0]?.id;
+    if (!ganttId) {
+        return { checkpoint_id: null, completed_items: 0, warning: "Gantt target tidak ditemukan" };
+    }
+
+    const dateResult = await client.query<{ tanggal: string }>(
+        `SELECT to_char($1::timestamp, 'DD/MM/YYYY') AS tanggal`,
+        [candidate.created_at]
+    );
+    const tanggal = dateResult.rows[0].tanggal;
+    const existingCheckpoint = await client.query<{ id: number }>(`
+        SELECT id
+        FROM pengawasan_gantt
+        WHERE id_gantt = $1 AND tanggal_pengawasan = $2
+        ORDER BY id DESC
+        LIMIT 1
+        FOR UPDATE
+    `, [ganttId, tanggal]);
+
+    let checkpointId = existingCheckpoint.rows[0]?.id ?? null;
+    if (!checkpointId) {
+        const insertedCheckpoint = await client.query<{ id: number }>(`
+            INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan, id_pic_pengawasan)
+            SELECT $1, $2, pg.id_pic_pengawasan
+            FROM pengawasan_gantt pg
+            WHERE pg.id_gantt = $1
+            ORDER BY pg.id DESC
+            LIMIT 1
+            RETURNING id
+        `, [ganttId, tanggal]);
+        if (!insertedCheckpoint.rows[0]) {
+            const fallbackCheckpoint = await client.query<{ id: number }>(`
+                INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan)
+                VALUES ($1, $2)
+                RETURNING id
+            `, [ganttId, tanggal]);
+            checkpointId = fallbackCheckpoint.rows[0].id;
+        } else {
+            checkpointId = insertedCheckpoint.rows[0].id;
+        }
+    }
+
+    await client.query(`
+        UPDATE pengawasan
+        SET status = 'selesai',
+            catatan = COALESCE(NULLIF(catatan, ''), 'Diselesaikan berdasarkan Serah Terima DITERIMA')
+        WHERE id_pengawasan_gantt = $1
+    `, [checkpointId]);
+
+    const insertedItems = await client.query(`
+        WITH latest_item AS (
+            SELECT DISTINCT ON (
+                UPPER(TRIM(p.kategori_pekerjaan)),
+                UPPER(TRIM(p.jenis_pekerjaan))
+            )
+                p.kategori_pekerjaan,
+                p.jenis_pekerjaan,
+                p.dokumentasi,
+                p.dokumentasi_base64
+            FROM pengawasan p
+            JOIN pengawasan_gantt pg ON pg.id = p.id_pengawasan_gantt
+            WHERE p.id_gantt = $1
+              AND p.id_pengawasan_gantt <> $2
+            ORDER BY
+                UPPER(TRIM(p.kategori_pekerjaan)),
+                UPPER(TRIM(p.jenis_pekerjaan)),
+                pg.id DESC,
+                p.id DESC
+        )
+        INSERT INTO pengawasan (
+            id_gantt,
+            id_pengawasan_gantt,
+            kategori_pekerjaan,
+            jenis_pekerjaan,
+            catatan,
+            dokumentasi,
+            dokumentasi_base64,
+            status
+        )
+        SELECT
+            $1,
+            $2,
+            latest.kategori_pekerjaan,
+            latest.jenis_pekerjaan,
+            'Diselesaikan berdasarkan Serah Terima DITERIMA',
+            latest.dokumentasi,
+            latest.dokumentasi_base64,
+            'selesai'
+        FROM latest_item latest
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM pengawasan current_item
+            WHERE current_item.id_pengawasan_gantt = $2
+              AND UPPER(TRIM(current_item.kategori_pekerjaan)) = UPPER(TRIM(latest.kategori_pekerjaan))
+              AND UPPER(TRIM(current_item.jenis_pekerjaan)) = UPPER(TRIM(latest.jenis_pekerjaan))
+        )
+    `, [ganttId, checkpointId]);
+
+    const finalCount = await client.query<{ count: number }>(`
+        SELECT COUNT(*)::int AS count
+        FROM pengawasan
+        WHERE id_pengawasan_gantt = $1
+          AND status = 'selesai'
+    `, [checkpointId]);
+    const completedItems = finalCount.rows[0]?.count ?? 0;
+    return {
+        checkpoint_id: checkpointId,
+        completed_items: completedItems,
+        warning: completedItems === 0
+            ? "Tidak ada item pengawasan yang dapat direkonsiliasi"
+            : null
+    };
+};
+
 export const serahTerimaMigrationService = {
     async preview(buffer: Buffer, actorRole: string) {
         if (!hasSuperHumanRole(actorRole)) throw new AppError("Hanya Super Human yang dapat melakukan migrasi Serah Terima", 403);
@@ -236,7 +365,11 @@ export const serahTerimaMigrationService = {
             for (const selection of input.selections) {
                 const candidate = byId.get(selection.source_candidate_id);
                 if (!candidate) throw new AppError(`Kandidat ${selection.source_candidate_id} tidak ditemukan`, 404);
-                rows.push(await writeCandidate(client, candidate, selection.action));
+                const written = await writeCandidate(client, candidate, selection.action);
+                const reconciliation = selection.action === "skip"
+                    ? { checkpoint_id: null, completed_items: 0, warning: null }
+                    : await reconcileFinalPengawasan(client, candidate);
+                rows.push({ ...written, reconciliation });
             }
             await activityLogRepository.insert({
                 entity_type: "BERKAS_SERAH_TERIMA",
@@ -252,6 +385,11 @@ export const serahTerimaMigrationService = {
         });
 
         const syncWarnings: string[] = [];
+        for (const row of results) {
+            if (row.reconciliation.warning) {
+                syncWarnings.push(`${row.source_candidate_id}: ${row.reconciliation.warning}`);
+            }
+        }
         for (const idToko of [...new Set(results.filter((row) => row.status !== "skipped" && row.id_toko).map((row) => row.id_toko!))]) {
             try {
                 await opnameFinalService.refreshDendaByTokoId(idToko);
@@ -264,6 +402,8 @@ export const serahTerimaMigrationService = {
             inserted: results.filter((row) => row.status === "inserted").length,
             replaced: results.filter((row) => row.status === "replaced").length,
             skipped: results.filter((row) => row.status === "skipped").length,
+            reconciled_checkpoints: results.filter((row) => row.reconciliation.checkpoint_id !== null).length,
+            reconciled_items: results.reduce((sum, row) => sum + row.reconciliation.completed_items, 0),
             sync_warnings: syncWarnings,
             details: results
         };
