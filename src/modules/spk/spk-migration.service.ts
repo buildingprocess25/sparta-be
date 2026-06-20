@@ -45,12 +45,18 @@ type Candidate = {
 
 type ExistingSpk = {
     existing_toko_id: number | null;
+    existing_toko_proyek: string | null;
     existing_toko_match_count: number;
     existing_spk_id: number | null;
     existing_spk_status: string | null;
     existing_spk_created_at: string | null;
     existing_spk_match_count: number;
 };
+
+const UNKNOWN_PROJECT = "Tidak Diketahui";
+
+const inferProjectFromUlok = (nomorUlok: string): string =>
+    /R$/i.test(nomorUlok.trim()) ? "Renovasi" : "Alfamart Reguler";
 
 const hasSuperHumanRole = (role: string) => role.toUpperCase().includes("SUPER HUMAN");
 
@@ -140,6 +146,25 @@ const parseWorkbook = (buffer: Buffer): Candidate[] => {
     }
 
     const rows = readRows(workbook, "SPK_Data");
+    const projectByExactKey = new Map<string, string>();
+    const projectByUlok = new Map<string, string>();
+    const registerProject = (nomorUlok: unknown, lingkup: unknown, proyek: unknown): void => {
+        const project = nullableText(proyek);
+        const ulok = normalizeCell(nomorUlok);
+        if (!project || !ulok) return;
+        const exactKey = naturalKey(ulok, lingkup);
+        if (!projectByExactKey.has(exactKey)) projectByExactKey.set(exactKey, project);
+        const ulokKey = ulok.toUpperCase();
+        if (!projectByUlok.has(ulokKey)) projectByUlok.set(ulokKey, project);
+    };
+
+    for (const row of rows) {
+        registerProject(row["Nomor Ulok"], row["Lingkup Pekerjaan"], row.Proyek);
+    }
+    for (const row of readRows(workbook, "Form2")) {
+        registerProject(row["Nomor Ulok"], row["Lingkup_Pekerjaan"], row.Proyek);
+    }
+
     const candidates: Candidate[] = [];
     for (let index = 0; index < rows.length; index += 1) {
         const row = rows[index];
@@ -156,12 +181,17 @@ const parseWorkbook = (buffer: Buffer): Candidate[] => {
         const createdAt = excelDateToIso(row.Timestamp);
         const waktuPersetujuan = excelDateToIso(row["Waktu Persetujuan"]);
 
+        const projectFromSource = nullableText(row.Proyek);
+        const projectFromRelatedData = projectByExactKey.get(naturalKey(nomorUlok ?? "", lingkup ?? ""))
+            ?? projectByUlok.get((nomorUlok ?? "").toUpperCase())
+            ?? null;
+        const projectFromUlok = nomorUlok ? inferProjectFromUlok(nomorUlok) : null;
         const spk: SourceSpk = {
             source_spk_id: sourceSpkId,
             nomor_spk: nomorSpk ?? "",
             par: nullableText(row.PAR),
             nomor_ulok: nomorUlok ?? "",
-            proyek: nullableText(row.Proyek),
+            proyek: projectFromSource ?? projectFromRelatedData ?? projectFromUlok ?? UNKNOWN_PROJECT,
             alamat: nullableText(row.Alamat),
             cabang: nullableText(row.Cabang),
             kode_toko: nullableText(row["Kode Toko"]),
@@ -191,12 +221,17 @@ const parseWorkbook = (buffer: Buffer): Candidate[] => {
         if (!spk.lingkup_pekerjaan) issues.push("Lingkup pekerjaan kosong");
         if (!spk.email_pembuat || !spk.email_pembuat.includes("@")) issues.push("Email pembuat kosong/tidak valid");
         if (!spk.nama_kontraktor) issues.push("Nama kontraktor kosong");
-        if (!spk.proyek) issues.push("Proyek kosong");
         if (!spk.waktu_mulai) issues.push("Waktu mulai kosong/tidak valid");
         if (!spk.waktu_selesai) issues.push("Waktu selesai kosong/tidak valid");
         if (spk.durasi <= 0) issues.push("Durasi kosong/tidak valid");
         if (spk.grand_total <= 0) issues.push("Grand total kosong/tidak valid");
         if (!spk.link_pdf) warnings.push("Link PDF kosong");
+        if (!projectFromSource && projectFromRelatedData) {
+            warnings.push(`Proyek diisi dari data ULOK terkait: ${projectFromRelatedData}`);
+        }
+        if (!projectFromSource && !projectFromRelatedData && projectFromUlok) {
+            warnings.push(`Proyek ditentukan dari akhiran ULOK: ${projectFromUlok}`);
+        }
         if (!spk.kode_toko) warnings.push("Kode toko kosong di Excel, akan memakai data toko DB bila ada");
         if (spk.status === SPK_STATUS.SPK_APPROVED && !spk.approver_email) warnings.push("SPK approved tanpa email approver");
         if (!spk.created_at) warnings.push("Timestamp kosong/tidak valid, created_at akan memakai waktu commit");
@@ -209,17 +244,55 @@ const parseWorkbook = (buffer: Buffer): Candidate[] => {
         });
     }
 
-    const duplicateCountByKey = new Map<string, number>();
+    const duplicatesByKey = new Map<string, Candidate[]>();
     for (const candidate of candidates) {
         const key = naturalKey(candidate.spk.nomor_ulok, candidate.spk.lingkup_pekerjaan);
         if (!key.trim()) continue;
-        duplicateCountByKey.set(key, (duplicateCountByKey.get(key) ?? 0) + 1);
+        duplicatesByKey.set(key, [...(duplicatesByKey.get(key) ?? []), candidate]);
     }
-    for (const candidate of candidates) {
-        const key = naturalKey(candidate.spk.nomor_ulok, candidate.spk.lingkup_pekerjaan);
-        const count = duplicateCountByKey.get(key) ?? 0;
-        if (count > 1) {
-            candidate.issues.push(`Duplicate di Excel: ${candidate.spk.nomor_ulok} / ${candidate.spk.lingkup_pekerjaan} muncul ${count} kali`);
+
+    const statusRank = (status: SpkStatus): number => {
+        if (status === SPK_STATUS.SPK_APPROVED) return 3;
+        if (status === SPK_STATUS.WAITING_FOR_BM_APPROVAL) return 2;
+        return 1;
+    };
+    const completenessScore = (spk: SourceSpk): number => [
+        spk.nomor_spk,
+        spk.nomor_ulok,
+        spk.lingkup_pekerjaan,
+        spk.email_pembuat,
+        spk.nama_kontraktor,
+        spk.proyek && spk.proyek !== UNKNOWN_PROJECT ? spk.proyek : "",
+        spk.waktu_mulai,
+        spk.waktu_selesai,
+        spk.grand_total > 0 ? spk.grand_total : 0,
+        spk.link_pdf,
+        spk.approver_email,
+        spk.waktu_persetujuan
+    ].filter(Boolean).length;
+    const timeScore = (spk: SourceSpk): number => {
+        const raw = spk.waktu_persetujuan ?? spk.created_at;
+        if (!raw) return 0;
+        const parsed = new Date(raw).getTime();
+        return Number.isFinite(parsed) ? parsed : 0;
+    };
+
+    for (const duplicateRows of duplicatesByKey.values()) {
+        if (duplicateRows.length <= 1) continue;
+        const ranked = [...duplicateRows].sort((left, right) =>
+            statusRank(right.spk.status) - statusRank(left.spk.status)
+            || completenessScore(right.spk) - completenessScore(left.spk)
+            || timeScore(right.spk) - timeScore(left.spk)
+            || right.source_spk_id - left.source_spk_id
+        );
+        const winner = ranked[0];
+        winner.warnings.push(
+            `Dipilih otomatis dari ${duplicateRows.length} duplicate karena status/kelengkapan/tanggal paling kuat`
+        );
+        for (const loser of ranked.slice(1)) {
+            loser.issues.push(
+                `Duplicate tidak terpilih. Kandidat utama: source SPK #${winner.source_spk_id} (${winner.spk.status})`
+            );
         }
     }
 
@@ -247,6 +320,7 @@ const findExistingSpks = async (candidates: Candidate[]): Promise<Map<string, Ex
         nomor_ulok: string;
         lingkup_pekerjaan: string;
         toko_id: number | null;
+        toko_proyek: string | null;
         toko_match_count: string | number | null;
         spk_id: number | null;
         spk_status: string | null;
@@ -261,6 +335,7 @@ const findExistingSpks = async (candidates: Candidate[]): Promise<Map<string, Ex
             w.nomor_ulok,
             w.lingkup_pekerjaan,
             t.id AS toko_id,
+            t.proyek AS toko_proyek,
             t.match_count AS toko_match_count,
             p.id AS spk_id,
             p.status AS spk_status,
@@ -268,7 +343,7 @@ const findExistingSpks = async (candidates: Candidate[]): Promise<Map<string, Ex
             p.match_count AS spk_match_count
         FROM wanted w
         LEFT JOIN LATERAL (
-            SELECT id, COUNT(*) OVER () AS match_count
+            SELECT id, proyek, COUNT(*) OVER () AS match_count
             FROM toko
             WHERE nomor_ulok = w.nomor_ulok
               AND LOWER(COALESCE(lingkup_pekerjaan, '')) = LOWER(COALESCE(w.lingkup_pekerjaan, ''))
@@ -290,6 +365,7 @@ const findExistingSpks = async (candidates: Candidate[]): Promise<Map<string, Ex
     for (const row of rows.rows) {
         resultMap.set(existingKey(row.nomor_ulok, row.lingkup_pekerjaan), {
             existing_toko_id: row.toko_id,
+            existing_toko_proyek: row.toko_proyek,
             existing_toko_match_count: Number(row.toko_match_count ?? 0),
             existing_spk_id: row.spk_id,
             existing_spk_status: row.spk_status,
@@ -304,6 +380,7 @@ const findExistingSpks = async (candidates: Candidate[]): Promise<Map<string, Ex
 const findExistingSpk = async (candidate: Candidate, client: PoolClient): Promise<ExistingSpk> => {
     const result = await client.query<{
         toko_id: number | null;
+        toko_proyek: string | null;
         toko_match_count: string | number | null;
         spk_id: number | null;
         spk_status: string | null;
@@ -313,6 +390,7 @@ const findExistingSpk = async (candidate: Candidate, client: PoolClient): Promis
         `
         SELECT
             t.id AS toko_id,
+            t.proyek AS toko_proyek,
             t.match_count AS toko_match_count,
             p.id AS spk_id,
             p.status AS spk_status,
@@ -320,7 +398,7 @@ const findExistingSpk = async (candidate: Candidate, client: PoolClient): Promis
             p.match_count AS spk_match_count
         FROM (SELECT 1) seed
         LEFT JOIN LATERAL (
-            SELECT id, COUNT(*) OVER () AS match_count
+            SELECT id, proyek, COUNT(*) OVER () AS match_count
             FROM toko
             WHERE nomor_ulok = $1
               AND LOWER(COALESCE(lingkup_pekerjaan, '')) = LOWER(COALESCE($2, ''))
@@ -342,6 +420,7 @@ const findExistingSpk = async (candidate: Candidate, client: PoolClient): Promis
     const row = result.rows[0];
     return {
         existing_toko_id: row?.toko_id ?? null,
+        existing_toko_proyek: row?.toko_proyek ?? null,
         existing_toko_match_count: Number(row?.toko_match_count ?? 0),
         existing_spk_id: row?.spk_id ?? null,
         existing_spk_status: row?.spk_status ?? null,
@@ -357,6 +436,7 @@ const insertOrUpdateTokoFromSpk = async (
     replaceToko: boolean
 ): Promise<void> => {
     if (!replaceToko) return;
+    const projectForToko = spk.proyek === UNKNOWN_PROJECT ? null : spk.proyek;
     await client.query(
         `
         UPDATE toko
@@ -368,7 +448,7 @@ const insertOrUpdateTokoFromSpk = async (
             nama_kontraktor = COALESCE($6, nama_kontraktor)
         WHERE id = $7
         `,
-        [spk.kode_toko, spk.nama_toko, spk.proyek, spk.cabang, spk.alamat, spk.nama_kontraktor, tokoId]
+        [spk.kode_toko, spk.nama_toko, projectForToko, spk.cabang, spk.alamat, spk.nama_kontraktor, tokoId]
     );
 };
 
@@ -534,6 +614,9 @@ const applyCandidate = async (
     }
 
     const existing = await findExistingSpk(candidate, client);
+    if (candidate.spk.proyek === UNKNOWN_PROJECT && existing.existing_toko_proyek) {
+        candidate.spk.proyek = existing.existing_toko_proyek;
+    }
     if (!existing.existing_toko_id) {
         throw new AppError(`Toko untuk SPK ${candidate.spk.nomor_ulok} ${candidate.spk.lingkup_pekerjaan} tidak ditemukan`, 404);
     }
@@ -583,7 +666,19 @@ export const spkMigrationService = {
 
         for (const candidate of candidates) {
             const existing = existingByKey.get(existingKey(candidate.spk.nomor_ulok, candidate.spk.lingkup_pekerjaan))
-                ?? { existing_toko_id: null, existing_toko_match_count: 0, existing_spk_id: null, existing_spk_status: null, existing_spk_created_at: null, existing_spk_match_count: 0 };
+                ?? {
+                    existing_toko_id: null,
+                    existing_toko_proyek: null,
+                    existing_toko_match_count: 0,
+                    existing_spk_id: null,
+                    existing_spk_status: null,
+                    existing_spk_created_at: null,
+                    existing_spk_match_count: 0
+                };
+            if (candidate.spk.proyek === UNKNOWN_PROJECT && existing.existing_toko_proyek) {
+                candidate.spk.proyek = existing.existing_toko_proyek;
+                candidate.warnings.push(`Proyek diisi dari toko DB: ${existing.existing_toko_proyek}`);
+            }
             const rowIssues = [...candidate.issues];
             if (!existing.existing_toko_id) rowIssues.push("Toko belum ada di DB untuk ULOK + lingkup ini");
             if (existing.existing_toko_match_count > 1) rowIssues.push(`Ambigu di DB: ada ${existing.existing_toko_match_count} toko cocok`);
