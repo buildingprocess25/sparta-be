@@ -4,6 +4,7 @@ import { env } from "../../config/env";
 import { calculateDendaByTokoId } from "../denda/denda-keterlambatan";
 import { instruksiLapanganRepository } from "../instruksi-lapangan/instruksi-lapangan.repository";
 import { opnameFinalRepository } from "../opname-final/opname-final.repository";
+import { scheduleAutomaticSerahTerimaIfReady } from "../serah-terima/serah-terima.service";
 import { opnameRepository, type OpnameRow, type TokoSummaryRow } from "./opname.repository";
 import type {
     CreateBulkOpnameItemData,
@@ -199,6 +200,14 @@ const mapBulkCreateResponse = (created: Awaited<ReturnType<typeof opnameReposito
     items: created.items.map((item) => normalizeOpnameFotoLink(item))
 });
 
+const finalizeBulkCreate = async (
+    created: Awaited<ReturnType<typeof opnameRepository.createBulkWithFinal>>
+) => {
+    await refreshOpnameFinalDenda(created.opnameFinal.id, created.opnameFinal.id_toko);
+    await scheduleAutomaticSerahTerimaIfReady(created.opnameFinal.id_toko);
+    return mapBulkCreateResponse(created);
+};
+
 export const opnameService = {
     async create(
         input: CreateOpnameInput,
@@ -253,8 +262,7 @@ export const opnameService = {
                     items
                 });
 
-                await refreshOpnameFinalDenda(created.opnameFinal.id, created.opnameFinal.id_toko);
-                return mapBulkCreateResponse(created);
+                return finalizeBulkCreate(created);
             }
 
             if (uploadedFotoOpnameIndexes && uploadedFotoOpnameIndexes.length > 0) {
@@ -301,8 +309,7 @@ export const opnameService = {
                     items: payloadWithFoto
                 });
 
-                await refreshOpnameFinalDenda(created.opnameFinal.id, created.opnameFinal.id_toko);
-                return mapBulkCreateResponse(created);
+                return finalizeBulkCreate(created);
             }
 
             if (uploadedFotoOpnameFiles.length !== 1 && uploadedFotoOpnameFiles.length !== items.length) {
@@ -340,8 +347,7 @@ export const opnameService = {
                 items: payloadWithFoto
             });
 
-            await refreshOpnameFinalDenda(created.opnameFinal.id, created.opnameFinal.id_toko);
-            return mapBulkCreateResponse(created);
+            return finalizeBulkCreate(created);
         } catch (error) {
             return mapPgError(error);
         }

@@ -29,6 +29,7 @@ type Candidate = SourceAttempt & {
     existing_id: number | null;
     existing_link_pdf: string | null;
     existing_created_at: string | null;
+    gantt_id: number | null;
     issues: string[];
     warnings: string[];
 };
@@ -95,12 +96,14 @@ const resolveCandidates = async (buffer: Buffer): Promise<Candidate[]> => {
         existing_id: number | null;
         existing_link_pdf: string | null;
         existing_created_at: string | null;
+        gantt_id: number | null;
     }>(`
         SELECT
             t.id AS toko_id, t.nomor_ulok, t.lingkup_pekerjaan, t.nama_toko, t.cabang,
             existing.id AS existing_id,
             existing.link_pdf AS existing_link_pdf,
             existing.created_at::text AS existing_created_at
+            ,gantt.id AS gantt_id
         FROM toko t
         LEFT JOIN LATERAL (
             SELECT id, link_pdf, created_at
@@ -108,6 +111,13 @@ const resolveCandidates = async (buffer: Buffer): Promise<Candidate[]> => {
             WHERE id_toko = t.id
             ORDER BY id DESC LIMIT 1
         ) existing ON TRUE
+        LEFT JOIN LATERAL (
+            SELECT id
+            FROM gantt_chart
+            WHERE id_toko = t.id
+            ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, id DESC
+            LIMIT 1
+        ) gantt ON TRUE
         WHERE UPPER(t.nomor_ulok) = ANY($1::text[])
         ORDER BY t.nomor_ulok, t.id
     `, [allUloks]);
@@ -132,6 +142,7 @@ const resolveCandidates = async (buffer: Buffer): Promise<Candidate[]> => {
                 existing_id: null,
                 existing_link_pdf: null,
                 existing_created_at: null,
+                gantt_id: null,
                 issues: ["Toko ULOK tidak ditemukan di database"],
                 warnings: []
             });
@@ -142,6 +153,7 @@ const resolveCandidates = async (buffer: Buffer): Promise<Candidate[]> => {
             const warnings: string[] = [];
             if (!source.link_pdf) warnings.push("Link PDF Serah Terima kosong");
             if (source.checklist_count === 0) warnings.push("Checklist detail kosong di sheet; PDF lama tetap digunakan");
+            if (!target.gantt_id) warnings.push("Gantt belum ada; checkpoint Pengawasan ST belum dapat direkonsiliasi");
             if (source.created_at && !/\s\d{1,2}:\d{2}/.test(source.timestamp)) {
                 warnings.push("Timestamp sumber tidak memiliki jam; waktu disimpan 00:00:00");
             }
@@ -158,6 +170,7 @@ const resolveCandidates = async (buffer: Buffer): Promise<Candidate[]> => {
                 existing_id: target.existing_id,
                 existing_link_pdf: target.existing_link_pdf,
                 existing_created_at: target.existing_created_at,
+                gantt_id: target.gantt_id,
                 issues,
                 warnings
             });
@@ -174,6 +187,7 @@ const resolveCandidates = async (buffer: Buffer): Promise<Candidate[]> => {
             existing_id: null,
             existing_link_pdf: null,
             existing_created_at: null,
+            gantt_id: null,
             issues: ["Belum memiliki pengajuan Serah Terima berstatus DITERIMA"],
             warnings: source.tanggal_berikutnya ? [`Jadwal berikutnya: ${source.tanggal_berikutnya}`] : []
         });

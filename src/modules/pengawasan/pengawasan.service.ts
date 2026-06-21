@@ -2,9 +2,11 @@ import { AppError } from "../../common/app-error";
 import { GoogleProvider } from "../../common/google";
 import { renderHtmlTemplate, renderPdfFromHtml, resolveTemplatePath } from "../../common/html-pdf";
 import { env } from "../../config/env";
+import { pool } from "../../db/pool";
 import fs from "fs";
 import path from "path";
 import sharp from "sharp";
+import { scheduleAutomaticSerahTerimaIfReady } from "../serah-terima/serah-terima.service";
 import { pengawasanRepository, type PengawasanRow } from "./pengawasan.repository";
 import type {
     BulkUpdatePengawasanItemInput,
@@ -49,6 +51,25 @@ const mapPgError = (error: unknown): never => {
     }
 
     throw error;
+};
+
+const scheduleAutomaticSerahTerimaForRows = async (rows: PengawasanRow[]): Promise<void> => {
+    const ganttIds = [...new Set(rows.map((row) => Number(row.id_gantt)).filter(Number.isInteger))];
+    if (ganttIds.length === 0) return;
+
+    const tokoResult = await pool.query<{ id_toko: number }>(
+        `
+        SELECT DISTINCT id_toko
+        FROM gantt_chart
+        WHERE id = ANY($1::int[])
+          AND id_toko IS NOT NULL
+        `,
+        [ganttIds]
+    );
+
+    await Promise.all(
+        tokoResult.rows.map((row) => scheduleAutomaticSerahTerimaIfReady(Number(row.id_toko)))
+    );
 };
 
 const sanitizeFilenamePart = (value: string | undefined, fallback: string): string => {
@@ -439,6 +460,7 @@ export const pengawasanService = {
             generateAndUploadPengawasanPdf(input.id_gantt, idPengawasanGantt, normalizedTanggal)
                 .catch((err) => console.error("[berkas_pengawasan] background error:", err));
 
+            await scheduleAutomaticSerahTerimaForRows([row]);
             return row;
         } catch (error) {
             return mapPgError(error);
@@ -557,6 +579,7 @@ export const pengawasanService = {
                     .catch((err) => console.error("[berkas_pengawasan] background error:", err));
             }
 
+            await scheduleAutomaticSerahTerimaForRows(rows);
             return rows;
         } catch (error) {
             return mapPgError(error);
@@ -642,6 +665,7 @@ export const pengawasanService = {
 
             await regeneratePengawasanPdfForRow(data);
 
+            await scheduleAutomaticSerahTerimaForRows([data]);
             return data;
         } catch (error) {
             if (error instanceof AppError) {
@@ -763,6 +787,7 @@ export const pengawasanService = {
                 }
             }
 
+            await scheduleAutomaticSerahTerimaForRows(updatedRows);
             return updatedRows;
         } catch (error) {
             if (error instanceof AppError) {

@@ -1,6 +1,7 @@
 import { AppError } from "../../common/app-error";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
+import { pool } from "../../db/pool";
 import { opnameFinalService } from "../opname-final/opname-final.service";
 import { buildSerahTerimaPdfBuffer } from "./serah-terima.pdf";
 import { serahTerimaRepository } from "./serah-terima.repository";
@@ -42,6 +43,70 @@ const buildDetailByTokoId = async (idToko: number) => {
 
     const items = await serahTerimaRepository.findOpnameItemsByOpnameFinalId(opnameFinal.id);
     return { toko, opnameFinal, items };
+};
+
+const automaticSerahTerimaInProgress = new Set<number>();
+
+export const scheduleAutomaticSerahTerimaIfReady = async (idToko: number): Promise<void> => {
+    if (automaticSerahTerimaInProgress.has(idToko)) return;
+
+    const existing = await serahTerimaRepository.findBerkasSerahTerimaByIdToko(idToko);
+    if (existing?.link_pdf) return;
+
+    const opnameFinal = await serahTerimaRepository.findOpnameFinalByIdToko(idToko);
+    if (!opnameFinal) return;
+
+    const latestStatuses = await pool.query<{ total: number; unfinished: number }>(
+        `
+        WITH latest_gantt AS (
+            SELECT id
+            FROM gantt_chart
+            WHERE id_toko = $1
+            ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, id DESC
+            LIMIT 1
+        ),
+        latest_item AS (
+            SELECT DISTINCT ON (
+                UPPER(TRIM(p.kategori_pekerjaan)),
+                UPPER(TRIM(p.jenis_pekerjaan))
+            )
+                p.status
+            FROM pengawasan p
+            JOIN pengawasan_gantt pg ON pg.id = p.id_pengawasan_gantt
+            JOIN latest_gantt g ON g.id = p.id_gantt
+            ORDER BY
+                UPPER(TRIM(p.kategori_pekerjaan)),
+                UPPER(TRIM(p.jenis_pekerjaan)),
+                pg.id DESC,
+                p.id DESC
+        )
+        SELECT
+            COUNT(*)::int AS total,
+            COUNT(*) FILTER (WHERE LOWER(COALESCE(status, '')) <> 'selesai')::int AS unfinished
+        FROM latest_item
+        `,
+        [idToko]
+    );
+    const status = latestStatuses.rows[0];
+    if (!status || Number(status.total) === 0 || Number(status.unfinished) > 0) return;
+
+    automaticSerahTerimaInProgress.add(idToko);
+    setImmediate(() => {
+        serahTerimaService
+            .createPdfSerahTerima(idToko)
+            .then((result) => {
+                console.log(`[ST][AUTO] Berhasil generate otomatis id_toko=${idToko}, berkas=${result.id}`);
+            })
+            .catch((error) => {
+                console.error("[ST][AUTO] Gagal generate otomatis", {
+                    idToko,
+                    error: error instanceof Error ? error.message : String(error)
+                });
+            })
+            .finally(() => {
+                automaticSerahTerimaInProgress.delete(idToko);
+            });
+    });
 };
 
 export const serahTerimaService = {
