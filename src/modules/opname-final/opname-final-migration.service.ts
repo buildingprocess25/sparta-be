@@ -1,0 +1,510 @@
+import * as xlsx from "xlsx";
+import type { PoolClient } from "pg";
+import { AppError } from "../../common/app-error";
+import { pool, withTransaction } from "../../db/pool";
+import { activityLogRepository } from "../activity-log/activity-log.repository";
+import { calculateDendaByTokoId } from "../denda/denda-keterlambatan";
+import { opnameFinalService } from "./opname-final.service";
+import type {
+    OpnameFinalMigrationAction,
+    OpnameFinalMigrationCommitInput
+} from "./opname-final-migration.schema";
+
+type CellRow = Record<string, unknown>;
+type SourceItem = {
+    source_row: number;
+    kategori_pekerjaan: string;
+    jenis_pekerjaan: string;
+    satuan: string;
+    volume_rab: number;
+    volume_akhir: number;
+    selisih_volume: number;
+    harga_material: number;
+    harga_upah: number;
+    total_harga_akhir: number;
+    desain: string | null;
+    kualitas: string | null;
+    spesifikasi: string | null;
+    foto: string | null;
+    catatan: string | null;
+    is_il: boolean;
+    created_at: string | null;
+    source_id: number | null;
+    source_type: "RAB" | "IL" | null;
+    match_warning: string | null;
+    match_issue: string | null;
+};
+type Candidate = {
+    source_candidate_id: number;
+    nomor_ulok: string;
+    lingkup_pekerjaan: string;
+    email_pembuat: string;
+    created_at: string | null;
+    approved_count: number;
+    ignored_pending_count: number;
+    ignored_rejected_count: number;
+    items: SourceItem[];
+    toko_id: number | null;
+    nama_toko: string | null;
+    cabang: string | null;
+    existing_id: number | null;
+    existing_status: string | null;
+    expected_item_count: number;
+    grand_total_rab: number;
+    grand_total_opname: number;
+    issues: string[];
+    warnings: string[];
+};
+type DbSourceItem = {
+    id: number;
+    id_toko: number;
+    source_type: "RAB" | "IL";
+    kategori_pekerjaan: string | null;
+    jenis_pekerjaan: string | null;
+    satuan: string | null;
+    volume: number | string | null;
+    harga_material: number | string | null;
+    harga_upah: number | string | null;
+    total_harga: number | string | null;
+};
+
+const hasSuperHumanRole = (role: string) => role.toUpperCase().includes("SUPER HUMAN");
+const text = (value: unknown) => String(value ?? "").trim();
+const key = (value: unknown) => text(value).toUpperCase().replace(/\s+/g, " ");
+const workKey = (value: unknown) => key(value).replace(/[^A-Z0-9]+/g, "");
+const scopeValue = (value: unknown) => key(value) === "SIPIL" ? "Sipil" : key(value);
+const numberValue = (value: unknown): number => {
+    const raw = text(value).replace(/\s/g, "");
+    if (!raw) return 0;
+    const normalized = raw.includes(",")
+        ? raw.replace(/\./g, "").replace(",", ".")
+        : /^\d{1,3}(?:\.\d{3})+$/.test(raw)
+            ? raw.replace(/\./g, "")
+            : raw;
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+};
+const parseTimestamp = (value: unknown): string | null => {
+    const raw = text(value);
+    const localized = raw.match(
+        /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:,\s*|\s+)?(\d{1,2})[.:](\d{2})[.:](\d{2})/
+    );
+    if (localized) {
+        return `${localized[3]}-${localized[2].padStart(2, "0")}-${localized[1].padStart(2, "0")} ${localized[4].padStart(2, "0")}:${localized[5]}:${localized[6]}`;
+    }
+    const dateOnly = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (dateOnly) return `${dateOnly[3]}-${dateOnly[2].padStart(2, "0")}-${dateOnly[1].padStart(2, "0")} 00:00:00`;
+    const iso = raw.match(/^(\d{4}-\d{2}-\d{2})(?:[T\s](\d{2}:\d{2}:\d{2}))?/);
+    return iso ? `${iso[1]} ${iso[2] ?? "00:00:00"}` : null;
+};
+const sourceItemKey = (row: CellRow) => [
+    workKey(row.kategori_pekerjaan),
+    workKey(row.jenis_pekerjaan),
+    workKey(row.satuan),
+    key(row.IL) === "YA" ? "IL" : "RAB"
+].join("|");
+
+const parseWorkbook = (buffer: Buffer): Candidate[] => {
+    const workbook = xlsx.read(buffer, { type: "buffer", cellDates: false });
+    if (!workbook.Sheets.opname_final) throw new AppError("Sheet opname_final tidak ditemukan", 400);
+    const rows = xlsx.utils.sheet_to_json<CellRow>(workbook.Sheets.opname_final, { defval: null, raw: false });
+    const groups = new Map<string, Array<CellRow & { __row: number }>>();
+    rows.forEach((row, index) => {
+        const nomorUlok = key(row.no_ulok);
+        const lingkup = key(row.lingkup_pekerjaan);
+        if (!nomorUlok || !lingkup) return;
+        const groupKey = `${nomorUlok}|${lingkup}`;
+        groups.set(groupKey, [...(groups.get(groupKey) ?? []), { ...row, __row: index + 2 }]);
+    });
+
+    let candidateId = 900000;
+    return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([groupKey, sourceRows]) => {
+        candidateId += 1;
+        const approvedRows = sourceRows.filter((row) => key(row.approval_status) === "APPROVED");
+        const latestByItem = new Map<string, CellRow & { __row: number }>();
+        for (const row of approvedRows) {
+            const itemKey = sourceItemKey(row);
+            const current = latestByItem.get(itemKey);
+            const rowDate = parseTimestamp(row.tanggal_submit) ?? "";
+            const currentDate = current ? parseTimestamp(current.tanggal_submit) ?? "" : "";
+            if (!current || rowDate > currentDate || (rowDate === currentDate && row.__row > current.__row)) {
+                latestByItem.set(itemKey, row);
+            }
+        }
+        const latestRows = [...latestByItem.values()];
+        const dates = latestRows.map((row) => parseTimestamp(row.tanggal_submit)).filter((value): value is string => Boolean(value)).sort();
+        const [nomorUlok, lingkup] = groupKey.split("|");
+        const items: SourceItem[] = latestRows.map((row) => ({
+            source_row: row.__row,
+            kategori_pekerjaan: text(row.kategori_pekerjaan),
+            jenis_pekerjaan: text(row.jenis_pekerjaan),
+            satuan: text(row.satuan),
+            volume_rab: numberValue(row.vol_rab),
+            volume_akhir: numberValue(row.volume_akhir),
+            selisih_volume: numberValue(row.selisih),
+            harga_material: numberValue(row.harga_material),
+            harga_upah: numberValue(row.harga_upah),
+            total_harga_akhir: numberValue(row.total_harga_akhir),
+            desain: text(row.desain) || null,
+            kualitas: text(row.kualitas) || null,
+            spesifikasi: text(row.spesifikasi) || null,
+            foto: text(row.foto_url) || null,
+            catatan: text(row.catatan) || null,
+            is_il: key(row.IL) === "YA",
+            created_at: parseTimestamp(row.tanggal_submit),
+            source_id: null,
+            source_type: null,
+            match_warning: null,
+            match_issue: null
+        }));
+        return {
+            source_candidate_id: candidateId,
+            nomor_ulok: nomorUlok,
+            lingkup_pekerjaan: scopeValue(lingkup),
+            email_pembuat: text(latestRows.find((row) => text(row.pic_username))?.pic_username) || "migration@sparta.local",
+            created_at: dates.at(-1) ?? null,
+            approved_count: approvedRows.length,
+            ignored_pending_count: sourceRows.filter((row) => key(row.approval_status) === "PENDING").length,
+            ignored_rejected_count: sourceRows.filter((row) => key(row.approval_status) === "REJECTED").length,
+            items,
+            toko_id: null,
+            nama_toko: null,
+            cabang: null,
+            existing_id: null,
+            existing_status: null,
+            expected_item_count: 0,
+            grand_total_rab: 0,
+            grand_total_opname: 0,
+            issues: approvedRows.length === 0 ? ["Tidak memiliki snapshot item APPROVED"] : [],
+            warnings: []
+        };
+    });
+};
+
+const chooseSourceMatch = (item: SourceItem, sources: DbSourceItem[]): DbSourceItem | null => {
+    const expectedType = item.is_il ? "IL" : "RAB";
+    const byName = sources.filter((source) =>
+        source.source_type === expectedType
+        && workKey(source.jenis_pekerjaan) === workKey(item.jenis_pekerjaan)
+    );
+    if (byName.length === 1) return byName[0];
+    const byCategoryAndUnit = byName.filter((source) =>
+        workKey(source.kategori_pekerjaan) === workKey(item.kategori_pekerjaan)
+        && workKey(source.satuan) === workKey(item.satuan)
+    );
+    if (byCategoryAndUnit.length === 1) return byCategoryAndUnit[0];
+    const byPrice = byCategoryAndUnit.filter((source) =>
+        Math.abs(numberValue(source.harga_material) - item.harga_material) < 0.01
+        && Math.abs(numberValue(source.harga_upah) - item.harga_upah) < 0.01
+    );
+    if (byPrice.length === 1) return byPrice[0];
+    const byVolume = byPrice.filter((source) =>
+        Math.abs(numberValue(source.volume) - item.volume_rab) < 0.0001
+    );
+    return byVolume.length > 0
+        ? [...byVolume].sort((a, b) => b.id - a.id)[0]
+        : null;
+};
+
+const resolveCandidates = async (buffer: Buffer): Promise<Candidate[]> => {
+    const candidates = parseWorkbook(buffer);
+    const uloks = [...new Set(candidates.map((candidate) => candidate.nomor_ulok))];
+    const targetResult = await pool.query<{
+        toko_id: number;
+        nomor_ulok: string;
+        lingkup_pekerjaan: string;
+        nama_toko: string | null;
+        cabang: string | null;
+        existing_id: number | null;
+        existing_status: string | null;
+    }>(`
+        SELECT t.id AS toko_id, t.nomor_ulok, t.lingkup_pekerjaan, t.nama_toko, t.cabang,
+               existing.id AS existing_id, existing.status_opname_final AS existing_status
+        FROM toko t
+        LEFT JOIN LATERAL (
+            SELECT id, status_opname_final
+            FROM opname_final
+            WHERE id_toko = t.id
+            ORDER BY CASE WHEN tipe_opname = 'OPNAME_FINAL' THEN 0 ELSE 1 END, id DESC
+            LIMIT 1
+        ) existing ON TRUE
+        WHERE UPPER(t.nomor_ulok) = ANY($1::text[])
+    `, [uloks]);
+    const targetByKey = new Map(targetResult.rows.map((row) => [
+        `${key(row.nomor_ulok)}|${key(row.lingkup_pekerjaan)}`,
+        row
+    ]));
+    const tokoIds = targetResult.rows.map((row) => row.toko_id);
+    let rabSourceResult: { rows: DbSourceItem[] } = { rows: [] };
+    let ilSourceResult: { rows: DbSourceItem[] } = { rows: [] };
+    if (tokoIds.length > 0) {
+        rabSourceResult = await pool.query<DbSourceItem>(`
+                SELECT ri.id, latest.id_toko, 'RAB'::text AS source_type,
+                       ri.kategori_pekerjaan, ri.jenis_pekerjaan, ri.satuan,
+                       ri.volume::text AS volume,
+                       ri.harga_material::text AS harga_material,
+                       ri.harga_upah::text AS harga_upah,
+                       ri.total_harga::text AS total_harga
+                FROM unnest($1::int[]) AS requested(id_toko)
+                JOIN LATERAL (
+                    SELECT r.id, r.id_toko
+                    FROM rab r
+                    WHERE r.id_toko = requested.id_toko
+                    ORDER BY r.id DESC
+                    LIMIT 1
+                ) latest ON TRUE
+                JOIN rab_item ri ON ri.id_rab = latest.id
+            `, [tokoIds]);
+        ilSourceResult = await pool.query<DbSourceItem>(`
+                SELECT ili.id, il.id_toko, 'IL'::text AS source_type,
+                       ili.kategori_pekerjaan, ili.jenis_pekerjaan, ili.satuan,
+                       ili.volume::text AS volume,
+                       ili.harga_material::text AS harga_material,
+                       ili.harga_upah::text AS harga_upah,
+                       ili.total_harga::text AS total_harga
+                FROM instruksi_lapangan il
+                JOIN instruksi_lapangan_item ili ON ili.id_instruksi_lapangan = il.id
+                WHERE il.id_toko = ANY($1::int[])
+                  AND UPPER(COALESCE(il.status, '')) IN ('DISETUJUI', 'APPROVED')
+            `, [tokoIds]);
+    }
+    const sourceResult = { rows: [...rabSourceResult.rows, ...ilSourceResult.rows] };
+    const sourcesByToko = new Map<number, DbSourceItem[]>();
+    sourceResult.rows.forEach((row) => sourcesByToko.set(row.id_toko, [...(sourcesByToko.get(row.id_toko) ?? []), row]));
+
+    return candidates.map((candidate) => {
+        const target = targetByKey.get(`${candidate.nomor_ulok}|${key(candidate.lingkup_pekerjaan)}`);
+        const issues = [...candidate.issues];
+        const warnings = [...candidate.warnings];
+        if (!target) issues.push("Toko ULOK + lingkup tidak ditemukan di database");
+        if (!candidate.created_at && candidate.items.length > 0) issues.push("Tanggal submit APPROVED tidak valid");
+        const sources = target ? sourcesByToko.get(target.toko_id) ?? [] : [];
+        const resolvedItems = candidate.items.map((item) => {
+            const matchesByName = sources.filter((source) =>
+                source.source_type === (item.is_il ? "IL" : "RAB")
+                && workKey(source.jenis_pekerjaan) === workKey(item.jenis_pekerjaan)
+            );
+            const match = chooseSourceMatch(item, sources);
+            if (!match) {
+                return {
+                    ...item,
+                    match_issue: matchesByName.length > 1
+                        ? `Item ambigu (${matchesByName.length} kandidat DB)`
+                        : `${item.is_il ? "Item IL" : "Item RAB"} tidak ditemukan`
+                };
+            }
+            const dbUnitPrice = numberValue(match.harga_material) + numberValue(match.harga_upah);
+            const sourceUnitPrice = item.harga_material + item.harga_upah;
+            return {
+                ...item,
+                source_id: match.id,
+                source_type: match.source_type,
+                match_warning: matchesByName.length > 1
+                    ? `Terdapat ${matchesByName.length} item DB bernama sama; dipilih berdasarkan kategori, satuan, harga, dan volume`
+                    : Math.abs(dbUnitPrice - sourceUnitPrice) > 0.01
+                        ? `Harga sumber ${sourceUnitPrice} berbeda dari DB ${dbUnitPrice}; perhitungan memakai harga DB`
+                        : null
+            };
+        });
+        const unresolved = resolvedItems.filter((item) => item.match_issue);
+        if (unresolved.length > 0) issues.push(`${unresolved.length} item tidak dapat dipetakan`);
+        if (candidate.ignored_pending_count > 0) warnings.push(`${candidate.ignored_pending_count} baris Pending diabaikan`);
+        if (candidate.ignored_rejected_count > 0) warnings.push(`${candidate.ignored_rejected_count} baris Rejected diabaikan`);
+        const repeatedApproved = candidate.approved_count - candidate.items.length;
+        if (repeatedApproved > 0) warnings.push(`${repeatedApproved} riwayat APPROVED lama digantikan snapshot terbaru`);
+        if (sources.length !== resolvedItems.length) {
+            warnings.push(`Snapshot memuat ${resolvedItems.length} item; sumber DB aktif memuat ${sources.length} item`);
+        }
+        const grandTotalRab = sources.reduce((sum, source) => sum + numberValue(source.total_harga), 0);
+        const grandTotalOpname = resolvedItems.reduce((sum, item) => {
+            const match = sources.find((source) => source.id === item.source_id && source.source_type === item.source_type);
+            return sum + item.volume_akhir * (numberValue(match?.harga_material) + numberValue(match?.harga_upah));
+        }, 0);
+        return {
+            ...candidate,
+            items: resolvedItems,
+            toko_id: target?.toko_id ?? null,
+            nama_toko: target?.nama_toko ?? null,
+            cabang: target?.cabang ?? null,
+            existing_id: target?.existing_id ?? null,
+            existing_status: target?.existing_status ?? null,
+            expected_item_count: sources.length,
+            grand_total_rab: Math.round(grandTotalRab),
+            grand_total_opname: Math.round(grandTotalOpname),
+            issues,
+            warnings: [...warnings, ...resolvedItems.map((item) => item.match_warning).filter((value): value is string => Boolean(value))]
+        };
+    });
+};
+
+const insertItems = async (client: PoolClient, candidate: Candidate, opnameFinalId: number) => {
+    for (const item of candidate.items) {
+        if (!item.source_id || !item.source_type) throw new AppError(`Item baris ${item.source_row} belum terpetakan`, 422);
+        const sourcePrice = await client.query<{ harga_material: string; harga_upah: string }>(
+            item.source_type === "RAB"
+                ? `SELECT harga_material::text, harga_upah::text FROM rab_item WHERE id = $1`
+                : `SELECT harga_material::text, harga_upah::text FROM instruksi_lapangan_item WHERE id = $1`,
+            [item.source_id]
+        );
+        const unitPrice = numberValue(sourcePrice.rows[0]?.harga_material) + numberValue(sourcePrice.rows[0]?.harga_upah);
+        const totalSelisih = Math.round(item.selisih_volume * unitPrice);
+        const totalHargaOpname = Math.round(item.volume_akhir * unitPrice);
+        await client.query(`
+            INSERT INTO opname_item (
+                id_toko, id_opname_final, id_rab_item, id_instruksi_lapangan_item,
+                status, volume_akhir, selisih_volume, total_selisih, total_harga_opname,
+                desain, kualitas, spesifikasi, foto, catatan, created_at
+            ) VALUES (
+                $1,$2,$3,$4,'disetujui',$5,$6,$7,$8,$9,$10,$11,$12,$13,
+                COALESCE($14::timestamp, timezone('Asia/Jakarta', now()))
+            )
+        `, [
+            candidate.toko_id, opnameFinalId,
+            item.source_type === "RAB" ? item.source_id : null,
+            item.source_type === "IL" ? item.source_id : null,
+            item.volume_akhir, item.selisih_volume, totalSelisih, totalHargaOpname,
+            item.desain, item.kualitas, item.spesifikasi, item.foto, item.catatan,
+            item.created_at ?? candidate.created_at
+        ]);
+    }
+};
+
+const writeCandidate = async (
+    client: PoolClient,
+    candidate: Candidate,
+    action: OpnameFinalMigrationAction
+) => {
+    if (action === "skip") return { status: "skipped", source_candidate_id: candidate.source_candidate_id, target_id: candidate.existing_id };
+    if (candidate.issues.length > 0 || !candidate.toko_id || !candidate.created_at) {
+        throw new AppError(`Opname Final ${candidate.nomor_ulok}/${candidate.lingkup_pekerjaan} tidak valid: ${candidate.issues.join(", ")}`, 422);
+    }
+    if (action === "insert" && candidate.existing_id) throw new AppError(`Opname ${candidate.nomor_ulok}/${candidate.lingkup_pekerjaan} sudah ada`, 409);
+    if (action === "replace" && !candidate.existing_id) throw new AppError(`Opname existing ${candidate.nomor_ulok}/${candidate.lingkup_pekerjaan} tidak ditemukan`, 404);
+
+    let targetId = candidate.existing_id;
+    if (action === "replace" && targetId) {
+        await client.query(`DELETE FROM opname_item WHERE id_opname_final = $1`, [targetId]);
+        await client.query(`
+            UPDATE opname_final
+            SET tipe_opname='OPNAME_FINAL', aksi='terkunci', status_opname_final='Disetujui',
+                email_pembuat=$1, grand_total_opname=$2, grand_total_rab=$3,
+                link_pdf_opname=NULL, alasan_penolakan=NULL, catatan_penolakan=NULL,
+                created_at=$4::timestamp
+            WHERE id=$5
+        `, [candidate.email_pembuat, candidate.grand_total_opname, candidate.grand_total_rab, candidate.created_at, targetId]);
+    } else {
+        const inserted = await client.query<{ id: number }>(`
+            INSERT INTO opname_final (
+                id_toko, tipe_opname, aksi, status_opname_final, email_pembuat,
+                grand_total_opname, grand_total_rab, created_at
+            ) VALUES ($1,'OPNAME_FINAL','terkunci','Disetujui',$2,$3,$4,$5::timestamp)
+            RETURNING id
+        `, [candidate.toko_id, candidate.email_pembuat, candidate.grand_total_opname, candidate.grand_total_rab, candidate.created_at]);
+        targetId = inserted.rows[0].id;
+    }
+    await insertItems(client, candidate, targetId!);
+    const denda = await calculateDendaByTokoId(candidate.toko_id);
+    await client.query(`
+        UPDATE opname_final
+        SET hari_denda=$1, nilai_denda=$2, tanggal_akhir_spk_denda=$3, tanggal_serah_terima_denda=$4
+        WHERE id=$5
+    `, [denda.hari_denda, denda.nilai_denda, denda.tanggal_akhir_spk, denda.tanggal_serah_terima, targetId]);
+    return { status: action === "replace" ? "replaced" : "inserted", source_candidate_id: candidate.source_candidate_id, target_id: targetId };
+};
+
+const queuePdfGeneration = (ids: number[]) => {
+    if (ids.length === 0) return;
+    setImmediate(async () => {
+        for (const id of ids) {
+            try {
+                await opnameFinalService.refreshDendaAndPdfById(String(id));
+                console.log(`[OPNAME_FINAL][MIGRATION_PDF] Berhasil generate id=${id}`);
+            } catch (error) {
+                console.error("[OPNAME_FINAL][MIGRATION_PDF] Gagal generate", {
+                    id,
+                    error: error instanceof Error ? error.message : String(error)
+                });
+            }
+        }
+    });
+};
+
+export const opnameFinalMigrationService = {
+    async preview(buffer: Buffer, actorRole: string) {
+        if (!hasSuperHumanRole(actorRole)) throw new AppError("Hanya Super Human yang dapat melakukan migrasi Opname Final", 403);
+        const candidates = await resolveCandidates(buffer);
+        const details = candidates.map((candidate) => ({
+            source_candidate_id: candidate.source_candidate_id,
+            nomor_ulok: candidate.nomor_ulok,
+            lingkup_pekerjaan: candidate.lingkup_pekerjaan,
+            nama_toko: candidate.nama_toko,
+            cabang: candidate.cabang,
+            email_pembuat: candidate.email_pembuat,
+            created_at: candidate.created_at,
+            item_count: candidate.items.length,
+            mapped_item_count: candidate.items.filter((item) => item.source_id).length,
+            expected_item_count: candidate.expected_item_count,
+            ignored_pending_count: candidate.ignored_pending_count,
+            ignored_rejected_count: candidate.ignored_rejected_count,
+            grand_total_rab: candidate.grand_total_rab,
+            grand_total_opname: candidate.grand_total_opname,
+            kerja_tambah: candidate.items.filter((item) => item.selisih_volume > 0).reduce((sum, item) => sum + Math.max(0, item.selisih_volume * (item.harga_material + item.harga_upah)), 0),
+            kerja_kurang: candidate.items.filter((item) => item.selisih_volume < 0).reduce((sum, item) => sum + Math.abs(item.selisih_volume * (item.harga_material + item.harga_upah)), 0),
+            existing_id: candidate.existing_id,
+            existing_status: candidate.existing_status,
+            db_state: candidate.issues.length > 0 ? "invalid" : candidate.existing_id ? "conflict" : "ready",
+            issues: candidate.issues,
+            warnings: candidate.warnings,
+            unmapped_items: candidate.items.filter((item) => item.match_issue).slice(0, 8).map((item) => ({
+                source_row: item.source_row,
+                jenis_pekerjaan: item.jenis_pekerjaan,
+                issue: item.match_issue
+            }))
+        }));
+        return {
+            total_candidates: details.length,
+            approved_candidates: details.filter((row) => row.item_count > 0).length,
+            total_items: details.reduce((sum, row) => sum + row.item_count, 0),
+            mapped_items: details.reduce((sum, row) => sum + row.mapped_item_count, 0),
+            ready_count: details.filter((row) => row.db_state === "ready").length,
+            conflict_count: details.filter((row) => row.db_state === "conflict").length,
+            invalid_count: details.filter((row) => row.db_state === "invalid").length,
+            details
+        };
+    },
+
+    async commit(buffer: Buffer, input: OpnameFinalMigrationCommitInput) {
+        if (!hasSuperHumanRole(input.actor_role)) throw new AppError("Hanya Super Human yang dapat melakukan migrasi Opname Final", 403);
+        const candidates = await resolveCandidates(buffer);
+        const byId = new Map(candidates.map((candidate) => [candidate.source_candidate_id, candidate]));
+        const results = await withTransaction(async (client) => {
+            const rows = [];
+            for (const selection of input.selections) {
+                const candidate = byId.get(selection.source_candidate_id);
+                if (!candidate) throw new AppError(`Kandidat ${selection.source_candidate_id} tidak ditemukan`, 404);
+                rows.push(await writeCandidate(client, candidate, selection.action));
+            }
+            await activityLogRepository.insert({
+                entity_type: "OPNAME_FINAL",
+                entity_id: 0,
+                actor_email: input.actor_email ?? null,
+                actor_role: input.actor_role,
+                action: "SUPER_HUMAN_MIGRATION",
+                status_after: "MIGRATION_COMMITTED",
+                reason: "Migrasi Opname Final/KTK dari OPNAME_v1",
+                metadata: { total_selected: input.selections.length }
+            }, client);
+            return rows;
+        });
+        const pdfIds = results.filter((row) => row.status !== "skipped" && row.target_id).map((row) => Number(row.target_id));
+        queuePdfGeneration(pdfIds);
+        return {
+            total_selected: input.selections.length,
+            inserted: results.filter((row) => row.status === "inserted").length,
+            replaced: results.filter((row) => row.status === "replaced").length,
+            skipped: results.filter((row) => row.status === "skipped").length,
+            pdf_queued: pdfIds.length,
+            details: results
+        };
+    }
+};
