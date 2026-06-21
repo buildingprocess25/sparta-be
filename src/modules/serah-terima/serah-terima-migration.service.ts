@@ -38,9 +38,14 @@ const text = (value: unknown) => String(value ?? "").trim();
 const key = (value: unknown) => text(value).toUpperCase().replace(/\s+/g, " ");
 const parseTimestamp = (value: unknown): string | null => {
     const raw = text(value);
-    const match = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})/);
+    const match = raw.match(
+        /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/
+    );
     if (!match) return null;
-    return `${match[3]}-${match[1].padStart(2, "0")}-${match[2].padStart(2, "0")} ${match[4].padStart(2, "0")}:${match[5]}:${match[6]}`;
+    const hour = (match[4] ?? "0").padStart(2, "0");
+    const minute = match[5] ?? "00";
+    const second = match[6] ?? "00";
+    return `${match[3]}-${match[1].padStart(2, "0")}-${match[2].padStart(2, "0")} ${hour}:${minute}:${second}`;
 };
 
 const parseWorkbook = (buffer: Buffer): { accepted: SourceAttempt[]; rejectedOnly: SourceAttempt[] } => {
@@ -137,6 +142,12 @@ const resolveCandidates = async (buffer: Buffer): Promise<Candidate[]> => {
             const warnings: string[] = [];
             if (!source.link_pdf) warnings.push("Link PDF Serah Terima kosong");
             if (source.checklist_count === 0) warnings.push("Checklist detail kosong di sheet; PDF lama tetap digunakan");
+            if (source.created_at && !/\s\d{1,2}:\d{2}/.test(source.timestamp)) {
+                warnings.push("Timestamp sumber tidak memiliki jam; waktu disimpan 00:00:00");
+            }
+            const issues: string[] = [];
+            if (!source.link_pdf) issues.push("Dokumen DITERIMA tidak memiliki link PDF");
+            if (!source.created_at) issues.push("Timestamp Serah Terima kosong/tidak valid");
             candidates.push({
                 ...source,
                 source_candidate_id: candidateId,
@@ -147,7 +158,7 @@ const resolveCandidates = async (buffer: Buffer): Promise<Candidate[]> => {
                 existing_id: target.existing_id,
                 existing_link_pdf: target.existing_link_pdf,
                 existing_created_at: target.existing_created_at,
-                issues: source.link_pdf ? [] : ["Dokumen DITERIMA tidak memiliki link PDF"],
+                issues,
                 warnings
             });
         }
