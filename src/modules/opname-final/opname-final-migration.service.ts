@@ -22,6 +22,7 @@ type SourceItem = {
     harga_material: number;
     harga_upah: number;
     total_harga_akhir: number;
+    approval_status: "APPROVED" | "PENDING" | "REJECTED";
     desain: string | null;
     kualitas: string | null;
     spesifikasi: string | null;
@@ -31,6 +32,7 @@ type SourceItem = {
     created_at: string | null;
     source_id: number | null;
     source_type: "RAB" | "IL" | null;
+    matched_unit_price: number;
     match_warning: string | null;
     match_issue: string | null;
 };
@@ -40,14 +42,16 @@ type Candidate = {
     lingkup_pekerjaan: string;
     email_pembuat: string;
     created_at: string | null;
+    migration_type: "PARTIAL" | "FINAL";
     approved_count: number;
-    ignored_pending_count: number;
-    ignored_rejected_count: number;
+    pending_count: number;
+    rejected_count: number;
     items: SourceItem[];
     toko_id: number | null;
     nama_toko: string | null;
     cabang: string | null;
     existing_id: number | null;
+    existing_type: string | null;
     existing_status: string | null;
     expected_item_count: number;
     grand_total_rab: number;
@@ -120,9 +124,8 @@ const parseWorkbook = (buffer: Buffer): Candidate[] => {
     let candidateId = 900000;
     return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([groupKey, sourceRows]) => {
         candidateId += 1;
-        const approvedRows = sourceRows.filter((row) => key(row.approval_status) === "APPROVED");
         const latestByItem = new Map<string, CellRow & { __row: number }>();
-        for (const row of approvedRows) {
+        for (const row of sourceRows) {
             const itemKey = sourceItemKey(row);
             const current = latestByItem.get(itemKey);
             const rowDate = parseTimestamp(row.tanggal_submit) ?? "";
@@ -132,6 +135,12 @@ const parseWorkbook = (buffer: Buffer): Candidate[] => {
             }
         }
         const latestRows = [...latestByItem.values()];
+        const approvedCount = latestRows.filter((row) => key(row.approval_status) === "APPROVED").length;
+        const pendingCount = latestRows.filter((row) => key(row.approval_status) === "PENDING").length;
+        const rejectedCount = latestRows.filter((row) => key(row.approval_status) === "REJECTED").length;
+        const migrationType = latestRows.length > 0 && approvedCount === latestRows.length
+            ? "FINAL"
+            : "PARTIAL";
         const dates = latestRows.map((row) => parseTimestamp(row.tanggal_submit)).filter((value): value is string => Boolean(value)).sort();
         const [nomorUlok, lingkup] = groupKey.split("|");
         const items: SourceItem[] = latestRows.map((row) => ({
@@ -145,6 +154,11 @@ const parseWorkbook = (buffer: Buffer): Candidate[] => {
             harga_material: numberValue(row.harga_material),
             harga_upah: numberValue(row.harga_upah),
             total_harga_akhir: numberValue(row.total_harga_akhir),
+            approval_status: key(row.approval_status) === "APPROVED"
+                ? "APPROVED"
+                : key(row.approval_status) === "REJECTED"
+                    ? "REJECTED"
+                    : "PENDING",
             desain: text(row.desain) || null,
             kualitas: text(row.kualitas) || null,
             spesifikasi: text(row.spesifikasi) || null,
@@ -154,6 +168,7 @@ const parseWorkbook = (buffer: Buffer): Candidate[] => {
             created_at: parseTimestamp(row.tanggal_submit),
             source_id: null,
             source_type: null,
+            matched_unit_price: 0,
             match_warning: null,
             match_issue: null
         }));
@@ -163,19 +178,21 @@ const parseWorkbook = (buffer: Buffer): Candidate[] => {
             lingkup_pekerjaan: scopeValue(lingkup),
             email_pembuat: text(latestRows.find((row) => text(row.pic_username))?.pic_username) || "migration@sparta.local",
             created_at: dates.at(-1) ?? null,
-            approved_count: approvedRows.length,
-            ignored_pending_count: sourceRows.filter((row) => key(row.approval_status) === "PENDING").length,
-            ignored_rejected_count: sourceRows.filter((row) => key(row.approval_status) === "REJECTED").length,
+            migration_type: migrationType,
+            approved_count: approvedCount,
+            pending_count: pendingCount,
+            rejected_count: rejectedCount,
             items,
             toko_id: null,
             nama_toko: null,
             cabang: null,
             existing_id: null,
+            existing_type: null,
             existing_status: null,
             expected_item_count: 0,
             grand_total_rab: 0,
             grand_total_opname: 0,
-            issues: approvedRows.length === 0 ? ["Tidak memiliki snapshot item APPROVED"] : [],
+            issues: latestRows.length === 0 ? ["Tidak memiliki item opname"] : [],
             warnings: []
         };
     });
@@ -216,13 +233,15 @@ const resolveCandidates = async (buffer: Buffer): Promise<Candidate[]> => {
         nama_toko: string | null;
         cabang: string | null;
         existing_id: number | null;
+        existing_type: string | null;
         existing_status: string | null;
     }>(`
         SELECT t.id AS toko_id, t.nomor_ulok, t.lingkup_pekerjaan, t.nama_toko, t.cabang,
-               existing.id AS existing_id, existing.status_opname_final AS existing_status
+               existing.id AS existing_id, existing.tipe_opname AS existing_type,
+               existing.status_opname_final AS existing_status
         FROM toko t
         LEFT JOIN LATERAL (
-            SELECT id, status_opname_final
+            SELECT id, tipe_opname, status_opname_final
             FROM opname_final
             WHERE id_toko = t.id
             ORDER BY CASE WHEN tipe_opname = 'OPNAME_FINAL' THEN 0 ELSE 1 END, id DESC
@@ -277,7 +296,7 @@ const resolveCandidates = async (buffer: Buffer): Promise<Candidate[]> => {
         const issues = [...candidate.issues];
         const warnings = [...candidate.warnings];
         if (!target) issues.push("Toko ULOK + lingkup tidak ditemukan di database");
-        if (!candidate.created_at && candidate.items.length > 0) issues.push("Tanggal submit APPROVED tidak valid");
+        if (!candidate.created_at && candidate.items.length > 0) issues.push("Tanggal submit opname tidak valid");
         const sources = target ? sourcesByToko.get(target.toko_id) ?? [] : [];
         const resolvedItems = candidate.items.map((item) => {
             const matchesByName = sources.filter((source) =>
@@ -299,6 +318,7 @@ const resolveCandidates = async (buffer: Buffer): Promise<Candidate[]> => {
                 ...item,
                 source_id: match.id,
                 source_type: match.source_type,
+                matched_unit_price: dbUnitPrice,
                 match_warning: matchesByName.length > 1
                     ? `Terdapat ${matchesByName.length} item DB bernama sama; dipilih berdasarkan kategori, satuan, harga, dan volume`
                     : Math.abs(dbUnitPrice - sourceUnitPrice) > 0.01
@@ -308,10 +328,15 @@ const resolveCandidates = async (buffer: Buffer): Promise<Candidate[]> => {
         });
         const unresolved = resolvedItems.filter((item) => item.match_issue);
         if (unresolved.length > 0) issues.push(`${unresolved.length} item tidak dapat dipetakan`);
-        if (candidate.ignored_pending_count > 0) warnings.push(`${candidate.ignored_pending_count} baris Pending diabaikan`);
-        if (candidate.ignored_rejected_count > 0) warnings.push(`${candidate.ignored_rejected_count} baris Rejected diabaikan`);
-        const repeatedApproved = candidate.approved_count - candidate.items.length;
-        if (repeatedApproved > 0) warnings.push(`${repeatedApproved} riwayat APPROVED lama digantikan snapshot terbaru`);
+        if (candidate.migration_type === "PARTIAL") {
+            warnings.push(`Masuk sebagai Opname Parsial: ${candidate.approved_count} disetujui, ${candidate.pending_count} pending, ${candidate.rejected_count} ditolak`);
+        }
+        const sourceHistoryCount = candidate.approved_count + candidate.pending_count + candidate.rejected_count;
+        const repeatedHistory = sourceHistoryCount - candidate.items.length;
+        if (repeatedHistory > 0) warnings.push(`${repeatedHistory} riwayat item lama digantikan snapshot terbaru`);
+        if (candidate.migration_type === "PARTIAL" && target?.existing_type === "OPNAME_FINAL") {
+            issues.push("Database sudah berisi Opname Final; tidak boleh diturunkan menjadi Opname Parsial");
+        }
         if (sources.length !== resolvedItems.length) {
             warnings.push(`Snapshot memuat ${resolvedItems.length} item; sumber DB aktif memuat ${sources.length} item`);
         }
@@ -327,6 +352,7 @@ const resolveCandidates = async (buffer: Buffer): Promise<Candidate[]> => {
             nama_toko: target?.nama_toko ?? null,
             cabang: target?.cabang ?? null,
             existing_id: target?.existing_id ?? null,
+            existing_type: target?.existing_type ?? null,
             existing_status: target?.existing_status ?? null,
             expected_item_count: sources.length,
             grand_total_rab: Math.round(grandTotalRab),
@@ -338,35 +364,42 @@ const resolveCandidates = async (buffer: Buffer): Promise<Candidate[]> => {
 };
 
 const insertItems = async (client: PoolClient, candidate: Candidate, opnameFinalId: number) => {
-    for (const item of candidate.items) {
+    const values: unknown[] = [];
+    const placeholders = candidate.items.map((item, index) => {
         if (!item.source_id || !item.source_type) throw new AppError(`Item baris ${item.source_row} belum terpetakan`, 422);
-        const sourcePrice = await client.query<{ harga_material: string; harga_upah: string }>(
-            item.source_type === "RAB"
-                ? `SELECT harga_material::text, harga_upah::text FROM rab_item WHERE id = $1`
-                : `SELECT harga_material::text, harga_upah::text FROM instruksi_lapangan_item WHERE id = $1`,
-            [item.source_id]
-        );
-        const unitPrice = numberValue(sourcePrice.rows[0]?.harga_material) + numberValue(sourcePrice.rows[0]?.harga_upah);
-        const totalSelisih = Math.round(item.selisih_volume * unitPrice);
-        const totalHargaOpname = Math.round(item.volume_akhir * unitPrice);
-        await client.query(`
-            INSERT INTO opname_item (
-                id_toko, id_opname_final, id_rab_item, id_instruksi_lapangan_item,
-                status, volume_akhir, selisih_volume, total_selisih, total_harga_opname,
-                desain, kualitas, spesifikasi, foto, catatan, created_at
-            ) VALUES (
-                $1,$2,$3,$4,'disetujui',$5,$6,$7,$8,$9,$10,$11,$12,$13,
-                COALESCE($14::timestamp, timezone('Asia/Jakarta', now()))
-            )
-        `, [
-            candidate.toko_id, opnameFinalId,
+        const totalSelisih = Math.round(item.selisih_volume * item.matched_unit_price);
+        const totalHargaOpname = Math.round(item.volume_akhir * item.matched_unit_price);
+        values.push(
+            candidate.toko_id,
+            opnameFinalId,
             item.source_type === "RAB" ? item.source_id : null,
             item.source_type === "IL" ? item.source_id : null,
-            item.volume_akhir, item.selisih_volume, totalSelisih, totalHargaOpname,
-            item.desain, item.kualitas, item.spesifikasi, item.foto, item.catatan,
+            item.approval_status === "APPROVED"
+                ? "disetujui"
+                : item.approval_status === "REJECTED"
+                    ? "ditolak"
+                    : "pending",
+            item.volume_akhir,
+            item.selisih_volume,
+            totalSelisih,
+            totalHargaOpname,
+            item.desain,
+            item.kualitas,
+            item.spesifikasi,
+            item.foto,
+            item.catatan,
             item.created_at ?? candidate.created_at
-        ]);
-    }
+        );
+        const offset = index * 15;
+        return `($${offset + 1},$${offset + 2},$${offset + 3},$${offset + 4},$${offset + 5},$${offset + 6},$${offset + 7},$${offset + 8},$${offset + 9},$${offset + 10},$${offset + 11},$${offset + 12},$${offset + 13},$${offset + 14},COALESCE($${offset + 15}::timestamp,timezone('Asia/Jakarta',now())))`;
+    });
+    await client.query(`
+        INSERT INTO opname_item (
+            id_toko, id_opname_final, id_rab_item, id_instruksi_lapangan_item,
+            status, volume_akhir, selisih_volume, total_selisih, total_harga_opname,
+            desain, kualitas, spesifikasi, foto, catatan, created_at
+        ) VALUES ${placeholders.join(",")}
+    `, values);
 };
 
 const writeCandidate = async (
@@ -376,40 +409,59 @@ const writeCandidate = async (
 ) => {
     if (action === "skip") return { status: "skipped", source_candidate_id: candidate.source_candidate_id, target_id: candidate.existing_id };
     if (candidate.issues.length > 0 || !candidate.toko_id || !candidate.created_at) {
-        throw new AppError(`Opname Final ${candidate.nomor_ulok}/${candidate.lingkup_pekerjaan} tidak valid: ${candidate.issues.join(", ")}`, 422);
+        throw new AppError(`Opname ${candidate.nomor_ulok}/${candidate.lingkup_pekerjaan} tidak valid: ${candidate.issues.join(", ")}`, 422);
     }
     if (action === "insert" && candidate.existing_id) throw new AppError(`Opname ${candidate.nomor_ulok}/${candidate.lingkup_pekerjaan} sudah ada`, 409);
     if (action === "replace" && !candidate.existing_id) throw new AppError(`Opname existing ${candidate.nomor_ulok}/${candidate.lingkup_pekerjaan} tidak ditemukan`, 404);
 
     let targetId = candidate.existing_id;
+    const isFinal = candidate.migration_type === "FINAL";
+    const tipeOpname = isFinal ? "OPNAME_FINAL" : "OPNAME";
+    const aksi = isFinal ? "terkunci" : "active";
+    const headerStatus = isFinal ? "Disetujui" : "Proses KTK/Approval Kontraktor";
     if (action === "replace" && targetId) {
         await client.query(`DELETE FROM opname_item WHERE id_opname_final = $1`, [targetId]);
         await client.query(`
             UPDATE opname_final
-            SET tipe_opname='OPNAME_FINAL', aksi='terkunci', status_opname_final='Disetujui',
-                email_pembuat=$1, grand_total_opname=$2, grand_total_rab=$3,
+            SET tipe_opname=$1, aksi=$2, status_opname_final=$3,
+                email_pembuat=$4, grand_total_opname=$5, grand_total_rab=$6,
                 link_pdf_opname=NULL, alasan_penolakan=NULL, catatan_penolakan=NULL,
-                created_at=$4::timestamp
-            WHERE id=$5
-        `, [candidate.email_pembuat, candidate.grand_total_opname, candidate.grand_total_rab, candidate.created_at, targetId]);
+                created_at=$7::timestamp
+            WHERE id=$8
+        `, [
+            tipeOpname, aksi, headerStatus,
+            candidate.email_pembuat, candidate.grand_total_opname, candidate.grand_total_rab,
+            candidate.created_at, targetId
+        ]);
     } else {
         const inserted = await client.query<{ id: number }>(`
             INSERT INTO opname_final (
                 id_toko, tipe_opname, aksi, status_opname_final, email_pembuat,
                 grand_total_opname, grand_total_rab, created_at
-            ) VALUES ($1,'OPNAME_FINAL','terkunci','Disetujui',$2,$3,$4,$5::timestamp)
+            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8::timestamp)
             RETURNING id
-        `, [candidate.toko_id, candidate.email_pembuat, candidate.grand_total_opname, candidate.grand_total_rab, candidate.created_at]);
+        `, [
+            candidate.toko_id, tipeOpname, aksi, headerStatus,
+            candidate.email_pembuat, candidate.grand_total_opname, candidate.grand_total_rab,
+            candidate.created_at
+        ]);
         targetId = inserted.rows[0].id;
     }
     await insertItems(client, candidate, targetId!);
-    const denda = await calculateDendaByTokoId(candidate.toko_id);
-    await client.query(`
-        UPDATE opname_final
-        SET hari_denda=$1, nilai_denda=$2, tanggal_akhir_spk_denda=$3, tanggal_serah_terima_denda=$4
-        WHERE id=$5
-    `, [denda.hari_denda, denda.nilai_denda, denda.tanggal_akhir_spk, denda.tanggal_serah_terima, targetId]);
-    return { status: action === "replace" ? "replaced" : "inserted", source_candidate_id: candidate.source_candidate_id, target_id: targetId };
+    if (isFinal) {
+        const denda = await calculateDendaByTokoId(candidate.toko_id);
+        await client.query(`
+            UPDATE opname_final
+            SET hari_denda=$1, nilai_denda=$2, tanggal_akhir_spk_denda=$3, tanggal_serah_terima_denda=$4
+            WHERE id=$5
+        `, [denda.hari_denda, denda.nilai_denda, denda.tanggal_akhir_spk, denda.tanggal_serah_terima, targetId]);
+    }
+    return {
+        status: action === "replace" ? "replaced" : "inserted",
+        source_candidate_id: candidate.source_candidate_id,
+        target_id: targetId,
+        migration_type: candidate.migration_type
+    };
 };
 
 const queuePdfGeneration = (ids: number[]) => {
@@ -441,16 +493,19 @@ export const opnameFinalMigrationService = {
             cabang: candidate.cabang,
             email_pembuat: candidate.email_pembuat,
             created_at: candidate.created_at,
+            migration_type: candidate.migration_type,
             item_count: candidate.items.length,
             mapped_item_count: candidate.items.filter((item) => item.source_id).length,
             expected_item_count: candidate.expected_item_count,
-            ignored_pending_count: candidate.ignored_pending_count,
-            ignored_rejected_count: candidate.ignored_rejected_count,
+            approved_count: candidate.approved_count,
+            pending_count: candidate.pending_count,
+            rejected_count: candidate.rejected_count,
             grand_total_rab: candidate.grand_total_rab,
             grand_total_opname: candidate.grand_total_opname,
             kerja_tambah: candidate.items.filter((item) => item.selisih_volume > 0).reduce((sum, item) => sum + Math.max(0, item.selisih_volume * (item.harga_material + item.harga_upah)), 0),
             kerja_kurang: candidate.items.filter((item) => item.selisih_volume < 0).reduce((sum, item) => sum + Math.abs(item.selisih_volume * (item.harga_material + item.harga_upah)), 0),
             existing_id: candidate.existing_id,
+            existing_type: candidate.existing_type,
             existing_status: candidate.existing_status,
             db_state: candidate.issues.length > 0 ? "invalid" : candidate.existing_id ? "conflict" : "ready",
             issues: candidate.issues,
@@ -463,7 +518,8 @@ export const opnameFinalMigrationService = {
         }));
         return {
             total_candidates: details.length,
-            approved_candidates: details.filter((row) => row.item_count > 0).length,
+            partial_count: details.filter((row) => row.migration_type === "PARTIAL").length,
+            final_count: details.filter((row) => row.migration_type === "FINAL").length,
             total_items: details.reduce((sum, row) => sum + row.item_count, 0),
             mapped_items: details.reduce((sum, row) => sum + row.mapped_item_count, 0),
             ready_count: details.filter((row) => row.db_state === "ready").length,
@@ -496,13 +552,17 @@ export const opnameFinalMigrationService = {
             }, client);
             return rows;
         });
-        const pdfIds = results.filter((row) => row.status !== "skipped" && row.target_id).map((row) => Number(row.target_id));
+        const pdfIds = results
+            .filter((row) => row.status !== "skipped" && row.target_id && row.migration_type === "FINAL")
+            .map((row) => Number(row.target_id));
         queuePdfGeneration(pdfIds);
         return {
             total_selected: input.selections.length,
             inserted: results.filter((row) => row.status === "inserted").length,
             replaced: results.filter((row) => row.status === "replaced").length,
             skipped: results.filter((row) => row.status === "skipped").length,
+            partial_processed: results.filter((row) => row.status !== "skipped" && row.migration_type === "PARTIAL").length,
+            final_processed: results.filter((row) => row.status !== "skipped" && row.migration_type === "FINAL").length,
             pdf_queued: pdfIds.length,
             details: results
         };
