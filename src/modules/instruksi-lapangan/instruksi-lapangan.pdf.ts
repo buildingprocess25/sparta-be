@@ -35,12 +35,13 @@ const formatDateTimeIndonesia = (value?: string | null): string => {
     return `${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}, ${hh}:${mm} WIB`;
 };
 
-const approvalDetails = (nameOrEmail?: string | null, approvedAt?: string | null): string => {
+const approvalDetails = (nameOrEmail?: string | null, approvedAt?: string | null, catatan?: string | null): string => {
     const identity = (nameOrEmail ?? "").trim();
     if (!identity) {
         return "<div class='approval-details'><div class='approval-date'>&nbsp;</div><div class='approval-name'>( _________________ )</div></div>";
     }
-    return `<div class="approval-details"><div class="approval-date">${formatDateTimeIndonesia(approvedAt)}</div><div class="approval-name">( ${identity} )</div></div>`;
+    const noteHtml = catatan ? `<div class="approval-note" style="font-size: 8px; color: #666; font-style: italic; margin-top: 2px;">"${catatan}"</div>` : "";
+    return `<div class="approval-details"><div class="approval-date">${formatDateTimeIndonesia(approvedAt)}</div><div class="approval-name">( ${identity} )</div>${noteHtml}</div>`;
 };
 
 const isRejectedStatus = (status?: string | null): boolean =>
@@ -159,12 +160,14 @@ export const buildInstruksiLapanganPdfBuffer = async (input: BuildInstruksiLapan
             : approvalDetails(
                 input.instruksiLapangan.pemberi_persetujuan_koordinator,
                 input.instruksiLapangan.waktu_persetujuan_koordinator,
+                input.instruksiLapangan.catatan_persetujuan_koordinator
             ),
         manager_approval_details: isRejected
             ? approvalDetails()
             : approvalDetails(
                 input.instruksiLapangan.pemberi_persetujuan_manager,
                 input.instruksiLapangan.waktu_persetujuan_manager,
+                input.instruksiLapangan.catatan_persetujuan_manager
             ),
     });
 
