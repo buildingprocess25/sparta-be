@@ -15,6 +15,11 @@
         "backup:drive:prod": "node dist/scripts/backup-database-to-drive.js",
         "repair:denda:first-st": "tsx src/scripts/repair-first-serah-terima-penalty.ts",
         "test:denda": "tsx --test src/modules/denda/denda-keterlambatan.test.ts",
+        "test:opname-financial": "tsx --test src/modules/opname-final/opname-final.financial.test.ts",
+        "test:opname-schema": "tsx --test src/modules/opname/opname.schema.test.ts",
+        "backfill:opname-financial": "tsx src/scripts/backfill-opname-final-financials.ts",
+        "regenerate:il-pdfs": "tsx src/scripts/regenerate-instruksi-lapangan-pdfs.ts",
+        "correct:serah-terima-date": "tsx src/scripts/correct-serah-terima-date.ts",
         "typecheck": "tsc --noEmit -p tsconfig.json"
     },
     "dependencies": {

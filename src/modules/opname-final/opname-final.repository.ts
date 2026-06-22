@@ -1,5 +1,6 @@
 import { pool, withTransaction } from "../../db/pool";
 import type { ApprovalActionInput } from "../approval/approval.schema";
+import { calculateOpnameFinalFinancials, isNoPpnArea } from "./opname-final.financial";
 import type { OpnameFinalStatus } from "./opname-final.constants";
 import type { LockOpnameFinalInput, OpnameFinalListQueryInput } from "./opname-final.schema";
 
@@ -645,64 +646,65 @@ export const opnameFinalRepository = {
     },
 
     async updateTotals(opnameFinalId: string): Promise<void> {
-        const header = await pool.query(`SELECT ofn.nilai_denda, t.cabang, t.nama_toko, t.alamat FROM opname_final ofn JOIN toko t ON t.id = ofn.id_toko WHERE ofn.id = $1`, [opnameFinalId]);
+        const header = await pool.query(`
+            SELECT ofn.id_toko, ofn.nilai_denda, t.cabang, t.nama_toko, t.alamat
+            FROM opname_final ofn
+            JOIN toko t ON t.id = ofn.id_toko
+            WHERE ofn.id = $1
+        `, [opnameFinalId]);
         if ((header.rowCount ?? 0) === 0) return;
         const row = header.rows[0];
 
-        const normalizeNoPpnText = (value?: string | null): string => String(value ?? "").trim().toUpperCase();
-        const identity = [row.cabang, row.nama_toko, row.alamat].map(normalizeNoPpnText);
-        const noPpn = identity.some(value => value === "BATAM" || value === "BINTAN" || /\bBATAM\b|\bBINTAN\b/.test(value));
-
-        const buildFinancialSummary = (total: number, direction: "down" | "up", noPpn = false) => {
-            const pembulatan = direction === "down"
-                ? (total < 0 ? -1 : 1) * Math.floor(Math.abs(total) / 10000) * 10000
-                : (total === 0 ? 0 : (total < 0 ? -1 : 1) * Math.ceil(Math.abs(total) / 10000) * 10000);
-            const ppn = noPpn ? 0 : Math.round(pembulatan * 0.11);
-            return { grand_total: pembulatan + ppn };
-        };
+        const noPpn = isNoPpnArea(row);
 
         const items = await pool.query(`
-            SELECT oi.id_rab_item, oi.total_selisih,
-                   ri.total_harga as rab_item_total_harga,
-                   ili.total_harga as il_item_total_harga
+            SELECT oi.id_rab_item, oi.total_selisih
             FROM opname_item oi
-            LEFT JOIN rab_item ri ON ri.id = oi.id_rab_item
-            LEFT JOIN instruksi_lapangan_item ili ON ili.id = oi.id_instruksi_lapangan_item
             WHERE oi.id_opname_final = $1
         `, [opnameFinalId]);
-        
-        let rabTotal = 0;
-        let ilTotal = 0;
+
+        const rabResult = await pool.query<{ total: string }>(`
+            SELECT COALESCE(SUM(ri.total_harga), 0)::text AS total
+            FROM rab_item ri
+            WHERE ri.id_rab = (
+                SELECT id
+                FROM rab
+                WHERE id_toko = $1
+                ORDER BY id DESC
+                LIMIT 1
+            )
+        `, [row.id_toko]);
+        const ilResult = await pool.query<{ total: string }>(`
+            SELECT COALESCE(SUM(ili.total_harga), 0)::text AS total
+            FROM instruksi_lapangan_item ili
+            JOIN instruksi_lapangan il ON il.id = ili.id_instruksi_lapangan
+            WHERE il.id_toko = $1
+              AND il.status IN ('Disetujui', 'Approved')
+        `, [row.id_toko]);
+
+        const rabTotal = Number(rabResult.rows[0]?.total || 0);
+        const ilTotal = Number(ilResult.rows[0]?.total || 0);
         let tambahTotal = 0;
         let kurangTotal = 0;
-        let grandTotalOpname = 0;
-        let grandTotalRab = 0;
 
         for (const item of items.rows) {
             const selisih = Number(item.total_selisih || 0);
-            
             if (item.id_rab_item) {
-                const rabItemTotal = Number(item.rab_item_total_harga || 0);
-                rabTotal += rabItemTotal;
-                grandTotalRab += rabItemTotal;
-                
                 if (selisih > 0) tambahTotal += selisih;
                 else kurangTotal += selisih;
-            } else {
-                ilTotal += Number(item.il_item_total_harga || 0);
             }
-            
-            grandTotalOpname += selisih; // We will add the base totals to this after the loop
         }
-        
-        grandTotalOpname += (grandTotalRab + ilTotal);
+        const grandTotalOpname = rabTotal + ilTotal + tambahTotal + kurangTotal;
 
-        const rabSummary = buildFinancialSummary(rabTotal, 'down', noPpn);
-        const ilSummary = buildFinancialSummary(ilTotal, 'up', noPpn);
-        const tambahSummary = buildFinancialSummary(tambahTotal, 'up', noPpn);
-        const kurangSummary = buildFinancialSummary(kurangTotal, 'up', noPpn);
         const nilaiDenda = Number(row.nilai_denda || 0);
-        const finalTotal = rabSummary.grand_total + ilSummary.grand_total + tambahSummary.grand_total - Math.abs(kurangSummary.grand_total) - nilaiDenda;
+        const financials = calculateOpnameFinalFinancials({
+            rab: rabTotal,
+            instruksiLapangan: ilTotal,
+            kerjaTambah: tambahTotal,
+            kerjaKurang: kurangTotal,
+            denda: nilaiDenda,
+            noPpn,
+        });
 
         await pool.query(
             `
@@ -714,8 +716,8 @@ export const opnameFinalRepository = {
             `,
             [
                 String(grandTotalOpname),
-                String(grandTotalRab),
-                String(finalTotal),
+                String(rabTotal),
+                String(financials.totalFinal),
                 opnameFinalId
             ]
         );

@@ -4,6 +4,7 @@ export type BerkasSerahTerimaRow = {
     id: number;
     id_toko: number;
     link_pdf: string | null;
+    tanggal_serah_terima: string;
     created_at: string;
 };
 
@@ -187,7 +188,7 @@ export const serahTerimaRepository = {
     async findBerkasSerahTerimaByIdToko(idToko: number): Promise<BerkasSerahTerimaRow | null> {
         const result = await pool.query<BerkasSerahTerimaRow>(
             `
-            SELECT id, id_toko, link_pdf, created_at
+            SELECT id, id_toko, link_pdf, tanggal_serah_terima, created_at
             FROM berkas_serah_terima
             WHERE id_toko = $1
             ORDER BY id DESC
@@ -202,7 +203,7 @@ export const serahTerimaRepository = {
     async findBerkasSerahTerimaById(id: number): Promise<BerkasSerahTerimaRow | null> {
         const result = await pool.query<BerkasSerahTerimaRow>(
             `
-            SELECT id, id_toko, link_pdf, created_at
+            SELECT id, id_toko, link_pdf, tanggal_serah_terima, created_at
             FROM berkas_serah_terima
             WHERE id = $1
             LIMIT 1
@@ -235,6 +236,7 @@ export const serahTerimaRepository = {
                 bst.id,
                 bst.id_toko,
                 bst.link_pdf,
+                bst.tanggal_serah_terima,
                 bst.created_at,
                 t.nomor_ulok,
                 t.lingkup_pekerjaan,
@@ -288,7 +290,7 @@ export const serahTerimaRepository = {
     async ensureBerkasSerahTerima(idToko: number): Promise<BerkasSerahTerimaRow> {
         const existing = await pool.query<BerkasSerahTerimaRow>(
             `
-            SELECT id, id_toko, link_pdf, created_at
+            SELECT id, id_toko, link_pdf, tanggal_serah_terima, created_at
             FROM berkas_serah_terima
             WHERE id_toko = $1
             ORDER BY id DESC
@@ -305,7 +307,7 @@ export const serahTerimaRepository = {
             `
             INSERT INTO berkas_serah_terima (id_toko)
             VALUES ($1)
-            RETURNING id, id_toko, link_pdf, created_at
+            RETURNING id, id_toko, link_pdf, tanggal_serah_terima, created_at
             `,
             [idToko]
         );
@@ -319,7 +321,7 @@ export const serahTerimaRepository = {
             UPDATE berkas_serah_terima
             SET link_pdf = $1
             WHERE id = $2
-            RETURNING id, id_toko, link_pdf, created_at
+            RETURNING id, id_toko, link_pdf, tanggal_serah_terima, created_at
             `,
             [linkPdf, id]
         );

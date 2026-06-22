@@ -204,6 +204,7 @@ const finalizeBulkCreate = async (
     created: Awaited<ReturnType<typeof opnameRepository.createBulkWithFinal>>
 ) => {
     await refreshOpnameFinalDenda(created.opnameFinal.id, created.opnameFinal.id_toko);
+    await opnameFinalRepository.updateTotals(String(created.opnameFinal.id));
     await scheduleAutomaticSerahTerimaIfReady(created.opnameFinal.id_toko);
     return mapBulkCreateResponse(created);
 };
@@ -224,6 +225,7 @@ export const opnameService = {
 
             const created = await opnameRepository.create(payload);
             await refreshOpnameFinalDenda(created.id_opname_final, created.id_toko);
+            await opnameFinalRepository.updateTotals(String(created.id_opname_final));
             return normalizeOpnameFotoLink(created);
         } catch (error) {
             return mapPgError(error);
@@ -405,6 +407,7 @@ export const opnameService = {
             }
 
             await refreshOpnameFinalDenda(data.id_opname_final, data.id_toko);
+            await opnameFinalRepository.updateTotals(String(data.id_opname_final));
             return normalizeOpnameFotoLink(data);
         } catch (error) {
             if (error instanceof AppError) {

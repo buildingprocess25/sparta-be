@@ -120,6 +120,7 @@ export const serahTerimaService = {
             id: row.id,
             id_toko: row.id_toko,
             link_pdf: row.link_pdf,
+            tanggal_serah_terima: row.tanggal_serah_terima,
             created_at: row.created_at,
             toko: {
                 id: row.id_toko,
@@ -155,7 +156,7 @@ export const serahTerimaService = {
 
         const { toko, opnameFinal, items } = await buildDetailByTokoId(idToko);
         const detail = { toko, opname_final: opnameFinal, items };
-        const pdfBuffer = await buildSerahTerimaPdfBuffer(detail, placeholder.created_at);
+        const pdfBuffer = await buildSerahTerimaPdfBuffer(detail, placeholder.tanggal_serah_terima);
 
         // 2. Upload ke Google Drive
         const proyek = sanitizeFilenamePart(toko.proyek ?? undefined, "PROYEK");
@@ -233,7 +234,7 @@ export const serahTerimaService = {
         }
 
         const { toko, opnameFinal, items } = await buildDetailByTokoId(berkas.id_toko);
-        const buffer = await buildSerahTerimaPdfBuffer({ toko, opname_final: opnameFinal, items }, berkas.created_at);
+        const buffer = await buildSerahTerimaPdfBuffer({ toko, opname_final: opnameFinal, items }, berkas.tanggal_serah_terima);
         const proyek = sanitizeFilenamePart(toko.proyek ?? undefined, "PROYEK");
         const nomorUlok = sanitizeFilenamePart(toko.nomor_ulok ?? undefined, "ULOK");
 
@@ -254,7 +255,7 @@ export const serahTerimaService = {
         const { toko, opnameFinal, items } = await buildDetailByTokoId(berkas.id_toko);
         const pdfBuffer = await buildSerahTerimaPdfBuffer(
             { toko, opname_final: opnameFinal, items },
-            berkas.created_at
+            berkas.tanggal_serah_terima
         );
         const proyek = sanitizeFilenamePart(toko.proyek ?? undefined, "PROYEK");
         const nomorUlok = sanitizeFilenamePart(toko.nomor_ulok ?? undefined, "ULOK");

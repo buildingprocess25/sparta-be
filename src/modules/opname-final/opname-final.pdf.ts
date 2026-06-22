@@ -5,52 +5,25 @@ import { renderHtmlTemplate, renderPdfFromHtml, resolveTemplatePath } from "../.
 import type { InstruksiLapanganItemRow } from "../instruksi-lapangan/instruksi-lapangan.repository";
 import type { OpnameFinalDetail, OpnameFinalItemRow } from "./opname-final.repository";
 import type { RabItemRow, RabRow } from "../rab/rab.repository";
+import {
+    buildFinancialSummary as buildSharedFinancialSummary,
+    calculateOpnameFinalFinancials,
+    isNoPpnArea,
+} from "./opname-final.financial";
 
 const rupiah = (value: number): string => {
     return new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(Number(value) || 0);
 };
 
-const roundDownTenThousand = (value: number): number => {
-    const numeric = Number(value) || 0;
-    const sign = numeric < 0 ? -1 : 1;
-    return sign * Math.floor(Math.abs(numeric) / 10000) * 10000;
-};
-
-const roundUpTenThousand = (value: number): number => {
-    const numeric = Number(value) || 0;
-    if (numeric === 0) return 0;
-    const sign = numeric < 0 ? -1 : 1;
-    return sign * Math.ceil(Math.abs(numeric) / 10000) * 10000;
-};
-
-const normalizeNoPpnText = (value?: string | null): string => String(value ?? "").trim().toUpperCase();
-
-const isNoPpnArea = (toko: { cabang?: string | null; nama_toko?: string | null; alamat?: string | null }): boolean => {
-    const identity = [
-        toko.cabang,
-        toko.nama_toko,
-        toko.alamat,
-    ].map(normalizeNoPpnText);
-
-    return identity.some(value => value === "BATAM" || value === "BINTAN" || /\bBATAM\b|\bBINTAN\b/.test(value));
-};
-
 const buildFinancialSummary = (total: number, direction: "down" | "up", noPpn = false) => {
-    const pembulatan = direction === "down"
-        ? roundDownTenThousand(total)
-        : roundUpTenThousand(total);
-    const ppn = noPpn ? 0 : Math.round(pembulatan * 0.11);
-    const grandTotal = pembulatan + ppn;
+    const summary = buildSharedFinancialSummary(total, direction, noPpn);
 
     return {
-        total,
-        total_formatted: rupiah(total),
-        pembulatan,
-        pembulatan_formatted: rupiah(pembulatan),
-        ppn,
-        ppn_formatted: rupiah(ppn),
-        grand_total: grandTotal,
-        grand_total_formatted: rupiah(grandTotal)
+        ...summary,
+        total_formatted: rupiah(summary.total),
+        pembulatan_formatted: rupiah(summary.pembulatan),
+        ppn_formatted: rupiah(summary.ppn),
+        grand_total_formatted: rupiah(summary.grand_total)
     };
 };
 
@@ -359,16 +332,20 @@ export const buildOpnameFinalPdfBuffer = async (
     const nilaiDenda = toNumber(detail.opname_final.nilai_denda);
     const hariDenda = Number(detail.opname_final.hari_denda ?? 0) || 0;
     const documentLabel = "Opname";
-    const rabSummary = buildFinancialSummary(totalRabItems, "down", noPpn);
-    const instruksiLapanganSummary = buildFinancialSummary(grandTotalIl, "up", noPpn);
-    const kerjaTambahSummary = buildFinancialSummary(grandTotalKerjaTambah, "up", noPpn);
-    const kerjaKurangSummary = buildFinancialSummary(grandTotalKerjaKurang, "up", noPpn);
-    const selisihKerjaTambahKurang = kerjaTambahSummary.grand_total - Math.abs(kerjaKurangSummary.grand_total);
-    const totalOpnameFinal = rabSummary.grand_total
-        + instruksiLapanganSummary.grand_total
-        + kerjaTambahSummary.grand_total
-        - Math.abs(kerjaKurangSummary.grand_total)
-        - nilaiDenda;
+    const financials = calculateOpnameFinalFinancials({
+        rab: totalRabItems,
+        instruksiLapangan: grandTotalIl,
+        kerjaTambah: grandTotalKerjaTambah,
+        kerjaKurang: grandTotalKerjaKurang,
+        denda: nilaiDenda,
+        noPpn,
+    });
+    const rabSummary = buildFinancialSummary(financials.rab.total, "down", noPpn);
+    const instruksiLapanganSummary = buildFinancialSummary(financials.instruksiLapangan.total, "up", noPpn);
+    const kerjaTambahSummary = buildFinancialSummary(financials.kerjaTambah.total, "up", noPpn);
+    const kerjaKurangSummary = buildFinancialSummary(financials.kerjaKurang.total, "up", noPpn);
+    const selisihKerjaTambahKurang = financials.selisihKerjaTambahKurang;
+    const totalOpnameFinal = financials.totalFinal;
 
     const html = await renderHtmlTemplate(templatePath, {
         generated_at: formatDateIndonesia(new Date().toISOString()),

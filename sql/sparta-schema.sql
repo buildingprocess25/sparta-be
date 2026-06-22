@@ -1056,11 +1056,13 @@ CREATE TABLE IF NOT EXISTS berkas_serah_terima (
     id SERIAL PRIMARY KEY,
     id_toko INT NOT NULL,
     link_pdf VARCHAR(500),
+    tanggal_serah_terima DATE NOT NULL DEFAULT (timezone('Asia/Jakarta', now())::date),
     created_at TIMESTAMP NOT NULL DEFAULT timezone('Asia/Jakarta', now()),
     CONSTRAINT fk_berkas_serah_terima_toko FOREIGN KEY (id_toko) REFERENCES toko(id) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_berkas_serah_terima_id_toko ON berkas_serah_terima(id_toko);
+CREATE INDEX IF NOT EXISTS idx_berkas_serah_terima_tanggal ON berkas_serah_terima(tanggal_serah_terima);
 
 -- 17) PENYIMPANAN_DOKUMEN
 CREATE TABLE IF NOT EXISTS penyimpanan_dokumen (

@@ -6,6 +6,7 @@ import { calculateDendaByTokoId } from "../denda/denda-keterlambatan";
 import { instruksiLapanganRepository } from "../instruksi-lapangan/instruksi-lapangan.repository";
 import { rabRepository } from "../rab/rab.repository";
 import { buildOpnameFinalPdfBuffer } from "./opname-final.pdf";
+import { calculateOpnameFinalFinancials, isNoPpnArea } from "./opname-final.financial";
 import { OPNAME_FINAL_STATUS, type OpnameFinalStatus } from "./opname-final.constants";
 import { opnameFinalRepository } from "./opname-final.repository";
 import type { OpnameFinalDetail } from "./opname-final.repository";
@@ -73,31 +74,6 @@ const parseAreaNumber = (value?: string | number | null): number => {
         .replace(/[^0-9.-]/g, "");
     const parsed = Number(normalized);
     return Number.isFinite(parsed) ? parsed : 0;
-};
-
-const roundDownTenThousand = (value: number): number => {
-    const numeric = Number(value) || 0;
-    const sign = numeric < 0 ? -1 : 1;
-    return sign * Math.floor(Math.abs(numeric) / 10000) * 10000;
-};
-
-const roundUpTenThousand = (value: number): number => {
-    const numeric = Number(value) || 0;
-    if (numeric === 0) return 0;
-    const sign = numeric < 0 ? -1 : 1;
-    return sign * Math.ceil(Math.abs(numeric) / 10000) * 10000;
-};
-
-const buildFinancialGrandTotal = (total: number, direction: "down" | "up", noPpn = false): number => {
-    const pembulatan = direction === "down" ? roundDownTenThousand(total) : roundUpTenThousand(total);
-    return pembulatan + (noPpn ? 0 : Math.round(pembulatan * 0.11));
-};
-
-const normalizeNoPpnText = (value?: string | null): string => String(value ?? "").trim().toUpperCase();
-
-const isNoPpnArea = (toko: { cabang?: string | null; nama_toko?: string | null; alamat?: string | null }): boolean => {
-    const identity = [toko.cabang, toko.nama_toko, toko.alamat].map(normalizeNoPpnText);
-    return identity.some(value => value === "BATAM" || value === "BINTAN" || /\bBATAM\b|\bBINTAN\b/.test(value));
 };
 
 const resolveStatusTransition = (
@@ -210,11 +186,14 @@ const calculateOpnameKtkTotal = (
     const totalKerjaKurang = kerjaKurangItems.reduce((acc, item) => acc + toNumber(item.total_selisih), 0);
     const nilaiDenda = toNumber(detail.opname_final.nilai_denda);
 
-    return buildFinancialGrandTotal(totalRabItems, "down", noPpn)
-        + buildFinancialGrandTotal(totalIl, "up", noPpn)
-        + buildFinancialGrandTotal(totalKerjaTambah, "up", noPpn)
-        - Math.abs(buildFinancialGrandTotal(totalKerjaKurang, "up", noPpn))
-        - nilaiDenda;
+    return calculateOpnameFinalFinancials({
+        rab: totalRabItems,
+        instruksiLapangan: totalIl,
+        kerjaTambah: totalKerjaTambah,
+        kerjaKurang: totalKerjaKurang,
+        denda: nilaiDenda,
+        noPpn,
+    }).totalFinal;
 };
 
 const applyRukoConversionIfNeeded = async (
@@ -305,6 +284,7 @@ export const opnameFinalService = {
     },
 
     async getById(id: string) {
+        await opnameFinalRepository.updateTotals(id);
         const data = await opnameFinalRepository.findById(id);
         if (!data) {
             throw new AppError("Data opname_final tidak ditemukan", 404);
@@ -327,8 +307,8 @@ export const opnameFinalService = {
         const newStatus = resolveStatusTransition(currentStatus, action);
 
         await opnameFinalRepository.updateApproval(id, newStatus, action);
-        await opnameFinalRepository.updateTotals(id);
         await refreshDenda(id, detail.toko.id);
+        await opnameFinalRepository.updateTotals(id);
 
         const linkPdf = await regeneratePdfAndUpload(id);
         await opnameFinalRepository.updatePdfLink(id, linkPdf);
@@ -348,6 +328,7 @@ export const opnameFinalService = {
         }
 
         await refreshDenda(id, detail.toko.id);
+        await opnameFinalRepository.updateTotals(id);
         const refreshedDetail = await opnameFinalRepository.findById(id);
         if (!refreshedDetail) {
             throw new AppError("Data opname_final tidak ditemukan", 404);
@@ -375,6 +356,7 @@ export const opnameFinalService = {
             }
 
             await refreshDenda(id, payload.id_toko);
+            await opnameFinalRepository.updateTotals(id);
             const linkPdf = await regeneratePdfAndUpload(id);
             await opnameFinalRepository.updatePdfLink(id, linkPdf);
 
@@ -402,6 +384,7 @@ export const opnameFinalService = {
         }
 
         await refreshDenda(id, detail.toko.id);
+        await opnameFinalRepository.updateTotals(id);
         const linkPdf = await regeneratePdfAndUpload(id);
         await opnameFinalRepository.updatePdfLink(id, linkPdf);
 

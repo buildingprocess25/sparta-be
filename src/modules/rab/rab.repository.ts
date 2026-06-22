@@ -1,6 +1,7 @@
 import type { PoolClient } from "pg";
 import { pool, withTransaction } from "../../db/pool";
 import type { ApprovalActionInput } from "../approval/approval.schema";
+import { activityLogRepository } from "../activity-log/activity-log.repository";
 import { ACTIVE_RAB_STATUSES, RAB_STATUS, REJECTED_RAB_STATUSES, type RabStatus } from "./rab.constants";
 import type { DetailItemInput } from "./rab.schema";
 
@@ -1131,19 +1132,43 @@ export const rabRepository = {
                 );
             }
 
-            // --- Step 2: Activate latest gantt_chart for this toko ---
-            await client.query(
-                `UPDATE gantt_chart
-                 SET status = 'active'
-                 WHERE id = (
-                    SELECT id
+            // --- Step 2: Koordinator menolak RAB => buka kembali Gantt yang terkunci ---
+            if (newStatus === RAB_STATUS.REJECTED_BY_COORDINATOR) {
+                const ganttResult = await client.query<{ id: number; status: string }>(
+                    `
+                    SELECT id, status
                     FROM gantt_chart
                     WHERE id_toko = $1
                     ORDER BY id DESC
                     LIMIT 1
-                 )`,
-                [tokoId]
-            );
+                    FOR UPDATE
+                    `,
+                    [tokoId]
+                );
+                const gantt = ganttResult.rows[0];
+
+                if (gantt && gantt.status.toLowerCase() !== "active") {
+                    await client.query(
+                        "UPDATE gantt_chart SET status = 'active' WHERE id = $1",
+                        [gantt.id]
+                    );
+                    await activityLogRepository.insert({
+                        entity_type: "GANTT",
+                        entity_id: gantt.id,
+                        actor_email: ditolakOleh,
+                        actor_role: "KOORDINATOR",
+                        action: "RAB_REJECTED_REOPEN_GANTT",
+                        status_before: gantt.status,
+                        status_after: "active",
+                        reason: alasanPenolakan,
+                        metadata: {
+                            id_toko: tokoId,
+                            id_rab: Number(rabId),
+                            source: "rab_rejected_by_coordinator",
+                        },
+                    }, client);
+                }
+            }
 
             // --- Step 3: Hard-guard — restore toko stable fields ---
             await client.query(

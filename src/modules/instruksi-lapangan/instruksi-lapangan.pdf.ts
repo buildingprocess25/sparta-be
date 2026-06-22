@@ -96,7 +96,7 @@ const buildGroupedItems = (items: InstruksiLapanganItemRow[]) => {
             totalMaterialFormatted: rupiah(item.total_material),
             totalUpahFormatted: rupiah(item.total_upah),
             totalHargaFormatted: rupiah(item.total_harga),
-            catatan: ""
+            catatan: item.catatan ?? ""
         });
         group.subTotalMaterial += Number(item.total_material || 0);
         group.subTotalUpah += Number(item.total_upah || 0);

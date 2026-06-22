@@ -2,6 +2,27 @@ import { z } from "zod";
 
 export const opnameStatusSchema = z.enum(["pending", "disetujui", "ditolak"]);
 
+const normalizeVerificationValue = (value: unknown, options: readonly string[]) => {
+    if (typeof value !== "string") return value;
+    const normalized = value.trim().replace(/\s+/g, " ").toLocaleLowerCase("id-ID");
+    return options.find((option) => option.toLocaleLowerCase("id-ID") === normalized) ?? value.trim();
+};
+
+const sesuaiOptions = ["Sesuai", "Tidak Sesuai"] as const;
+const kualitasOptions = ["Baik", "Tidak Baik"] as const;
+const desainSchema = z.preprocess(
+    (value) => normalizeVerificationValue(value, sesuaiOptions),
+    z.enum(sesuaiOptions, { message: "desain tidak valid. Gunakan: Sesuai, Tidak Sesuai" })
+);
+const kualitasSchema = z.preprocess(
+    (value) => normalizeVerificationValue(value, kualitasOptions),
+    z.enum(kualitasOptions, { message: "kualitas tidak valid. Gunakan: Baik, Tidak Baik" })
+);
+const spesifikasiSchema = z.preprocess(
+    (value) => normalizeVerificationValue(value, sesuaiOptions),
+    z.enum(sesuaiOptions, { message: "spesifikasi tidak valid. Gunakan: Sesuai, Tidak Sesuai" })
+);
+
 export const createOpnameSchema = z.object({
     id_toko: z.coerce.number().int().positive(),
     id_opname_final: z.coerce.number().int().positive(),
@@ -12,9 +33,9 @@ export const createOpnameSchema = z.object({
     selisih_volume: z.coerce.number(),
     total_selisih: z.coerce.number().int(),
     total_harga_opname: z.coerce.number().int().optional().default(0),
-    desain: z.string().trim().min(1).optional(),
-    kualitas: z.string().trim().min(1).optional(),
-    spesifikasi: z.string().trim().min(1).optional(),
+    desain: desainSchema.optional(),
+    kualitas: kualitasSchema.optional(),
+    spesifikasi: spesifikasiSchema.optional(),
     catatan: z.string().trim().min(1).optional()
 }).refine(
     (data) =>
@@ -33,9 +54,9 @@ export const bulkCreateOpnameItemSchema = z.object({
     selisih_volume: z.coerce.number(),
     total_selisih: z.coerce.number().int(),
     total_harga_opname: z.coerce.number().int().optional().default(0),
-    desain: z.string().trim().min(1).optional(),
-    kualitas: z.string().trim().min(1).optional(),
-    spesifikasi: z.string().trim().min(1).optional(),
+    desain: desainSchema.optional(),
+    kualitas: kualitasSchema.optional(),
+    spesifikasi: spesifikasiSchema.optional(),
     catatan: z.string().trim().min(1).optional()
 }).refine(
     (data) =>
@@ -63,9 +84,9 @@ export const updateOpnameSchema = z.object({
     selisih_volume: z.coerce.number().optional(),
     total_selisih: z.coerce.number().int().optional(),
     total_harga_opname: z.coerce.number().int().optional(),
-    desain: z.string().trim().min(1).optional(),
-    kualitas: z.string().trim().min(1).optional(),
-    spesifikasi: z.string().trim().min(1).optional(),
+    desain: desainSchema.optional(),
+    kualitas: kualitasSchema.optional(),
+    spesifikasi: spesifikasiSchema.optional(),
     foto: z.string().trim().min(1).optional(),
     catatan: z.string().trim().min(1).optional()
 }).refine(

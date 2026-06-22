@@ -209,14 +209,16 @@ const writeCandidate = async (
     if (action === "replace") {
         await client.query(`
             UPDATE berkas_serah_terima
-            SET link_pdf = $1, created_at = $2::timestamp
+            SET link_pdf = $1,
+                tanggal_serah_terima = $2::date,
+                created_at = $2::timestamp
             WHERE id = $3
         `, [candidate.link_pdf, candidate.created_at, candidate.existing_id]);
         return { status: "replaced", source_candidate_id: candidate.source_candidate_id, id_toko: candidate.toko_id };
     }
     await client.query(`
-        INSERT INTO berkas_serah_terima (id_toko, link_pdf, created_at)
-        VALUES ($1, $2, $3::timestamp)
+        INSERT INTO berkas_serah_terima (id_toko, link_pdf, tanggal_serah_terima, created_at)
+        VALUES ($1, $2, $3::date, $3::timestamp)
     `, [candidate.toko_id, candidate.link_pdf, candidate.created_at]);
     return { status: "inserted", source_candidate_id: candidate.source_candidate_id, id_toko: candidate.toko_id };
 };
