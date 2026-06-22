@@ -262,7 +262,7 @@ export const ganttRepository = {
                 LEFT JOIN LATERAL (
                     SELECT p.waktu_mulai, p.durasi
                     FROM pengajuan_spk p
-                    WHERE p.id_toko = t.id AND p.status = 'Disetujui'
+                    WHERE p.id_toko = t.id
                     ORDER BY p.id DESC
                     LIMIT 1
                 ) spk ON true
