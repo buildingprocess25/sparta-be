@@ -258,6 +258,7 @@ export type DashboardOpnameFinalRow = {
     tanggal_akhir_spk_denda: string | null;
     tanggal_serah_terima_denda: string | null;
     created_at: string | null;
+    grand_total_final: string | null;
 };
 
 export type DashboardOpnameItemRow = {
@@ -565,7 +566,7 @@ export const dashboardRepository = {
                    pemberi_persetujuan_direktur, waktu_persetujuan_direktur, pemberi_persetujuan_koordinator,
                    waktu_persetujuan_koordinator, pemberi_persetujuan_manager, waktu_persetujuan_manager,
                    alasan_penolakan, grand_total_opname, grand_total_rab, hari_denda, nilai_denda,
-                   tanggal_akhir_spk_denda, tanggal_serah_terima_denda, created_at
+                   tanggal_akhir_spk_denda, tanggal_serah_terima_denda, created_at, grand_total_final
             FROM opname_final
             WHERE id_toko = $1
             ORDER BY created_at DESC, id DESC
@@ -998,7 +999,7 @@ export const dashboardRepository = {
                    pemberi_persetujuan_direktur, waktu_persetujuan_direktur, pemberi_persetujuan_koordinator,
                    waktu_persetujuan_koordinator, pemberi_persetujuan_manager, waktu_persetujuan_manager,
                    alasan_penolakan, grand_total_opname, grand_total_rab, hari_denda, nilai_denda,
-                   tanggal_akhir_spk_denda, tanggal_serah_terima_denda, created_at
+                   tanggal_akhir_spk_denda, tanggal_serah_terima_denda, created_at, grand_total_final
             FROM opname_final
             WHERE id_toko = ANY($1::int[])
             ORDER BY created_at DESC, id DESC
