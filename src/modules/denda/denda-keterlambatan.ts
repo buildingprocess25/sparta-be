@@ -13,7 +13,7 @@ type SpkPenaltySourceRow = {
 };
 
 type SerahTerimaPenaltyRow = {
-    tanggal_serah_terima: string | null;
+    created_at: string | null;
 };
 
 type PenaltyScopeRow = {
@@ -187,16 +187,16 @@ export const calculateDendaByTokoId = async (idToko: number): Promise<DendaKeter
 
     const stResult = await pool.query<SerahTerimaPenaltyRow>(
         `
-        SELECT tanggal_serah_terima
+        SELECT created_at
         FROM berkas_serah_terima
         WHERE id_toko = ANY($1::int[])
-        ORDER BY tanggal_serah_terima ASC, id ASC
+        ORDER BY created_at ASC, id ASC
         LIMIT 1
         `,
         [scope.tokoIds]
     );
 
-    const tanggalSerahTerima = parseDateValue(stResult.rows[0]?.tanggal_serah_terima ?? null);
+    const tanggalSerahTerima = parseDateValue(stResult.rows[0]?.created_at ?? null);
     console.log(`[DENDA] Toko ${idToko} → tanggalSerahTerima=${tanggalSerahTerima?.toISOString() ?? 'NULL'}`);
 
     const result = calculateDendaFromDates(latestAkhirSpk, tanggalSerahTerima);

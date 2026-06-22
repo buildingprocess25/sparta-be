@@ -76,12 +76,11 @@ Saat ini tanggal dokumen dan perhitungan denda menggunakan `berkas_serah_terima.
 
 ### Desain
 
-- Tambahkan kolom resmi `berkas_serah_terima.tanggal_serah_terima`.
-- Backfill data lama dari `created_at`.
-- PDF, daftar ST, dan kalkulator denda membaca field resmi tersebut.
-- `created_at` kembali hanya bermakna waktu record dibuat dan tidak menjadi tanggal bisnis.
+- Gunakan sumber existing `berkas_serah_terima.created_at` sebagai timestamp resmi dokumen ST.
+- PDF ST dan kalkulator denda membaca tanggal dari timestamp tersebut.
+- `opname_final.tanggal_serah_terima_denda` tetap merupakan snapshot hasil kalkulasi, bukan field input utama.
 - Tambahkan service/script koreksi tanggal berdasarkan scope ULOK dan cabang. Koreksi akan:
-  1. memperbarui `tanggal_serah_terima` seluruh berkas dalam scope;
+  1. memperbarui bagian tanggal pada `created_at` seluruh berkas dalam scope tanpa menghilangkan jam existing;
   2. menghitung ulang `hari_denda`, `nilai_denda`, `tanggal_akhir_spk_denda`, dan `tanggal_serah_terima_denda` seluruh `opname_final` terkait;
   3. menghitung ulang total final KTK;
   4. meregenerasi PDF ST dan Opname Final.
@@ -90,7 +89,9 @@ Untuk koreksi langsung melalui DB setelah migrasi, field utama yang diubah adala
 
 ```sql
 UPDATE berkas_serah_terima
-SET tanggal_serah_terima = DATE '2026-06-22'
+SET created_at = (
+    DATE '2026-06-22' + COALESCE(created_at::time, TIME '00:00:00')
+)::timestamp
 WHERE id_toko IN (...scope ULOK/cabang...);
 ```
 
@@ -114,7 +115,7 @@ Intervensi dapat mengunci Gantt dan melepaskan RAB ke approval. Ketika koordinat
 
 - Semua migrasi bersifat idempoten.
 - Backfill total KTK mencakup seluruh data lama.
-- Backfill tanggal ST menggunakan `created_at` hanya sekali untuk mengisi field resmi yang kosong.
+- Tidak ada penambahan kolom tanggal ST baru.
 - Catatan IL lama tidak diubah; PDF lama diregenerasi dari data item yang sudah tersimpan.
 - Perubahan tidak menghapus atau mengubah data historis approval.
 

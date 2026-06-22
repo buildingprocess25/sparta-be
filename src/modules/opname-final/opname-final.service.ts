@@ -160,14 +160,15 @@ const loadInstruksiLapanganItems = async (idToko: number) => {
     return itemGroups.flat();
 };
 
-const loadRabData = async (idToko: number) => {
-    const latestRab = await rabRepository.findLatestByTokoId(idToko);
-    if (!latestRab) {
+const loadRabData = async (opnameFinalId: number) => {
+    const items = await rabRepository.listItemsByOpnameFinalId(opnameFinalId);
+    if (items.length === 0) {
         return { header: null, items: [] };
     }
 
-    const items = await rabRepository.listItemsByRabId(latestRab.id);
-    return { header: latestRab, items };
+    const rabId = items[0]?.id_rab;
+    const header = rabId ? (await rabRepository.findById(String(rabId)))?.rab ?? null : null;
+    return { header, items };
 };
 
 const calculateOpnameKtkTotal = (
@@ -267,7 +268,7 @@ const regeneratePdfAndUpload = async (opnameFinalId: string): Promise<string> =>
     }
 
     const instruksiLapanganItems = await loadInstruksiLapanganItems(detail.toko.id);
-    const rabData = await loadRabData(detail.toko.id);
+    const rabData = await loadRabData(detail.opname_final.id);
     await applyRukoConversionIfNeeded(detail, instruksiLapanganItems, rabData);
     const pdfBuffer = await buildOpnameFinalPdfBuffer(detail, instruksiLapanganItems, rabData);
     const proyek = sanitizeFilenamePart(detail.toko.proyek ?? undefined, "PROYEK");
@@ -335,7 +336,7 @@ export const opnameFinalService = {
         }
 
         const instruksiLapanganItems = await loadInstruksiLapanganItems(refreshedDetail.toko.id);
-        const rabData = await loadRabData(refreshedDetail.toko.id);
+        const rabData = await loadRabData(refreshedDetail.opname_final.id);
         await applyRukoConversionIfNeeded(refreshedDetail, instruksiLapanganItems, rabData);
         const pdfBuffer = await buildOpnameFinalPdfBuffer(refreshedDetail, instruksiLapanganItems, rabData);
         const proyek = sanitizeFilenamePart(refreshedDetail.toko.proyek ?? undefined, "PROYEK");

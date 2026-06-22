@@ -4,7 +4,6 @@ Urutan deployment:
 
 1. Deploy backend dan frontend.
 2. Jalankan migrasi:
-   - `sql/2026-06-22-add-official-serah-terima-date.sql`
    - `sql/2026-06-22-reopen-gantt-for-coordinator-rejected-rab.sql`
 3. Sinkronkan total KTK lama:
    - `npm run backfill:opname-financial`
@@ -17,13 +16,15 @@ Koreksi tanggal Serah Terima setelah release:
 npm run correct:serah-terima-date -- --nomor-ulok=UZ01-2601-0003 --cabang="SIDOARJO BPN_SMD" --tanggal=2026-06-22
 ```
 
-Perintah tersebut memperbarui tanggal resmi pada seluruh scope ULOK/cabang, lalu menghitung ulang denda dan total KTK serta meregenerasi PDF Serah Terima dan Opname Final.
+Perintah tersebut memperbarui tanggal dokumen pada `berkas_serah_terima.created_at` untuk seluruh scope ULOK/cabang, lalu menyinkronkan `opname_final.tanggal_serah_terima_denda`, menghitung ulang denda dan total KTK, serta meregenerasi PDF Serah Terima dan Opname Final.
 
 Jika terpaksa mengubah lewat SQL:
 
 ```sql
 UPDATE berkas_serah_terima bst
-SET tanggal_serah_terima = DATE '2026-06-22'
+SET created_at = (
+    DATE '2026-06-22' + COALESCE(bst.created_at::time, TIME '00:00:00')
+)::timestamp
 FROM toko t
 WHERE t.id = bst.id_toko
   AND t.nomor_ulok = 'UZ01-2601-0003'

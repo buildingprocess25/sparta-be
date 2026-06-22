@@ -658,22 +658,12 @@ export const opnameFinalRepository = {
         const noPpn = isNoPpnArea(row);
 
         const items = await pool.query(`
-            SELECT oi.id_rab_item, oi.total_selisih
+            SELECT oi.id_rab_item, oi.total_selisih, ri.total_harga AS rab_item_total_harga
             FROM opname_item oi
+            LEFT JOIN rab_item ri ON ri.id = oi.id_rab_item
             WHERE oi.id_opname_final = $1
         `, [opnameFinalId]);
 
-        const rabResult = await pool.query<{ total: string }>(`
-            SELECT COALESCE(SUM(ri.total_harga), 0)::text AS total
-            FROM rab_item ri
-            WHERE ri.id_rab = (
-                SELECT id
-                FROM rab
-                WHERE id_toko = $1
-                ORDER BY id DESC
-                LIMIT 1
-            )
-        `, [row.id_toko]);
         const ilResult = await pool.query<{ total: string }>(`
             SELECT COALESCE(SUM(ili.total_harga), 0)::text AS total
             FROM instruksi_lapangan_item ili
@@ -682,7 +672,7 @@ export const opnameFinalRepository = {
               AND il.status IN ('Disetujui', 'Approved')
         `, [row.id_toko]);
 
-        const rabTotal = Number(rabResult.rows[0]?.total || 0);
+        let rabTotal = 0;
         const ilTotal = Number(ilResult.rows[0]?.total || 0);
         let tambahTotal = 0;
         let kurangTotal = 0;
@@ -690,6 +680,7 @@ export const opnameFinalRepository = {
         for (const item of items.rows) {
             const selisih = Number(item.total_selisih || 0);
             if (item.id_rab_item) {
+                rabTotal += Number(item.rab_item_total_harga || 0);
                 if (selisih > 0) tambahTotal += selisih;
                 else kurangTotal += selisih;
             }

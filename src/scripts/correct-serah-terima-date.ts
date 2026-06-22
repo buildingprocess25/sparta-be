@@ -20,7 +20,7 @@ const run = async () => {
     const result = await pool.query<{ id: number }>(
         `
         UPDATE berkas_serah_terima bst
-        SET tanggal_serah_terima = $1::date
+        SET created_at = ($1::date + COALESCE(bst.created_at::time, TIME '00:00:00'))::timestamp
         FROM toko t
         WHERE t.id = bst.id_toko
           AND t.nomor_ulok = $2

@@ -794,6 +794,20 @@ export const rabRepository = {
         return result.rows;
     },
 
+    async listItemsByOpnameFinalId(opnameFinalId: number): Promise<RabItemRow[]> {
+        const result = await pool.query<RabItemRow>(
+            `
+            SELECT DISTINCT ri.*
+            FROM opname_item oi
+            JOIN rab_item ri ON ri.id = oi.id_rab_item
+            WHERE oi.id_opname_final = $1
+            ORDER BY ri.id ASC
+            `,
+            [opnameFinalId]
+        );
+        return result.rows;
+    },
+
     async updateItemsBulk(
         rabId: number,
         items: Array<DetailItemInput & { id: number }>
