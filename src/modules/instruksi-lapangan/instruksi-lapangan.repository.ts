@@ -41,6 +41,7 @@ export interface InstruksiLapanganItemRow {
     total_material: number | string;
     total_upah: number | string;
     total_harga: number | string;
+    catatan: string | null;
 }
 
 export interface TokoRow {
@@ -81,7 +82,8 @@ export const instruksiLapanganRepository = {
                     ...item,
                     totalMaterial,
                     totalUpah,
-                    totalHarga
+                    totalHarga,
+                    catatan: item.catatan || null
                 };
             });
 
@@ -107,12 +109,12 @@ export const instruksiLapanganRepository = {
                     INSERT INTO instruksi_lapangan_item (
                         id_instruksi_lapangan, kategori_pekerjaan, jenis_pekerjaan,
                         satuan, volume, harga_material, harga_upah,
-                        total_material, total_upah, total_harga
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                        total_material, total_upah, total_harga, catatan
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
                 `, [
                     header.id, item.kategori_pekerjaan, item.jenis_pekerjaan,
                     item.satuan, item.volume, item.harga_material, item.harga_upah,
-                    item.totalMaterial, item.totalUpah, item.totalHarga
+                    item.totalMaterial, item.totalUpah, item.totalHarga, item.catatan
                 ]);
             }
 
@@ -171,7 +173,7 @@ export const instruksiLapanganRepository = {
                 const totalUpah = this.toCurrency(item.harga_upah * item.volume);
                 const totalHarga = this.toCurrency(totalMaterial + totalUpah);
                 grandTotal += totalHarga;
-                return { ...item, totalMaterial, totalUpah, totalHarga };
+                return { ...item, totalMaterial, totalUpah, totalHarga, catatan: item.catatan || null };
             });
 
             // Update header
@@ -207,12 +209,12 @@ export const instruksiLapanganRepository = {
                     INSERT INTO instruksi_lapangan_item (
                         id_instruksi_lapangan, kategori_pekerjaan, jenis_pekerjaan,
                         satuan, volume, harga_material, harga_upah,
-                        total_material, total_upah, total_harga
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                        total_material, total_upah, total_harga, catatan
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
                 `, [
                     idIL, item.kategori_pekerjaan, item.jenis_pekerjaan,
                     item.satuan, item.volume, item.harga_material, item.harga_upah,
-                    item.totalMaterial, item.totalUpah, item.totalHarga
+                    item.totalMaterial, item.totalUpah, item.totalHarga, item.catatan
                 ]);
             }
 

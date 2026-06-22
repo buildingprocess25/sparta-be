@@ -7,6 +7,7 @@ export const instruksiLapanganItemSchema = z.object({
     volume: z.coerce.number().nonnegative(),
     harga_material: z.coerce.number().nonnegative(),
     harga_upah: z.coerce.number().nonnegative(),
+    catatan: z.string().optional().nullable(),
 });
 
 export const submitInstruksiLapanganSchema = z.object({
