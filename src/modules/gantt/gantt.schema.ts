@@ -111,6 +111,10 @@ export const ganttDetailQuerySchema = z.object({
     id_toko: z.string().regex(/^\d+$/, "id_toko harus berupa angka").optional()
 });
 
+export const supervisionWorkspaceParamsSchema = z.object({
+    nomor_ulok: z.string().trim().min(1)
+});
+
 // --- Add Day Items ---
 
 export const addDayItemsSchema = z.object({

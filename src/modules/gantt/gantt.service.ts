@@ -113,6 +113,31 @@ const releaseRabApprovalAfterGantt = async (tokoId: number, source: string) => {
 };
 
 export const ganttService = {
+    async getSupervisionWorkspace(nomorUlok: string) {
+        const scopes = await ganttRepository.findSupervisionWorkspace(nomorUlok);
+        if (scopes.length === 0) {
+            throw new AppError("ULOK tidak ditemukan", 404);
+        }
+
+        return {
+            nomor_ulok: nomorUlok,
+            nama_toko: scopes[0]?.nama_toko ?? null,
+            kode_toko: scopes[0]?.kode_toko ?? null,
+            cabang: scopes[0]?.cabang ?? null,
+            pic_bersama: scopes.find((scope) => scope.plc_building_support)?.plc_building_support ?? null,
+            scopes,
+            serah_terima_ready: scopes
+                .filter((scope) => scope.gantt_id)
+                .every((scope) =>
+                    Boolean(scope.opname_final_id)
+                    && ["terkunci"].includes(String(scope.opname_aksi ?? "").toLowerCase())
+                    && ["Disetujui"].includes(String(scope.status_opname_final ?? ""))
+                ),
+            serah_terima_generated: scopes
+                .filter((scope) => scope.gantt_id)
+                .every((scope) => Boolean(scope.berkas_serah_terima_id)),
+        };
+    },
     async submit(payload: SubmitGanttInput) {
         const kategoriPekerjaan = [...payload.kategori_pekerjaan];
         includeDependencyCategories(kategoriPekerjaan, payload.dependencies);

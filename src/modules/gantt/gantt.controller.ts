@@ -8,6 +8,7 @@ import {
     ganttDetailByTokoSchema,
     ganttListQuerySchema,
     ganttInterventionSchema,
+    supervisionWorkspaceParamsSchema,
     lockGanttSchema,
     managePengawasanSchema,
     submitGanttSchema,
@@ -34,6 +35,12 @@ export const listGantt = asyncHandler(async (req: Request, res: Response) => {
     const query = ganttListQuerySchema.parse(req.query);
     const data = await ganttService.list(query);
 
+    res.json({ status: "success", data });
+});
+
+export const getSupervisionWorkspace = asyncHandler(async (req: Request, res: Response) => {
+    const { nomor_ulok } = supervisionWorkspaceParamsSchema.parse(req.params);
+    const data = await ganttService.getSupervisionWorkspace(nomor_ulok);
     res.json({ status: "success", data });
 });
 

@@ -5,6 +5,7 @@ import {
     deleteGantt,
     getDetailByToko,
     getGanttById,
+    getSupervisionWorkspace,
     interveneGantt,
     listGanttNotes,
     listGantt,
@@ -26,6 +27,7 @@ ganttRouter.post("/migration/preview", upload.single("file"), previewGanttMigrat
 ganttRouter.post("/migration/commit", upload.single("file"), commitGanttMigration);
 ganttRouter.post("/submit", submitGantt);
 ganttRouter.get("/", listGantt);
+ganttRouter.get("/supervision-workspace/:nomor_ulok", getSupervisionWorkspace);
 ganttRouter.get("/detail/:id_toko", getDetailByToko);
 ganttRouter.get("/:id/notes", listGanttNotes);
 ganttRouter.post("/:id/notes", createGanttNote);

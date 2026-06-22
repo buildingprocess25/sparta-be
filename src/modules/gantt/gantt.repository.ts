@@ -208,6 +208,163 @@ const insertDependencies = async (
 // ---------------------------------------------------------------------------
 
 export const ganttRepository = {
+    async findSupervisionWorkspace(nomorUlok: string) {
+        const result = await pool.query(
+            `
+            WITH scope AS (
+                SELECT
+                    t.id AS id_toko,
+                    t.nomor_ulok,
+                    t.lingkup_pekerjaan,
+                    t.nama_toko,
+                    t.kode_toko,
+                    t.cabang,
+                    latest_gantt.id AS gantt_id,
+                    latest_gantt.status AS gantt_status,
+                    latest_pic.id AS pic_id,
+                    latest_pic.plc_building_support,
+                    latest_opname.id AS opname_final_id,
+                    latest_opname.status_opname_final,
+                    latest_opname.aksi AS opname_aksi,
+                    bst.id AS berkas_serah_terima_id,
+                    bst.link_pdf AS link_pdf_serah_terima
+                FROM toko t
+                LEFT JOIN LATERAL (
+                    SELECT g.id, g.status
+                    FROM gantt_chart g
+                    WHERE g.id_toko = t.id
+                    ORDER BY g.id DESC
+                    LIMIT 1
+                ) latest_gantt ON true
+                LEFT JOIN LATERAL (
+                    SELECT pic.id, pic.plc_building_support
+                    FROM pic_pengawasan pic
+                    WHERE pic.id_toko = t.id
+                    ORDER BY pic.id DESC
+                    LIMIT 1
+                ) latest_pic ON true
+                LEFT JOIN LATERAL (
+                    SELECT ofn.id, ofn.status_opname_final, ofn.aksi
+                    FROM opname_final ofn
+                    WHERE ofn.id_toko = t.id
+                    ORDER BY ofn.id DESC
+                    LIMIT 1
+                ) latest_opname ON true
+                LEFT JOIN LATERAL (
+                    SELECT b.id, b.link_pdf
+                    FROM berkas_serah_terima b
+                    WHERE b.id_toko = t.id
+                    ORDER BY b.id DESC
+                    LIMIT 1
+                ) bst ON true
+                WHERE t.nomor_ulok = $1
+            ),
+            latest_pengawasan AS (
+                SELECT DISTINCT ON (
+                    p.id_gantt,
+                    UPPER(TRIM(COALESCE(p.kategori_pekerjaan, ''))),
+                    UPPER(TRIM(COALESCE(p.jenis_pekerjaan, '')))
+                )
+                    p.id
+                FROM pengawasan p
+                JOIN pengawasan_gantt pg ON pg.id = p.id_pengawasan_gantt
+                ORDER BY
+                    p.id_gantt,
+                    UPPER(TRIM(COALESCE(p.kategori_pekerjaan, ''))),
+                    UPPER(TRIM(COALESCE(p.jenis_pekerjaan, ''))),
+                    to_date(pg.tanggal_pengawasan, 'DD/MM/YYYY') DESC,
+                    p.id DESC
+            ),
+            checkpoint AS (
+                SELECT
+                    s.id_toko,
+                    pg.id AS id_pengawasan_gantt,
+                    pg.tanggal_pengawasan,
+                    COUNT(p.id)::int AS total_items,
+                    COUNT(p.id) FILTER (WHERE p.status = 'selesai')::int AS selesai_items,
+                    COUNT(p.id) FILTER (
+                        WHERE p.status = 'selesai'
+                          AND NOT EXISTS (
+                            SELECT 1
+                            FROM opname_item oi
+                            LEFT JOIN rab_item ri ON ri.id = oi.id_rab_item
+                            LEFT JOIN instruksi_lapangan_item ili ON ili.id = oi.id_instruksi_lapangan_item
+                            WHERE oi.id_toko = s.id_toko
+                              AND UPPER(TRIM(COALESCE(
+                                    ri.kategori_pekerjaan,
+                                    ili.kategori_pekerjaan,
+                                    ''
+                              ))) = UPPER(TRIM(REPLACE(COALESCE(p.kategori_pekerjaan, ''), '[IL] ', '')))
+                              AND UPPER(TRIM(COALESCE(
+                                    ri.jenis_pekerjaan,
+                                    ili.jenis_pekerjaan,
+                                    ''
+                              ))) = UPPER(TRIM(COALESCE(p.jenis_pekerjaan, '')))
+                          )
+                    )::int AS ready_opname_items,
+                    COUNT(p.id) FILTER (
+                        WHERE p.status = 'selesai'
+                          AND EXISTS (
+                            SELECT 1
+                            FROM opname_item oi
+                            LEFT JOIN rab_item ri ON ri.id = oi.id_rab_item
+                            LEFT JOIN instruksi_lapangan_item ili ON ili.id = oi.id_instruksi_lapangan_item
+                            WHERE oi.id_toko = s.id_toko
+                              AND UPPER(TRIM(COALESCE(
+                                    ri.kategori_pekerjaan,
+                                    ili.kategori_pekerjaan,
+                                    ''
+                              ))) = UPPER(TRIM(REPLACE(COALESCE(p.kategori_pekerjaan, ''), '[IL] ', '')))
+                              AND UPPER(TRIM(COALESCE(
+                                    ri.jenis_pekerjaan,
+                                    ili.jenis_pekerjaan,
+                                    ''
+                              ))) = UPPER(TRIM(COALESCE(p.jenis_pekerjaan, '')))
+                          )
+                    )::int AS opname_items
+                FROM scope s
+                JOIN pengawasan_gantt pg ON pg.id_gantt = s.gantt_id
+                LEFT JOIN pengawasan p
+                    ON p.id_pengawasan_gantt = pg.id
+                   AND EXISTS (SELECT 1 FROM latest_pengawasan lp WHERE lp.id = p.id)
+                GROUP BY s.id_toko, pg.id, pg.tanggal_pengawasan
+            )
+            SELECT
+                s.*,
+                COALESCE(
+                    json_agg(
+                        json_build_object(
+                            'id_pengawasan_gantt', c.id_pengawasan_gantt,
+                            'tanggal_pengawasan', c.tanggal_pengawasan,
+                            'total_items', c.total_items,
+                            'selesai_items', c.selesai_items,
+                            'ready_opname_items', c.ready_opname_items,
+                            'opname_items', c.opname_items
+                        )
+                        ORDER BY to_date(c.tanggal_pengawasan, 'DD/MM/YYYY')
+                    ) FILTER (WHERE c.id_pengawasan_gantt IS NOT NULL),
+                    '[]'::json
+                ) AS checkpoints
+            FROM scope s
+            LEFT JOIN checkpoint c ON c.id_toko = s.id_toko
+            GROUP BY
+                s.id_toko, s.nomor_ulok, s.lingkup_pekerjaan, s.nama_toko,
+                s.kode_toko, s.cabang, s.gantt_id, s.gantt_status, s.pic_id,
+                s.plc_building_support, s.opname_final_id, s.status_opname_final,
+                s.opname_aksi, s.berkas_serah_terima_id, s.link_pdf_serah_terima
+            ORDER BY
+                CASE
+                    WHEN UPPER(s.lingkup_pekerjaan) = 'SIPIL' THEN 0
+                    WHEN UPPER(s.lingkup_pekerjaan) = 'ME' THEN 1
+                    ELSE 2
+                END,
+                s.id_toko
+            `,
+            [nomorUlok]
+        );
+
+        return result.rows;
+    },
     async findLatestActiveByTokoId(tokoId: number): Promise<GanttRow | null> {
         const result = await pool.query<GanttRow>(
             `SELECT id, id_toko, status, email_pembuat, timestamp
