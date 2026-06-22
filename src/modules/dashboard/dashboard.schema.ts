@@ -25,3 +25,28 @@ export const dashboardExportQuerySchema = z.object({
 });
 
 export type DashboardExportQueryInput = z.infer<typeof dashboardExportQuerySchema>;
+
+const dashboardScopeSchema = {
+    actor_role: z.string().trim().min(1),
+    actor_cabang: z.string().trim().min(1),
+    actor_company: z.string().trim().optional(),
+    cabang: z.string().trim().optional(),
+    search: z.string().trim().optional(),
+};
+
+export const dashboardSummaryQuerySchema = z.object({
+    ...dashboardScopeSchema,
+});
+
+export type DashboardSummaryQueryInput = z.infer<typeof dashboardSummaryQuerySchema>;
+
+export const dashboardProjectsQuerySchema = z.object({
+    ...dashboardScopeSchema,
+    stage: z.string().trim().optional(),
+    attention: z.coerce.boolean().optional(),
+    sort: z.enum(["priority", "name", "latest"]).default("priority"),
+    page: z.coerce.number().int().positive().default(1),
+    limit: z.coerce.number().int().min(5).max(100).default(20),
+});
+
+export type DashboardProjectsQueryInput = z.infer<typeof dashboardProjectsQuerySchema>;
