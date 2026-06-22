@@ -227,7 +227,9 @@ export const ganttRepository = {
                     latest_opname.status_opname_final,
                     latest_opname.aksi AS opname_aksi,
                     bst.id AS berkas_serah_terima_id,
-                    bst.link_pdf AS link_pdf_serah_terima
+                    bst.link_pdf AS link_pdf_serah_terima,
+                    spk.waktu_mulai AS spk_start_date,
+                    spk.durasi AS spk_duration
                 FROM toko t
                 LEFT JOIN LATERAL (
                     SELECT g.id, g.status
@@ -257,6 +259,13 @@ export const ganttRepository = {
                     ORDER BY b.id DESC
                     LIMIT 1
                 ) bst ON true
+                LEFT JOIN LATERAL (
+                    SELECT p.waktu_mulai, p.durasi
+                    FROM pengajuan_spk p
+                    WHERE p.id_toko = t.id AND p.status = 'Disetujui'
+                    ORDER BY p.id DESC
+                    LIMIT 1
+                ) spk ON true
                 WHERE t.nomor_ulok = $1
             ),
             latest_pengawasan AS (
@@ -351,7 +360,8 @@ export const ganttRepository = {
                 s.id_toko, s.nomor_ulok, s.lingkup_pekerjaan, s.nama_toko,
                 s.kode_toko, s.cabang, s.gantt_id, s.gantt_status, s.pic_id,
                 s.plc_building_support, s.opname_final_id, s.status_opname_final,
-                s.opname_aksi, s.berkas_serah_terima_id, s.link_pdf_serah_terima
+                s.opname_aksi, s.berkas_serah_terima_id, s.link_pdf_serah_terima,
+                s.spk_start_date, s.spk_duration
             ORDER BY
                 CASE
                     WHEN UPPER(s.lingkup_pekerjaan) = 'SIPIL' THEN 0
