@@ -680,17 +680,22 @@ export const opnameFinalRepository = {
 
         for (const item of items.rows) {
             const selisih = Number(item.total_selisih || 0);
-            grandTotalOpname += selisih;
+            
             if (item.id_rab_item) {
                 const rabItemTotal = Number(item.rab_item_total_harga || 0);
                 rabTotal += rabItemTotal;
                 grandTotalRab += rabItemTotal;
+                
+                if (selisih > 0) tambahTotal += selisih;
+                else kurangTotal += selisih;
             } else {
                 ilTotal += Number(item.il_item_total_harga || 0);
             }
-            if (selisih > 0) tambahTotal += selisih;
-            else kurangTotal += selisih;
+            
+            grandTotalOpname += selisih; // We will add the base totals to this after the loop
         }
+        
+        grandTotalOpname += (grandTotalRab + ilTotal);
 
         const rabSummary = buildFinancialSummary(rabTotal, 'down', noPpn);
         const ilSummary = buildFinancialSummary(ilTotal, 'up', noPpn);
