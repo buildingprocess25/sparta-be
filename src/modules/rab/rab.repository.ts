@@ -94,7 +94,10 @@ export type TokoJoinRow = {
 };
 
 export type TokoStableFields = {
+    nama_toko: string | null;
     kode_toko: string | null;
+    proyek: string | null;
+    cabang: string | null;
     alamat: string | null;
     nama_kontraktor: string | null;
 };
@@ -1098,11 +1101,14 @@ export const rabRepository = {
             const tokoId = rabRes.rows[0].id_toko;
 
             const tokoBeforeRes = await client.query<{
+                nama_toko: string | null;
                 kode_toko: string | null;
+                proyek: string | null;
+                cabang: string | null;
                 alamat: string | null;
                 nama_kontraktor: string | null;
             }>(
-                `SELECT kode_toko, alamat, nama_kontraktor
+                `SELECT nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor
                  FROM toko
                  WHERE id = $1
                  FOR UPDATE`,
@@ -1114,8 +1120,6 @@ export const rabRepository = {
             }
 
             const tokoBefore = tokoBeforeRes.rows[0];
-
-            // --- Step 1: Update ONLY rab table (status + rejection details) ---
             await client.query(
                 `UPDATE rab
                  SET status = $1,
@@ -1187,12 +1191,18 @@ export const rabRepository = {
             // --- Step 3: Hard-guard — restore toko stable fields ---
             await client.query(
                 `UPDATE toko
-                 SET kode_toko = $1,
-                     alamat = $2,
-                     nama_kontraktor = $3
-                 WHERE id = $4`,
+                 SET nama_toko = COALESCE($1, nama_toko),
+                     kode_toko = COALESCE($2, kode_toko),
+                     proyek = COALESCE($3, proyek),
+                     cabang = COALESCE($4, cabang),
+                     alamat = COALESCE($5, alamat),
+                     nama_kontraktor = COALESCE($6, nama_kontraktor)
+                 WHERE id = $7`,
                 [
+                    tokoBefore.nama_toko,
                     tokoBefore.kode_toko,
+                    tokoBefore.proyek,
+                    tokoBefore.cabang,
                     tokoBefore.alamat,
                     tokoBefore.nama_kontraktor,
                     tokoId
@@ -1201,11 +1211,14 @@ export const rabRepository = {
 
             // --- Step 4: Verify toko wasn't corrupted by triggers ---
             const tokoAfterRes = await client.query<{
+                nama_toko: string | null;
                 kode_toko: string | null;
+                proyek: string | null;
+                cabang: string | null;
                 alamat: string | null;
                 nama_kontraktor: string | null;
             }>(
-                `SELECT kode_toko, alamat, nama_kontraktor
+                `SELECT nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor
                  FROM toko
                  WHERE id = $1`,
                 [tokoId]
@@ -1320,13 +1333,16 @@ export const rabRepository = {
     async restoreTokoStableFieldsByRabId(rabId: string, fields: TokoStableFields): Promise<void> {
         await pool.query(
             `UPDATE toko t
-             SET kode_toko = $1,
-                 alamat = $2,
-                 nama_kontraktor = $3
+             SET nama_toko = COALESCE($1, nama_toko),
+                 kode_toko = COALESCE($2, kode_toko),
+                 proyek = COALESCE($3, proyek),
+                 cabang = COALESCE($4, cabang),
+                 alamat = COALESCE($5, alamat),
+                 nama_kontraktor = COALESCE($6, nama_kontraktor)
              FROM rab r
-             WHERE r.id = $4
+             WHERE r.id = $7
                AND t.id = r.id_toko`,
-            [fields.kode_toko, fields.alamat, fields.nama_kontraktor, rabId]
+            [fields.nama_toko, fields.kode_toko, fields.proyek, fields.cabang, fields.alamat, fields.nama_kontraktor, rabId]
         );
     },
 
@@ -1358,11 +1374,14 @@ export const rabRepository = {
 
             // Lock & snapshot toko stable fields
             const tokoBeforeRes = await client.query<{
+                nama_toko: string | null;
                 kode_toko: string | null;
+                proyek: string | null;
+                cabang: string | null;
                 alamat: string | null;
                 nama_kontraktor: string | null;
             }>(
-                `SELECT kode_toko, alamat, nama_kontraktor
+                `SELECT nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor
                  FROM toko
                  WHERE id = $1
                  FOR UPDATE`,
@@ -1405,12 +1424,18 @@ export const rabRepository = {
             // Step 3: Hard-guard — restore toko stable fields
             await client.query(
                 `UPDATE toko
-                 SET kode_toko = $1,
-                     alamat = $2,
-                     nama_kontraktor = $3
-                 WHERE id = $4`,
+                 SET nama_toko = COALESCE($1, nama_toko),
+                     kode_toko = COALESCE($2, kode_toko),
+                     proyek = COALESCE($3, proyek),
+                     cabang = COALESCE($4, cabang),
+                     alamat = COALESCE($5, alamat),
+                     nama_kontraktor = COALESCE($6, nama_kontraktor)
+                 WHERE id = $7`,
                 [
+                    tokoBefore.nama_toko,
                     tokoBefore.kode_toko,
+                    tokoBefore.proyek,
+                    tokoBefore.cabang,
                     tokoBefore.alamat,
                     tokoBefore.nama_kontraktor,
                     tokoId
@@ -1419,11 +1444,14 @@ export const rabRepository = {
 
             // Step 4: Verify toko wasn't corrupted by triggers
             const tokoAfterRes = await client.query<{
+                nama_toko: string | null;
                 kode_toko: string | null;
+                proyek: string | null;
+                cabang: string | null;
                 alamat: string | null;
                 nama_kontraktor: string | null;
             }>(
-                `SELECT kode_toko, alamat, nama_kontraktor
+                `SELECT nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor
                  FROM toko
                  WHERE id = $1`,
                 [tokoId]

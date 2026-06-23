@@ -1462,7 +1462,10 @@ export const rabService = {
         }
 
         const tokoStableFields = {
+            nama_toko: data.toko.nama_toko,
             kode_toko: data.toko.kode_toko,
+            proyek: data.toko.proyek,
+            cabang: data.toko.cabang,
             alamat: data.toko.alamat,
             nama_kontraktor: data.toko.nama_kontraktor,
         };
