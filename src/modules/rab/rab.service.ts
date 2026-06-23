@@ -1300,7 +1300,8 @@ export const rabService = {
             lingkup_pekerjaan: normalizedLingkupPekerjaan,
             nama_toko: payload.nama_toko,
             proyek: payload.proyek,
-            cabang: payload.cabang,
+            // Gunakan cabang dari toko existing jika ada, supaya tidak overwrite dengan cabang user yang login
+            cabang: existingTokoByCombination?.cabang || payload.cabang,
             alamat: payload.alamat,
             nama_kontraktor: submittedNamaPt,
             projek_planning_id: payload.projek_planning_id,
