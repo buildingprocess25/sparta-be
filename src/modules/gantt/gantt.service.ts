@@ -689,8 +689,36 @@ export const ganttService = {
             });
             if (kategoriPekerjaan.length === 0) { skippedCount++; continue; }
 
-            // Kolom Pengawasan_1 ... Pengawasan_20 pada sheet migrasi diabaikan.
+            // Kolom Pengawasan_1 ... Pengawasan_20 pada sheet migrasi
             const pengawasanItems: { tanggal_pengawasan: string }[] = [];
+            for (let i = 1; i <= 20; i++) {
+                const pVal = String(gRow[`Pengawasan_${i}`] || "").trim();
+                if (pVal) {
+                    let rawDate = "";
+                    if (isDatePattern.test(pVal) || pVal.includes('/')) {
+                        rawDate = parseDateString(pVal);
+                    } else if (!isNaN(Number(pVal)) && minDate) {
+                        // Konversi dari day index ke tanggal riil
+                        const pDate = new Date(minDate.getTime());
+                        pDate.setDate(pDate.getDate() + (Number(pVal) - 1));
+                        const yyyy = pDate.getFullYear();
+                        const mm = String(pDate.getMonth() + 1).padStart(2, '0');
+                        const dd = String(pDate.getDate()).padStart(2, '0');
+                        rawDate = `${yyyy}-${mm}-${dd}`;
+                    }
+
+                    if (rawDate) {
+                        const trimmed = rawDate.trim();
+                        const isoLike = /^(\d{4})[-\/](\d{2})[-\/](\d{2})$/.exec(trimmed);
+                        if (isoLike) {
+                            const [, year, month, day] = isoLike;
+                            pengawasanItems.push({ tanggal_pengawasan: `${day}/${month}/${year}` });
+                        } else {
+                            pengawasanItems.push({ tanggal_pengawasan: trimmed.replace(/-/g, "/") });
+                        }
+                    }
+                }
+            }
 
             // ─── 4. Dependencies (dari sheet dependency_gantt) ───────────────────────
             const depItems: { kategori_pekerjaan: string; kategori_pekerjaan_terikat: string }[] = [];

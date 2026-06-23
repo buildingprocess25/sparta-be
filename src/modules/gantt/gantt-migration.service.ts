@@ -4,7 +4,7 @@ import { AppError } from "../../common/app-error";
 import { pool } from "../../db/pool";
 import { activityLogRepository } from "../activity-log/activity-log.repository";
 import { GANTT_STATUS } from "./gantt.constants";
-import type { DayGanttItemInput, DependencyItemInput } from "./gantt.schema";
+import type { DayGanttItemInput, DependencyItemInput, PengawasanItemInput } from "./gantt.schema";
 import type {
     GanttMigrationAction,
     GanttMigrationCommitInput,
@@ -27,6 +27,7 @@ type MigrationCandidate = {
     status: string;
     kategori_pekerjaan: string[];
     day_items: DayGanttItemInput[];
+    pengawasan: PengawasanItemInput[];
     dependencies: DependencyItemInput[];
     source_max_h: number;
     header_count: number;
@@ -233,18 +234,45 @@ const parseWorkbook = (buffer: Buffer): MigrationCandidate[] => {
         }
 
         let dayItems: DayGanttItemInput[] = [];
+        let minDateStr: string | null = null;
         if (rawDayItems.length > 0) {
-            const minDate = rawDayItems.reduce(
+            minDateStr = rawDayItems.reduce(
                 (min, item) => item.start < min ? item.start : min,
                 rawDayItems[0].start
             );
             dayItems = rawDayItems.map((item) => ({
                 kategori_pekerjaan: item.category,
-                h_awal: String(dayDifference(minDate, item.start) + 1),
-                h_akhir: String(dayDifference(minDate, item.end) + 1),
+                h_awal: String(dayDifference(minDateStr!, item.start) + 1),
+                h_akhir: String(dayDifference(minDateStr!, item.end) + 1),
                 keterlambatan: item.keterlambatan,
                 kecepatan: item.kecepatan,
             }));
+        }
+
+        // Parse Pengawasan_1 ... Pengawasan_20
+        const pengawasan: PengawasanItemInput[] = [];
+        const minDate = minDateStr ? new Date(`${minDateStr}T00:00:00Z`) : null;
+        for (let index = 1; index <= 20; index += 1) {
+            const pVal = normalizeText(header[`Pengawasan_${index}`]);
+            if (pVal) {
+                const parsed = parseDate(pVal);
+                if (parsed) {
+                    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(parsed);
+                    if (match) {
+                        pengawasan.push({ tanggal_pengawasan: `${match[3]}/${match[2]}/${match[1]}` });
+                    } else {
+                        pengawasan.push({ tanggal_pengawasan: parsed });
+                    }
+                } else if (!isNaN(Number(pVal)) && minDate) {
+                    // Konversi dari day index ke tanggal riil
+                    const pDate = new Date(minDate.getTime());
+                    pDate.setUTCDate(pDate.getUTCDate() + (Number(pVal) - 1));
+                    const yyyy = pDate.getUTCFullYear();
+                    const mm = String(pDate.getUTCMonth() + 1).padStart(2, "0");
+                    const dd = String(pDate.getUTCDate()).padStart(2, "0");
+                    pengawasan.push({ tanggal_pengawasan: `${dd}/${mm}/${yyyy}` });
+                }
+            }
         }
 
         const rawDependencies: DependencyItemInput[] = (dependenciesByKey.get(key) ?? [])
@@ -298,6 +326,7 @@ const parseWorkbook = (buffer: Buffer): MigrationCandidate[] => {
                 : GANTT_STATUS.ACTIVE,
             kategori_pekerjaan: categories,
             day_items: dayItems,
+            pengawasan,
             dependencies,
             source_max_h: sourceMaxH,
             header_count: headers.length,
@@ -683,7 +712,7 @@ export const ganttMigrationService = {
                     gantt_timestamp: candidate.gantt_timestamp,
                     kategori_pekerjaan: candidate.kategori_pekerjaan,
                     day_items: dayItems,
-                    pengawasan: [],
+                    pengawasan: candidate.pengawasan,
                     dependencies: candidate.dependencies,
                 });
                 ganttId = created.id;
@@ -692,6 +721,7 @@ export const ganttMigrationService = {
                 await ganttRepository.updateWithDetails(String(existing.gantt_id), {
                     kategori_pekerjaan: candidate.kategori_pekerjaan,
                     day_items: dayItems,
+                    pengawasan: candidate.pengawasan,
                     dependencies: candidate.dependencies,
                 });
                 resultStatus = "replaced";
