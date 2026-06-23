@@ -1,4 +1,5 @@
 import path from "path";
+import sharp from "sharp";
 import { GoogleProvider } from "./google";
 
 const extractDriveFileId = (value: string): string | null => {
@@ -73,7 +74,24 @@ export const resolveDriveImageDataUrl = async (rawLink?: string | null): Promise
         const imageMime = inferImageMimeType(buffer, mimeType, filename);
         if (!imageMime) return null;
 
-        return `data:${imageMime};base64,${buffer.toString("base64")}`;
+        try {
+            const sharpInstance = sharp(buffer, { failOn: "none" });
+            const meta = await sharpInstance.metadata();
+            if (meta.width && (meta.width > 800 || (meta.height && meta.height > 800))) {
+                buffer = await sharpInstance
+                    .resize({ width: 800, height: 800, fit: "inside", withoutEnlargement: true })
+                    .jpeg({ quality: 80 })
+                    .toBuffer();
+            } else {
+                buffer = await sharpInstance
+                    .jpeg({ quality: 80 })
+                    .toBuffer();
+            }
+            return `data:image/jpeg;base64,${buffer.toString("base64")}`;
+        } catch (err) {
+            console.warn("[drive-image] Gagal mengompres gambar menggunakan sharp, menggunakan gambar asli:", err);
+            return `data:${imageMime};base64,${buffer.toString("base64")}`;
+        }
     } catch (error) {
         console.warn("[pdf-image] Gagal memuat foto Drive untuk PDF", {
             message: error instanceof Error ? error.message : String(error),
