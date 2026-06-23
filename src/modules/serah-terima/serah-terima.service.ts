@@ -12,6 +12,26 @@ const sanitizeFilenamePart = (value: string | undefined, fallback: string): stri
     return normalized || fallback;
 };
 
+const extractDriveFileId = (value: string): string | null => {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    const byIdParam = /[?&]id=([^&]+)/.exec(trimmed);
+    if (byIdParam?.[1]) return byIdParam[1];
+
+    const byPath = /\/d\/([^/]+)/.exec(trimmed);
+    if (byPath?.[1]) return byPath[1];
+
+    return null;
+};
+
+const normalizeDriveDownloadLink = (value: string): string => {
+    const fileId = extractDriveFileId(value);
+    if (!fileId) return value;
+    return `https://drive.google.com/uc?export=download&id=${fileId}`;
+};
+
+
 const uploadPdfToDrive = async (buffer: Buffer, filename: string): Promise<string> => {
     const gp = GoogleProvider.instance;
     const drive = gp.spartaDrive;
@@ -261,10 +281,52 @@ export const serahTerimaService = {
             throw new AppError("Berkas serah terima tidak ditemukan", 404);
         }
 
-        const { toko, opnameFinal, items } = await buildDetailByTokoId(berkas.id_toko);
-        const buffer = await buildSerahTerimaPdfBuffer({ toko, opname_final: opnameFinal, items }, berkas.created_at);
+        const toko = await serahTerimaRepository.findTokoById(berkas.id_toko);
+        if (!toko) {
+            throw new AppError("Data toko tidak ditemukan", 404);
+        }
+
         const proyek = sanitizeFilenamePart(toko.proyek ?? undefined, "PROYEK");
         const nomorUlok = sanitizeFilenamePart(toko.nomor_ulok ?? undefined, "ULOK");
+
+        const opnameFinal = await serahTerimaRepository.findOpnameFinalByIdToko(berkas.id_toko);
+        if (!opnameFinal) {
+            if (!berkas.link_pdf) {
+                throw new AppError("Data opname_final tidak ditemukan dan link PDF tidak tersedia", 404);
+            }
+
+            const gp = GoogleProvider.instance;
+            const fileId = extractDriveFileId(berkas.link_pdf);
+            let buffer: Buffer | null = null;
+
+            if (fileId) {
+                if (gp.spartaDrive) {
+                    buffer = await gp.getFileBufferById(gp.spartaDrive, fileId);
+                }
+                if (!buffer && gp.docDrive) {
+                    buffer = await gp.getFileBufferById(gp.docDrive, fileId);
+                }
+            }
+
+            if (!buffer && /^https?:\/\//i.test(berkas.link_pdf)) {
+                const response = await fetch(normalizeDriveDownloadLink(berkas.link_pdf));
+                if (response.ok) {
+                    buffer = Buffer.from(await response.arrayBuffer());
+                }
+            }
+
+            if (!buffer || buffer.length === 0) {
+                throw new AppError("Gagal mengunduh file PDF Serah Terima dari Google Drive", 500);
+            }
+
+            return {
+                buffer,
+                filename: `SERAH_TERIMA_${proyek}_${nomorUlok}_MIGRATED.pdf`,
+            };
+        }
+
+        const items = await serahTerimaRepository.findOpnameItemsByOpnameFinalId(opnameFinal.id);
+        const buffer = await buildSerahTerimaPdfBuffer({ toko, opname_final: opnameFinal, items }, berkas.created_at);
 
         return {
             buffer,
@@ -278,9 +340,14 @@ export const serahTerimaService = {
             throw new AppError("Berkas serah terima tidak ditemukan", 404);
         }
 
+        const opnameFinal = await serahTerimaRepository.findOpnameFinalByIdToko(berkas.id_toko);
+        if (!opnameFinal) {
+            throw new AppError("Dokumen hasil migrasi tidak dapat diregenerasi karena tidak memiliki data transaksi digital", 400);
+        }
+
         await opnameFinalService.refreshDendaByTokoId(berkas.id_toko);
 
-        const { toko, opnameFinal, items } = await buildDetailByTokoId(berkas.id_toko);
+        const { toko, items } = await buildDetailByTokoId(berkas.id_toko);
         const pdfBuffer = await buildSerahTerimaPdfBuffer(
             { toko, opname_final: opnameFinal, items },
             berkas.created_at
