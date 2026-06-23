@@ -2,6 +2,7 @@ import { AppError } from "../../common/app-error";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
 import { pool } from "../../db/pool";
+import { calculateDendaByTokoId } from "../denda/denda-keterlambatan";
 import { opnameFinalService } from "../opname-final/opname-final.service";
 import { buildSerahTerimaPdfBuffer } from "./serah-terima.pdf";
 import { serahTerimaRepository } from "./serah-terima.repository";
@@ -116,32 +117,60 @@ export const serahTerimaService = {
             nomor_ulok: filter.nomor_ulok,
         });
 
-        return rows.map((row) => ({
-            id: row.id,
-            id_toko: row.id_toko,
-            link_pdf: row.link_pdf,
-            created_at: row.created_at,
-            toko: {
-                id: row.id_toko,
-                nomor_ulok: row.nomor_ulok,
-                lingkup_pekerjaan: row.lingkup_pekerjaan,
-                nama_toko: row.nama_toko,
-                kode_toko: row.kode_toko,
-                proyek: row.proyek,
-                cabang: row.cabang,
-                alamat: row.alamat,
-                nama_kontraktor: row.nama_kontraktor,
-            },
-            nilai_penawaran: row.nilai_penawaran,
-            nilai_spk: row.nilai_spk,
-            nilai_opname: row.nilai_opname,
-            hari_denda: row.hari_denda,
-            nilai_denda: row.nilai_denda,
-            tanggal_akhir_spk_denda: row.tanggal_akhir_spk_denda,
-            tanggal_serah_terima_denda: row.tanggal_serah_terima_denda,
-            nomor_spk: row.nomor_spk,
-        }));
+        // For rows that have no opname_final (hari_denda is null),
+        // compute denda on-the-fly using the same peer-minimum logic as the dashboard.
+        // This ensures the serah terima list stays in sync with the dashboard's denda display.
+        const enriched = await Promise.all(
+            rows.map(async (row) => {
+                let hariDenda = row.hari_denda;
+                let nilaiDenda = row.nilai_denda;
+                let tanggalAkhirSpkDenda = row.tanggal_akhir_spk_denda;
+                let tanggalSerahTerimaDenda = row.tanggal_serah_terima_denda;
+
+                // Only calculate on-the-fly when no official denda has been stored yet
+                if (hariDenda === null && tanggalAkhirSpkDenda === null) {
+                    try {
+                        const denda = await calculateDendaByTokoId(row.id_toko);
+                        hariDenda = denda.hari_denda;
+                        nilaiDenda = String(denda.nilai_denda);
+                        tanggalAkhirSpkDenda = denda.tanggal_akhir_spk;
+                        tanggalSerahTerimaDenda = denda.tanggal_serah_terima;
+                    } catch {
+                        // Silently keep null values if calculation fails
+                    }
+                }
+
+                return {
+                    id: row.id,
+                    id_toko: row.id_toko,
+                    link_pdf: row.link_pdf,
+                    created_at: row.created_at,
+                    toko: {
+                        id: row.id_toko,
+                        nomor_ulok: row.nomor_ulok,
+                        lingkup_pekerjaan: row.lingkup_pekerjaan,
+                        nama_toko: row.nama_toko,
+                        kode_toko: row.kode_toko,
+                        proyek: row.proyek,
+                        cabang: row.cabang,
+                        alamat: row.alamat,
+                        nama_kontraktor: row.nama_kontraktor,
+                    },
+                    nilai_penawaran: row.nilai_penawaran,
+                    nilai_spk: row.nilai_spk,
+                    nilai_opname: row.nilai_opname,
+                    hari_denda: hariDenda,
+                    nilai_denda: nilaiDenda,
+                    tanggal_akhir_spk_denda: tanggalAkhirSpkDenda,
+                    tanggal_serah_terima_denda: tanggalSerahTerimaDenda,
+                    nomor_spk: row.nomor_spk,
+                };
+            })
+        );
+
+        return enriched;
     },
+
 
     async createPdfSerahTerima(idToko: number) {
         // Validate the required opname data before writing a serah-terima placeholder.
