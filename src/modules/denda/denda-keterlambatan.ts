@@ -40,6 +40,23 @@ const parseDateValue = (value?: string | null): Date | null => {
 
     const date = new Date(raw);
     if (Number.isNaN(date.getTime())) return null;
+
+    // Convert to Asia/Jakarta timezone date components to prevent server timezone mismatch bugs
+    const formatter = new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Jakarta",
+        year: "numeric",
+        month: "numeric",
+        day: "numeric"
+    });
+    const parts = formatter.formatToParts(date);
+    const day = parts.find(p => p.type === "day")?.value;
+    const month = parts.find(p => p.type === "month")?.value;
+    const year = parts.find(p => p.type === "year")?.value;
+
+    if (day && month && year) {
+        return new Date(Number(year), Number(month) - 1, Number(day));
+    }
+
     return startOfLocalDay(date);
 };
 
@@ -150,10 +167,7 @@ export const calculateDendaFromDates = (
     };
 };
 
-export const calculateDendaByTokoId = async (idToko: number): Promise<DendaKeterlambatanResult> => {
-    const scope = await resolvePenaltyScopeByTokoId(idToko);
-    console.log(`[DENDA] Toko ${idToko} → scope tokoIds=${JSON.stringify(scope.tokoIds)}, nomorUlok=${scope.nomorUlok}`);
-
+export const calculateSingleTokoDenda = async (idToko: number): Promise<DendaKeterlambatanResult> => {
     const spkResult = await pool.query<SpkPenaltySourceRow>(
         `
         SELECT
@@ -163,43 +177,72 @@ export const calculateDendaByTokoId = async (idToko: number): Promise<DendaKeter
             ) AS tanggal_spk_akhir_setelah_perpanjangan
         FROM pengajuan_spk ps
         LEFT JOIN pertambahan_spk pt ON pt.id_spk = ps.id
-        WHERE (
-              ps.id_toko = ANY($1::int[])
-              OR ($2::text IS NOT NULL AND ps.nomor_ulok = $2::text)
-          )
+        WHERE ps.id_toko = $1
           AND UPPER(TRIM(COALESCE(ps.status, ''))) IN ('SPK_APPROVED', 'APPROVED', 'DISETUJUI', 'AKTIF', 'ACTIVE', 'SELESAI')
         GROUP BY ps.id, ps.waktu_selesai
         `,
-        [scope.tokoIds, scope.nomorUlok]
+        [idToko]
     );
-
-    console.log(`[DENDA] Toko ${idToko} → SPK rows found: ${spkResult.rows.length}`);
-    spkResult.rows.forEach((row, i) => {
-        console.log(`[DENDA]   SPK[${i}] waktu_selesai=${row.waktu_selesai}, perpanjangan=${row.tanggal_spk_akhir_setelah_perpanjangan}`);
-    });
 
     const latestAkhirSpk = spkResult.rows
         .map((row) => parseDateValue(row.tanggal_spk_akhir_setelah_perpanjangan) ?? parseDateValue(row.waktu_selesai))
         .filter((date): date is Date => Boolean(date))
         .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
 
-    console.log(`[DENDA] Toko ${idToko} → latestAkhirSpk=${latestAkhirSpk?.toISOString() ?? 'NULL'}`);
-
     const stResult = await pool.query<SerahTerimaPenaltyRow>(
         `
         SELECT created_at
         FROM berkas_serah_terima
-        WHERE id_toko = ANY($1::int[])
+        WHERE id_toko = $1
         ORDER BY created_at ASC, id ASC
         LIMIT 1
         `,
-        [scope.tokoIds]
+        [idToko]
     );
 
     const tanggalSerahTerima = parseDateValue(stResult.rows[0]?.created_at ?? null);
-    console.log(`[DENDA] Toko ${idToko} → tanggalSerahTerima=${tanggalSerahTerima?.toISOString() ?? 'NULL'}`);
 
-    const result = calculateDendaFromDates(latestAkhirSpk, tanggalSerahTerima);
-    console.log(`[DENDA] Toko ${idToko} → hari_denda=${result.hari_denda}, nilai_denda=${result.nilai_denda}`);
-    return result;
+    return calculateDendaFromDates(latestAkhirSpk, tanggalSerahTerima);
+};
+
+export const calculateDendaByTokoId = async (idToko: number): Promise<DendaKeterlambatanResult> => {
+    const scope = await resolvePenaltyScopeByTokoId(idToko);
+    console.log(`[DENDA] Toko ${idToko} → scope tokoIds=${JSON.stringify(scope.tokoIds)}, nomorUlok=${scope.nomorUlok}`);
+
+    const individualDendas: DendaKeterlambatanResult[] = [];
+
+    for (const peerId of scope.tokoIds) {
+        // Check if peer has approved SPK
+        const hasSpkResult = await pool.query(
+            `
+            SELECT 1
+            FROM pengajuan_spk
+            WHERE id_toko = $1
+              AND UPPER(TRIM(COALESCE(status, ''))) IN ('SPK_APPROVED', 'APPROVED', 'DISETUJUI', 'AKTIF', 'ACTIVE', 'SELESAI')
+            LIMIT 1
+            `,
+            [peerId]
+        );
+
+        if (hasSpkResult.rows.length === 0) {
+            console.log(`[DENDA] Peer Toko ${peerId} has no approved SPK, skipping from minimum calculation`);
+            continue;
+        }
+
+        const denda = await calculateSingleTokoDenda(peerId);
+        console.log(`[DENDA] Peer Toko ${peerId} → calculated denda = ${denda.nilai_denda} (${denda.hari_denda} days)`);
+        individualDendas.push(denda);
+    }
+
+    if (individualDendas.length === 0) {
+        console.log(`[DENDA] No peers have approved SPK, falling back to target toko ${idToko}`);
+        return calculateSingleTokoDenda(idToko);
+    }
+
+    // Sort ascending by denda value and pick the smallest (taking the minimum)
+    individualDendas.sort((a, b) => a.nilai_denda - b.nilai_denda);
+    const minDenda = individualDendas[0];
+
+    console.log(`[DENDA] Toko ${idToko} → final minimum denda among peers = ${minDenda.nilai_denda} (${minDenda.hari_denda} days)`);
+    return minDenda;
 };
