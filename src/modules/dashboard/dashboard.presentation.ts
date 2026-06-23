@@ -65,9 +65,16 @@ export const getDashboardLateDays = (project: DashboardData) => {
 export const getDashboardPenalty = (project: DashboardData) => {
     const opname = project.opname_final[0];
     const official = Number(opname?.nilai_denda || 0);
+    const officialHari = Number(opname?.hari_denda || 0);
     const days = getDashboardLateDays(project);
-    if (official > 0 || Number(opname?.hari_denda || 0) > 0) {
-        return { amount: official, days: Number(opname?.hari_denda || days), source: "Resmi" as const };
+
+    // If opname_final has a stored tanggal_akhir_spk_denda, a real denda calculation has been
+    // persisted (even if the result is 0 – e.g. ME peer delivered on time → minimum = 0).
+    // In that case we MUST use the official stored values and NOT fall through to the estimasi path.
+    const hasOfficialCalculation = Boolean(opname?.tanggal_akhir_spk_denda);
+
+    if (official > 0 || officialHari > 0 || hasOfficialCalculation) {
+        return { amount: official, days: officialHari || days, source: "Resmi" as const };
     }
     const amount = Math.min((Math.min(days, 5) * 1_000_000) + (Math.max(0, Math.min(days - 5, 10)) * 500_000), 10_000_000);
     return { amount, days, source: "Estimasi" as const };
