@@ -574,15 +574,15 @@ export const rabRepository = {
                     ]
                 );
             } else {
+                console.log('[RAB DEBUG] Toko tidak ditemukan, akan insert baru:', {
+                    nomor_ulok: payload.nomor_ulok,
+                    lingkup: normalizedLingkup
+                });
                 const tokoInsertRes = await client.query<{ id: number }>(
                     `INSERT INTO toko (
                         nomor_ulok, lingkup_pekerjaan, nama_toko,
                         proyek, cabang, alamat, nama_kontraktor
                     ) VALUES (UPPER(TRIM($1)), $2, $3,$4,$5,$6,$7)
-                    ON CONFLICT (nomor_ulok, lingkup_pekerjaan) DO UPDATE
-                        SET nama_toko = COALESCE(NULLIF(TRIM(EXCLUDED.nama_toko), ''), toko.nama_toko),
-                            proyek    = COALESCE(NULLIF(TRIM(EXCLUDED.proyek), ''), toko.proyek),
-                            alamat    = COALESCE(NULLIF(TRIM(EXCLUDED.alamat), ''), toko.alamat)
                     RETURNING id`,
                     [
                         payload.nomor_ulok,
@@ -595,8 +595,10 @@ export const rabRepository = {
                     ]
                 );
                 tokoId = tokoInsertRes.rows[0].id;
+                console.log('[RAB DEBUG] Toko baru berhasil di-insert dengan ID:', tokoId);
             }
 
+            console.log('[RAB DEBUG] Akan cek RAB aktif untuk toko ID:', tokoId);
             const existingRabRes = await client.query<{ id: number }>(
                 `SELECT id
                  FROM rab
@@ -606,7 +608,18 @@ export const rabRepository = {
                  FOR UPDATE`,
                 [tokoId, ACTIVE_RAB_STATUSES]
             );
+            console.log('[RAB DEBUG] Hasil cek RAB aktif:', {
+                tokoId,
+                found_active_rab: (existingRabRes.rowCount ?? 0) > 0,
+                rab_id: existingRabRes.rows[0]?.id
+            });
             if ((existingRabRes.rowCount ?? 0) > 0) {
+                console.error('[RAB DEBUG] DUPLICATE RAB DETECTED di repository!', {
+                    tokoId,
+                    rab_id: existingRabRes.rows[0].id,
+                    input_ulok: payload.nomor_ulok,
+                    input_lingkup: normalizedLingkup
+                });
                 const duplicateError = new Error("RAB untuk kombinasi ULOK dan lingkup ini sudah ada") as Error & { code?: string };
                 duplicateError.code = "RAB_DUPLICATE";
                 throw duplicateError;
