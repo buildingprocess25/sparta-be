@@ -71,7 +71,7 @@ export const tokoRepository = {
         const result = await pool.query<TokoRow>(
             `SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor
              FROM toko
-             WHERE nomor_ulok = $1
+             WHERE UPPER(nomor_ulok) = UPPER($1)
              ORDER BY id DESC
              LIMIT 1`,
             [nomorUlok]
@@ -84,8 +84,8 @@ export const tokoRepository = {
         const result = await pool.query<TokoRow>(
             `SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor
              FROM toko
-             WHERE nomor_ulok = $1
-               AND LOWER(COALESCE(lingkup_pekerjaan, '')) = LOWER(COALESCE($2, ''))
+             WHERE UPPER(nomor_ulok) = UPPER($1)
+               AND COALESCE(lingkup_pekerjaan, '') = UPPER(TRIM(COALESCE($2, '')))
              ORDER BY id DESC
              LIMIT 1`,
             [nomorUlok, lingkupPekerjaan ?? null]
@@ -113,7 +113,7 @@ export const tokoRepository = {
         }
         if (query.nomor_ulok) {
             values.push(query.nomor_ulok);
-            filters.push(`nomor_ulok = $${values.length}`);
+            filters.push(`UPPER(nomor_ulok) = UPPER($${values.length})`);
         }
         if (query.lingkup) {
             values.push(query.lingkup);

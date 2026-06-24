@@ -1184,7 +1184,9 @@ export const rabService = {
             const alreadyExists = await rabRepository.existsAnyByTokoId(existingTokoByCombination.id);
             if (alreadyExists) {
                 throw new AppError(
-                    `RAB untuk kombinasi ULOK ${payload.nomor_ulok} dan lingkup ${normalizedLingkupPekerjaan} sudah ada`,
+                    `Nomor ULOK ${payload.nomor_ulok} dengan lingkup ${normalizedLingkupPekerjaan} sudah memiliki RAB aktif. ` +
+                    `Jika Anda tidak merasa pernah submit RAB ini, kemungkinan ULOK sudah digunakan oleh pihak lain. ` +
+                    `Hubungi admin untuk konfirmasi.`,
                     409
                 );
             }

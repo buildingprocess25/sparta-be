@@ -254,6 +254,10 @@ export const rabRepository = {
         return result.rows[0]?.exists ?? false;
     },
 
+    /** Cek apakah ada RAB dengan status aktif (non-rejected) untuk toko ini.
+     *  Fungsi ini menggantikan existsAnyByTokoId yang sebelumnya identik dengan existsActiveByTokoId.
+     *  RAB yang sudah rejected TIDAK dihitung sebagai duplikat — kontraktor boleh submit ulang.
+     */
     async existsAnyByTokoId(tokoId: number): Promise<boolean> {
         const result = await pool.query<{ exists: boolean }>(
             `SELECT EXISTS(
@@ -395,7 +399,7 @@ export const rabRepository = {
 
             await client.query(
                 `UPDATE toko
-                 SET lingkup_pekerjaan = COALESCE(NULLIF(TRIM($1), ''), lingkup_pekerjaan),
+                 SET lingkup_pekerjaan = COALESCE(NULLIF(UPPER(TRIM($1)), ''), lingkup_pekerjaan),
                      nama_toko = COALESCE(NULLIF(TRIM($2), ''), nama_toko),
                      proyek = COALESCE(NULLIF(TRIM($3), ''), proyek),
                      cabang = COALESCE(NULLIF(TRIM($4), ''), cabang),
@@ -530,8 +534,8 @@ export const rabRepository = {
             const existingTokoRes = await client.query<{ id: number; cabang: string | null; nama_toko: string | null }>(
                 `SELECT id, cabang, nama_toko
                  FROM toko
-                 WHERE nomor_ulok = $1
-                   AND LOWER(COALESCE(lingkup_pekerjaan, '')) = LOWER(COALESCE($2, ''))
+                 WHERE UPPER(nomor_ulok) = UPPER($1)
+                   AND COALESCE(lingkup_pekerjaan, '') = UPPER(TRIM(COALESCE($2, '')))
                  ORDER BY id DESC
                  LIMIT 1
                  FOR UPDATE`,
@@ -571,7 +575,7 @@ export const rabRepository = {
                     `INSERT INTO toko (
                         nomor_ulok, lingkup_pekerjaan, nama_toko,
                         proyek, cabang, alamat, nama_kontraktor
-                    ) VALUES ($1,$2,$3,$4,$5,$6,$7)
+                    ) VALUES ($1, UPPER(TRIM($2)), $3,$4,$5,$6,$7)
                     ON CONFLICT (nomor_ulok, lingkup_pekerjaan) DO UPDATE
                         SET nama_toko = COALESCE(NULLIF(TRIM(EXCLUDED.nama_toko), ''), toko.nama_toko),
                             proyek    = COALESCE(NULLIF(TRIM(EXCLUDED.proyek), ''), toko.proyek),
@@ -773,7 +777,7 @@ export const rabRepository = {
             `SELECT r.id, r.id_toko, t.lingkup_pekerjaan, r.link_pdf_materai
              FROM rab r
              JOIN toko t ON t.id = r.id_toko
-             WHERE t.nomor_ulok = $1
+             WHERE UPPER(t.nomor_ulok) = UPPER($1)
                AND r.link_pdf_materai IS NOT NULL
                AND TRIM(r.link_pdf_materai) <> ''
              ORDER BY
@@ -951,13 +955,15 @@ export const rabRepository = {
         }
 
         if (filter.nomor_ulok) {
-            values.push(filter.nomor_ulok);
-            conditions.push(`t.nomor_ulok = $${values.length}`);
+            // Gunakan ILIKE untuk partial match case-insensitive agar
+            // pencarian "z001-2808-0021" tetap menemukan "Z001-2808-0021"
+            values.push(`%${filter.nomor_ulok}%`);
+            conditions.push(`t.nomor_ulok ILIKE $${values.length}`);
         }
 
         if (filter.cabang) {
             values.push(filter.cabang);
-            conditions.push(`t.cabang = $${values.length}`);
+            conditions.push(`LOWER(t.cabang) = LOWER($${values.length})`);
         }
 
         if (filter.nama_pt) {
@@ -972,8 +978,8 @@ export const rabRepository = {
         }
 
         if (filter.email_pembuat) {
-            values.push(filter.email_pembuat);
-            conditions.push(`r.email_pembuat = $${values.length}`);
+            values.push(filter.email_pembuat.trim().toLowerCase());
+            conditions.push(`LOWER(r.email_pembuat) = $${values.length}`);
         }
 
         if (filter.id_toko) {
