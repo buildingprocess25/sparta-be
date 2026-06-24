@@ -440,6 +440,11 @@ export const projekPlanningRepository = {
                 JOIN rab r ON r.id_toko = t.id
                 WHERE t.nomor_ulok = $1
                   AND UPPER(TRIM(COALESCE(t.lingkup_pekerjaan, ''))) = $2
+                  AND r.status NOT IN (
+                    'Ditolak oleh Direktur Kontraktor',
+                    'Ditolak oleh Koordinator',
+                    'Ditolak oleh Manajer'
+                  )
             ) AS exists`,
             [nomorUlok, lingkup]
         );

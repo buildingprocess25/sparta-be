@@ -1336,8 +1336,24 @@ export const rabService = {
             const code = typeof error === "object" && error !== null && "code" in error
                 ? String((error as { code?: string }).code || "")
                 : "";
-            if (code === "RAB_DUPLICATE" || code === "23505") {
+            if (code === "RAB_DUPLICATE") {
                 throw new AppError("RAB untuk ULOK dan lingkup ini sudah ada. Jika baru saja submit, refresh halaman dan cek daftar RAB Anda.", 409);
+            }
+            if (code === "23505") {
+                // Unique constraint violation pada toko — kemungkinan concurrent request.
+                // Coba cek apakah toko+RAB sudah berhasil dibuat oleh request lain.
+                const existingToko = await tokoRepository.findByNomorUlokAndLingkup(
+                    payload.nomor_ulok,
+                    normalizedLingkupPekerjaan
+                );
+                if (existingToko) {
+                    const existingRab = await rabRepository.existsAnyByTokoId(existingToko.id);
+                    if (existingRab) {
+                        throw new AppError("RAB untuk ULOK dan lingkup ini sudah ada. Jika baru saja submit, refresh halaman dan cek daftar RAB Anda.", 409);
+                    }
+                }
+                // Jika toko ada tapi RAB belum ada, retry createWithDetails
+                throw new AppError("Terjadi konflik saat menyimpan data. Silakan coba submit kembali.", 409);
             }
             throw error;
         }
