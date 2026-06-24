@@ -82,6 +82,11 @@ export const tokoRepository = {
 
     async findByNomorUlokAndLingkup(nomorUlok: string, lingkupPekerjaan?: string | null): Promise<TokoRow | null> {
         const normalizedLingkup = lingkupPekerjaan?.trim().toUpperCase() || null;
+        console.log('[TOKO DEBUG] findByNomorUlokAndLingkup called:', {
+            input_ulok: nomorUlok,
+            input_lingkup: lingkupPekerjaan,
+            normalized_lingkup: normalizedLingkup
+        });
         const result = await pool.query<TokoRow>(
             `SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor
              FROM toko
@@ -91,6 +96,13 @@ export const tokoRepository = {
              LIMIT 1`,
             [nomorUlok, normalizedLingkup]
         );
+
+        console.log('[TOKO DEBUG] Query result:', {
+            found: result.rowCount ?? 0,
+            toko_id: result.rows[0]?.id,
+            toko_ulok: result.rows[0]?.nomor_ulok,
+            toko_lingkup: result.rows[0]?.lingkup_pekerjaan
+        });
 
         return result.rows[0] ?? null;
     },

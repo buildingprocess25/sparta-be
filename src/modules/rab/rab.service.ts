@@ -1185,8 +1185,21 @@ export const rabService = {
             rejectedRabExistingLogo = targetRab.logo;
             rejectedRabExistingInsurance = targetRab.file_asuransi;
         } else if (existingTokoByCombination) {
+            console.log('[RAB DEBUG] Existing toko found, checking for active RAB:', {
+                toko_id: existingTokoByCombination.id,
+                toko_ulok: existingTokoByCombination.nomor_ulok,
+                toko_lingkup: existingTokoByCombination.lingkup_pekerjaan
+            });
             const alreadyExists = await rabRepository.existsAnyByTokoId(existingTokoByCombination.id);
+            console.log('[RAB DEBUG] existsAnyByTokoId result:', { alreadyExists });
             if (alreadyExists) {
+                console.error('[RAB DEBUG] FALSE POSITIVE DUPLICATE DETECTED!', {
+                    input_ulok: payload.nomor_ulok,
+                    input_lingkup: normalizedLingkupPekerjaan,
+                    matched_toko_id: existingTokoByCombination.id,
+                    matched_toko_ulok: existingTokoByCombination.nomor_ulok,
+                    matched_toko_lingkup: existingTokoByCombination.lingkup_pekerjaan
+                });
                 throw new AppError(
                     `Nomor ULOK ${payload.nomor_ulok} dengan lingkup ${normalizedLingkupPekerjaan} sudah memiliki RAB aktif. ` +
                     `Jika Anda tidak merasa pernah submit RAB ini, kemungkinan ULOK sudah digunakan oleh pihak lain. ` +
