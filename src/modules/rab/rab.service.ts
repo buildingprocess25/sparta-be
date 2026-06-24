@@ -1337,7 +1337,7 @@ export const rabService = {
                 ? String((error as { code?: string }).code || "")
                 : "";
             if (code === "RAB_DUPLICATE" || code === "23505") {
-                throw new AppError("RAB untuk ULOK dan lingkup ini sudah disubmit", 409);
+                throw new AppError("RAB untuk ULOK dan lingkup ini sudah ada. Jika baru saja submit, refresh halaman dan cek daftar RAB Anda.", 409);
             }
             throw error;
         }
