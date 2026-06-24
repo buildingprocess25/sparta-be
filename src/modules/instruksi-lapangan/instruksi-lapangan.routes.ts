@@ -12,6 +12,10 @@ import {
     commitInstruksiLapanganMigration,
     previewInstruksiLapanganMigration
 } from "./instruksi-lapangan-migration.controller";
+import {
+    commitInstruksiLapanganMigrationRab2,
+    previewInstruksiLapanganMigrationRab2
+} from "./instruksi-lapangan-migration-rab2.controller";
 
 const upload = multer({
     storage: multer.memoryStorage(),
@@ -24,8 +28,13 @@ const migrationUpload = multer({
     limits: { fileSize: 80 * 1024 * 1024, fieldSize: 10 * 1024 * 1024 }
 });
 
+// Migrasi dari OPNAME_v1 (format lama — sheet data_rab + opname_final)
 router.post("/migration/preview", migrationUpload.single("file"), previewInstruksiLapanganMigration);
 router.post("/migration/commit", migrationUpload.single("file"), commitInstruksiLapanganMigration);
+
+// Migrasi dari rab_kedua.xlsx (format baru — sheet Form2 + Form3, wide format)
+router.post("/migration/rab2/preview", migrationUpload.single("file"), previewInstruksiLapanganMigrationRab2);
+router.post("/migration/rab2/commit", migrationUpload.single("file"), commitInstruksiLapanganMigrationRab2);
 
 router.post(
     "/submit",
