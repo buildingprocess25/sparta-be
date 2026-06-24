@@ -1,8 +1,8 @@
 {
     "name": "sparta-api",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "private": true,
-    "description": "Sparta API (Node.js + TypeScript) with PostgreSQL",
+    "description": "Sparta API (Node.js + TypeScript) with PostgreSQL - FORCE REBUILD",
     "main": "dist/index.js",
     "scripts": {
         "dev": "tsx watch src/index.ts",

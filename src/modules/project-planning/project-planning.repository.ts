@@ -434,6 +434,7 @@ export const projekPlanningRepository = {
     },
 
     async existsRabByNomorUlokAndLingkup(nomorUlok: string, lingkup: "SIPIL" | "ME"): Promise<boolean> {
+        // FORCE REBUILD: 2026-06-24 18:00 - Fix normalize ULOK query
         console.log('[PP DEBUG] existsRabByNomorUlokAndLingkup called:', { nomorUlok, lingkup });
         const result = await pool.query<{ exists: boolean }>(
             `SELECT EXISTS(
