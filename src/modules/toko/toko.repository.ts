@@ -81,14 +81,15 @@ export const tokoRepository = {
     },
 
     async findByNomorUlokAndLingkup(nomorUlok: string, lingkupPekerjaan?: string | null): Promise<TokoRow | null> {
+        const normalizedLingkup = lingkupPekerjaan?.trim().toUpperCase() || null;
         const result = await pool.query<TokoRow>(
             `SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor
              FROM toko
-             WHERE UPPER(nomor_ulok) = UPPER($1)
-               AND COALESCE(lingkup_pekerjaan, '') = UPPER(TRIM(COALESCE($2, '')))
+             WHERE UPPER(TRIM(nomor_ulok)) = UPPER(TRIM($1))
+               AND UPPER(TRIM(COALESCE(lingkup_pekerjaan, ''))) = UPPER(TRIM(COALESCE($2, '')))
              ORDER BY id DESC
              LIMIT 1`,
-            [nomorUlok, lingkupPekerjaan ?? null]
+            [nomorUlok, normalizedLingkup]
         );
 
         return result.rows[0] ?? null;

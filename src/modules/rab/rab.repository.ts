@@ -530,16 +530,19 @@ export const rabRepository = {
         detail_items: DetailItemInput[];
     }): Promise<RabRow & { toko_id: number }> {
         return withTransaction(async (client) => {
+            // Normalize lingkup_pekerjaan ke uppercase (SIPIL/ME) di awal transaksi
+            const normalizedLingkup = payload.lingkup_pekerjaan?.trim().toUpperCase() || null;
+            
             // 1. Ambil toko by nomor_ulok+lingkup. Jika tidak ada, insert baru.
             const existingTokoRes = await client.query<{ id: number; cabang: string | null; nama_toko: string | null }>(
                 `SELECT id, cabang, nama_toko
                  FROM toko
-                 WHERE UPPER(nomor_ulok) = UPPER($1)
-                   AND COALESCE(lingkup_pekerjaan, '') = UPPER(TRIM(COALESCE($2, '')))
+                 WHERE UPPER(TRIM(nomor_ulok)) = UPPER(TRIM($1))
+                   AND UPPER(TRIM(COALESCE(lingkup_pekerjaan, ''))) = UPPER(TRIM(COALESCE($2, '')))
                  ORDER BY id DESC
                  LIMIT 1
                  FOR UPDATE`,
-                [payload.nomor_ulok, payload.lingkup_pekerjaan ?? null]
+                [payload.nomor_ulok, normalizedLingkup]
             );
 
             let tokoId: number;
@@ -575,7 +578,7 @@ export const rabRepository = {
                     `INSERT INTO toko (
                         nomor_ulok, lingkup_pekerjaan, nama_toko,
                         proyek, cabang, alamat, nama_kontraktor
-                    ) VALUES ($1, UPPER(TRIM($2)), $3,$4,$5,$6,$7)
+                    ) VALUES (UPPER(TRIM($1)), $2, $3,$4,$5,$6,$7)
                     ON CONFLICT (nomor_ulok, lingkup_pekerjaan) DO UPDATE
                         SET nama_toko = COALESCE(NULLIF(TRIM(EXCLUDED.nama_toko), ''), toko.nama_toko),
                             proyek    = COALESCE(NULLIF(TRIM(EXCLUDED.proyek), ''), toko.proyek),
@@ -583,7 +586,7 @@ export const rabRepository = {
                     RETURNING id`,
                     [
                         payload.nomor_ulok,
-                        payload.lingkup_pekerjaan ?? null,
+                        normalizedLingkup,
                         payload.nama_toko ?? null,
                         payload.proyek ?? null,
                         payload.cabang ?? null,
