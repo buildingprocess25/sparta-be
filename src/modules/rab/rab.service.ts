@@ -1163,7 +1163,11 @@ export const rabService = {
             }
 
             if (!REJECTED_RAB_STATUSES.includes(targetRab.status)) {
-                throw new AppError("RAB yang dipilih bukan status ditolak/revisi", 409);
+                throw new AppError(
+                    `RAB ini sudah dalam proses approval (status: ${targetRab.status}) dan tidak bisa direvisi lagi. ` +
+                    `Silakan refresh halaman dan cek daftar RAB Anda.`,
+                    409
+                );
             }
 
             if (!existingTokoByCombination) {
@@ -1339,7 +1343,11 @@ export const rabService = {
                 ? String((error as { code?: string }).code || "")
                 : "";
             if (code === "RAB_DUPLICATE" || code === "23505") {
-                throw new AppError("RAB untuk ULOK dan lingkup ini sudah ada. Jika baru saja submit, refresh halaman dan cek daftar RAB Anda.", 409);
+                throw new AppError(
+                    "RAB untuk ULOK dan lingkup ini sudah berhasil tersimpan. " +
+                    "Silakan refresh halaman dan cek daftar RAB Anda untuk melanjutkan ke Gantt Chart.",
+                    409
+                );
             }
             throw error;
         }
