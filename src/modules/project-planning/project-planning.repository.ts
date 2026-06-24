@@ -1,5 +1,6 @@
 import { pool, withTransaction } from "../../db/pool";
 import type { PoolClient } from "pg";
+import { REJECTED_RAB_STATUSES } from "../rab/rab.constants";
 import type { PpStatus, PpRole, PpAksi } from "./project-planning.constants";
 import type {
     SubmitProjekPlanningInput,
@@ -433,21 +434,19 @@ export const projekPlanningRepository = {
     },
 
     async existsRabByNomorUlokAndLingkup(nomorUlok: string, lingkup: "SIPIL" | "ME"): Promise<boolean> {
+        console.log('[PP DEBUG] existsRabByNomorUlokAndLingkup called:', { nomorUlok, lingkup });
         const result = await pool.query<{ exists: boolean }>(
             `SELECT EXISTS(
                 SELECT 1
                 FROM toko t
                 JOIN rab r ON r.id_toko = t.id
-                WHERE t.nomor_ulok = $1
-                  AND UPPER(TRIM(COALESCE(t.lingkup_pekerjaan, ''))) = $2
-                  AND r.status NOT IN (
-                    'Ditolak oleh Direktur Kontraktor',
-                    'Ditolak oleh Koordinator',
-                    'Ditolak oleh Manajer'
-                  )
+                WHERE UPPER(TRIM(t.nomor_ulok)) = UPPER(TRIM($1))
+                  AND UPPER(TRIM(COALESCE(t.lingkup_pekerjaan, ''))) = UPPER(TRIM($2))
+                  AND r.status NOT IN ('REJECTED_BY_DIREKTUR', 'REJECTED_BY_KOORDINATOR', 'REJECTED_BY_MANAGER')
             ) AS exists`,
             [nomorUlok, lingkup]
         );
+        console.log('[PP DEBUG] existsRabByNomorUlokAndLingkup result:', { exists: result.rows[0]?.exists });
         return result.rows[0]?.exists ?? false;
     },
 
