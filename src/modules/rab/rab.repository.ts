@@ -572,6 +572,10 @@ export const rabRepository = {
                         nomor_ulok, lingkup_pekerjaan, nama_toko,
                         proyek, cabang, alamat, nama_kontraktor
                     ) VALUES ($1,$2,$3,$4,$5,$6,$7)
+                    ON CONFLICT (nomor_ulok, lingkup_pekerjaan) DO UPDATE
+                        SET nama_toko = COALESCE(NULLIF(TRIM(EXCLUDED.nama_toko), ''), toko.nama_toko),
+                            proyek    = COALESCE(NULLIF(TRIM(EXCLUDED.proyek), ''), toko.proyek),
+                            alamat    = COALESCE(NULLIF(TRIM(EXCLUDED.alamat), ''), toko.alamat)
                     RETURNING id`,
                     [
                         payload.nomor_ulok,
