@@ -12,6 +12,11 @@ const extractDriveFileId = (value: string): string | null => {
     const byPath = /\/d\/([^/]+)/.exec(trimmed);
     if (byPath?.[1]) return byPath[1];
 
+    // Fallback: Jika bukan URL dan formatnya mirip raw ID Google Drive
+    if (!trimmed.startsWith("http") && /^[a-zA-Z0-9_-]{20,}$/.test(trimmed)) {
+        return trimmed;
+    }
+
     return null;
 };
 
