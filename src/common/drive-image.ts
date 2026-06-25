@@ -55,23 +55,60 @@ export const resolveDriveImageDataUrl = async (rawLink?: string | null): Promise
         let mimeType: string | null = null;
         let filename: string | null = null;
 
+        // Coba download via spartaDrive (OAuth)
         if (fileId && gp.spartaDrive) {
             buffer = await gp.getFileBufferById(gp.spartaDrive, fileId);
 
-            try {
-                const meta = await gp.spartaDrive.files.get({ fileId, fields: "name,mimeType" });
-                filename = meta.data.name ?? null;
-                mimeType = meta.data.mimeType ?? null;
-            } catch {
-                // Metadata is best-effort; image inference can still use the buffer.
+            if (buffer) {
+                try {
+                    const meta = await gp.spartaDrive.files.get({ fileId, fields: "name,mimeType" });
+                    filename = meta.data.name ?? null;
+                    mimeType = meta.data.mimeType ?? null;
+                } catch {
+                    // Metadata is best-effort; image inference can still use the buffer.
+                }
             }
         }
 
+        // Fallback: coba docDrive jika spartaDrive gagal
+        if (!buffer && fileId && gp.docDrive) {
+            buffer = await gp.getFileBufferById(gp.docDrive, fileId);
+            if (buffer) {
+                try {
+                    const meta = await gp.docDrive.files.get({ fileId, fields: "name,mimeType" });
+                    filename = meta.data.name ?? null;
+                    mimeType = meta.data.mimeType ?? null;
+                } catch {
+                    // ignore
+                }
+            }
+        }
+
+        // Fallback terakhir: fetch URL langsung dengan follow redirect
         if (!buffer && /^https?:\/\//i.test(link)) {
-            const response = await fetch(normalizeDriveDownloadLink(link));
-            if (!response.ok) return null;
-            buffer = Buffer.from(await response.arrayBuffer());
-            mimeType = response.headers.get("content-type");
+            try {
+                // Coba usercontent.google.com dulu (lebih reliable dari /uc?export=download)
+                const downloadUrl = fileId
+                    ? `https://drive.usercontent.google.com/download?id=${fileId}&export=download&authuser=0`
+                    : normalizeDriveDownloadLink(link);
+
+                const response = await fetch(downloadUrl, {
+                    redirect: "follow",
+                    headers: {
+                        "User-Agent": "Mozilla/5.0 (compatible; SPARTA-PDF/1.0)",
+                    }
+                });
+                if (response.ok) {
+                    const contentType = response.headers.get("content-type") ?? "";
+                    // Pastikan bukan HTML (halaman error/login Google)
+                    if (!contentType.includes("text/html")) {
+                        buffer = Buffer.from(await response.arrayBuffer());
+                        mimeType = contentType;
+                    }
+                }
+            } catch {
+                // ignore, biarkan null
+            }
         }
 
         if (!buffer?.length) return null;

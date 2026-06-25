@@ -628,9 +628,8 @@ const writeCandidate = async (
     const aksi = isFinal ? "terkunci" : "active";
     const headerStatus = isFinal ? "Disetujui" : "Proses KTK/Approval Kontraktor";
     
-    // Fallback data approval untuk PDF
-    const approverName = isFinal ? "Sistem Migrasi" : null;
-    const approverEmail = isFinal ? "migration@sparta.local" : null;
+    // Fallback data approval untuk PDF (schema DB tidak punya nama_*, hanya pemberi_* dan waktu_*)
+    const approverEmail = isFinal ? candidate.email_pembuat : null;
     const approvalDate = isFinal ? candidate.created_at : null;
 
     if (action === "replace" && targetId) {
@@ -641,15 +640,15 @@ const writeCandidate = async (
                 email_pembuat=$4, grand_total_opname=$5, grand_total_rab=$6,
                 link_pdf_opname=NULL, alasan_penolakan=NULL, catatan_penolakan=NULL,
                 created_at=$7::timestamp,
-                nama_persetujuan_koordinator=$8, pemberi_persetujuan_koordinator=$9, waktu_persetujuan_koordinator=$10::timestamp,
-                nama_persetujuan_manager=$8, pemberi_persetujuan_manager=$9, waktu_persetujuan_manager=$10::timestamp,
-                nama_persetujuan_direktur=$8, pemberi_persetujuan_direktur=$9, waktu_persetujuan_direktur=$10::timestamp
-            WHERE id=$11
+                pemberi_persetujuan_koordinator=$8, waktu_persetujuan_koordinator=$9::timestamp,
+                pemberi_persetujuan_manager=$8, waktu_persetujuan_manager=$9::timestamp,
+                pemberi_persetujuan_direktur=$8, waktu_persetujuan_direktur=$9::timestamp
+            WHERE id=$10
         `, [
             tipeOpname, aksi, headerStatus,
             candidate.email_pembuat, candidate.grand_total_opname, candidate.grand_total_rab,
             candidate.created_at,
-            approverName, approverEmail, approvalDate,
+            approverEmail, approvalDate,
             targetId
         ]);
     } else {
@@ -657,16 +656,16 @@ const writeCandidate = async (
             INSERT INTO opname_final (
                 id_toko, tipe_opname, aksi, status_opname_final, email_pembuat,
                 grand_total_opname, grand_total_rab, created_at,
-                nama_persetujuan_koordinator, pemberi_persetujuan_koordinator, waktu_persetujuan_koordinator,
-                nama_persetujuan_manager, pemberi_persetujuan_manager, waktu_persetujuan_manager,
-                nama_persetujuan_direktur, pemberi_persetujuan_direktur, waktu_persetujuan_direktur
-            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8::timestamp, $9,$10,$11::timestamp, $9,$10,$11::timestamp, $9,$10,$11::timestamp)
+                pemberi_persetujuan_koordinator, waktu_persetujuan_koordinator,
+                pemberi_persetujuan_manager, waktu_persetujuan_manager,
+                pemberi_persetujuan_direktur, waktu_persetujuan_direktur
+            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8::timestamp, $9,$10::timestamp, $9,$10::timestamp, $9,$10::timestamp)
             RETURNING id
         `, [
             candidate.toko_id, tipeOpname, aksi, headerStatus,
             candidate.email_pembuat, candidate.grand_total_opname, candidate.grand_total_rab,
             candidate.created_at,
-            approverName, approverEmail, approvalDate
+            approverEmail, approvalDate
         ]);
         targetId = inserted.rows[0].id;
     }
