@@ -358,8 +358,13 @@ const chooseSourceMatch = (item: SourceItem, sources: DbSourceItem[]): DbSourceI
     const byVolume = byPrice.filter((source) =>
         Math.abs(numberValue(source.volume) - item.volume_rab) < 0.0001
     );
-    return byVolume.length > 0
-        ? [...byVolume].sort((a, b) => b.id - a.id)[0]
+    if (byVolume.length === 1) return byVolume[0];
+    if (byVolume.length > 1) return [...byVolume].sort((a, b) => b.id - a.id)[0];
+    
+    // Fallback: Jika volume tidak match (mungkin volume_rab di excel corrupt),
+    // pilih item terbaru berdasarkan harga
+    return byPrice.length > 0
+        ? [...byPrice].sort((a, b) => b.id - a.id)[0]
         : null;
 };
 
@@ -454,8 +459,18 @@ const resolveCandidates = async (buffer: Buffer): Promise<Candidate[]> => {
             }
             const dbUnitPrice = numberValue(match.harga_material) + numberValue(match.harga_upah);
             const sourceUnitPrice = item.harga_material + item.harga_upah;
+            
+            // Re-calculate volume_akhir using DB volume + Excel selisih
+            const dbVolume = numberValue(match.volume);
+            const fixedVolumeAkhir = dbVolume + item.selisih_volume;
+            
+            // Re-validate volume
+            const matchIssue = validateVolume(fixedVolumeAkhir, item.satuan, item.jenis_pekerjaan);
+
             return {
                 ...item,
+                volume_rab: dbVolume,
+                volume_akhir: fixedVolumeAkhir,
                 source_id: match.id,
                 source_type: match.source_type,
                 matched_unit_price: dbUnitPrice,
@@ -463,7 +478,8 @@ const resolveCandidates = async (buffer: Buffer): Promise<Candidate[]> => {
                     ? `Terdapat ${matchesByName.length} item DB bernama sama; dipilih berdasarkan kategori, satuan, harga, dan volume`
                     : Math.abs(dbUnitPrice - sourceUnitPrice) > 0.01
                         ? `Harga sumber ${sourceUnitPrice} berbeda dari DB ${dbUnitPrice}; perhitungan memakai harga DB`
-                        : null
+                        : null,
+                match_issue: matchIssue
             };
         });
         const unresolved = resolvedItems.filter((item) => item.match_issue);
