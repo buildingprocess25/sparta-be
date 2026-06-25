@@ -78,6 +78,90 @@ const text = (value: unknown) => String(value ?? "").trim();
 const key = (value: unknown) => text(value).toUpperCase().replace(/\s+/g, " ");
 const workKey = (value: unknown) => key(value).replace(/[^A-Z0-9]+/g, "");
 const scopeValue = (value: unknown) => key(value) === "SIPIL" ? "Sipil" : key(value);
+
+// Volume limits untuk deteksi data corruption
+const VOLUME_LIMITS: Record<string, number> = {
+    M2: 1000,    // Max 1000 M2 area untuk 1 toko
+    M3: 500,     // Max 500 M3 volume
+    M1: 500,     // Max 500 M length
+    KG: 10000,   // Max 10 ton (10,000 kg)
+    TTK: 200,    // Max 200 points (electrical/plumbing)
+    BH: 500,     // Max 500 units
+    LS: 20,      // Max 20 lump sum items
+    BTG: 1000,   // Max 1000 pieces
+    UNIT: 500,   // Max 500 units
+    SET: 100,    // Max 100 sets
+    MODULE: 50,  // Max 50 modules
+    MODUL: 50,   // Max 50 modules
+};
+
+/**
+ * Auto-correct volume yang kehilangan decimal point
+ * Menggunakan vol_rab + selisih sebagai reference
+ */
+const autoCorrectVolumeFromSelisih = (
+    volumeAkhir: number,
+    volRab: number,
+    selisih: number
+): { corrected: number; warning: string | null } => {
+    // Calculate expected value
+    const expected = volRab + selisih;
+    
+    // If volume matches expected (within 0.1%), no correction needed
+    if (Math.abs(volumeAkhir - expected) < Math.abs(expected * 0.001)) {
+        return { corrected: volumeAkhir, warning: null };
+    }
+    
+    // Check if volume is way off (lost decimal point)
+    const ratio = Math.abs(volumeAkhir / expected);
+    
+    // If ratio is very large, likely lost decimal point
+    if (ratio > 100) {
+        // Try different divisors to find the correct decimal placement
+        const divisors = [1000000, 100000, 10000, 1000, 100];
+        
+        for (const divisor of divisors) {
+            const candidate = volumeAkhir / divisor;
+            const diff = Math.abs(candidate - expected);
+            
+            // If candidate matches expected within 1%
+            if (diff < Math.abs(expected * 0.01)) {
+                return {
+                    corrected: candidate,
+                    warning: `Volume auto-corrected dari ${volumeAkhir.toLocaleString()} ke ${candidate} (Excel kehilangan decimal point, dikoreksi menggunakan vol_rab + selisih)`
+                };
+            }
+        }
+    }
+    
+    // If can't auto-correct but expected value seems reasonable, use expected
+    if (ratio > 10 && Math.abs(expected) < 10000) {
+        return {
+            corrected: expected,
+            warning: `Volume dikoreksi dari ${volumeAkhir.toLocaleString()} ke ${expected} (menggunakan perhitungan vol_rab + selisih karena nilai Excel tidak valid)`
+        };
+    }
+    
+    return { corrected: volumeAkhir, warning: null };
+};
+
+const validateVolume = (volume: number, satuan: string, jenisPekerjaan: string): string | null => {
+    const normalizedSatuan = satuan.toUpperCase().trim();  // Case-insensitive
+    const limit = VOLUME_LIMITS[normalizedSatuan] || 10000;  // Default 10k if satuan not in list
+    
+    // Check for extreme values (likely data corruption)
+    if (volume > limit) {
+        return `Volume ${volume.toLocaleString()} ${satuan} melebihi batas wajar (max ${limit.toLocaleString()}). Kemungkinan data corrupt: "${jenisPekerjaan}"`;
+    }
+    
+    // Check for impossible negative volumes (except for cut/fill work)
+    if (volume < -100 && normalizedSatuan !== "M3") {
+        return `Volume negatif ekstrem (${volume}) tidak wajar untuk ${satuan}`;
+    }
+    
+    return null;  // Valid
+};
+
 const numberValue = (value: unknown): number => {
     const raw = text(value).replace(/\s/g, "");
     if (!raw) return 0;
@@ -226,35 +310,53 @@ const parseWorkbook = (buffer: Buffer): Candidate[] => {
             : "PARTIAL";
         const dates = latestRows.map((row) => parseTimestamp(row.tanggal_submit)).filter((value): value is string => Boolean(value)).sort();
         const [nomorUlok, lingkup] = groupKey.split("|");
-        const items: SourceItem[] = latestRows.map((row) => ({
-            source_row: row.__row,
-            kategori_pekerjaan: text(row.kategori_pekerjaan),
-            jenis_pekerjaan: text(row.jenis_pekerjaan),
-            satuan: text(row.satuan),
-            volume_rab: numberValue(row.vol_rab),
-            volume_akhir: numberValue(row.volume_akhir),
-            selisih_volume: numberValue(row.selisih),
-            harga_material: numberValue(row.harga_material),
-            harga_upah: numberValue(row.harga_upah),
-            total_harga_akhir: numberValue(row.total_harga_akhir),
-            approval_status: key(row.approval_status) === "APPROVED"
-                ? "APPROVED"
-                : key(row.approval_status) === "REJECTED"
-                    ? "REJECTED"
-                    : "PENDING",
-            desain: text(row.desain) || null,
-            kualitas: text(row.kualitas) || null,
-            spesifikasi: text(row.spesifikasi) || null,
-            foto: text(row.foto_url) || null,
-            catatan: text(row.catatan) || null,
-            is_il: key(row.IL) === "YA",
-            created_at: parseTimestamp(row.tanggal_submit),
-            source_id: null,
-            source_type: null,
-            matched_unit_price: 0,
-            match_warning: null,
-            match_issue: null
-        }));
+        const items: SourceItem[] = latestRows.map((row) => {
+            const volRab = numberValue(row.vol_rab);
+            const volumeAkhirRaw = numberValue(row.volume_akhir);
+            const selisihVolume = numberValue(row.selisih);
+            const satuan = text(row.satuan);
+            const jenisPekerjaan = text(row.jenis_pekerjaan);
+            
+            // Auto-correct volume jika Excel kehilangan decimal point
+            const { corrected: volumeAkhir, warning: correctionWarning } = autoCorrectVolumeFromSelisih(
+                volumeAkhirRaw,
+                volRab,
+                selisihVolume
+            );
+            
+            // Validate volume setelah koreksi
+            const volumeIssue = validateVolume(volumeAkhir, satuan, jenisPekerjaan);
+            
+            return {
+                source_row: row.__row,
+                kategori_pekerjaan: text(row.kategori_pekerjaan),
+                jenis_pekerjaan: jenisPekerjaan,
+                satuan,
+                volume_rab: volRab,
+                volume_akhir: volumeAkhir,  // Gunakan nilai yang sudah dikoreksi
+                selisih_volume: selisihVolume,
+                harga_material: numberValue(row.harga_material),
+                harga_upah: numberValue(row.harga_upah),
+                total_harga_akhir: numberValue(row.total_harga_akhir),
+                approval_status: key(row.approval_status) === "APPROVED"
+                    ? "APPROVED"
+                    : key(row.approval_status) === "REJECTED"
+                        ? "REJECTED"
+                        : "PENDING",
+                desain: text(row.desain) || null,
+                kualitas: text(row.kualitas) || null,
+                spesifikasi: text(row.spesifikasi) || null,
+                foto: text(row.foto_url) || null,
+                catatan: text(row.catatan) || null,
+                is_il: key(row.IL) === "YA",
+                created_at: parseTimestamp(row.tanggal_submit),
+                source_id: null,
+                source_type: null,
+                matched_unit_price: 0,
+                match_warning: correctionWarning,  // Simpan warning jika ada koreksi
+                match_issue: volumeIssue,  // Set volume issue jika masih invalid setelah koreksi
+            };
+        });
         return {
             source_candidate_id: candidateId,
             nomor_ulok: nomorUlok,
