@@ -95,56 +95,6 @@ const VOLUME_LIMITS: Record<string, number> = {
     MODUL: 50,   // Max 50 modules
 };
 
-/**
- * Auto-correct volume yang kehilangan decimal point
- * Menggunakan vol_rab + selisih sebagai reference
- */
-const autoCorrectVolumeFromSelisih = (
-    volumeAkhir: number,
-    volRab: number,
-    selisih: number
-): { corrected: number; warning: string | null } => {
-    // Calculate expected value
-    const expected = volRab + selisih;
-    
-    // If volume matches expected (within 0.1%), no correction needed
-    if (Math.abs(volumeAkhir - expected) < Math.abs(expected * 0.001)) {
-        return { corrected: volumeAkhir, warning: null };
-    }
-    
-    // Check if volume is way off (lost decimal point)
-    const ratio = Math.abs(volumeAkhir / expected);
-    
-    // If ratio is very large, likely lost decimal point
-    if (ratio > 100) {
-        // Try different divisors to find the correct decimal placement
-        const divisors = [1000000, 100000, 10000, 1000, 100];
-        
-        for (const divisor of divisors) {
-            const candidate = volumeAkhir / divisor;
-            const diff = Math.abs(candidate - expected);
-            
-            // If candidate matches expected within 1%
-            if (diff < Math.abs(expected * 0.01)) {
-                return {
-                    corrected: candidate,
-                    warning: `Volume auto-corrected dari ${volumeAkhir.toLocaleString()} ke ${candidate} (Excel kehilangan decimal point, dikoreksi menggunakan vol_rab + selisih)`
-                };
-            }
-        }
-    }
-    
-    // If can't auto-correct but expected value seems reasonable, use expected
-    if (ratio > 10 && Math.abs(expected) < 10000) {
-        return {
-            corrected: expected,
-            warning: `Volume dikoreksi dari ${volumeAkhir.toLocaleString()} ke ${expected} (menggunakan perhitungan vol_rab + selisih karena nilai Excel tidak valid)`
-        };
-    }
-    
-    return { corrected: volumeAkhir, warning: null };
-};
-
 const validateVolume = (volume: number, satuan: string, jenisPekerjaan: string): string | null => {
     const normalizedSatuan = satuan.toUpperCase().trim();  // Case-insensitive
     const limit = VOLUME_LIMITS[normalizedSatuan] || 10000;  // Default 10k if satuan not in list
@@ -165,11 +115,20 @@ const validateVolume = (volume: number, satuan: string, jenisPekerjaan: string):
 const numberValue = (value: unknown): number => {
     const raw = text(value).replace(/\s/g, "");
     if (!raw) return 0;
+    
+    // Deteksi format:
+    // 1. Jika ada koma → format Indonesia (1.234,56 → 1234.56)
+    // 2. Jika ada multiple dots → thousand separator (1.234.567 → 1234567)
+    // 3. Jika hanya 1 dot → ALWAYS treat as decimal (46.236 → 46.236)
+    //    Kenapa? Karena Excel biasanya export angka dengan dot sebagai desimal
+    //    Jika user input "46 ribu", Excel akan store sebagai 46000, bukan "46.000"
+    
     const normalized = raw.includes(",")
-        ? raw.replace(/\./g, "").replace(",", ".")
-        : /^\d{1,3}(?:\.\d{3})+$/.test(raw)
+        ? raw.replace(/\./g, "").replace(",", ".")  // Format Indonesia
+        : (raw.match(/\./g) || []).length > 1       // Multiple dots → thousand separator
             ? raw.replace(/\./g, "")
-            : raw;
+        : raw;                                       // Single dot or no dot → keep as-is (decimal)
+    
     const parsed = Number(normalized);
     return Number.isFinite(parsed) ? parsed : 0;
 };
@@ -312,19 +271,15 @@ const parseWorkbook = (buffer: Buffer): Candidate[] => {
         const [nomorUlok, lingkup] = groupKey.split("|");
         const items: SourceItem[] = latestRows.map((row) => {
             const volRab = numberValue(row.vol_rab);
-            const volumeAkhirRaw = numberValue(row.volume_akhir);
             const selisihVolume = numberValue(row.selisih);
             const satuan = text(row.satuan);
             const jenisPekerjaan = text(row.jenis_pekerjaan);
             
-            // Auto-correct volume jika Excel kehilangan decimal point
-            const { corrected: volumeAkhir, warning: correctionWarning } = autoCorrectVolumeFromSelisih(
-                volumeAkhirRaw,
-                volRab,
-                selisihVolume
-            );
+            // SIMPLE & ROBUST: volume_akhir = vol_rab + selisih
+            // Ini konsisten dengan formula Excel dan tidak perlu parsing ambiguous number format
+            const volumeAkhir = volRab + selisihVolume;
             
-            // Validate volume setelah koreksi
+            // Validate volume 
             const volumeIssue = validateVolume(volumeAkhir, satuan, jenisPekerjaan);
             
             return {
@@ -333,7 +288,7 @@ const parseWorkbook = (buffer: Buffer): Candidate[] => {
                 jenis_pekerjaan: jenisPekerjaan,
                 satuan,
                 volume_rab: volRab,
-                volume_akhir: volumeAkhir,  // Gunakan nilai yang sudah dikoreksi
+                volume_akhir: volumeAkhir,
                 selisih_volume: selisihVolume,
                 harga_material: numberValue(row.harga_material),
                 harga_upah: numberValue(row.harga_upah),
@@ -353,8 +308,8 @@ const parseWorkbook = (buffer: Buffer): Candidate[] => {
                 source_id: null,
                 source_type: null,
                 matched_unit_price: 0,
-                match_warning: correctionWarning,  // Simpan warning jika ada koreksi
-                match_issue: volumeIssue,  // Set volume issue jika masih invalid setelah koreksi
+                match_warning: null,  // No longer needed - simple formula
+                match_issue: volumeIssue,
             };
         });
         return {

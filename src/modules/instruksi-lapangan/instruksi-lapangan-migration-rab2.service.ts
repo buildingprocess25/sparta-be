@@ -116,6 +116,103 @@ const numberValue = (value: unknown): number => {
     return Number.isFinite(parsed) ? parsed : 0;
 };
 
+// Volume limits per satuan untuk deteksi corruption
+const VOLUME_LIMITS: Record<string, number> = {
+    M2: 1000,    // Max 1000 M2 area untuk 1 toko
+    M3: 500,     // Max 500 M3 volume
+    M1: 500,     // Max 500 M length
+    M: 500,      // Alias untuk M1
+    KG: 10000,   // Max 10 ton
+    TTK: 200,    // Max 200 points
+    BH: 500,     // Max 500 units
+    LS: 20,      // Max 20 lump sum items
+    BTG: 1000,   // Max 1000 pieces
+    UNIT: 500,   // Max 500 units
+    SET: 100,    // Max 100 sets
+    MODULE: 50,
+    MODUL: 50,
+};
+
+/**
+ * Auto-correct volume yang kehilangan decimal point menggunakan total_harga sebagai reference
+ */
+const autoCorrectVolumeFromTotal = (
+    volume: number,
+    satuan: string,
+    hargaMaterial: number,
+    hargaUpah: number,
+    totalHarga: number,
+    jenisPekerjaan: string
+): { corrected: number; warning: string | null } => {
+    const unitPrice = hargaMaterial + hargaUpah;
+    
+    // Jika unit price 0, tidak bisa validasi
+    if (unitPrice === 0) {
+        return { corrected: volume, warning: null };
+    }
+    
+    // Calculate expected volume from total_harga
+    const expectedVolume = totalHarga / unitPrice;
+    
+    // If volume matches expected (within 1%), no correction needed
+    if (Math.abs(volume - expectedVolume) < Math.abs(expectedVolume * 0.01)) {
+        return { corrected: volume, warning: null };
+    }
+    
+    // Check if volume is way off (lost decimal point)
+    const ratio = Math.abs(volume / expectedVolume);
+    
+    // If ratio is very large (>100x), likely lost decimal point
+    if (ratio > 100) {
+        // Try different divisors to find the correct decimal placement
+        const divisors = [1000000, 100000, 10000, 1000, 100];
+        
+        for (const divisor of divisors) {
+            const candidate = volume / divisor;
+            const candidateTotal = candidate * unitPrice;
+            const diff = Math.abs(candidateTotal - totalHarga);
+            
+            // If candidate total matches actual total within 1%
+            if (diff < Math.abs(totalHarga * 0.01)) {
+                return {
+                    corrected: candidate,
+                    warning: `Volume auto-corrected dari ${volume.toLocaleString()} ke ${candidate.toFixed(2)} (Excel kehilangan decimal point, dikoreksi dari total_harga ÷ harga_satuan)`
+                };
+            }
+        }
+    }
+    
+    // If expected volume is reasonable, use it
+    if (ratio > 10 && expectedVolume < 10000 && expectedVolume > 0) {
+        return {
+            corrected: expectedVolume,
+            warning: `Volume dikoreksi dari ${volume.toLocaleString()} ke ${expectedVolume.toFixed(2)} (dihitung dari total_harga ÷ harga_satuan karena nilai Excel tidak valid)`
+        };
+    }
+    
+    return { corrected: volume, warning: null };
+};
+
+/**
+ * Validasi volume terhadap batas wajar per satuan
+ */
+const validateVolume = (volume: number, satuan: string, jenisPekerjaan: string): string | null => {
+    const normalizedSatuan = satuan.toUpperCase().trim();
+    const limit = VOLUME_LIMITS[normalizedSatuan] || 10000; // Default 10k if satuan not in list
+    
+    // Check for extreme values (likely data corruption)
+    if (volume > limit) {
+        return `Volume ${volume.toLocaleString()} ${satuan} melebihi batas wajar (max ${limit.toLocaleString()}). Kemungkinan data corrupt: "${jenisPekerjaan.slice(0, 50)}"`;
+    }
+    
+    // Check for impossible negative volumes
+    if (volume < -100) {
+        return `Volume negatif ekstrem (${volume}) tidak wajar untuk ${satuan}`;
+    }
+    
+    return null; // Valid
+};
+
 const scopeValue = (value: unknown): string => {
     const k = key(value);
     if (k === "SIPIL") return "Sipil";
@@ -170,15 +267,36 @@ const extractItems = (row: CellRow): { items: Item[]; warnings: string[] } => {
         const kategoriRaw = text(row[`Kategori_Pekerjaan_${i}`]);
         if (kategoriRaw) lastKategori = kategoriRaw;
 
-        const volume = numberValue(row[`Volume_Item_${i}`]);
+        const volumeRaw = numberValue(row[`Volume_Item_${i}`]);
+        const satuan = text(row[`Satuan_Item_${i}`]) || "-";
         const hargaMaterial = numberValue(row[`Harga_Material_Item_${i}`]);
         const hargaUpah = numberValue(row[`Harga_Upah_Item_${i}`]);
 
         // Prefer kolom Total_* dari Excel; fallback ke hasil kalkulasi
-        const totalMaterial = numberValue(row[`Total_Material_Item_${i}`]) || volume * hargaMaterial;
-        const totalUpah = numberValue(row[`Total_Upah_Item_${i}`]) || volume * hargaUpah;
+        const totalMaterial = numberValue(row[`Total_Material_Item_${i}`]) || volumeRaw * hargaMaterial;
+        const totalUpah = numberValue(row[`Total_Upah_Item_${i}`]) || volumeRaw * hargaUpah;
         const totalHarga = numberValue(row[`Total_Harga_Item_${i}`]) || totalMaterial + totalUpah;
 
+        // Auto-correct volume jika Excel kehilangan decimal point
+        const { corrected: volume, warning: correctionWarning } = autoCorrectVolumeFromTotal(
+            volumeRaw,
+            satuan,
+            hargaMaterial,
+            hargaUpah,
+            totalHarga,
+            jenis
+        );
+        
+        // Validate volume setelah koreksi
+        const volumeIssue = validateVolume(volume, satuan, jenis);
+        
+        // Collect warnings
+        if (correctionWarning) {
+            warnings.push(`Item ${i}: ${correctionWarning}`);
+        }
+        if (volumeIssue) {
+            warnings.push(`Item ${i}: ${volumeIssue}`);
+        }
         if (volume === 0 && totalHarga === 0) {
             warnings.push(`Item ${i} (${jenis.slice(0, 40)}): volume dan total 0, tetap diimport`);
         }
@@ -186,13 +304,13 @@ const extractItems = (row: CellRow): { items: Item[]; warnings: string[] } => {
         items.push({
             kategori_pekerjaan: lastKategori,
             jenis_pekerjaan: jenis,
-            satuan: text(row[`Satuan_Item_${i}`]) || "-",
-            volume,
+            satuan,
+            volume,  // Gunakan volume yang sudah dikoreksi
             harga_material: hargaMaterial,
             harga_upah: hargaUpah,
-            total_material: totalMaterial,
-            total_upah: totalUpah,
-            total_harga: totalHarga,
+            total_material: volume * hargaMaterial,  // Recalculate dengan volume yang benar
+            total_upah: volume * hargaUpah,
+            total_harga: volume * (hargaMaterial + hargaUpah),
         });
     }
 
