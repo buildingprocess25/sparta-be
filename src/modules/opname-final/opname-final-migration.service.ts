@@ -308,11 +308,23 @@ const parseWorkbook = (buffer: Buffer): Candidate[] => {
                 if (nonIL.length > 0) latestRows.push(nonIL[nonIL.length - 1]);
                 latestRows.push(explicitIL[explicitIL.length - 1]);
             } else if (nonIL.length >= 2) {
-                // Tidak ada IL eksplisit tapi ada 2+ baris sama → promosi otomatis
-                latestRows.push(nonIL[0]); // tertua = RAB
+                // Tidak ada IL eksplisit tapi ada 2+ baris sama
+                const oldest = nonIL[0];
                 const newest = nonIL[nonIL.length - 1];
-                latestRows.push(newest); // terbaru = IL (dipromosi)
-                promotedToIL.add(newest.__row);
+                
+                // Cek apakah volume akhir berbeda
+                const volOld = numberValue(oldest.vol_rab) + numberValue(oldest.selisih);
+                const volNew = numberValue(newest.vol_rab) + numberValue(newest.selisih);
+                
+                if (Math.abs(volOld - volNew) > 0.001) {
+                    // Volume beda -> promosi otomatis
+                    latestRows.push(oldest); // tertua = RAB
+                    latestRows.push(newest); // terbaru = IL (dipromosi)
+                    promotedToIL.add(newest.__row);
+                } else {
+                    // Volume sama persis -> ini double submit, ambil yang terbaru saja
+                    latestRows.push(newest);
+                }
             } else {
                 for (const row of nonIL) latestRows.push(row);
                 for (const row of explicitIL) latestRows.push(row);
