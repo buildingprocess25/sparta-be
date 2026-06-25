@@ -596,52 +596,8 @@ const insertItems = async (
 ) => {
     console.log(`[MIGRATION] Processing ${candidate.items.length} items for ${candidate.nomor_ulok}...`);
     
-    // Process foto: download from Cloudinary and upload to Drive
-    const processedItems = await Promise.all(
-        candidate.items
-            .filter(item => item.source_id && item.source_type) // Filter out invalid items first
-            .map(async (item, index) => {
-                if (!item.foto) return item;
+    const processedItems = candidate.items.filter(item => item.source_id && item.source_type);
 
-                // Check if it's already a Drive file ID (migration already ran before)
-                if (item.foto.length < 100 && !item.foto.startsWith("http")) {
-                    console.log(`[MIGRATION] Item ${index + 1}: foto already Drive ID, skipping`);
-                    return item;
-                }
-
-                // Extract Google Drive ID if it's a Google Drive URL
-                const driveIdMatch = /\/d\/([^/]+)/.exec(item.foto) || /[?&]id=([^&]+)/.exec(item.foto);
-                if (driveIdMatch && driveIdMatch[1]) {
-                    console.log(`[MIGRATION] Item ${index + 1}: Foto is a Google Drive URL, storing Drive ID ${driveIdMatch[1]}`);
-                    return { ...item, foto: driveIdMatch[1] };
-                }
-
-                // It's a non-Drive URL (e.g. Cloudinary) - need to download and re-upload
-                console.log(`[MIGRATION] Item ${index + 1}: Re-uploading foto to Drive...`);
-                
-                const imageBuffer = await downloadImageFromUrl(item.foto);
-                if (!imageBuffer) {
-                    console.warn(`[MIGRATION] Item ${index + 1}: Failed to download foto, will save NULL`);
-                    return { ...item, foto: null };
-                }
-
-                const driveFileId = await uploadImageToDrive(
-                    googleProvider,
-                    imageBuffer,
-                    candidate.nomor_ulok,
-                    index + 1,
-                    item.jenis_pekerjaan
-                );
-
-                if (!driveFileId) {
-                    console.warn(`[MIGRATION] Item ${index + 1}: Failed to upload to Drive, will save NULL`);
-                    return { ...item, foto: null };
-                }
-
-                console.log(`[MIGRATION] Item ${index + 1}: Foto migrated successfully`);
-                return { ...item, foto: driveFileId };
-            })
-    );
 
     const values: unknown[] = [];
     const placeholders = processedItems.map((item, index) => {
@@ -853,6 +809,48 @@ export const opnameFinalMigrationService = {
         );
         
         console.log(`[MIGRATION] Will process ${input.selections.length} opname with ${totalPhotos} photos to re-upload`);
+        
+        // ============================================================================
+        // PRE-PROCESS PHOTOS: Lakukan di LUAR transaction untuk mencegah DB Connection Timeout
+        // Chunk processing 10 foto sekaligus untuk mencegah Rate Limit & OOM
+        // ============================================================================
+        let photoProcessed = 0;
+        for (const candidate of selectedCandidates) {
+            for (let i = 0; i < candidate.items.length; i += 10) {
+                const chunk = candidate.items.slice(i, i + 10);
+                await Promise.all(chunk.map(async (item, chunkIndex) => {
+                    if (!item.foto) return;
+                    // Skip jika sudah format ID Drive
+                    if (item.foto.length < 100 && !item.foto.startsWith("http")) return;
+                    
+                    const driveIdMatch = /\/d\/([^/]+)/.exec(item.foto) || /[?&]id=([^&]+)/.exec(item.foto);
+                    if (driveIdMatch && driveIdMatch[1]) {
+                        item.foto = driveIdMatch[1];
+                        return;
+                    }
+                    
+                    photoProcessed++;
+                    console.log(`[MIGRATION] Photo ${photoProcessed}/${totalPhotos}: Re-uploading for ${candidate.nomor_ulok}...`);
+                    
+                    const imageBuffer = await downloadImageFromUrl(item.foto);
+                    if (!imageBuffer) {
+                        item.foto = null;
+                        return;
+                    }
+                    
+                    const driveFileId = await uploadImageToDrive(
+                        googleProvider,
+                        imageBuffer,
+                        candidate.nomor_ulok,
+                        i + chunkIndex + 1,
+                        item.jenis_pekerjaan
+                    );
+                    
+                    item.foto = driveFileId || null;
+                }));
+            }
+        }
+        console.log(`[MIGRATION] All ${photoProcessed} photos processed. Starting DB Transaction...`);
         
         const results = await withTransaction(async (client) => {
             const rows = [];
