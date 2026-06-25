@@ -131,7 +131,28 @@ const numberValue = (value: unknown): number => {
         : raw;                                       // Single dot or no dot → keep as-is (decimal)
     
     const parsed = Number(normalized);
-    return Number.isFinite(parsed) ? parsed : 0;
+    if (!Number.isFinite(parsed)) return 0;
+
+    // FIX EXCEL AUTO-DATE BUG:
+    // Jika user mengetik "03.07", Excel mengubahnya menjadi "3 Juli" diam-diam.
+    // Saat dibaca oleh xlsx, angkanya menjadi serial date Excel.
+    // Range serial yang dicek:
+    //   - 2010-01-01 = 40179
+    //   - 2042-12-31 = 51909
+    // Volume konstruksi untuk SATU baris item pekerjaan Alfamart mustahil mencapai 40.000+ unit.
+    // Sehingga: jika nilai ada di range ini, PASTI itu efek auto-date Excel, bukan volume nyata.
+    // Kita balikkan kembali secara otomatis menjadi format Desimal (Hari.Bulan).
+    if (parsed >= 40179 && parsed <= 51909) {
+        const excelEpoch = new Date(Date.UTC(1899, 11, 30)); // Excel epoch is 1899-12-30
+        const date = new Date(excelEpoch.getTime() + Math.floor(parsed) * 86400000);
+        const day = date.getUTCDate();
+        const month = date.getUTCMonth() + 1; // 1-12
+        const fractional = parsed - Math.floor(parsed);
+        // Susun ulang menjadi "Hari.Bulan"
+        return parseFloat(`${day}.${month.toString().padStart(2, '0')}`) + fractional;
+    }
+    
+    return parsed;
 };
 const parseTimestamp = (value: unknown): string | null => {
     const raw = text(value);
