@@ -170,12 +170,18 @@ const uploadImageToDrive = async (
 
         console.log(`[MIGRATION] Uploading to Drive: ${folderName}/${fileName}`);
 
-        const fileId = await googleProvider.uploadFile(
+        const result = await googleProvider.uploadFile(
             folderName,
             fileName,
             "image/jpeg",
             buffer
         );
+
+        const fileId = result.id;
+        if (!fileId) {
+            console.warn(`[MIGRATION] Upload returned no file ID`);
+            return null;
+        }
 
         console.log(`[MIGRATION] Uploaded successfully, file ID: ${fileId}`);
         return fileId;
@@ -450,40 +456,42 @@ const insertItems = async (
     
     // Process foto: download from Cloudinary and upload to Drive
     const processedItems = await Promise.all(
-        candidate.items.map(async (item, index) => {
-            if (!item.foto) return item;
+        candidate.items
+            .filter(item => item.source_id && item.source_type) // Filter out invalid items first
+            .map(async (item, index) => {
+                if (!item.foto) return item;
 
-            // Check if it's already a Drive file ID (migration already ran before)
-            if (item.foto.length < 100 && !item.foto.startsWith("http")) {
-                console.log(`[MIGRATION] Item ${index + 1}: foto already Drive ID, skipping`);
-                return item;
-            }
+                // Check if it's already a Drive file ID (migration already ran before)
+                if (item.foto.length < 100 && !item.foto.startsWith("http")) {
+                    console.log(`[MIGRATION] Item ${index + 1}: foto already Drive ID, skipping`);
+                    return item;
+                }
 
-            // It's a URL - need to re-upload
-            console.log(`[MIGRATION] Item ${index + 1}: Re-uploading foto to Drive...`);
-            
-            const imageBuffer = await downloadImageFromUrl(item.foto);
-            if (!imageBuffer) {
-                console.warn(`[MIGRATION] Item ${index + 1}: Failed to download foto, will save NULL`);
-                return { ...item, foto: null };
-            }
+                // It's a URL - need to re-upload
+                console.log(`[MIGRATION] Item ${index + 1}: Re-uploading foto to Drive...`);
+                
+                const imageBuffer = await downloadImageFromUrl(item.foto);
+                if (!imageBuffer) {
+                    console.warn(`[MIGRATION] Item ${index + 1}: Failed to download foto, will save NULL`);
+                    return { ...item, foto: null };
+                }
 
-            const driveFileId = await uploadImageToDrive(
-                googleProvider,
-                imageBuffer,
-                candidate.nomor_ulok,
-                index + 1,
-                item.jenis_pekerjaan
-            );
+                const driveFileId = await uploadImageToDrive(
+                    googleProvider,
+                    imageBuffer,
+                    candidate.nomor_ulok,
+                    index + 1,
+                    item.jenis_pekerjaan
+                );
 
-            if (!driveFileId) {
-                console.warn(`[MIGRATION] Item ${index + 1}: Failed to upload to Drive, will save NULL`);
-                return { ...item, foto: null };
-            }
+                if (!driveFileId) {
+                    console.warn(`[MIGRATION] Item ${index + 1}: Failed to upload to Drive, will save NULL`);
+                    return { ...item, foto: null };
+                }
 
-            console.log(`[MIGRATION] Item ${index + 1}: Foto migrated successfully`);
-            return { ...item, foto: driveFileId };
-        })
+                console.log(`[MIGRATION] Item ${index + 1}: Foto migrated successfully`);
+                return { ...item, foto: driveFileId };
+            })
     );
 
     const values: unknown[] = [];
@@ -666,15 +674,16 @@ export const opnameFinalMigrationService = {
         if (!hasSuperHumanRole(input.actor_role)) throw new AppError("Hanya Super Human yang dapat melakukan migrasi Opname Final", 403);
         
         console.log("[MIGRATION] Starting opname final migration with photo re-upload...");
-        const googleProvider = new GoogleProvider();
+        const googleProvider = GoogleProvider.instance;
         
         const candidates = await resolveCandidates(buffer);
         const byId = new Map(candidates.map((candidate) => [candidate.source_candidate_id, candidate]));
         
         // Count total photos to migrate
         const selectedCandidates = input.selections
+            .filter(sel => sel.action !== "skip")
             .map(sel => byId.get(sel.source_candidate_id))
-            .filter((c): c is Candidate => Boolean(c) && sel.action !== "skip");
+            .filter((c): c is Candidate => Boolean(c));
         
         const totalPhotos = selectedCandidates.reduce((sum, c) => 
             sum + c.items.filter(item => item.foto && item.foto.startsWith("http")).length, 0
