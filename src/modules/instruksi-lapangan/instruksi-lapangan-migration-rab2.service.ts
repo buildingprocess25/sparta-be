@@ -136,10 +136,12 @@ const parseTimestamp = (value: unknown): string | null => {
  */
 const mapStatus = (rawStatus: unknown): string | null => {
     const s = key(rawStatus);
+    console.log(`[DEBUG] Mapping status: "${text(rawStatus)}" -> normalized: "${s}"`);
     if (s === "DISETUJUI") return "Disetujui";
     if (s === "MENUNGGU PERSETUJUAN KOORDINATOR") return "Menunggu Persetujuan Koordinator";
     if (s === "MENUNGGU PERSETUJUAN MANAJER") return "Menunggu Persetujuan Koordinator";
     // Ditolak, TERISI, BATASAN, kosong → skip
+    console.log(`[DEBUG] Status "${s}" is invalid for import, will skip this row`);
     return null;
 };
 
@@ -197,11 +199,19 @@ const extractItems = (row: CellRow): { items: Item[]; warnings: string[] } => {
 const parseWorkbook = (buffer: Buffer): Candidate[] => {
     const workbook = xlsx.read(buffer, { type: "buffer", cellDates: false });
 
+    const availableSheets = Object.keys(workbook.Sheets);
+    console.log("[DEBUG] Available sheets in workbook:", availableSheets);
+
     const hasForm2 = Boolean(workbook.Sheets["Form2"]);
     const hasForm3 = Boolean(workbook.Sheets["Form3"]);
 
+    console.log("[DEBUG] Has Form2:", hasForm2, "Has Form3:", hasForm3);
+
     if (!hasForm2 && !hasForm3) {
-        throw new AppError("File tidak valid: sheet Form2 atau Form3 harus tersedia di rab_kedua.xlsx", 400);
+        throw new AppError(
+            `File tidak valid: sheet Form2 atau Form3 harus tersedia di rab_kedua.xlsx. Sheet yang ditemukan: ${availableSheets.join(", ") || "(kosong)"}`,
+            400
+        );
     }
 
     // Baca kedua sheet
@@ -212,6 +222,43 @@ const parseWorkbook = (buffer: Buffer): Candidate[] => {
         ? xlsx.utils.sheet_to_json<CellRow>(workbook.Sheets["Form2"], { defval: null, raw: false })
         : [];
 
+    console.log("[DEBUG] Form3 rows:", form3Rows.length, "Form2 rows:", form2Rows.length);
+
+    // Validasi kolom minimal yang dibutuhkan
+    const requiredColumns = ["Nomor Ulok", "Lingkup_Pekerjaan", "Status"];
+    
+    const validateColumns = (rows: CellRow[], sheetName: string) => {
+        if (rows.length === 0) {
+            console.log(`[WARNING] Sheet ${sheetName} kosong (0 baris data)`);
+            return;
+        }
+        const firstRow = rows[0];
+        const availableColumns = Object.keys(firstRow);
+        const missing = requiredColumns.filter((col) => !availableColumns.includes(col));
+        
+        console.log(`[DEBUG] ${sheetName} columns (first 15):`, availableColumns.slice(0, 15));
+        
+        if (missing.length > 0) {
+            throw new AppError(
+                `Sheet ${sheetName} tidak memiliki kolom yang diperlukan: ${missing.join(", ")}. ` +
+                `Kolom yang tersedia: ${availableColumns.slice(0, 10).join(", ")}${availableColumns.length > 10 ? ` (dan ${availableColumns.length - 10} kolom lainnya)` : ""}`,
+                400
+            );
+        }
+    };
+    
+    // Validasi kedua sheet
+    if (hasForm3) validateColumns(form3Rows, "Form3");
+    if (hasForm2) validateColumns(form2Rows, "Form2");
+
+    // Cek sample kolom dari baris pertama untuk debugging
+    if (form3Rows.length > 0) {
+        console.log("[DEBUG] Form3 first row columns:", Object.keys(form3Rows[0]).slice(0, 10));
+    }
+    if (form2Rows.length > 0) {
+        console.log("[DEBUG] Form2 first row columns:", Object.keys(form2Rows[0]).slice(0, 10));
+    }
+
     // Map: ULOK+lingkup → Candidate terbaik
     const candidateMap = new Map<string, Candidate>();
     let candidateId = 800000;
@@ -219,10 +266,16 @@ const parseWorkbook = (buffer: Buffer): Candidate[] => {
     const processRow = (row: CellRow, sheet: "Form2" | "Form3") => {
         const nomorUlok = text(row["Nomor Ulok"]).toUpperCase();
         const lingkup = scopeValue(row["Lingkup_Pekerjaan"]);
-        if (!nomorUlok || !lingkup) return;
+        if (!nomorUlok || !lingkup) {
+            console.log(`[DEBUG] ${sheet} skipped row - Nomor Ulok: "${text(row["Nomor Ulok"])}", Lingkup: "${text(row["Lingkup_Pekerjaan"])}"`);
+            return;
+        }
 
         const mappedStatus = mapStatus(row["Status"]);
-        if (!mappedStatus) return; // skip Ditolak, TERISI, BATASAN, dll.
+        if (!mappedStatus) {
+            console.log(`[DEBUG] ${sheet} skipped row ${nomorUlok} - Invalid status: "${text(row["Status"])}"`);
+            return; // skip Ditolak, TERISI, BATASAN, dll.
+        }
 
         const groupKey = `${nomorUlok}|${lingkup}`;
         const timestamp = parseTimestamp(row["Timestamp"]);
@@ -266,13 +319,38 @@ const parseWorkbook = (buffer: Buffer): Candidate[] => {
     };
 
     // Proses Form3 dulu (prioritas lebih tinggi)
-    for (const row of form3Rows) processRow(row, "Form3");
+    let form3Processed = 0;
+    for (const row of form3Rows) { 
+        const beforeSize = candidateMap.size;
+        processRow(row, "Form3");
+        if (candidateMap.size > beforeSize) form3Processed++;
+    }
     // Lalu Form2 — hanya masuk jika ULOK belum ada
-    for (const row of form2Rows) processRow(row, "Form2");
+    let form2Processed = 0;
+    for (const row of form2Rows) {
+        const beforeSize = candidateMap.size;
+        processRow(row, "Form2");
+        if (candidateMap.size > beforeSize) form2Processed++;
+    }
 
-    return [...candidateMap.values()].sort((a, b) =>
+    const result = [...candidateMap.values()].sort((a, b) =>
         `${a.nomor_ulok}|${a.lingkup_pekerjaan}`.localeCompare(`${b.nomor_ulok}|${b.lingkup_pekerjaan}`)
     );
+
+    console.log(`[INFO] Parse summary: Form3 → ${form3Processed} candidates, Form2 → ${form2Processed} candidates, Total → ${result.length}`);
+    
+    if (result.length === 0) {
+        console.error("[ERROR] No valid candidates found! Check:");
+        console.error("  - Kolom 'Nomor Ulok' harus terisi");
+        console.error("  - Kolom 'Lingkup_Pekerjaan' harus terisi (Sipil/ME)");
+        console.error("  - Kolom 'Status' harus valid (Disetujui/Menunggu Persetujuan)");
+        throw new AppError(
+            "Tidak ada data IL yang valid di file. Pastikan kolom 'Nomor Ulok', 'Lingkup_Pekerjaan', dan 'Status' terisi dengan benar.",
+            400
+        );
+    }
+
+    return result;
 };
 
 // ─── Resolve against DB ───────────────────────────────────────────────────────
@@ -496,9 +574,21 @@ export const instruksiLapanganMigrationRab2Service = {
             throw new AppError("Hanya Super Human yang dapat melakukan migrasi Instruksi Lapangan", 403);
         }
 
-        const candidates = await resolveCandidates(parseWorkbook(buffer));
+        console.log("[INFO] Starting parseWorkbook...");
+        let candidates: Candidate[];
+        try {
+            candidates = parseWorkbook(buffer);
+            console.log(`[INFO] parseWorkbook completed successfully. Found ${candidates.length} candidates.`);
+        } catch (error) {
+            console.error("[ERROR] parseWorkbook failed:", error);
+            throw error;
+        }
 
-        const details = candidates.map((candidate) => ({
+        console.log("[INFO] Starting resolveCandidates...");
+        const resolvedCandidates = await resolveCandidates(candidates);
+        console.log(`[INFO] resolveCandidates completed. ${resolvedCandidates.length} candidates resolved.`);
+
+        const details = resolvedCandidates.map((candidate) => ({
             source_candidate_id: candidate.source_candidate_id,
             nomor_ulok: candidate.nomor_ulok,
             lingkup_pekerjaan: candidate.lingkup_pekerjaan,
@@ -539,6 +629,11 @@ export const instruksiLapanganMigrationRab2Service = {
             invalid_count: details.filter((row) => row.db_state === "invalid").length,
             disetujui_count: details.filter((row) => row.status === "Disetujui").length,
             pending_count: details.filter((row) => row.status !== "Disetujui").length,
+            // Breakdown sumber data
+            source_breakdown: {
+                from_form3: details.filter((row) => row.source_sheet === "Form3").length,
+                from_form2: details.filter((row) => row.source_sheet === "Form2").length,
+            },
             // Breakdown conflict supaya user tahu mana yang aman
             conflict_summary: {
                 from_v1_migration: details.filter((row) => row.conflict_reason === "from_v1_migration").length,
