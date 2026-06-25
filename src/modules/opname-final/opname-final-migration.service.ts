@@ -6,6 +6,7 @@ import { activityLogRepository } from "../activity-log/activity-log.repository";
 import { calculateDendaByTokoId } from "../denda/denda-keterlambatan";
 import { opnameFinalService } from "./opname-final.service";
 import { GoogleProvider } from "../../common/google";
+import { env } from "../../config/env";
 import type {
     OpnameFinalMigrationAction,
     OpnameFinalMigrationCommitInput
@@ -208,16 +209,17 @@ const uploadImageToDrive = async (
             .replace(/\s+/g, "-")
             .substring(0, 50);
         
-        const folderName = `opname-migration/${nomorUlok}`;
-        const fileName = `${sanitizedJenis}-${itemIndex}.jpg`;
+        const fileName = `OPNAME_MIGRATION_${nomorUlok.replace(/[^a-zA-Z0-9]/g, "")}_${sanitizedJenis}_${itemIndex}_${Date.now()}.jpg`;
 
-        console.log(`[MIGRATION] Uploading to Drive: ${folderName}/${fileName}`);
+        console.log(`[MIGRATION] Uploading to Drive: ${fileName}`);
 
         const result = await googleProvider.uploadFile(
-            folderName,
+            env.PDF_STORAGE_FOLDER_ID,
             fileName,
             "image/jpeg",
-            buffer
+            buffer,
+            2,
+            googleProvider.spartaDrive || undefined
         );
 
         const fileId = result.id;
@@ -540,7 +542,14 @@ const insertItems = async (
                     return item;
                 }
 
-                // It's a URL - need to re-upload
+                // Extract Google Drive ID if it's a Google Drive URL
+                const driveIdMatch = /\/d\/([^/]+)/.exec(item.foto) || /[?&]id=([^&]+)/.exec(item.foto);
+                if (driveIdMatch && driveIdMatch[1]) {
+                    console.log(`[MIGRATION] Item ${index + 1}: Foto is a Google Drive URL, storing Drive ID ${driveIdMatch[1]}`);
+                    return { ...item, foto: driveIdMatch[1] };
+                }
+
+                // It's a non-Drive URL (e.g. Cloudinary) - need to download and re-upload
                 console.log(`[MIGRATION] Item ${index + 1}: Re-uploading foto to Drive...`);
                 
                 const imageBuffer = await downloadImageFromUrl(item.foto);
