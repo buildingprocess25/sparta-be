@@ -75,6 +75,11 @@ type Candidate = {
     created_at: string | null;
     grand_total_raw: number;          // dari Excel — untuk referensi saja
     grand_total_non_sbo_raw: number;  // dari Excel
+    // Approval data
+    pemberi_persetujuan_koordinator: string | null;
+    waktu_persetujuan_koordinator: string | null;
+    pemberi_persetujuan_manager: string | null;
+    waktu_persetujuan_manager: string | null;
     items: Item[];
     source_sheet: "Form2" | "Form3";
     source_item_count: number;
@@ -318,6 +323,11 @@ const parseWorkbook = (buffer: Buffer): Candidate[] => {
             created_at: timestamp,
             grand_total_raw: numberValue(row["Grand Total"]),
             grand_total_non_sbo_raw: numberValue(row["Grand Total Non-SBO"]),
+            // Approval data dari Excel
+            pemberi_persetujuan_koordinator: text(row["Pemberi Persetujuan Koordinator"]) || null,
+            waktu_persetujuan_koordinator: parseTimestamp(row["Waktu Persetujuan Koordinator"]),
+            pemberi_persetujuan_manager: text(row["Pemberi Persetujuan Manager"]) || null,
+            waktu_persetujuan_manager: parseTimestamp(row["Waktu Persetujuan Manager"]),
             items,
             source_sheet: sheet,
             source_item_count: items.length,
@@ -437,7 +447,8 @@ const resolveCandidates = async (candidates: Candidate[]): Promise<Candidate[]> 
             const totalDiff = Math.abs(dbTotal - rab2Total);
             const itemDiff = Math.abs(dbItems - rab2Items);
 
-            const isFromV1 = dbEmail.includes("migration@sparta.local") || dbEmail.includes("migration@sparta");
+            // Deteksi lebih strict: hanya jika EXACTLY "migration@sparta.local"
+            const isFromV1 = dbEmail === "migration@sparta.local" || dbEmail === "migration@sparta";
 
             if (isFromV1) {
                 // Data dari migrasi v1 — rab_kedua adalah sumber yang lebih benar
@@ -542,25 +553,34 @@ const writeCandidate = async (
             UPDATE instruksi_lapangan
             SET status=$1, email_pembuat=$2, tanggal_mulai=$3, tanggal_selesai=$4,
                 grand_total=$5, grand_total_non_sbo=$6, grand_total_final=$7,
-                created_at=COALESCE($8::timestamp, created_at)
-            WHERE id=$9
+                pemberi_persetujuan_koordinator=$8, waktu_persetujuan_koordinator=$9::timestamp,
+                pemberi_persetujuan_manager=$10, waktu_persetujuan_manager=$11::timestamp,
+                created_at=COALESCE($12::timestamp, created_at)
+            WHERE id=$13
         `, [
             candidate.status, candidate.email_pembuat,
             candidate.tanggal_mulai, candidate.tanggal_selesai,
             grandTotal.toString(), grandTotalNonSbo.toString(), grandTotalFinal,
+            candidate.pemberi_persetujuan_koordinator, candidate.waktu_persetujuan_koordinator,
+            candidate.pemberi_persetujuan_manager, candidate.waktu_persetujuan_manager,
             candidate.created_at, targetId,
         ]);
     } else {
         const inserted = await client.query<{ id: number }>(`
             INSERT INTO instruksi_lapangan (
                 id_toko, status, email_pembuat, tanggal_mulai, tanggal_selesai,
-                grand_total, grand_total_non_sbo, grand_total_final, created_at
-            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,COALESCE($9::timestamp,timezone('Asia/Jakarta',now())))
+                grand_total, grand_total_non_sbo, grand_total_final,
+                pemberi_persetujuan_koordinator, waktu_persetujuan_koordinator,
+                pemberi_persetujuan_manager, waktu_persetujuan_manager,
+                created_at
+            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::timestamp,$11,$12::timestamp,COALESCE($13::timestamp,timezone('Asia/Jakarta',now())))
             RETURNING id
         `, [
             candidate.toko_id, candidate.status, candidate.email_pembuat,
             candidate.tanggal_mulai, candidate.tanggal_selesai,
             grandTotal.toString(), grandTotalNonSbo.toString(), grandTotalFinal,
+            candidate.pemberi_persetujuan_koordinator, candidate.waktu_persetujuan_koordinator,
+            candidate.pemberi_persetujuan_manager, candidate.waktu_persetujuan_manager,
             candidate.created_at,
         ]);
         targetId = inserted.rows[0].id;
@@ -608,6 +628,11 @@ export const instruksiLapanganMigrationRab2Service = {
             source_sheet: candidate.source_sheet,
             tanggal_mulai: candidate.tanggal_mulai,
             tanggal_selesai: candidate.tanggal_selesai,
+            // Approval info
+            pemberi_persetujuan_koordinator: candidate.pemberi_persetujuan_koordinator,
+            waktu_persetujuan_koordinator: candidate.waktu_persetujuan_koordinator,
+            pemberi_persetujuan_manager: candidate.pemberi_persetujuan_manager,
+            waktu_persetujuan_manager: candidate.waktu_persetujuan_manager,
             item_count: candidate.items.length,
             source_item_count: candidate.source_item_count,
             grand_total: candidate.items.reduce((sum, item) => sum + item.total_harga, 0),
