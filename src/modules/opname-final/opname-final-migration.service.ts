@@ -5,6 +5,7 @@ import { pool, withTransaction } from "../../db/pool";
 import { activityLogRepository } from "../activity-log/activity-log.repository";
 import { calculateDendaByTokoId } from "../denda/denda-keterlambatan";
 import { opnameFinalService } from "./opname-final.service";
+import { GoogleProvider } from "../../common/google";
 import type {
     OpnameFinalMigrationAction,
     OpnameFinalMigrationCommitInput
@@ -107,6 +108,82 @@ const sourceItemKey = (row: CellRow) => [
     workKey(row.satuan),
     key(row.IL) === "YA" ? "IL" : "RAB"
 ].join("|");
+
+/**
+ * Download gambar dari URL (Cloudinary atau lainnya)
+ * Return buffer jika berhasil, null jika gagal
+ */
+const downloadImageFromUrl = async (url: string): Promise<Buffer | null> => {
+    if (!url || !url.startsWith("http")) return null;
+    
+    try {
+        console.log(`[MIGRATION] Downloading image from: ${url.substring(0, 80)}...`);
+        const response = await fetch(url, {
+            method: "GET",
+            headers: {
+                "User-Agent": "SPARTA-Migration/1.0"
+            }
+        });
+
+        if (!response.ok) {
+            console.warn(`[MIGRATION] Failed to download image: ${response.status} ${response.statusText}`);
+            return null;
+        }
+
+        const contentType = response.headers.get("content-type");
+        if (!contentType?.startsWith("image/")) {
+            console.warn(`[MIGRATION] URL is not an image: ${contentType}`);
+            return null;
+        }
+
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        
+        console.log(`[MIGRATION] Downloaded ${buffer.length} bytes`);
+        return buffer;
+    } catch (error) {
+        console.error(`[MIGRATION] Error downloading image:`, error instanceof Error ? error.message : String(error));
+        return null;
+    }
+};
+
+/**
+ * Upload gambar ke Google Drive dan return file ID
+ * Return null jika gagal
+ */
+const uploadImageToDrive = async (
+    googleProvider: GoogleProvider,
+    buffer: Buffer,
+    nomorUlok: string,
+    itemIndex: number,
+    jenisPekerjaan: string
+): Promise<string | null> => {
+    try {
+        // Sanitize filename
+        const sanitizedJenis = jenisPekerjaan
+            .replace(/[^a-zA-Z0-9\s-]/g, "")
+            .replace(/\s+/g, "-")
+            .substring(0, 50);
+        
+        const folderName = `opname-migration/${nomorUlok}`;
+        const fileName = `${sanitizedJenis}-${itemIndex}.jpg`;
+
+        console.log(`[MIGRATION] Uploading to Drive: ${folderName}/${fileName}`);
+
+        const fileId = await googleProvider.uploadFile(
+            folderName,
+            fileName,
+            "image/jpeg",
+            buffer
+        );
+
+        console.log(`[MIGRATION] Uploaded successfully, file ID: ${fileId}`);
+        return fileId;
+    } catch (error) {
+        console.error(`[MIGRATION] Error uploading to Drive:`, error instanceof Error ? error.message : String(error));
+        return null;
+    }
+};
 
 const parseWorkbook = (buffer: Buffer): Candidate[] => {
     const workbook = xlsx.read(buffer, { type: "buffer", cellDates: false });
@@ -363,9 +440,54 @@ const resolveCandidates = async (buffer: Buffer): Promise<Candidate[]> => {
     });
 };
 
-const insertItems = async (client: PoolClient, candidate: Candidate, opnameFinalId: number) => {
+const insertItems = async (
+    client: PoolClient,
+    candidate: Candidate,
+    opnameFinalId: number,
+    googleProvider: GoogleProvider
+) => {
+    console.log(`[MIGRATION] Processing ${candidate.items.length} items for ${candidate.nomor_ulok}...`);
+    
+    // Process foto: download from Cloudinary and upload to Drive
+    const processedItems = await Promise.all(
+        candidate.items.map(async (item, index) => {
+            if (!item.foto) return item;
+
+            // Check if it's already a Drive file ID (migration already ran before)
+            if (item.foto.length < 100 && !item.foto.startsWith("http")) {
+                console.log(`[MIGRATION] Item ${index + 1}: foto already Drive ID, skipping`);
+                return item;
+            }
+
+            // It's a URL - need to re-upload
+            console.log(`[MIGRATION] Item ${index + 1}: Re-uploading foto to Drive...`);
+            
+            const imageBuffer = await downloadImageFromUrl(item.foto);
+            if (!imageBuffer) {
+                console.warn(`[MIGRATION] Item ${index + 1}: Failed to download foto, will save NULL`);
+                return { ...item, foto: null };
+            }
+
+            const driveFileId = await uploadImageToDrive(
+                googleProvider,
+                imageBuffer,
+                candidate.nomor_ulok,
+                index + 1,
+                item.jenis_pekerjaan
+            );
+
+            if (!driveFileId) {
+                console.warn(`[MIGRATION] Item ${index + 1}: Failed to upload to Drive, will save NULL`);
+                return { ...item, foto: null };
+            }
+
+            console.log(`[MIGRATION] Item ${index + 1}: Foto migrated successfully`);
+            return { ...item, foto: driveFileId };
+        })
+    );
+
     const values: unknown[] = [];
-    const placeholders = candidate.items.map((item, index) => {
+    const placeholders = processedItems.map((item, index) => {
         if (!item.source_id || !item.source_type) throw new AppError(`Item baris ${item.source_row} belum terpetakan`, 422);
         const totalSelisih = Math.round(item.selisih_volume * item.matched_unit_price);
         const totalHargaOpname = Math.round(item.volume_akhir * item.matched_unit_price);
@@ -386,13 +508,14 @@ const insertItems = async (client: PoolClient, candidate: Candidate, opnameFinal
             item.desain,
             item.kualitas,
             item.spesifikasi,
-            item.foto,
+            item.foto,  // Now contains Drive file ID or NULL
             item.catatan,
             item.created_at ?? candidate.created_at
         );
         const offset = index * 15;
         return `($${offset + 1},$${offset + 2},$${offset + 3},$${offset + 4},$${offset + 5},$${offset + 6},$${offset + 7},$${offset + 8},$${offset + 9},$${offset + 10},$${offset + 11},$${offset + 12},$${offset + 13},$${offset + 14},COALESCE($${offset + 15}::timestamp,timezone('Asia/Jakarta',now())))`;
     });
+    
     await client.query(`
         INSERT INTO opname_item (
             id_toko, id_opname_final, id_rab_item, id_instruksi_lapangan_item,
@@ -400,12 +523,16 @@ const insertItems = async (client: PoolClient, candidate: Candidate, opnameFinal
             desain, kualitas, spesifikasi, foto, catatan, created_at
         ) VALUES ${placeholders.join(",")}
     `, values);
+    
+    const fotoCount = processedItems.filter(item => item.foto).length;
+    console.log(`[MIGRATION] Inserted ${processedItems.length} items (${fotoCount} with foto) for ${candidate.nomor_ulok}`);
 };
 
 const writeCandidate = async (
     client: PoolClient,
     candidate: Candidate,
-    action: OpnameFinalMigrationAction
+    action: OpnameFinalMigrationAction,
+    googleProvider: GoogleProvider
 ) => {
     if (action === "skip") return { status: "skipped", source_candidate_id: candidate.source_candidate_id, target_id: candidate.existing_id };
     if (candidate.issues.length > 0 || !candidate.toko_id || !candidate.created_at) {
@@ -447,7 +574,7 @@ const writeCandidate = async (
         ]);
         targetId = inserted.rows[0].id;
     }
-    await insertItems(client, candidate, targetId!);
+    await insertItems(client, candidate, targetId!, googleProvider);
     if (isFinal) {
         const denda = await calculateDendaByTokoId(candidate.toko_id);
         await client.query(`
@@ -500,6 +627,9 @@ export const opnameFinalMigrationService = {
             approved_count: candidate.approved_count,
             pending_count: candidate.pending_count,
             rejected_count: candidate.rejected_count,
+            // Photo migration info
+            photo_count: candidate.items.filter((item) => item.foto).length,
+            photo_url_count: candidate.items.filter((item) => item.foto && item.foto.startsWith("http")).length,
             grand_total_rab: candidate.grand_total_rab,
             grand_total_opname: candidate.grand_total_opname,
             kerja_tambah: candidate.items.filter((item) => item.selisih_volume > 0).reduce((sum, item) => sum + Math.max(0, item.selisih_volume * (item.harga_material + item.harga_upah)), 0),
@@ -522,6 +652,9 @@ export const opnameFinalMigrationService = {
             final_count: details.filter((row) => row.migration_type === "FINAL").length,
             total_items: details.reduce((sum, row) => sum + row.item_count, 0),
             mapped_items: details.reduce((sum, row) => sum + row.mapped_item_count, 0),
+            // Photo migration stats
+            total_photos: details.reduce((sum, row) => sum + row.photo_count, 0),
+            photos_to_migrate: details.reduce((sum, row) => sum + row.photo_url_count, 0),
             ready_count: details.filter((row) => row.db_state === "ready").length,
             conflict_count: details.filter((row) => row.db_state === "conflict").length,
             invalid_count: details.filter((row) => row.db_state === "invalid").length,
@@ -531,15 +664,38 @@ export const opnameFinalMigrationService = {
 
     async commit(buffer: Buffer, input: OpnameFinalMigrationCommitInput) {
         if (!hasSuperHumanRole(input.actor_role)) throw new AppError("Hanya Super Human yang dapat melakukan migrasi Opname Final", 403);
+        
+        console.log("[MIGRATION] Starting opname final migration with photo re-upload...");
+        const googleProvider = new GoogleProvider();
+        
         const candidates = await resolveCandidates(buffer);
         const byId = new Map(candidates.map((candidate) => [candidate.source_candidate_id, candidate]));
+        
+        // Count total photos to migrate
+        const selectedCandidates = input.selections
+            .map(sel => byId.get(sel.source_candidate_id))
+            .filter((c): c is Candidate => Boolean(c) && sel.action !== "skip");
+        
+        const totalPhotos = selectedCandidates.reduce((sum, c) => 
+            sum + c.items.filter(item => item.foto && item.foto.startsWith("http")).length, 0
+        );
+        
+        console.log(`[MIGRATION] Will process ${input.selections.length} opname with ${totalPhotos} photos to re-upload`);
+        
         const results = await withTransaction(async (client) => {
             const rows = [];
+            let processedCount = 0;
+            
             for (const selection of input.selections) {
                 const candidate = byId.get(selection.source_candidate_id);
                 if (!candidate) throw new AppError(`Kandidat ${selection.source_candidate_id} tidak ditemukan`, 404);
-                rows.push(await writeCandidate(client, candidate, selection.action));
+                
+                processedCount++;
+                console.log(`[MIGRATION] Processing ${processedCount}/${input.selections.length}: ${candidate.nomor_ulok}...`);
+                
+                rows.push(await writeCandidate(client, candidate, selection.action, googleProvider));
             }
+            
             await activityLogRepository.insert({
                 entity_type: "OPNAME_FINAL",
                 entity_id: 0,
@@ -547,15 +703,23 @@ export const opnameFinalMigrationService = {
                 actor_role: input.actor_role,
                 action: "SUPER_HUMAN_MIGRATION",
                 status_after: "MIGRATION_COMMITTED",
-                reason: "Migrasi Opname Final/KTK dari OPNAME_v1",
-                metadata: { total_selected: input.selections.length }
+                reason: "Migrasi Opname Final/KTK dari OPNAME_v1 (with photo re-upload)",
+                metadata: { 
+                    total_selected: input.selections.length,
+                    total_photos_migrated: totalPhotos
+                }
             }, client);
+            
             return rows;
         });
+        
         const pdfIds = results
             .filter((row) => row.status !== "skipped" && row.target_id && row.migration_type === "FINAL")
             .map((row) => Number(row.target_id));
+        
+        console.log(`[MIGRATION] Migration completed. Queueing ${pdfIds.length} PDF generations...`);
         queuePdfGeneration(pdfIds);
+        
         return {
             total_selected: input.selections.length,
             inserted: results.filter((row) => row.status === "inserted").length,
@@ -564,6 +728,7 @@ export const opnameFinalMigrationService = {
             partial_processed: results.filter((row) => row.status !== "skipped" && row.migration_type === "PARTIAL").length,
             final_processed: results.filter((row) => row.status !== "skipped" && row.migration_type === "FINAL").length,
             pdf_queued: pdfIds.length,
+            photos_migrated: totalPhotos,
             details: results
         };
     }
