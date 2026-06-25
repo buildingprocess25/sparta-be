@@ -208,6 +208,15 @@ const parseWorkbook = (buffer: Buffer): Candidate[] => {
     console.log("[DEBUG] Has Form2:", hasForm2, "Has Form3:", hasForm3);
 
     if (!hasForm2 && !hasForm3) {
+        // Cek apakah user upload OPNAME_v1 by mistake
+        const hasOpnameV1Sheets = availableSheets.includes("data_rab") && availableSheets.includes("opname_final");
+        if (hasOpnameV1Sheets) {
+            throw new AppError(
+                "File yang diupload adalah OPNAME_v1.xlsx. Untuk migrasi dari OPNAME_v1, gunakan halaman 'Migrasi OPNAME_v1' (bukan rab_kedua).",
+                400
+            );
+        }
+
         throw new AppError(
             `File tidak valid: sheet Form2 atau Form3 harus tersedia di rab_kedua.xlsx. Sheet yang ditemukan: ${availableSheets.join(", ") || "(kosong)"}`,
             400

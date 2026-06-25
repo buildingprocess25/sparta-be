@@ -69,8 +69,23 @@ const itemKey = (row: CellRow) => [
 
 const parseWorkbook = (buffer: Buffer): Candidate[] => {
     const workbook = xlsx.read(buffer, { type: "buffer", cellDates: false });
+    
+    const availableSheets = Object.keys(workbook.Sheets);
+    
     if (!workbook.Sheets.data_rab || !workbook.Sheets.opname_final) {
-        throw new AppError("Sheet data_rab dan opname_final wajib tersedia", 400);
+        // Cek apakah user upload rab_kedua by mistake
+        const hasRabKeduaSheets = availableSheets.includes("Form2") || availableSheets.includes("Form3");
+        if (hasRabKeduaSheets) {
+            throw new AppError(
+                "File yang diupload adalah rab_kedua.xlsx. Untuk migrasi dari rab_kedua, gunakan halaman 'Migrasi rab_kedua' (bukan OPNAME_v1).",
+                400
+            );
+        }
+        
+        throw new AppError(
+            `Sheet data_rab dan opname_final wajib tersedia di OPNAME_v1.xlsx. Sheet yang ditemukan: ${availableSheets.join(", ") || "(kosong)"}`,
+            400
+        );
     }
     const rabRows = xlsx.utils.sheet_to_json<CellRow>(workbook.Sheets.data_rab, { defval: null, raw: false });
     const opnameRows = xlsx.utils.sheet_to_json<CellRow>(workbook.Sheets.opname_final, { defval: null, raw: false });
