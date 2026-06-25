@@ -273,17 +273,51 @@ const parseWorkbook = (buffer: Buffer): Candidate[] => {
     let candidateId = 900000;
     return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([groupKey, sourceRows]) => {
         candidateId += 1;
-        const latestByItem = new Map<string, CellRow & { __row: number }>();
+        // Deduplicate dan tentukan RAB vs IL:
+        // - Jika kolom IL sudah eksplisit "YA" → ikuti apa adanya
+        // - Jika ada 2+ baris dengan item SAMA dan sama-sama bukan IL:
+        //   → yang paling LAMA jadi RAB, yang paling BARU otomatis dipromosi jadi IL
+        //   (logika bisnis: submit pertama = baseline RAB, submit ulang = revisi lingkup = IL)
+        const baseKeyGroups = new Map<string, Array<CellRow & { __row: number }>>();
         for (const row of sourceRows) {
-            const itemKey = sourceItemKey(row);
-            const current = latestByItem.get(itemKey);
-            const rowDate = parseTimestamp(row.tanggal_submit) ?? "";
-            const currentDate = current ? parseTimestamp(current.tanggal_submit) ?? "" : "";
-            if (!current || rowDate > currentDate || (rowDate === currentDate && row.__row > current.__row)) {
-                latestByItem.set(itemKey, row);
+            const baseKey = [
+                workKey(String(row.kategori_pekerjaan ?? "")),
+                workKey(String(row.jenis_pekerjaan ?? "")),
+                workKey(String(row.satuan ?? ""))
+            ].join("|");
+            baseKeyGroups.set(baseKey, [...(baseKeyGroups.get(baseKey) ?? []), row]);
+        }
+
+        const latestRows: Array<CellRow & { __row: number }> = [];
+        const promotedToIL = new Set<number>(); // Set __row yang dipromosi otomatis ke IL
+
+        for (const groupRows of baseKeyGroups.values()) {
+            // Urutkan dari yang paling lama ke paling baru
+            const sorted = [...groupRows].sort((a, b) => {
+                const dateA = parseTimestamp(a.tanggal_submit) ?? "";
+                const dateB = parseTimestamp(b.tanggal_submit) ?? "";
+                if (dateA !== dateB) return dateA < dateB ? -1 : 1;
+                return a.__row - b.__row;
+            });
+
+            const explicitIL = sorted.filter((r) => key(r.IL) === "YA");
+            const nonIL = sorted.filter((r) => key(r.IL) !== "YA");
+
+            if (explicitIL.length > 0) {
+                // Ada IL eksplisit: ambil RAB terbaru + IL terbaru
+                if (nonIL.length > 0) latestRows.push(nonIL[nonIL.length - 1]);
+                latestRows.push(explicitIL[explicitIL.length - 1]);
+            } else if (nonIL.length >= 2) {
+                // Tidak ada IL eksplisit tapi ada 2+ baris sama → promosi otomatis
+                latestRows.push(nonIL[0]); // tertua = RAB
+                const newest = nonIL[nonIL.length - 1];
+                latestRows.push(newest); // terbaru = IL (dipromosi)
+                promotedToIL.add(newest.__row);
+            } else {
+                for (const row of nonIL) latestRows.push(row);
+                for (const row of explicitIL) latestRows.push(row);
             }
         }
-        const latestRows = [...latestByItem.values()];
         const approvedCount = latestRows.filter((row) => key(row.approval_status) === "APPROVED").length;
         const pendingCount = latestRows.filter((row) => key(row.approval_status) === "PENDING").length;
         const rejectedCount = latestRows.filter((row) => key(row.approval_status) === "REJECTED").length;
@@ -326,7 +360,7 @@ const parseWorkbook = (buffer: Buffer): Candidate[] => {
                 spesifikasi: text(row.spesifikasi) || null,
                 foto: text(row.foto_url) || null,
                 catatan: text(row.catatan) || null,
-                is_il: key(row.IL) === "YA",
+                is_il: key(row.IL) === "YA" || promotedToIL.has(row.__row),
                 created_at: parseTimestamp(row.tanggal_submit),
                 source_id: null,
                 source_type: null,
