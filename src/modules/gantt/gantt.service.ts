@@ -128,14 +128,14 @@ export const ganttService = {
             scopes,
             serah_terima_ready: scopes
                 .filter((scope) => scope.gantt_id)
-                .every((scope) =>
+                .some((scope) =>
                     Boolean(scope.opname_final_id)
                     && ["terkunci"].includes(String(scope.opname_aksi ?? "").toLowerCase())
                     && ["Disetujui"].includes(String(scope.status_opname_final ?? ""))
                 ),
             serah_terima_generated: scopes
                 .filter((scope) => scope.gantt_id)
-                .every((scope) => Boolean(scope.berkas_serah_terima_id)),
+                .some((scope) => Boolean(scope.berkas_serah_terima_id)),
         };
     },
     async submit(payload: SubmitGanttInput) {
