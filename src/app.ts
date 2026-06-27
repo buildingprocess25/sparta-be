@@ -5,6 +5,7 @@ import multer from "multer";
 import { ZodError } from "zod";
 import { env } from "./config/env";
 import { AppError } from "./common/app-error";
+import { apiAuthMiddleware } from "./modules/auth/auth.middleware";
 import { tokoRouter } from "./modules/toko/toko.routes";
 import { rabRouter } from "./modules/rab/rab.routes";
 import { spkRouter } from "./modules/spk/spk.routes";
@@ -115,9 +116,12 @@ app.get("/health", (_req, res) => {
     res.json({ ok: true, service: "sparta-api" });
 });
 
-app.use("/api/toko", tokoRouter);
 app.post("/api/auth/login", loginUserCabang);
 app.post("/api/auth/verify-otp", verifyLoginOtp);
+
+app.use(apiAuthMiddleware);
+
+app.use("/api/toko", tokoRouter);
 app.get("/api/get_kontraktor", getKontraktor);
 app.use("/api/rab", rabRouter);
 app.use("/api/spk", spkRouter);

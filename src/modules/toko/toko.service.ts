@@ -1,5 +1,6 @@
 import { AppError } from "../../common/app-error";
 import { authOtpService } from "../auth/auth-otp.service";
+import { authSessionService } from "../auth/auth-session.service";
 import { tokoRepository } from "./toko.repository";
 import type {
     CreateTokoInput,
@@ -22,11 +23,20 @@ const buildLoginResponse = async (input: {
     const alamatCabangRow = await tokoRepository.findAlamatCabangByCabang(input.matchedUser.cabang);
     const alamat_cabang = alamatCabangRow?.alamat ?? null;
     const jabatanList = Array.from(new Set(input.registeredUsers.map((user) => user.jabatan)));
+    const session = await authSessionService.createForUser({
+        email_sat: input.matchedUser.email_sat,
+        cabang: input.matchedUser.cabang,
+        nama_lengkap: input.matchedUser.nama_lengkap,
+        jabatan: input.matchedUser.jabatan,
+        roles: jabatanList,
+        nama_pt: input.matchedUser.nama_pt
+    });
+
     if (jabatanList.length > 1) {
-        return { ...input.matchedUser, jabatan: jabatanList, alamat_cabang };
+        return { ...input.matchedUser, jabatan: jabatanList, alamat_cabang, ...session };
     }
 
-    return { ...input.matchedUser, alamat_cabang };
+    return { ...input.matchedUser, alamat_cabang, ...session };
 };
 
 export const tokoService = {

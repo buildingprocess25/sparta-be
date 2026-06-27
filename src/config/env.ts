@@ -48,6 +48,11 @@ const envSchema = z.object({
     PG_KEEP_ALIVE: z.coerce.boolean().default(true),
     PG_CONN_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
     PG_IDLE_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
+
+    // API auth rollout
+    AUTH_ENFORCEMENT_MODE: z.enum(["compat", "strict"]).default("strict"),
+    AUTH_SESSION_TTL_HOURS: z.coerce.number().int().positive().default(12),
+    AUTH_ROLLING_SESSION: z.coerce.boolean().default(true),
 });
 
 const parsed = envSchema.safeParse(process.env);
