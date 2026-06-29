@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { env } from "../../config/env";
+import { isSameBranchScope } from "../../common/branch-scope";
 import { authSessionService, type AuthenticatedUser } from "./auth-session.service";
 
 declare global {
@@ -53,7 +54,7 @@ function validateScopedRequest(req: Request, res: Response): boolean {
         const normalizedUserCabang = normalizeText(user.cabang);
         const isWildcard = ["ALL", "SEMUA", "SEMUA CABANG", "-"].includes(normalizedRequested);
 
-        if (!isWildcard && normalizedRequested !== normalizedUserCabang) {
+        if (!isWildcard && !isSameBranchScope(normalizedRequested, normalizedUserCabang)) {
             res.status(403).json({
                 status: "error",
                 message: "Anda tidak memiliki akses ke cabang yang diminta."
