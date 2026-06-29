@@ -53,6 +53,7 @@ const envSchema = z.object({
     AUTH_ENFORCEMENT_MODE: z.enum(["compat", "strict"]).default("strict"),
     AUTH_SESSION_TTL_HOURS: z.coerce.number().int().positive().default(12),
     AUTH_ROLLING_SESSION: z.coerce.boolean().default(true),
+    AUTH_SESSION_RETENTION_DAYS: z.coerce.number().int().positive().default(30),
 });
 
 const parsed = envSchema.safeParse(process.env);

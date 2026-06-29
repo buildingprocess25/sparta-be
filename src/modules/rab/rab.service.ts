@@ -1,4 +1,5 @@
 import { AppError } from "../../common/app-error";
+import { getBranchScopeCandidates, isSameBranchScope } from "../../common/branch-scope";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
 import { tokoRepository } from "../toko/toko.repository";
@@ -238,33 +239,6 @@ const normalizeCabangForPrice = (value?: string | null): string => {
         .replace(/^CAB(?:ANG)?\.?\s+/, "")
         .replace(/^CABANG\s+/, "")
         .trim();
-};
-
-const BRANCH_GROUPS: Record<string, string[]> = {
-    LOMBOK: ["LOMBOK", "SUMBAWA"],
-    CIKOKOL: ["CIKOKOL", "BINTAN"],
-    MEDAN: ["MEDAN", "ACEH"],
-    LAMPUNG: ["LAMPUNG", "KOTABUMI"],
-    PALEMBANG: ["PALEMBANG", "BENGKULU", "BANGKA", "BELITUNG"],
-    SIDOARJO: ["SIDOARJO", "SIDOARJO BPN_SMD", "MANOKWARI", "NTT", "SORONG"],
-};
-
-const normalizeBranchName = (value?: string | null): string =>
-    String(value ?? "").trim().replace(/\s+/g, " ").toUpperCase();
-
-const getBranchScopeCandidates = (branch?: string | null): string[] => {
-    const normalized = normalizeBranchName(branch);
-    if (!normalized) return [];
-
-    const candidates = new Set<string>([normalized]);
-    for (const [parentBranch, branchGroup] of Object.entries(BRANCH_GROUPS)) {
-        if (branchGroup.includes(normalized)) {
-            candidates.add(parentBranch);
-            branchGroup.forEach(item => candidates.add(item));
-        }
-    }
-
-    return Array.from(candidates);
 };
 
 const findUserCabangByEmailAndBranchScope = async (email: string, branch: string) => {
@@ -1121,7 +1095,7 @@ export const rabService = {
             if (String(projek.nomor_ulok || "").trim().toUpperCase() !== String(payload.nomor_ulok || "").trim().toUpperCase()) {
                 throw new AppError("Nomor ULOK tidak cocok dengan Project Planning", 422);
             }
-            if (String(projek.cabang || "").trim().toUpperCase() !== String(payload.cabang || "").trim().toUpperCase()) {
+            if (!isSameBranchScope(projek.cabang, payload.cabang)) {
                 throw new AppError("Cabang tidak cocok dengan Project Planning", 422);
             }
             const canAccess = await projekPlanningRepository.canActorAccessBranch(payload.email_pembuat, projek.cabang);
@@ -1319,8 +1293,7 @@ export const rabService = {
             lingkup_pekerjaan: normalizedLingkupPekerjaan,
             nama_toko: payload.nama_toko,
             proyek: payload.proyek,
-            // Gunakan cabang dari toko existing jika ada, supaya tidak overwrite dengan cabang user yang login
-            cabang: existingTokoByCombination?.cabang || payload.cabang,
+            cabang: payload.cabang || existingTokoByCombination?.cabang,
             alamat: payload.alamat,
             nama_kontraktor: submittedNamaPt,
             projek_planning_id: payload.projek_planning_id,

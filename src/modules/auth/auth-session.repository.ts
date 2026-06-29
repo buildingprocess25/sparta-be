@@ -127,5 +127,17 @@ export const authSessionRepository = {
             `,
             [tokenHash]
         );
+    },
+
+    async deleteExpiredOlderThan(retentionDays: number): Promise<number> {
+        const result = await pool.query(
+            `
+            DELETE FROM auth_session
+            WHERE expires_at < now() - ($1::int * interval '1 day')
+            `,
+            [retentionDays]
+        );
+
+        return result.rowCount ?? 0;
     }
 };

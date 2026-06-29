@@ -1,6 +1,7 @@
 import cors from "cors";
 import crypto from "crypto";
 import express from "express";
+import helmet from "helmet";
 import multer from "multer";
 import { ZodError } from "zod";
 import { env } from "./config/env";
@@ -37,6 +38,9 @@ const corsOrigins = env.CORS_ORIGINS === "*"
     ? "*"
     : env.CORS_ORIGINS.split(",").map((item) => item.trim());
 
+app.use(helmet({
+    crossOriginResourcePolicy: false
+}));
 app.use(cors({ origin: corsOrigins }));
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));

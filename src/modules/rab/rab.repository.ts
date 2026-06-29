@@ -1,5 +1,6 @@
 import type { PoolClient } from "pg";
 import { pool, withTransaction } from "../../db/pool";
+import { isSameBranchScope } from "../../common/branch-scope";
 import type { ApprovalActionInput } from "../approval/approval.schema";
 import { activityLogRepository } from "../activity-log/activity-log.repository";
 import { ACTIVE_RAB_STATUSES, RAB_STATUS, REJECTED_RAB_STATUSES, type RabStatus } from "./rab.constants";
@@ -551,7 +552,7 @@ export const rabRepository = {
                 const existing = existingTokoRes.rows[0];
                 tokoId = existing.id;
 
-                if (existing.cabang && payload.cabang && existing.cabang.toUpperCase() !== payload.cabang.toUpperCase()) {
+                if (existing.cabang && payload.cabang && !isSameBranchScope(existing.cabang, payload.cabang)) {
                     throw new Error(`Gagal menyimpan RAB: Nomor ULOK ${payload.nomor_ulok} sudah terdaftar untuk cabang ${existing.cabang} (Toko: ${existing.nama_toko || '-'}). Anda mencoba menyimpan untuk cabang ${payload.cabang}. Harap periksa kembali Nomor ULOK Anda.`);
                 }
 

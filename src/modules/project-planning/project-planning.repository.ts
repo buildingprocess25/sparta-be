@@ -1,5 +1,6 @@
 import { pool, withTransaction } from "../../db/pool";
 import type { PoolClient } from "pg";
+import { getBranchScopeCandidates } from "../../common/branch-scope";
 import { REJECTED_RAB_STATUSES } from "../rab/rab.constants";
 import type { PpStatus, PpRole, PpAksi } from "./project-planning.constants";
 import type {
@@ -420,15 +421,16 @@ export const projekPlanningRepository = {
 
     async canActorAccessBranch(actorEmail: string, cabang: string | null): Promise<boolean> {
         if (!cabang) return false;
+        const branchCandidates = getBranchScopeCandidates(cabang);
         const result = await pool.query<{ exists: boolean }>(
             `SELECT EXISTS(
                 SELECT 1
                 FROM user_cabang
                 WHERE LOWER(TRIM(email_sat)) = LOWER(TRIM($1))
-                  AND LOWER(TRIM(cabang)) = LOWER(TRIM($2))
+                  AND UPPER(TRIM(cabang)) = ANY($2::text[])
                   AND UPPER(COALESCE(jabatan, '')) LIKE '%KONTRAKTOR%'
             ) AS exists`,
-            [actorEmail, cabang]
+            [actorEmail, branchCandidates]
         );
         return result.rows[0]?.exists ?? false;
     },
