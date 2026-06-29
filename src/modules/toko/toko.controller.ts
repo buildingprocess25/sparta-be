@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { asyncHandler } from "../../common/async-handler";
+import { getBranchScopeCandidates } from "../../common/branch-scope";
 import { GoogleProvider } from "../../common/google";
 import {
     createTokoSchema,
@@ -63,7 +64,22 @@ export const getKontraktor = async (req: Request, res: Response) => {
     }
 
     try {
-        const kontraktorList = await GoogleProvider.instance.getKontraktorByCabang(userCabang);
+        let kontraktorList = await GoogleProvider.instance.getKontraktorByCabang(userCabang);
+
+        if (kontraktorList.length === 0) {
+            const merged = new Set<string>();
+            const candidates = getBranchScopeCandidates(userCabang).filter(
+                (candidate) => candidate.toLowerCase() !== userCabang.toLowerCase()
+            );
+
+            for (const candidate of candidates) {
+                const candidateList = await GoogleProvider.instance.getKontraktorByCabang(candidate);
+                candidateList.forEach((name) => merged.add(name));
+            }
+
+            kontraktorList = Array.from(merged).sort();
+        }
+
         return res.status(200).json(kontraktorList);
     } catch (error: unknown) {
         console.error(error);
