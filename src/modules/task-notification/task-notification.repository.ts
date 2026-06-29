@@ -19,6 +19,7 @@ export type TaskNotificationItem = {
 
 export type TaskNotificationGroup = {
     key: string;
+    action_type: "approval" | "revision" | "input" | "process" | "offer";
     title: string;
     description: string;
     count: number;
@@ -113,6 +114,7 @@ const toItems = (rows: NotificationRow[]): TaskNotificationItem[] =>
 
 const makeGroup = (
     key: string,
+    actionType: TaskNotificationGroup["action_type"],
     title: string,
     description: string,
     rows: NotificationRow[]
@@ -121,6 +123,7 @@ const makeGroup = (
     if (count <= 0) return null;
     return {
         key,
+        action_type: actionType,
         title,
         description,
         count,
@@ -509,7 +512,7 @@ const findRevisionRequired = async (user: AuthenticatedUser): Promise<Notificati
                 p.status,
                 COALESCE('Alasan: ' || NULLIF(p.alasan_penolakan, ''), 'SPK perlu diperbaiki/diajukan ulang.') AS description,
                 'Revisi SPK' AS action_label,
-                '/spk?nomor_ulok=' || COALESCE(p.nomor_ulok, '') || '&lingkup=' || COALESCE(p.lingkup_pekerjaan, '') || '&id_toko=' || COALESCE(p.id_toko::text, '') AS action_url,
+                '/spk?spk_id=' || p.id || '&nomor_ulok=' || COALESCE(p.nomor_ulok, '') || '&lingkup=' || replace(replace(COALESCE(p.lingkup_pekerjaan, ''), '&', '%26'), ' ', '%20') || '&id_toko=' || COALESCE(p.id_toko::text, '') AS action_url,
                 COUNT(*) OVER() AS total_count
             FROM pengajuan_spk p
             LEFT JOIN toko t ON t.id = p.id_toko
@@ -639,7 +642,7 @@ const findPicAssignmentRequired = async (user: AuthenticatedUser): Promise<Notif
             p.status,
             'SPK sudah approved, tetapi PIC pengawasan belum ditentukan.' AS description,
             'Input PIC' AS action_label,
-            '/inputpic?id_toko=' || p.id_toko AS action_url,
+            '/inputpic?id_toko=' || p.id_toko || '&id_spk=' || p.id AS action_url,
             COUNT(*) OVER() AS total_count
         FROM pengajuan_spk p
         LEFT JOIN toko t ON t.id = p.id_toko
@@ -672,7 +675,7 @@ const findRabProjectPlanningRequests = async (user: AuthenticatedUser): Promise<
             pp.status,
             'Project Planning membutuhkan penawaran RAB.' AS description,
             'Buat Penawaran' AS action_label,
-            '/rab?projek_planning_id=' || pp.id || '&lingkup=' || scope.lingkup_pekerjaan AS action_url,
+            '/rab?projek_planning_id=' || pp.id || '&lingkup=' || replace(replace(COALESCE(scope.lingkup_pekerjaan, ''), '&', '%26'), ' ', '%20') AS action_url,
             COUNT(*) OVER() AS total_count
         FROM projek_planning pp
         CROSS JOIN (VALUES ('SIPIL'::text), ('ME'::text)) AS scope(lingkup_pekerjaan)
@@ -724,31 +727,99 @@ export const taskNotificationRepository = {
 
         return [
             makeGroup(
-                "approval_pending",
-                "Approval Menunggu",
-                "Dokumen yang menunggu persetujuan role Anda.",
-                mergeRows(rabApproval, spkApproval, pertambahanSpkApproval, opnameApproval, instruksiLapanganApproval, projectPlanningApproval)
+                "approval_rab",
+                "approval",
+                "Approval RAB",
+                "RAB yang menunggu persetujuan role Anda.",
+                rabApproval
+            ),
+            makeGroup(
+                "approval_spk",
+                "approval",
+                "Approval SPK",
+                "SPK yang menunggu approval Branch Manager.",
+                spkApproval
+            ),
+            makeGroup(
+                "approval_pertambahan_spk",
+                "approval",
+                "Approval Pertambahan SPK",
+                "Pertambahan SPK yang menunggu approval Branch Manager.",
+                pertambahanSpkApproval
+            ),
+            makeGroup(
+                "approval_ktk",
+                "approval",
+                "Approval KTK",
+                "KTK yang menunggu persetujuan role Anda.",
+                opnameApproval
+            ),
+            makeGroup(
+                "approval_instruksi_lapangan",
+                "approval",
+                "Approval Instruksi Lapangan",
+                "Instruksi Lapangan yang menunggu persetujuan role Anda.",
+                instruksiLapanganApproval
+            ),
+            makeGroup(
+                "approval_project_planning",
+                "approval",
+                "Approval Project Planning",
+                "Project Planning yang menunggu persetujuan role Anda.",
+                projectPlanningApproval
             ),
             makeGroup(
                 "support_ktk_ready",
+                "process",
                 "KTK Siap Diproses",
                 "Proyek yang semua item opname-nya sudah disetujui kontraktor dan perlu diproses support.",
                 supportKtkReady
             ),
             makeGroup(
-                "revision_required",
-                "Revisi / Ditolak",
-                "Dokumen yang dikembalikan dan perlu diperbaiki oleh role Anda.",
-                revisionRequired
+                "revision_rab",
+                "revision",
+                "Revisi RAB",
+                "RAB yang dikembalikan dan perlu diperbaiki.",
+                revisionRequired.filter(row => row.entity_type === "RAB_REJECTED")
+            ),
+            makeGroup(
+                "revision_spk",
+                "revision",
+                "Revisi SPK",
+                "SPK yang ditolak dan perlu diperbaiki.",
+                revisionRequired.filter(row => row.entity_type === "SPK_REJECTED")
+            ),
+            makeGroup(
+                "revision_pertambahan_spk",
+                "revision",
+                "Revisi Pertambahan SPK",
+                "Pertambahan SPK yang ditolak dan perlu diperbaiki.",
+                revisionRequired.filter(row => row.entity_type === "PERTAMBAHAN_SPK_REJECTED")
+            ),
+            makeGroup(
+                "revision_instruksi_lapangan",
+                "revision",
+                "Revisi Instruksi Lapangan",
+                "Instruksi Lapangan yang ditolak dan perlu diperbaiki.",
+                revisionRequired.filter(row => row.entity_type === "INSTRUKSI_LAPANGAN_REJECTED")
+            ),
+            makeGroup(
+                "revision_ktk",
+                "revision",
+                "Revisi KTK",
+                "KTK yang ditolak dan perlu diperbaiki.",
+                revisionRequired.filter(row => row.entity_type === "OPNAME_FINAL_REJECTED")
             ),
             makeGroup(
                 "pic_pengawasan_missing",
+                "input",
                 "PIC Pengawasan",
                 "Proyek yang perlu penentuan PIC pengawasan.",
                 picAssignmentRequired
             ),
             makeGroup(
                 "rab_project_planning_request",
+                "offer",
                 "Permintaan RAB Project Planning",
                 "ULOK dari FPD yang membutuhkan penawaran RAB.",
                 rabProjectPlanningRequests
