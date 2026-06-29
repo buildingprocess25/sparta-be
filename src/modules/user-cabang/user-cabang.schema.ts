@@ -23,7 +23,8 @@ export const listUserCabangQuerySchema = z.object({
     cabang: z.string().trim().min(1).optional(),
     email_sat: z.string().trim().email().optional(),
     jabatan: z.string().trim().min(1).optional(),
-    nama_pt: z.string().trim().min(1).optional()
+    nama_pt: z.string().trim().min(1).optional(),
+    include_branch_scope: z.coerce.boolean().optional()
 });
 
 export const userCabangIdParamSchema = z.object({

@@ -1,4 +1,5 @@
 import { pool } from "../../db/pool";
+import { getBranchScopeCandidates } from "../../common/branch-scope";
 import type { CreateUserCabangInput, ListUserCabangQueryInput, UpdateUserCabangInput } from "./user-cabang.schema";
 
 export type UserCabangRow = {
@@ -45,7 +46,7 @@ export const userCabangRepository = {
 
     async findAll(query: ListUserCabangQueryInput): Promise<UserCabangRow[]> {
         const filters: string[] = [];
-        const values: string[] = [];
+        const values: Array<string | string[]> = [];
 
         if (query.search) {
             values.push(`%${query.search}%`);
@@ -60,8 +61,13 @@ export const userCabangRepository = {
         }
 
         if (query.cabang) {
-            values.push(query.cabang);
-            filters.push(`LOWER(cabang) = LOWER($${values.length})`);
+            if (query.include_branch_scope) {
+                values.push(getBranchScopeCandidates(query.cabang));
+                filters.push(`UPPER(TRIM(cabang)) = ANY($${values.length}::text[])`);
+            } else {
+                values.push(query.cabang);
+                filters.push(`LOWER(cabang) = LOWER($${values.length})`);
+            }
         }
 
         if (query.email_sat) {
@@ -141,16 +147,17 @@ export const userCabangRepository = {
      * Mengembalikan satu user pertama yang ditemukan (ORDER BY email_sat ASC LIMIT 1).
      */
     async findByCabangAndJabatan(cabang: string, jabatan: string): Promise<UserCabangRow | null> {
+        const branchCandidates = getBranchScopeCandidates(cabang);
         const result = await pool.query<UserCabangRow>(
             `
       SELECT id, cabang, nama_lengkap, jabatan, email_sat, nama_pt
       FROM user_cabang
-      WHERE LOWER(cabang) = LOWER($1)
+      WHERE UPPER(TRIM(cabang)) = ANY($1::text[])
         AND LOWER(jabatan) = LOWER($2)
-      ORDER BY email_sat ASC
+      ORDER BY CASE WHEN LOWER(cabang) = LOWER($3) THEN 0 ELSE 1 END, email_sat ASC
       LIMIT 1
       `,
-            [cabang, jabatan]
+            [branchCandidates, jabatan, cabang]
         );
 
         return result.rows[0] ?? null;
