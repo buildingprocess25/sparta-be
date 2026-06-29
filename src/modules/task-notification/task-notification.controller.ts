@@ -31,8 +31,8 @@ export const getTaskNotifications = asyncHandler(async (req: Request, res: Respo
                         title: item.nama_toko || item.nomor_ulok || "Proyek",
                         subtitle: [item.nomor_ulok, item.lingkup_pekerjaan, item.cabang].filter(Boolean).join(" | "),
                         description: `${item.approved_item_count}/${item.expected_item_count} item disetujui kontraktor`,
-                        action_label: "Proses KTK",
-                        action_url: `/opname?id_toko=${item.id_toko}&opname_final_id=${item.opname_final_id}`,
+                        action_label: "Buka Approval KTK",
+                        action_url: `/approval?type=OPNAME&id=${item.opname_final_id}`,
                         metadata: item
                     }))
                 }
