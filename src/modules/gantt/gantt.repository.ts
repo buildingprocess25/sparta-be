@@ -751,7 +751,7 @@ export const ganttRepository = {
              FROM gantt_chart g
              JOIN toko t ON t.id = g.id_toko
              ${whereClause}
-             ORDER BY g.timestamp DESC`,
+             ORDER BY g.timestamp DESC NULLS LAST, g.id DESC`,
             values
         );
 
@@ -1205,7 +1205,7 @@ export const ganttRepository = {
             `SELECT id, id_toko, status, email_pembuat, timestamp
              FROM gantt_chart
              WHERE id_toko = $1
-             ORDER BY id DESC LIMIT 1`,
+             ORDER BY timestamp DESC NULLS LAST, id DESC LIMIT 1`,
             [tokoId]
         );
         const gantt = ganttRes.rows[0] ?? null;
