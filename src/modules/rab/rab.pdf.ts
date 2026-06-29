@@ -33,6 +33,42 @@ const formatVolume = (value: number | string | null | undefined): string => {
     return new Intl.NumberFormat("id-ID", { maximumFractionDigits: 4 }).format(numeric);
 };
 
+const formatPlainNumber = (value: number | string | null | undefined): string => {
+    if (value === null || value === undefined) return "";
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return String(value).trim();
+    return new Intl.NumberFormat("id-ID", { maximumFractionDigits: 2 }).format(numeric);
+};
+
+const formatBeanspotType = (value?: string | null): string => {
+    const normalized = String(value ?? "").trim().toUpperCase();
+    const labels: Record<string, string> = {
+        TIDAK: "Tidak",
+        ADVANCE: "Advance",
+        MEDIUM: "Medium",
+        RTD_ONLY: "RTD Only",
+    };
+    return labels[normalized] ?? "-";
+};
+
+const formatYesNoNullable = (value?: boolean | null): string => {
+    if (value === true) return "Ya";
+    if (value === false) return "Tidak";
+    return "-";
+};
+
+const buildCoordinatorInfo = (rab: RabRow) => {
+    const hasData = Boolean(rab.beanspot_type) || rab.is_hth !== null || rab.is_fasade !== null;
+    const meter = formatPlainNumber(rab.hth_meter);
+
+    return {
+        show: hasData,
+        beanspot: formatBeanspotType(rab.beanspot_type),
+        hth: rab.is_hth === true ? `Ya${meter ? `, ${meter} meter` : ""}` : formatYesNoNullable(rab.is_hth),
+        fasade: formatYesNoNullable(rab.is_fasade),
+    };
+};
+
 const monthNames = [
     "Januari", "Februari", "Maret", "April", "Mei", "Juni",
     "Juli", "Agustus", "September", "Oktober", "November", "Desember",
@@ -263,6 +299,7 @@ export const buildRabPdfBuffer = async (input: BuildRabPdfInput): Promise<Buffer
     const templatePath = await resolveTemplatePath("rab_report.njk");
     const isBatam = isBatamBranch(input.toko.cabang);
     const isBogor = isBogorBranch(input.toko.cabang);
+    const coordinatorInfo = buildCoordinatorInfo(input.rab);
 
     const html = await renderHtmlTemplate(templatePath, {
         data: {
@@ -288,6 +325,7 @@ export const buildRabPdfBuffer = async (input: BuildRabPdfInput): Promise<Buffer
         final_grand_total: rupiah(recap.finalTotal),
         watermark_logo_path: staticAssetPath("Building-Logo.png"),
         tanggal_pengajuan: formatDateIndonesia(input.rab.created_at),
+        coordinator_info: coordinatorInfo,
         nama_pt: input.rab.nama_pt || "NAMA PT. KONTRAKTOR TIDAK ADA",
         is_batam_branch: isBatam,
         is_bogor_branch: isBogor,
@@ -379,6 +417,7 @@ export const generateSphPdf = async (
     const tenderDate = formatDateIndonesia(referenceDate);
     const tenderDayDate = formatDayDateIndonesia(referenceDate);
     const tanggalSurat = formatDateIndonesia(referenceDate);
+    const coordinatorInfo = buildCoordinatorInfo(input.rab);
 
     const html = await renderHtmlTemplate(templatePath, {
         nomor_sph: buildSphDocumentNumber(input.rab.no_sph, referenceDate),
@@ -404,6 +443,7 @@ export const generateSphPdf = async (
         direktur_approval_time: formatApprovalDateTimeIndonesia(input.rab.waktu_persetujuan_direktur),
         no_polis: input.rab.no_polis ?? "",
         berlaku_polis: input.rab.berlaku_polis ?? "",
+        coordinator_info: coordinatorInfo,
         fallback_logo: input.logoOverride || input.rab.logo || staticAssetPath("Building-Logo.png"),
         watermark_logo_path: staticAssetPath("Building-Logo.png")
     });

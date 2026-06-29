@@ -8,6 +8,7 @@ import type { ApprovalActionInput } from "../approval/approval.schema";
 import { activityLogRepository } from "../activity-log/activity-log.repository";
 import { priceRabService, type PriceResult } from "../price-rab/price-rab.service";
 import { projekPlanningRepository } from "../project-planning/project-planning.repository";
+import type { ProjekPlanningRow } from "../project-planning/project-planning.repository";
 import { PP_STATUS } from "../project-planning/project-planning.constants";
 import { RAB_STATUS, REJECTED_RAB_STATUSES, type RabStatus } from "./rab.constants";
 import { buildRabPdfBuffer, buildRecapPdfBuffer, extractMateraiCoverPageBuffer, mergePdfBuffers, generateSphPdf } from "./rab.pdf";
@@ -329,6 +330,81 @@ const validateDirectorContractorApprovalCompany = async (
             403
         );
     }
+};
+
+const validateRabCoordinatorAdditionalInfo = (action: ApprovalActionInput): void => {
+    if (action.tindakan !== "APPROVE" || action.jabatan !== "KOORDINATOR") return;
+
+    if (!action.beanspot_type) {
+        throw new AppError("Beanspot wajib dipilih saat coordinator approve RAB.", 422);
+    }
+    if (typeof action.is_hth !== "boolean") {
+        throw new AppError("HTH wajib dipilih saat coordinator approve RAB.", 422);
+    }
+    if (action.is_hth === true && !action.hth_meter) {
+        throw new AppError("Meter HTH wajib diisi saat HTH dipilih Ya.", 422);
+    }
+    if (typeof action.is_fasade !== "boolean") {
+        throw new AppError("Fasade wajib dipilih saat coordinator approve RAB.", 422);
+    }
+};
+
+const splitProjectPlanningSelections = (value?: string | null): string[] =>
+    String(value ?? "")
+        .split(",")
+        .map((item) => item.trim().toUpperCase())
+        .filter(Boolean);
+
+const normalizeRabBeanspotType = (value?: string | null): "TIDAK" | "ADVANCE" | "MEDIUM" | "RTD_ONLY" | null => {
+    const normalized = String(value ?? "").trim().toUpperCase().replace(/[\s-]+/g, "_");
+    if (!normalized) return null;
+    if (normalized === "BASIC" || normalized === "RTD" || normalized === "RTD_ONLY") return "RTD_ONLY";
+    if (normalized === "ADVANCE") return "ADVANCE";
+    if (normalized === "MEDIUM") return "MEDIUM";
+    if (normalized === "TIDAK") return "TIDAK";
+    return null;
+};
+
+const buildRabCoordinatorInfoPrefill = (
+    rab: {
+        beanspot_type?: string | null;
+        is_hth?: boolean | null;
+        hth_meter?: string | null;
+        is_fasade?: boolean | null;
+    },
+    projek?: ProjekPlanningRow | null
+) => {
+    const rabHasSnapshot = Boolean(rab.beanspot_type) || rab.is_hth !== null || rab.is_fasade !== null;
+    if (rabHasSnapshot) {
+        return {
+            source: "RAB",
+            beanspot_type: normalizeRabBeanspotType(rab.beanspot_type),
+            is_hth: rab.is_hth ?? null,
+            hth_meter: rab.hth_meter ?? null,
+            is_fasade: rab.is_fasade ?? null,
+        };
+    }
+
+    if (!projek) {
+        return {
+            source: "NONE",
+            beanspot_type: null,
+            is_hth: null,
+            hth_meter: null,
+            is_fasade: null,
+        };
+    }
+
+    const selections = splitProjectPlanningSelections(projek.jenis_pengajuan);
+    const isBeanSpot = selections.includes("BEAN SPOT");
+
+    return {
+        source: "FPD",
+        beanspot_type: isBeanSpot ? normalizeRabBeanspotType(projek.beanspot_tipe) : "TIDAK",
+        is_hth: projek.is_head_to_head ?? null,
+        hth_meter: projek.is_head_to_head ? projek.jarak_head_to_head ?? null : null,
+        is_fasade: selections.includes("FASADE"),
+    };
 };
 
 const syncDetailItemsWithBranchPrices = async (
@@ -1375,9 +1451,16 @@ export const rabService = {
         if (!data) {
             throw new AppError("Pengajuan RAB tidak ditemukan", 404);
         }
+        const planningData = data.rab.projek_planning_id
+            ? await projekPlanningRepository.findById(data.rab.projek_planning_id)
+            : null;
+
         return {
             ...data,
-            rab: normalizeRabFileLinks(data.rab),
+            rab: {
+                ...normalizeRabFileLinks(data.rab),
+                coordinator_info_prefill: buildRabCoordinatorInfoPrefill(data.rab, planningData?.projek ?? null),
+            },
         };
     },
 
@@ -1494,6 +1577,7 @@ export const rabService = {
             await rabRepository.restoreTokoStableFieldsByRabId(id, tokoStableFields);
         } else {
             await validateDirectorContractorApprovalCompany(data, action);
+            validateRabCoordinatorAdditionalInfo(action);
             await rabRepository.updateApproval(id, newStatus, action);
             logRab("APPROVAL", "RAB diapprove", { rabId: id, newStatus });
         }

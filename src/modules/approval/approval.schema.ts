@@ -8,6 +8,17 @@ const jabatanSchema = z.preprocess((value) => {
     return normalized;
 }, z.enum(["KOORDINATOR", "MANAGER", "DIREKTUR", "KONTRAKTOR"]));
 const tindakanSchema = z.enum(["APPROVE", "REJECT"]);
+const rabBeanspotTypeSchema = z.preprocess((value) => {
+    if (value === null || value === undefined) return value;
+    const normalized = String(value).trim().toUpperCase().replace(/[\s-]+/g, "_");
+    if (!normalized) return undefined;
+    if (normalized === "RTD") return "RTD_ONLY";
+    return normalized;
+}, z.enum(["TIDAK", "ADVANCE", "MEDIUM", "RTD_ONLY"]).nullable().optional());
+const nullablePositiveNumberSchema = z.preprocess((value) => {
+    if (value === "") return null;
+    return value;
+}, z.coerce.number().positive().nullable().optional());
 
 export const approvalActionSchema = z
     .object({
@@ -19,7 +30,11 @@ export const approvalActionSchema = z
         alasan_penolakan: z.string().nullable().optional(),
         catatan_approval: z.string().nullable().optional(),
         revisi_item_ids: z.array(z.coerce.number().int().positive()).optional(),
-        revisi_item_notes: z.record(z.string(), z.string().nullable().optional()).optional()
+        revisi_item_notes: z.record(z.string(), z.string().nullable().optional()).optional(),
+        beanspot_type: rabBeanspotTypeSchema,
+        is_hth: z.boolean().nullable().optional(),
+        hth_meter: nullablePositiveNumberSchema,
+        is_fasade: z.boolean().nullable().optional()
     })
     .superRefine((value, ctx) => {
         if (value.tindakan === "REJECT" && !value.alasan_penolakan?.trim()) {
@@ -29,6 +44,7 @@ export const approvalActionSchema = z
                 path: ["alasan_penolakan"]
             });
         }
+
     });
 
 export type ApprovalActionInput = z.infer<typeof approvalActionSchema>;

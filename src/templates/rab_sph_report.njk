@@ -124,6 +124,34 @@
     .table-details .label {
         white-space: nowrap;
     }
+    .coordinator-info {
+        margin: 6px 0 4px 0;
+        border: 1px solid #b7c9dc;
+        background: #f8fbff;
+        padding: 6px 8px;
+        page-break-inside: avoid;
+    }
+    .coordinator-info-title {
+        font-size: 8.5pt;
+        font-weight: bold;
+        color: #1f4e79;
+        margin-bottom: 4px;
+    }
+    .coordinator-info table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 8.5pt;
+    }
+    .coordinator-info td {
+        border: 1px solid #d6e6f5;
+        padding: 3px 5px;
+        background: #fff;
+    }
+    .coordinator-info .label {
+        width: 28%;
+        font-weight: bold;
+        background: #eef6ff;
+    }
     .signature-section {
         margin-top: 20px;
         width: 100%;
@@ -250,6 +278,16 @@
                     <td>{{ tanggal_surat }}, bertempat di {{ alamat_cabang }}.</td>
                 </tr>
             </table>
+            {% if coordinator_info and coordinator_info.show %}
+            <div class="coordinator-info">
+                <div class="coordinator-info-title">Informasi Tambahan Koordinator</div>
+                <table>
+                    <tr><td class="label">Beanspot</td><td>{{ coordinator_info.beanspot }}</td></tr>
+                    <tr><td class="label">HTH</td><td>{{ coordinator_info.hth }}</td></tr>
+                    <tr><td class="label">Fasade</td><td>{{ coordinator_info.fasade }}</td></tr>
+                </table>
+            </div>
+            {% endif %}
         </li>
         <li>Memahami serta telah memperhitungkan secara seksama kewajiban kami secara teknis dan financial seperti termaksud dalam RKS dan risalah aanwijzing pada hari {{ hari_tanggal_surat }} bertempat seperti tersebut diatas.<br>
         Dengan ini kami mengajukan penawaran senilai : <strong>Rp. {{ grand_total }}</strong>,- (Terbilang : <strong>{{ grand_total_terbilang }}</strong>), termasuk overhead, overload daya listrik, Jasa Konstruksi, PPh sesuai dengan perincian harga penawaran tercantum dalam Bill of Quantities.

@@ -51,6 +51,10 @@ export type RabRow = {
     luas_area_parkir: string | null;
     luas_area_sales: string | null;
     luas_gudang: string | null;
+    beanspot_type: string | null;
+    is_hth: boolean | null;
+    hth_meter: string | null;
+    is_fasade: boolean | null;
     grand_total: string | null;
     grand_total_non_sbo: string | null;
     grand_total_final: string | null;
@@ -127,6 +131,7 @@ const RAB_COLUMNS = `
     r.no_polis, r.berlaku_polis, r.file_asuransi,
     r.luas_bangunan, r.luas_terbangun, r.luas_area_terbuka,
     r.luas_area_parkir, r.luas_area_sales, r.luas_gudang,
+    r.beanspot_type, r.is_hth, r.hth_meter, r.is_fasade,
     r.grand_total, r.grand_total_non_sbo, r.grand_total_final, r.created_at
 `;
 
@@ -758,6 +763,10 @@ export const rabRepository = {
             luas_area_parkir: row.luas_area_parkir,
             luas_area_sales: row.luas_area_sales,
             luas_gudang: row.luas_gudang,
+            beanspot_type: row.beanspot_type,
+            is_hth: row.is_hth,
+            hth_meter: row.hth_meter,
+            is_fasade: row.is_fasade,
             grand_total: row.grand_total,
             grand_total_non_sbo: row.grand_total_non_sbo,
             grand_total_final: row.grand_total_final,
@@ -1045,6 +1054,14 @@ export const rabRepository = {
             sets.push(`waktu_persetujuan_koordinator = timezone('Asia/Jakarta', now())`);
             values.push(approvalNote);
             sets.push(`catatan_persetujuan_koordinator = $${values.length}`);
+            values.push(action.beanspot_type ?? null);
+            sets.push(`beanspot_type = $${values.length}`);
+            values.push(action.is_hth ?? null);
+            sets.push(`is_hth = $${values.length}`);
+            values.push(action.is_hth ? action.hth_meter ?? null : null);
+            sets.push(`hth_meter = $${values.length}`);
+            values.push(action.is_fasade ?? null);
+            sets.push(`is_fasade = $${values.length}`);
         } else if (action.jabatan === "MANAGER") {
             values.push(action.approver_email);
             sets.push(`pemberi_persetujuan_manager = $${values.length}`);
