@@ -201,11 +201,13 @@ export const serahTerimaRepository = {
                 ORDER BY id DESC
                 LIMIT 1
             ),
-            latest_item AS (
+            latest_pengawasan AS (
                 SELECT DISTINCT ON (
                     UPPER(TRIM(COALESCE(p.kategori_pekerjaan, ''))),
                     UPPER(TRIM(COALESCE(p.jenis_pekerjaan, '')))
                 )
+                    p.kategori_pekerjaan,
+                    p.jenis_pekerjaan,
                     p.status
                 FROM pengawasan p
                 LEFT JOIN pengawasan_gantt pg ON pg.id = p.id_pengawasan_gantt
@@ -218,10 +220,48 @@ export const serahTerimaRepository = {
             )
             SELECT
                 (SELECT id FROM latest_gantt) AS gantt_id,
-                COUNT(*)::int AS total_checkpoints,
-                COUNT(*) FILTER (WHERE LOWER(COALESCE(status, '')) = 'selesai')::int AS filled_checkpoints,
-                COUNT(*) FILTER (WHERE LOWER(COALESCE(status, '')) <> 'selesai')::int AS missing_checkpoints
-            FROM latest_item
+                COUNT(*) FILTER (WHERE lp.status = 'selesai')::int AS total_checkpoints,
+                COUNT(*) FILTER (
+                    WHERE lp.status = 'selesai'
+                      AND EXISTS (
+                        SELECT 1
+                        FROM opname_item oi
+                        LEFT JOIN rab_item ri ON ri.id = oi.id_rab_item
+                        LEFT JOIN instruksi_lapangan_item ili ON ili.id = oi.id_instruksi_lapangan_item
+                        WHERE oi.id_toko = $1
+                          AND UPPER(TRIM(COALESCE(
+                                ri.kategori_pekerjaan,
+                                ili.kategori_pekerjaan,
+                                ''
+                          ))) = UPPER(TRIM(REPLACE(COALESCE(lp.kategori_pekerjaan, ''), '[IL] ', '')))
+                          AND UPPER(TRIM(COALESCE(
+                                ri.jenis_pekerjaan,
+                                ili.jenis_pekerjaan,
+                                ''
+                          ))) = UPPER(TRIM(COALESCE(lp.jenis_pekerjaan, '')))
+                      )
+                )::int AS filled_checkpoints,
+                COUNT(*) FILTER (
+                    WHERE lp.status = 'selesai'
+                      AND NOT EXISTS (
+                        SELECT 1
+                        FROM opname_item oi
+                        LEFT JOIN rab_item ri ON ri.id = oi.id_rab_item
+                        LEFT JOIN instruksi_lapangan_item ili ON ili.id = oi.id_instruksi_lapangan_item
+                        WHERE oi.id_toko = $1
+                          AND UPPER(TRIM(COALESCE(
+                                ri.kategori_pekerjaan,
+                                ili.kategori_pekerjaan,
+                                ''
+                          ))) = UPPER(TRIM(REPLACE(COALESCE(lp.kategori_pekerjaan, ''), '[IL] ', '')))
+                          AND UPPER(TRIM(COALESCE(
+                                ri.jenis_pekerjaan,
+                                ili.jenis_pekerjaan,
+                                ''
+                          ))) = UPPER(TRIM(COALESCE(lp.jenis_pekerjaan, '')))
+                      )
+                )::int AS missing_checkpoints
+            FROM latest_pengawasan lp
             `,
             [idToko]
         );
@@ -378,8 +418,8 @@ export const serahTerimaRepository = {
     },
 
     /**
-     * Temukan toko saudara yang sudah memiliki Opname Final, seluruh checkpoint
-     * pengawasannya terisi, dan belum punya berkas Serah Terima.
+     * Temukan toko saudara yang sudah memiliki Opname Final, seluruh pekerjaan
+     * selesai sudah masuk Opname, dan belum punya berkas Serah Terima.
      */
     async findSiblingTokosReadyForST(nomorUlok: string, excludeIdToko: number): Promise<{ id: number; lingkup_pekerjaan: string | null }[]> {
         const result = await pool.query(
@@ -394,22 +434,13 @@ export const serahTerimaRepository = {
               )
               AND EXISTS (
                   SELECT 1
-                  FROM pengawasan p
-                  WHERE p.id_gantt = (
-                        SELECT g2.id
-                        FROM gantt_chart g2
-                        WHERE g2.id_toko = t.id
-                        ORDER BY g2.id DESC
-                        LIMIT 1
-                    )
-              )
-              AND NOT EXISTS (
-                  SELECT 1
                   FROM (
                       SELECT DISTINCT ON (
                           UPPER(TRIM(COALESCE(p.kategori_pekerjaan, ''))),
                           UPPER(TRIM(COALESCE(p.jenis_pekerjaan, '')))
                       )
+                          p.kategori_pekerjaan,
+                          p.jenis_pekerjaan,
                           p.status
                       FROM pengawasan p
                       LEFT JOIN pengawasan_gantt pg ON pg.id = p.id_pengawasan_gantt
@@ -426,7 +457,68 @@ export const serahTerimaRepository = {
                           to_date(pg.tanggal_pengawasan, 'DD/MM/YYYY') DESC NULLS LAST,
                           p.id DESC
                   ) latest_item
-                  WHERE LOWER(COALESCE(latest_item.status, '')) <> 'selesai'
+                  WHERE latest_item.status = 'selesai'
+                    AND EXISTS (
+                        SELECT 1
+                        FROM opname_item oi
+                        LEFT JOIN rab_item ri ON ri.id = oi.id_rab_item
+                        LEFT JOIN instruksi_lapangan_item ili ON ili.id = oi.id_instruksi_lapangan_item
+                        WHERE oi.id_toko = t.id
+                          AND UPPER(TRIM(COALESCE(
+                                ri.kategori_pekerjaan,
+                                ili.kategori_pekerjaan,
+                                ''
+                          ))) = UPPER(TRIM(REPLACE(COALESCE(latest_item.kategori_pekerjaan, ''), '[IL] ', '')))
+                          AND UPPER(TRIM(COALESCE(
+                                ri.jenis_pekerjaan,
+                                ili.jenis_pekerjaan,
+                                ''
+                          ))) = UPPER(TRIM(COALESCE(latest_item.jenis_pekerjaan, '')))
+                    )
+              )
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM (
+                      SELECT DISTINCT ON (
+                          UPPER(TRIM(COALESCE(p.kategori_pekerjaan, ''))),
+                          UPPER(TRIM(COALESCE(p.jenis_pekerjaan, '')))
+                      )
+                          p.kategori_pekerjaan,
+                          p.jenis_pekerjaan,
+                          p.status
+                      FROM pengawasan p
+                      LEFT JOIN pengawasan_gantt pg ON pg.id = p.id_pengawasan_gantt
+                      WHERE p.id_gantt = (
+                          SELECT g2.id
+                          FROM gantt_chart g2
+                          WHERE g2.id_toko = t.id
+                          ORDER BY g2.id DESC
+                          LIMIT 1
+                      )
+                      ORDER BY
+                          UPPER(TRIM(COALESCE(p.kategori_pekerjaan, ''))),
+                          UPPER(TRIM(COALESCE(p.jenis_pekerjaan, ''))),
+                          to_date(pg.tanggal_pengawasan, 'DD/MM/YYYY') DESC NULLS LAST,
+                          p.id DESC
+                  ) latest_item
+                  WHERE latest_item.status = 'selesai'
+                    AND NOT EXISTS (
+                        SELECT 1
+                        FROM opname_item oi
+                        LEFT JOIN rab_item ri ON ri.id = oi.id_rab_item
+                        LEFT JOIN instruksi_lapangan_item ili ON ili.id = oi.id_instruksi_lapangan_item
+                        WHERE oi.id_toko = t.id
+                          AND UPPER(TRIM(COALESCE(
+                                ri.kategori_pekerjaan,
+                                ili.kategori_pekerjaan,
+                                ''
+                          ))) = UPPER(TRIM(REPLACE(COALESCE(latest_item.kategori_pekerjaan, ''), '[IL] ', '')))
+                          AND UPPER(TRIM(COALESCE(
+                                ri.jenis_pekerjaan,
+                                ili.jenis_pekerjaan,
+                                ''
+                          ))) = UPPER(TRIM(COALESCE(latest_item.jenis_pekerjaan, '')))
+                    )
               )
               AND NOT EXISTS (
                   SELECT 1 FROM berkas_serah_terima bst

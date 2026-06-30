@@ -115,8 +115,9 @@ const releaseRabApprovalAfterGantt = async (tokoId: number, source: string) => {
 const isScopeReadyForSerahTerima = (scope: any) =>
     Boolean(scope.gantt_id)
     && Boolean(scope.opname_final_id)
-    && Number(scope.total_pengawasan_checkpoints ?? 0) > 0
-    && Number(scope.missing_pengawasan_checkpoints ?? 0) === 0;
+    && Array.isArray(scope.checkpoints)
+    && scope.checkpoints.reduce((sum: number, checkpoint: any) => sum + Number(checkpoint?.opname_items || 0), 0) > 0
+    && scope.checkpoints.reduce((sum: number, checkpoint: any) => sum + Number(checkpoint?.ready_opname_items || 0), 0) === 0;
 
 export const ganttService = {
     async getSupervisionWorkspace(nomorUlok: string) {

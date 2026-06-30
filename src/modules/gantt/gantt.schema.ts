@@ -49,6 +49,78 @@ export const pengawasanItemSchema = z.object({
     tanggal_pengawasan: tanggalPengawasanValueSchema
 });
 
+const normalizeKategoriKey = (value: string) =>
+    value
+        .trim()
+        .replace(/\s*\/\s*/g, "/")
+        .replace(/\s+/g, " ")
+        .toUpperCase();
+
+const appendUniqueKategori = (kategoriList: string[], kategori?: string) => {
+    const cleanKategori = (kategori ?? "").trim();
+    const key = normalizeKategoriKey(cleanKategori);
+    if (!key) return;
+
+    const exists = kategoriList.some((existing) => normalizeKategoriKey(existing) === key);
+    if (!exists) kategoriList.push(cleanKategori);
+};
+
+const deriveKategoriForDependencyValidation = (
+    kategoriPekerjaan?: string[],
+    dayItems?: Array<{ kategori_pekerjaan: string }>,
+    dependencies?: Array<{ kategori_pekerjaan: string; kategori_pekerjaan_terikat: string }>
+) => {
+    const categories: string[] = [];
+    kategoriPekerjaan?.forEach((kategori) => appendUniqueKategori(categories, kategori));
+    dayItems?.forEach((item) => appendUniqueKategori(categories, item.kategori_pekerjaan));
+    dependencies?.forEach((dependency) => {
+        appendUniqueKategori(categories, dependency.kategori_pekerjaan);
+        appendUniqueKategori(categories, dependency.kategori_pekerjaan_terikat);
+    });
+    return categories;
+};
+
+const addDependencyValidationIssues = (
+    ctx: z.RefinementCtx,
+    categories: string[],
+    dependencies?: Array<{ kategori_pekerjaan: string; kategori_pekerjaan_terikat: string }>
+) => {
+    if (categories.length <= 1) return;
+
+    const normalizedCategories = categories.map(normalizeKategoriKey);
+    const categorySet = new Set(normalizedCategories);
+    const dependencyList = dependencies ?? [];
+    const invalidDependency = dependencyList.find((dependency) => {
+        const childKey = normalizeKategoriKey(dependency.kategori_pekerjaan);
+        const parentKey = normalizeKategoriKey(dependency.kategori_pekerjaan_terikat);
+        return !childKey || !parentKey || childKey === parentKey || !categorySet.has(childKey) || !categorySet.has(parentKey);
+    });
+
+    if (invalidDependency) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["dependencies"],
+            message: "Keterikatan Gantt tidak valid. Pastikan kategori terikat berbeda dan ada di daftar pekerjaan."
+        });
+        return;
+    }
+
+    const parentCategoriesWithContinuation = new Set(
+        dependencyList.map((dependency) => normalizeKategoriKey(dependency.kategori_pekerjaan_terikat))
+    );
+    const missingContinuation = normalizedCategories
+        .slice(0, -1)
+        .filter((categoryKey) => !parentCategoriesWithContinuation.has(categoryKey));
+
+    if (missingContinuation.length > 0) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["dependencies"],
+            message: "Keterikatan wajib diisi untuk setiap tahapan pekerjaan kecuali tahapan terakhir."
+        });
+    }
+};
+
 // --- Submit Gantt Chart ---
 
 export const submitGanttSchema = z.object({
@@ -72,6 +144,12 @@ export const submitGanttSchema = z.object({
     // optional: pengawasan & dependency
     pengawasan: z.array(pengawasanItemSchema).optional(),
     dependencies: z.array(dependencyItemSchema).optional()
+}).superRefine((data, ctx) => {
+    addDependencyValidationIssues(
+        ctx,
+        deriveKategoriForDependencyValidation(data.kategori_pekerjaan, data.day_items, data.dependencies),
+        data.dependencies
+    );
 });
 
 // --- Update Gantt Chart ---
@@ -84,6 +162,14 @@ export const updateGanttSchema = z.object({
     // optional: pengawasan & dependency
     pengawasan: z.array(pengawasanItemSchema).optional(),
     dependencies: z.array(dependencyItemSchema).optional(),
+}).superRefine((data, ctx) => {
+    if (!data.day_items && !data.kategori_pekerjaan && typeof data.dependencies === "undefined") return;
+
+    addDependencyValidationIssues(
+        ctx,
+        deriveKategoriForDependencyValidation(data.kategori_pekerjaan, data.day_items, data.dependencies),
+        data.dependencies
+    );
 });
 
 // --- Lock Gantt Chart ---
