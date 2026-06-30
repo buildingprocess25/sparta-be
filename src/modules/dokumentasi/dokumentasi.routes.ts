@@ -9,6 +9,7 @@ import {
     downloadDokumentasiBangunanPdf,
     getDokumentasiBangunanDetail,
     listDokumentasiBangunan,
+    listDokumentasiBangunanPrefillOptions,
     updateDokumentasiBangunan
 } from "./dokumentasi.controller";
 
@@ -28,6 +29,8 @@ dokumentasiRouter.post(
 );
 
 dokumentasiRouter.get("/bangunan", listDokumentasiBangunan);
+
+dokumentasiRouter.get("/bangunan/prefill-options", listDokumentasiBangunanPrefillOptions);
 
 dokumentasiRouter.get("/bangunan/:id", getDokumentasiBangunanDetail);
 

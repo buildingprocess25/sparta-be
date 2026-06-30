@@ -2,6 +2,7 @@ import { pool, withTransaction } from "../../db/pool";
 import type {
     DokumentasiBangunanCreateInput,
     DokumentasiBangunanListQueryInput,
+    DokumentasiBangunanPrefillQueryInput,
     DokumentasiBangunanUpdateInput
 } from "./dokumentasi.schema";
 
@@ -39,6 +40,24 @@ export type DokumentasiBangunanItemRow = {
 export type DokumentasiBangunanDetail = {
     dokumentasi: DokumentasiBangunanRow;
     items: DokumentasiBangunanItemRow[];
+};
+
+export type DokumentasiBangunanPrefillSourceRow = {
+    id_toko: number;
+    nomor_ulok: string | null;
+    lingkup_pekerjaan: string | null;
+    nama_toko: string | null;
+    kode_toko: string | null;
+    cabang: string | null;
+    proyek: string | null;
+    toko_nama_kontraktor: string | null;
+    rab_nama_pt: string | null;
+    spk_nama_kontraktor: string | null;
+    spk_waktu_mulai: string | null;
+    spk_waktu_selesai: string | null;
+    spk_effective_waktu_selesai: string | null;
+    st_created_at: string | null;
+    tanggal_serah_terima_denda: string | null;
 };
 
 export const dokumentasiBangunanRepository = {
@@ -256,6 +275,112 @@ export const dokumentasiBangunanRepository = {
             FROM dokumentasi_bangunan
             ${whereClause}
             ORDER BY created_at DESC, id DESC
+            `,
+            values
+        );
+
+        return result.rows;
+    },
+
+    async listPrefillSources(query: DokumentasiBangunanPrefillQueryInput): Promise<DokumentasiBangunanPrefillSourceRow[]> {
+        const conditions: string[] = [
+            `NULLIF(TRIM(COALESCE(t.nomor_ulok, '')), '') IS NOT NULL`
+        ];
+        const values: Array<string> = [];
+
+        if (query.cabang) {
+            values.push(query.cabang);
+            conditions.push(`LOWER(t.cabang) = LOWER($${values.length})`);
+        }
+
+        if (!query.include_submitted) {
+            conditions.push(`
+                NOT EXISTS (
+                    SELECT 1
+                    FROM dokumentasi_bangunan db
+                    WHERE UPPER(TRIM(COALESCE(db.nomor_ulok, ''))) = UPPER(TRIM(COALESCE(t.nomor_ulok, '')))
+                )
+            `);
+        }
+
+        const result = await pool.query<DokumentasiBangunanPrefillSourceRow>(
+            `
+            SELECT
+                t.id AS id_toko,
+                t.nomor_ulok,
+                t.lingkup_pekerjaan,
+                t.nama_toko,
+                t.kode_toko,
+                t.cabang,
+                t.proyek,
+                t.nama_kontraktor AS toko_nama_kontraktor,
+                rab_latest.nama_pt AS rab_nama_pt,
+                spk_latest.nama_kontraktor AS spk_nama_kontraktor,
+                spk_latest.waktu_mulai AS spk_waktu_mulai,
+                spk_latest.waktu_selesai AS spk_waktu_selesai,
+                spk_latest.effective_waktu_selesai AS spk_effective_waktu_selesai,
+                st_latest.created_at AS st_created_at,
+                opname_latest.tanggal_serah_terima_denda
+            FROM toko t
+            JOIN LATERAL (
+                SELECT r.nama_pt
+                FROM rab r
+                WHERE r.id_toko = t.id
+                ORDER BY r.created_at DESC, r.id DESC
+                LIMIT 1
+            ) rab_latest ON true
+            LEFT JOIN LATERAL (
+                SELECT
+                    ps.nama_kontraktor,
+                    ps.waktu_mulai,
+                    ps.waktu_selesai,
+                    COALESCE(
+                        extension_latest.approved_until,
+                        CASE
+                            WHEN ps.waktu_selesai::text ~ '^\\d{4}-\\d{2}-\\d{2}'
+                                THEN LEFT(ps.waktu_selesai::text, 10)::date
+                            WHEN ps.waktu_selesai::text ~ '^\\d{1,2}/\\d{1,2}/\\d{4}$'
+                                THEN to_date(ps.waktu_selesai::text, 'DD/MM/YYYY')
+                            ELSE NULL
+                        END
+                    )::text AS effective_waktu_selesai
+                FROM pengajuan_spk ps
+                LEFT JOIN LATERAL (
+                    SELECT MAX(
+                        CASE
+                            WHEN pt.tanggal_spk_akhir_setelah_perpanjangan::text ~ '^\\d{4}-\\d{2}-\\d{2}'
+                                THEN LEFT(pt.tanggal_spk_akhir_setelah_perpanjangan::text, 10)::date
+                            WHEN pt.tanggal_spk_akhir_setelah_perpanjangan::text ~ '^\\d{1,2}/\\d{1,2}/\\d{4}$'
+                                THEN to_date(pt.tanggal_spk_akhir_setelah_perpanjangan::text, 'DD/MM/YYYY')
+                            ELSE NULL
+                        END
+                    ) AS approved_until
+                    FROM pengajuan_spk ps_scope
+                    JOIN pertambahan_spk pt ON pt.id_spk = ps_scope.id
+                    WHERE UPPER(TRIM(COALESCE(ps_scope.nomor_ulok, ''))) = UPPER(TRIM(COALESCE(t.nomor_ulok, '')))
+                      AND UPPER(TRIM(COALESCE(pt.status_persetujuan, ''))) IN ('APPROVED', 'DISETUJUI', 'DISETUJUI BM')
+                ) extension_latest ON true
+                WHERE ps.id_toko = t.id
+                  AND UPPER(TRIM(COALESCE(ps.status, ''))) NOT LIKE '%REJECT%'
+                ORDER BY ps.created_at DESC, ps.id DESC
+                LIMIT 1
+            ) spk_latest ON true
+            LEFT JOIN LATERAL (
+                SELECT bst.created_at
+                FROM berkas_serah_terima bst
+                WHERE bst.id_toko = t.id
+                ORDER BY bst.created_at DESC, bst.id DESC
+                LIMIT 1
+            ) st_latest ON true
+            LEFT JOIN LATERAL (
+                SELECT ofn.tanggal_serah_terima_denda
+                FROM opname_final ofn
+                WHERE ofn.id_toko = t.id
+                ORDER BY ofn.id DESC
+                LIMIT 1
+            ) opname_latest ON true
+            WHERE ${conditions.join(" AND ")}
+            ORDER BY t.nomor_ulok ASC, t.id ASC
             `,
             values
         );

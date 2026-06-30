@@ -11,6 +11,7 @@ import {
 import type {
     DokumentasiBangunanCreateInput,
     DokumentasiBangunanListQueryInput,
+    DokumentasiBangunanPrefillQueryInput,
     DokumentasiBangunanUpdateInput
 } from "./dokumentasi.schema";
 
@@ -21,6 +22,18 @@ type DokumentasiItemFile = {
 };
 
 type SudutFotoItemInput = string | { item_index?: number; sudut_foto: string };
+
+type DokumentasiBangunanPrefillOption = {
+    nomor_ulok: string;
+    cabang: string;
+    kode_toko: string;
+    nama_toko: string;
+    kontraktor_sipil: string;
+    kontraktor_me: string;
+    spk_awal: string;
+    spk_akhir: string;
+    tanggal_serah_terima: string;
+};
 
 const sanitizeFilenamePart = (value: string | undefined, fallback: string): string => {
     const normalized = (value ?? "").trim().replace(/[^a-zA-Z0-9_-]+/g, "_");
@@ -68,6 +81,48 @@ const extractDriveFileId = (link?: string | null): string | null => {
     if (idFromUc) return idFromUc;
 
     return null;
+};
+
+const firstText = (...values: Array<string | null | undefined>): string => {
+    for (const value of values) {
+        const trimmed = (value ?? "").trim();
+        if (trimmed) return trimmed;
+    }
+    return "";
+};
+
+const dateOnly = (value?: string | null): string => {
+    const trimmed = (value ?? "").trim();
+    if (!trimmed) return "";
+
+    const iso = /^(\d{4}-\d{2}-\d{2})/.exec(trimmed)?.[1];
+    if (iso) return iso;
+
+    const dmy = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(trimmed);
+    if (dmy) {
+        const day = dmy[1].padStart(2, "0");
+        const month = dmy[2].padStart(2, "0");
+        return `${dmy[3]}-${month}-${day}`;
+    }
+
+    return "";
+};
+
+const minDate = (current: string, candidate: string): string => {
+    if (!candidate) return current;
+    if (!current) return candidate;
+    return candidate < current ? candidate : current;
+};
+
+const maxDate = (current: string, candidate: string): string => {
+    if (!candidate) return current;
+    if (!current) return candidate;
+    return candidate > current ? candidate : current;
+};
+
+const isMeScope = (value?: string | null): boolean => {
+    const normalized = (value ?? "").toUpperCase();
+    return normalized.includes("ME") || normalized.includes("MEKANIKAL") || normalized.includes("ELEKTRIKAL");
 };
 
 const resolveDokumentasiFolderId = async (row: DokumentasiBangunanRow): Promise<string> => {
@@ -260,6 +315,57 @@ export const dokumentasiBangunanService = {
 
     async list(query: DokumentasiBangunanListQueryInput) {
         return dokumentasiBangunanRepository.list(query);
+    },
+
+    async listPrefillOptions(query: DokumentasiBangunanPrefillQueryInput): Promise<DokumentasiBangunanPrefillOption[]> {
+        const rows = await dokumentasiBangunanRepository.listPrefillSources(query);
+        const grouped = new Map<string, DokumentasiBangunanPrefillOption>();
+
+        for (const row of rows) {
+            const nomorUlok = firstText(row.nomor_ulok);
+            if (!nomorUlok) continue;
+
+            const key = nomorUlok.toUpperCase();
+            const option = grouped.get(key) ?? {
+                nomor_ulok: nomorUlok,
+                cabang: "",
+                kode_toko: "",
+                nama_toko: "",
+                kontraktor_sipil: "",
+                kontraktor_me: "",
+                spk_awal: "",
+                spk_akhir: "",
+                tanggal_serah_terima: ""
+            };
+
+            option.cabang ||= firstText(row.cabang);
+            option.kode_toko ||= firstText(row.kode_toko);
+            option.nama_toko ||= firstText(row.nama_toko);
+
+            const contractor = firstText(row.spk_nama_kontraktor, row.rab_nama_pt, row.toko_nama_kontraktor);
+            const scope = firstText(row.lingkup_pekerjaan, row.proyek);
+            if (contractor) {
+                if (isMeScope(scope)) {
+                    option.kontraktor_me ||= contractor;
+                } else {
+                    option.kontraktor_sipil ||= contractor;
+                }
+            }
+
+            option.spk_awal = minDate(option.spk_awal, dateOnly(row.spk_waktu_mulai));
+            option.spk_akhir = maxDate(
+                option.spk_akhir,
+                dateOnly(row.spk_effective_waktu_selesai) || dateOnly(row.spk_waktu_selesai)
+            );
+            option.tanggal_serah_terima = maxDate(
+                option.tanggal_serah_terima,
+                dateOnly(row.st_created_at) || dateOnly(row.tanggal_serah_terima_denda)
+            );
+
+            grouped.set(key, option);
+        }
+
+        return [...grouped.values()].sort((left, right) => left.nomor_ulok.localeCompare(right.nomor_ulok));
     },
 
     async getDetail(id: number): Promise<DokumentasiBangunanDetail> {

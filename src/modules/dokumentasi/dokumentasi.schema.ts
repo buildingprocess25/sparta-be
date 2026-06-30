@@ -72,6 +72,20 @@ export const dokumentasiBangunanListQuerySchema = z.object({
     nomor_ulok: z.string().trim().optional()
 });
 
+export const dokumentasiBangunanPrefillQuerySchema = z.object({
+    cabang: z.string().trim().optional(),
+    include_submitted: z
+        .preprocess((value) => {
+            if (typeof value !== "string") return value;
+            const normalized = value.trim().toLowerCase();
+            if (["true", "1", "yes"].includes(normalized)) return true;
+            if (["false", "0", "no"].includes(normalized)) return false;
+            return value;
+        }, z.boolean())
+        .optional()
+        .default(false)
+});
+
 export const dokumentasiBangunanIdParamSchema = z.object({
     id: z.coerce.number().int().positive()
 });
@@ -83,3 +97,4 @@ export const dokumentasiBangunanItemIdParamSchema = z.object({
 export type DokumentasiBangunanCreateInput = z.infer<typeof dokumentasiBangunanCreateSchema>;
 export type DokumentasiBangunanUpdateInput = z.infer<typeof dokumentasiBangunanUpdateSchema>;
 export type DokumentasiBangunanListQueryInput = z.infer<typeof dokumentasiBangunanListQuerySchema>;
+export type DokumentasiBangunanPrefillQueryInput = z.infer<typeof dokumentasiBangunanPrefillQuerySchema>;

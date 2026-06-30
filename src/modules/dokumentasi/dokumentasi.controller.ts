@@ -5,6 +5,7 @@ import {
     dokumentasiBangunanIdParamSchema,
     dokumentasiBangunanItemIdParamSchema,
     dokumentasiBangunanListQuerySchema,
+    dokumentasiBangunanPrefillQuerySchema,
     dokumentasiBangunanUpdateSchema
 } from "./dokumentasi.schema";
 import { dokumentasiBangunanService, type UploadedDokumentasiFile } from "./dokumentasi.service";
@@ -30,6 +31,16 @@ export const createDokumentasiBangunan = asyncHandler(async (req: Request, res: 
 export const listDokumentasiBangunan = asyncHandler(async (req: Request, res: Response) => {
     const query = dokumentasiBangunanListQuerySchema.parse(req.query);
     const data = await dokumentasiBangunanService.list(query);
+
+    res.json({
+        status: "success",
+        data
+    });
+});
+
+export const listDokumentasiBangunanPrefillOptions = asyncHandler(async (req: Request, res: Response) => {
+    const query = dokumentasiBangunanPrefillQuerySchema.parse(req.query);
+    const data = await dokumentasiBangunanService.listPrefillOptions(query);
 
     res.json({
         status: "success",
