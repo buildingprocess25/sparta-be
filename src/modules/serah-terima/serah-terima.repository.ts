@@ -91,6 +91,13 @@ export type SerahTerimaDetail = {
     items: OpnameItemDetailRow[];
 };
 
+export type SupervisionCompletionRow = {
+    gantt_id: number | null;
+    total_checkpoints: number;
+    filled_checkpoints: number;
+    missing_checkpoints: number;
+};
+
 export const serahTerimaRepository = {
     async findTokoById(idToko: number): Promise<TokoRow | null> {
         const result = await pool.query<TokoRow>(
@@ -182,6 +189,51 @@ export const serahTerimaRepository = {
         );
 
         return result.rows;
+    },
+
+    async getSupervisionCompletionByTokoId(idToko: number): Promise<SupervisionCompletionRow> {
+        const result = await pool.query<SupervisionCompletionRow>(
+            `
+            WITH latest_gantt AS (
+                SELECT id
+                FROM gantt_chart
+                WHERE id_toko = $1
+                ORDER BY id DESC
+                LIMIT 1
+            ),
+            checkpoint AS (
+                SELECT
+                    pg.id,
+                    EXISTS (
+                        SELECT 1
+                        FROM pengawasan p
+                        WHERE p.id_pengawasan_gantt = pg.id
+                    ) AS has_pengawasan,
+                    NOT EXISTS (
+                        SELECT 1
+                        FROM pengawasan p
+                        WHERE p.id_pengawasan_gantt = pg.id
+                          AND LOWER(COALESCE(p.status, '')) <> 'selesai'
+                    ) AS all_pengawasan_selesai
+                FROM latest_gantt g
+                JOIN pengawasan_gantt pg ON pg.id_gantt = g.id
+            )
+            SELECT
+                (SELECT id FROM latest_gantt) AS gantt_id,
+                COUNT(c.id)::int AS total_checkpoints,
+                COUNT(c.id) FILTER (WHERE c.has_pengawasan AND c.all_pengawasan_selesai)::int AS filled_checkpoints,
+                COUNT(c.id) FILTER (WHERE NOT c.has_pengawasan OR NOT c.all_pengawasan_selesai)::int AS missing_checkpoints
+            FROM checkpoint c
+            `,
+            [idToko]
+        );
+
+        return result.rows[0] ?? {
+            gantt_id: null,
+            total_checkpoints: 0,
+            filled_checkpoints: 0,
+            missing_checkpoints: 0,
+        };
     },
 
     async findBerkasSerahTerimaByIdToko(idToko: number): Promise<BerkasSerahTerimaRow | null> {
@@ -328,10 +380,8 @@ export const serahTerimaRepository = {
     },
 
     /**
-     * Temukan toko dengan nomor_ulok yang sama (lingkup berbeda) yang:
-     * 1. Opname Final-nya sudah Disetujui
-     * 2. Belum punya berkas_serah_terima
-     * Digunakan untuk auto-cascade ST generation.
+     * Temukan toko saudara yang sudah memiliki Opname Final, seluruh checkpoint
+     * pengawasannya terisi, dan belum punya berkas Serah Terima.
      */
     async findSiblingTokosReadyForST(nomorUlok: string, excludeIdToko: number): Promise<{ id: number; lingkup_pekerjaan: string | null }[]> {
         const result = await pool.query(
@@ -343,8 +393,52 @@ export const serahTerimaRepository = {
               AND EXISTS (
                   SELECT 1 FROM opname_final of2
                   WHERE of2.id_toko = t.id
-                    AND LOWER(COALESCE(of2.status_opname_final, '')) = 'disetujui'
-                    AND LOWER(COALESCE(of2.aksi, '')) = 'terkunci'
+              )
+              AND EXISTS (
+                  SELECT 1
+                  FROM gantt_chart g
+                  JOIN pengawasan_gantt pg ON pg.id_gantt = g.id
+                  WHERE g.id_toko = t.id
+                    AND g.id = (
+                        SELECT g2.id
+                        FROM gantt_chart g2
+                        WHERE g2.id_toko = t.id
+                        ORDER BY g2.id DESC
+                        LIMIT 1
+                    )
+              )
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM gantt_chart g
+                  JOIN pengawasan_gantt pg ON pg.id_gantt = g.id
+                  WHERE g.id_toko = t.id
+                    AND g.id = (
+                        SELECT g2.id
+                        FROM gantt_chart g2
+                        WHERE g2.id_toko = t.id
+                        ORDER BY g2.id DESC
+                        LIMIT 1
+                    )
+                    AND NOT EXISTS (
+                        SELECT 1
+                        FROM pengawasan p
+                        WHERE p.id_pengawasan_gantt = pg.id
+                    )
+              )
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM gantt_chart g
+                  JOIN pengawasan_gantt pg ON pg.id_gantt = g.id
+                  JOIN pengawasan p ON p.id_pengawasan_gantt = pg.id
+                  WHERE g.id_toko = t.id
+                    AND g.id = (
+                        SELECT g2.id
+                        FROM gantt_chart g2
+                        WHERE g2.id_toko = t.id
+                        ORDER BY g2.id DESC
+                        LIMIT 1
+                    )
+                    AND LOWER(COALESCE(p.status, '')) <> 'selesai'
               )
               AND NOT EXISTS (
                   SELECT 1 FROM berkas_serah_terima bst

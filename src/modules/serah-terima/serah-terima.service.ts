@@ -1,7 +1,6 @@
 import { AppError } from "../../common/app-error";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
-import { pool } from "../../db/pool";
 import { calculateDendaByTokoId } from "../denda/denda-keterlambatan";
 import { opnameFinalService } from "../opname-final/opname-final.service";
 import { buildSerahTerimaPdfBuffer } from "./serah-terima.pdf";
@@ -66,6 +65,43 @@ const buildDetailByTokoId = async (idToko: number) => {
     return { toko, opnameFinal, items };
 };
 
+const getSerahTerimaReadiness = async (idToko: number) => {
+    const opnameFinal = await serahTerimaRepository.findOpnameFinalByIdToko(idToko);
+    if (!opnameFinal) {
+        return {
+            ready: false,
+            reason: "Data opname_final belum tersedia untuk toko ini",
+        };
+    }
+
+    const completion = await serahTerimaRepository.getSupervisionCompletionByTokoId(idToko);
+    if (!completion.gantt_id || Number(completion.total_checkpoints) === 0) {
+        return {
+            ready: false,
+            reason: "Jadwal pengawasan belum tersedia untuk toko ini",
+        };
+    }
+
+    if (Number(completion.missing_checkpoints) > 0) {
+        return {
+            ready: false,
+            reason: `Masih ada ${completion.missing_checkpoints} checkpoint pengawasan yang belum selesai`,
+        };
+    }
+
+    return {
+        ready: true,
+        reason: null,
+    };
+};
+
+const assertSerahTerimaReady = async (idToko: number) => {
+    const readiness = await getSerahTerimaReadiness(idToko);
+    if (!readiness.ready) {
+        throw new AppError(readiness.reason ?? "Serah Terima belum siap dibuat", 409);
+    }
+};
+
 const automaticSerahTerimaInProgress = new Set<number>();
 
 export const scheduleAutomaticSerahTerimaIfReady = async (idToko: number): Promise<void> => {
@@ -74,42 +110,8 @@ export const scheduleAutomaticSerahTerimaIfReady = async (idToko: number): Promi
     const existing = await serahTerimaRepository.findBerkasSerahTerimaByIdToko(idToko);
     if (existing?.link_pdf) return;
 
-    const opnameFinal = await serahTerimaRepository.findOpnameFinalByIdToko(idToko);
-    if (!opnameFinal) return;
-
-    const latestStatuses = await pool.query<{ total: number; unfinished: number }>(
-        `
-        WITH latest_gantt AS (
-            SELECT id
-            FROM gantt_chart
-            WHERE id_toko = $1
-            ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, id DESC
-            LIMIT 1
-        ),
-        latest_item AS (
-            SELECT DISTINCT ON (
-                UPPER(TRIM(p.kategori_pekerjaan)),
-                UPPER(TRIM(p.jenis_pekerjaan))
-            )
-                p.status
-            FROM pengawasan p
-            JOIN pengawasan_gantt pg ON pg.id = p.id_pengawasan_gantt
-            JOIN latest_gantt g ON g.id = p.id_gantt
-            ORDER BY
-                UPPER(TRIM(p.kategori_pekerjaan)),
-                UPPER(TRIM(p.jenis_pekerjaan)),
-                pg.id DESC,
-                p.id DESC
-        )
-        SELECT
-            COUNT(*)::int AS total,
-            COUNT(*) FILTER (WHERE LOWER(COALESCE(status, '')) <> 'selesai')::int AS unfinished
-        FROM latest_item
-        `,
-        [idToko]
-    );
-    const status = latestStatuses.rows[0];
-    if (!status || Number(status.total) === 0 || Number(status.unfinished) > 0) return;
+    const readiness = await getSerahTerimaReadiness(idToko);
+    if (!readiness.ready) return;
 
     automaticSerahTerimaInProgress.add(idToko);
     setImmediate(() => {
@@ -195,6 +197,7 @@ export const serahTerimaService = {
     async createPdfSerahTerima(idToko: number) {
         // Validate the required opname data before writing a serah-terima placeholder.
         // Previously, a failed generation could leave a row with link_pdf = NULL.
+        await assertSerahTerimaReady(idToko);
         await buildDetailByTokoId(idToko);
 
         const placeholder = await serahTerimaRepository.ensureBerkasSerahTerima(idToko);
@@ -236,7 +239,7 @@ export const serahTerimaService = {
         });
 
         // 5. Auto-cascade: generate ST untuk toko saudara (nomor_ulok sama, lingkup berbeda)
-        //    yang opname-nya sudah Disetujui tapi belum punya berkas_serah_terima.
+        //    yang seluruh pengawasannya terisi, sudah punya Opname Final, dan belum punya berkas.
         //    Jalankan di background — tidak memblok response ke client.
         if (toko.nomor_ulok) {
             serahTerimaRepository

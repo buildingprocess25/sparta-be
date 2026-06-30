@@ -112,6 +112,12 @@ const releaseRabApprovalAfterGantt = async (tokoId: number, source: string) => {
     }
 };
 
+const isScopeReadyForSerahTerima = (scope: any) =>
+    Boolean(scope.gantt_id)
+    && Boolean(scope.opname_final_id)
+    && Number(scope.total_pengawasan_checkpoints ?? 0) > 0
+    && Number(scope.missing_pengawasan_checkpoints ?? 0) === 0;
+
 export const ganttService = {
     async getSupervisionWorkspace(nomorUlok: string) {
         const scopes = await ganttRepository.findSupervisionWorkspace(nomorUlok);
@@ -128,14 +134,10 @@ export const ganttService = {
             scopes,
             serah_terima_ready: scopes
                 .filter((scope) => scope.gantt_id)
-                .some((scope) =>
-                    Boolean(scope.opname_final_id)
-                    && ["terkunci"].includes(String(scope.opname_aksi ?? "").toLowerCase())
-                    && ["Disetujui"].includes(String(scope.status_opname_final ?? ""))
-                ),
+                .some((scope) => isScopeReadyForSerahTerima(scope)),
             serah_terima_generated: scopes
                 .filter((scope) => scope.gantt_id)
-                .some((scope) => Boolean(scope.berkas_serah_terima_id)),
+                .some((scope) => isScopeReadyForSerahTerima(scope) && Boolean(scope.link_pdf_serah_terima)),
         };
     },
     async submit(payload: SubmitGanttInput) {
