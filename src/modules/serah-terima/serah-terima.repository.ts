@@ -172,7 +172,7 @@ export const serahTerimaRepository = {
                 oi.desain,
                 oi.kualitas,
                 oi.spesifikasi,
-                oi.foto,
+                COALESCE(NULLIF(oi.foto, ''), latest_pengawasan.dokumentasi_base64, latest_pengawasan.dokumentasi) AS foto,
                 oi.catatan,
                 oi.created_at,
                 ri.kategori_pekerjaan,
@@ -182,6 +182,39 @@ export const serahTerimaRepository = {
                 ri.total_harga AS total_harga_rab
             FROM opname_item oi
             LEFT JOIN rab_item ri ON ri.id = oi.id_rab_item
+            LEFT JOIN instruksi_lapangan_item ili ON ili.id = oi.id_instruksi_lapangan_item
+            LEFT JOIN LATERAL (
+                SELECT
+                    p.dokumentasi,
+                    p.dokumentasi_base64
+                FROM pengawasan p
+                LEFT JOIN pengawasan_gantt pg ON pg.id = p.id_pengawasan_gantt
+                WHERE p.id_gantt = (
+                    SELECT g.id
+                    FROM gantt_chart g
+                    WHERE g.id_toko = oi.id_toko
+                    ORDER BY g.id DESC
+                    LIMIT 1
+                )
+                  AND UPPER(TRIM(COALESCE(p.kategori_pekerjaan, ''))) = UPPER(TRIM(COALESCE(
+                        ri.kategori_pekerjaan,
+                        ili.kategori_pekerjaan,
+                        ''
+                  )))
+                  AND UPPER(TRIM(COALESCE(p.jenis_pekerjaan, ''))) = UPPER(TRIM(COALESCE(
+                        ri.jenis_pekerjaan,
+                        ili.jenis_pekerjaan,
+                        ''
+                  )))
+                  AND (
+                      NULLIF(TRIM(COALESCE(p.dokumentasi_base64, '')), '') IS NOT NULL
+                      OR NULLIF(TRIM(COALESCE(p.dokumentasi, '')), '') IS NOT NULL
+                  )
+                ORDER BY
+                    to_date(pg.tanggal_pengawasan, 'DD/MM/YYYY') DESC NULLS LAST,
+                    p.id DESC
+                LIMIT 1
+            ) latest_pengawasan ON true
             WHERE oi.id_opname_final = $1
             ORDER BY oi.id ASC
             `,

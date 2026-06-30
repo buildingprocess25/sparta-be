@@ -47,6 +47,7 @@ const inferImageMimeType = (buffer: Buffer, explicitMime?: string | null, filena
 export const resolveDriveImageDataUrl = async (rawLink?: string | null): Promise<string | null> => {
     const link = (rawLink ?? "").trim();
     if (!link) return null;
+    if (/^data:image\//i.test(link)) return link;
 
     try {
         const fileId = extractDriveFileId(link);
@@ -141,4 +142,3 @@ export const resolveDriveImageDataUrl = async (rawLink?: string | null): Promise
         return null;
     }
 };
-
