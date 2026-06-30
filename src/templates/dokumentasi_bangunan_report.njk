@@ -229,10 +229,8 @@
         <td>{{ dokumentasi.spk_akhir or '-' }}</td>
       </tr>
       <tr>
-        <td class="label">Kontraktor Sipil</td>
-        <td>{{ dokumentasi.kontraktor_sipil or '-' }}</td>
-        <td class="label">Kontraktor ME</td>
-        <td>{{ dokumentasi.kontraktor_me or '-' }}</td>
+        <td class="label">Kontraktor</td>
+        <td colspan="3">{{ dokumentasi.kontraktor_sipil or dokumentasi.kontraktor_me or '-' }}</td>
       </tr>
     </table>
 

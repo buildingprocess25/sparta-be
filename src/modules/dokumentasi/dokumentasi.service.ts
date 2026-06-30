@@ -28,6 +28,7 @@ type DokumentasiBangunanPrefillOption = {
     cabang: string;
     kode_toko: string;
     nama_toko: string;
+    kontraktor: string;
     kontraktor_sipil: string;
     kontraktor_me: string;
     spk_awal: string;
@@ -332,6 +333,7 @@ export const dokumentasiBangunanService = {
                 cabang: "",
                 kode_toko: "",
                 nama_toko: "",
+                kontraktor: "",
                 kontraktor_sipil: "",
                 kontraktor_me: "",
                 spk_awal: "",
@@ -370,6 +372,11 @@ export const dokumentasiBangunanService = {
         }
 
         for (const option of grouped.values()) {
+            const contractor = firstText(option.kontraktor_sipil, option.kontraktor_me);
+            option.kontraktor = contractor;
+            option.kontraktor_sipil = contractor;
+            option.kontraktor_me = contractor;
+
             if (!option.tanggal_serah_terima) {
                 option.tanggal_serah_terima = option.spk_akhir;
                 option.tanggal_serah_terima_source = "SPK_AKHIR";
