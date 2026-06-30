@@ -329,6 +329,9 @@ const pushMapArray = <T>(map: Map<number, T[]>, key: number, value: T) => {
 };
 
 const normalizeDashboardUlok = (value: string | null | undefined) => String(value || "").trim().toUpperCase();
+const normalizeDashboardScope = (value: string | null | undefined) => String(value || "").trim().toUpperCase();
+const dashboardScopeKey = (nomorUlok: string | null | undefined, lingkup: string | null | undefined) =>
+    `${normalizeDashboardUlok(nomorUlok)}\u0000${normalizeDashboardScope(lingkup)}`;
 
 export const dashboardRepository = {
     async findTokoByQuery(query: DashboardQueryInput): Promise<DashboardTokoRow | null> {
@@ -492,10 +495,15 @@ export const dashboardRepository = {
                    alasan_penolakan, created_at
             FROM pengajuan_spk
             WHERE id_toko = $1
-               OR ($2::text IS NOT NULL AND nomor_ulok = $2::text)
+               OR (
+                   id_toko IS NULL
+                   AND $2::text IS NOT NULL
+                   AND nomor_ulok = $2::text
+                   AND LOWER(COALESCE(lingkup_pekerjaan, '')) = LOWER(COALESCE($3::text, ''))
+               )
             ORDER BY created_at DESC, id DESC
             `,
-            [tokoId, toko?.nomor_ulok ?? null]
+            [tokoId, toko?.nomor_ulok ?? null, toko?.lingkup_pekerjaan ?? null]
         );
 
         const spkIds = spkResult.rows.map((row) => row.id);
@@ -766,12 +774,19 @@ export const dashboardRepository = {
 
         const tokoIds = tokoResult.rows.map((row) => row.id);
         const tokoIdsByUlok = new Map<string, number[]>();
+        const tokoIdsByScopeKey = new Map<string, number[]>();
         for (const row of tokoResult.rows) {
             const ulokKey = normalizeDashboardUlok(row.nomor_ulok);
-            if (!ulokKey) continue;
-            const ids = tokoIdsByUlok.get(ulokKey) ?? [];
-            ids.push(row.id);
-            tokoIdsByUlok.set(ulokKey, ids);
+            if (ulokKey) {
+                const ids = tokoIdsByUlok.get(ulokKey) ?? [];
+                ids.push(row.id);
+                tokoIdsByUlok.set(ulokKey, ids);
+            }
+
+            const scopeKey = dashboardScopeKey(row.nomor_ulok, row.lingkup_pekerjaan);
+            const scopedIds = tokoIdsByScopeKey.get(scopeKey) ?? [];
+            scopedIds.push(row.id);
+            tokoIdsByScopeKey.set(scopeKey, scopedIds);
         }
 
         const rabResult = await client.query<DashboardRabRow>(
@@ -909,15 +924,6 @@ export const dashboardRepository = {
               ON t.nomor_ulok = p.nomor_ulok
              AND LOWER(COALESCE(t.lingkup_pekerjaan, '')) = LOWER(COALESCE(p.lingkup_pekerjaan, ''))
             WHERE COALESCE(p.id_toko, t.id) = ANY($1::int[])
-               OR (
-                   p.nomor_ulok IS NOT NULL
-                   AND p.nomor_ulok IN (
-                       SELECT DISTINCT nomor_ulok
-                       FROM toko
-                       WHERE id = ANY($1::int[])
-                         AND nomor_ulok IS NOT NULL
-                   )
-               )
             ORDER BY p.created_at DESC, p.id DESC
             `,
             [toArrayParam(tokoIds)]
@@ -1131,8 +1137,10 @@ export const dashboardRepository = {
                 approval_logs: spkLogsBySpkId.get(row.id) ?? [],
                 pertambahan_spk: pertambahanBySpkId.get(row.id) ?? []
             };
-            const scopedTokoIds = tokoIdsByUlok.get(normalizeDashboardUlok(row.nomor_ulok)) ?? [];
-            const targetTokoIds = scopedTokoIds.length > 0 ? scopedTokoIds : [row.id_toko];
+            const explicitTokoId = Number(row.id_toko);
+            const targetTokoIds = tokoIds.includes(explicitTokoId)
+                ? [explicitTokoId]
+                : (tokoIdsByScopeKey.get(dashboardScopeKey(row.nomor_ulok, row.lingkup_pekerjaan)) ?? []);
             for (const targetTokoId of targetTokoIds) {
                 pushMapArray(spkByTokoId, targetTokoId, mapped);
             }

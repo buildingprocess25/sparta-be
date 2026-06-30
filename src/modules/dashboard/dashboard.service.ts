@@ -16,6 +16,7 @@ import { dashboardRepository } from "./dashboard.repository";
 import {
     getDashboardPenalty,
     getDashboardStage,
+    isDashboardPastSla,
     scopeDashboardProjects,
     toDashboardProjectRow
 } from "./dashboard.presentation";
@@ -57,7 +58,7 @@ export const dashboardService = {
             const stage = getDashboardStage(project);
             stages[stage] = (stages[stage] || 0) + 1;
             const penalty = getDashboardPenalty(project);
-            if (stage !== "Done" && penalty.days > 0) attention += 1;
+            if (stage !== "Done" && isDashboardPastSla(project, stage)) attention += 1;
             penawaran += Number(project.rab[0]?.grand_total_final || 0);
             nilaiSpk += project.spk.reduce((sum, spk) => sum + Number(spk.grand_total || 0), 0);
             totalDenda += penalty.amount;

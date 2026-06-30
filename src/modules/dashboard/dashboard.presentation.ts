@@ -16,11 +16,23 @@ const parseDate = (value: unknown) => {
     return date && !Number.isNaN(date.getTime()) ? date : null;
 };
 
+const dayDiff = (from: Date | null, to: Date | null = new Date()) => {
+    if (!from || !to) return 0;
+    return Math.max(0, Math.floor((to.getTime() - from.getTime()) / 86_400_000));
+};
+
 const approvedSpks = (project: DashboardData) => {
     const valid = project.spk.filter((spk) =>
         ["APPROVED", "ACTIVE", "SPK_APPROVED", "DISETUJUI", "AKTIF", "SELESAI"].includes(normalize(spk.status))
     );
     return valid.length > 0 ? valid : project.spk.slice(0, 1);
+};
+
+const spkAllowedDays = (spk: ReturnType<typeof approvedSpks>[number]) => {
+    const extensionDays = spk.pertambahan_spk
+        .filter((item) => ["APPROVED", "DISETUJUI", "DISETUJUI BM"].includes(normalize(item.status_persetujuan)))
+        .reduce((sum, item) => sum + Number(item.pertambahan_hari || 0), 0);
+    return Number(spk.durasi || 0) + extensionDays;
 };
 
 export const getDashboardStage = (project: DashboardData) => {
@@ -33,13 +45,57 @@ export const getDashboardStage = (project: DashboardData) => {
     const opname = project.opname_final.find((item) => String(item.link_pdf_opname || "").trim());
     const hasSt = project.berkas_serah_terima.length > 0;
 
-    if (opname && normalize(opname.status_opname_final) === "DISETUJUI") return "Done";
+    if (opname && normalize(opname.status_opname_final) === "DISETUJUI" && opname.waktu_persetujuan_direktur) return "Done";
     if (opname || hasSt) return "Kerja Tambah Kurang";
     if (hasApprovedSpk) return "Ongoing";
     if (hasWaitingSpk) return "Approval SPK";
     if (rabStatus === "DISETUJUI") return "Proses PJU";
     if (rab && rabStatus === "MENUNGGU GANTT CHART") return "Proses Gantt";
     return "Approval RAB";
+};
+
+export const isDashboardPastSla = (project: DashboardData, stage = getDashboardStage(project)) => {
+    const now = new Date();
+    const rab = project.rab[0];
+    const opname = project.opname_final.find((item) => String(item.link_pdf_opname || "").trim()) || project.opname_final[0];
+    const latestSt = [...project.berkas_serah_terima]
+        .sort((a, b) => new Date(String(b.created_at || 0)).getTime() - new Date(String(a.created_at || 0)).getTime())[0];
+
+    if (stage === "Ongoing") {
+        const start = approvedSpks(project)
+            .map((spk) => parseDate(spk.waktu_mulai || spk.created_at))
+            .filter((date): date is Date => Boolean(date))
+            .sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
+        const allowedDays = Math.max(0, ...approvedSpks(project).map(spkAllowedDays));
+        return dayDiff(start, now) > allowedDays;
+    }
+
+    if (stage === "Approval SPK") {
+        const spk = project.spk.find((item) => normalize(item.status) === "WAITING_FOR_BM_APPROVAL") || project.spk[0];
+        return dayDiff(parseDate(spk?.created_at), parseDate(spk?.waktu_persetujuan) || now) > 2;
+    }
+
+    if (stage === "Approval RAB") {
+        return dayDiff(parseDate(rab?.created_at), parseDate(rab?.waktu_persetujuan_manager) || now) > 2;
+    }
+
+    if (stage === "Proses Gantt") {
+        return dayDiff(parseDate(rab?.waktu_persetujuan_manager || rab?.created_at), now) > 2;
+    }
+
+    if (stage === "Proses PJU") {
+        const firstSpkCreated = project.spk
+            .map((spk) => parseDate(spk.created_at))
+            .filter((date): date is Date => Boolean(date))
+            .sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
+        return dayDiff(parseDate(rab?.waktu_persetujuan_manager || rab?.created_at), firstSpkCreated || now) > 10;
+    }
+
+    if (stage === "Kerja Tambah Kurang") {
+        return dayDiff(parseDate(latestSt?.created_at || opname?.created_at), parseDate(opname?.waktu_persetujuan_direktur) || now) > 14;
+    }
+
+    return false;
 };
 
 export const getDashboardLateDays = (project: DashboardData) => {
@@ -127,7 +183,7 @@ export const toDashboardProjectRow = (project: DashboardData) => {
     return {
         toko: project.toko,
         stage,
-        attention: stage !== "Done" && (lateDays > 0 || penalty.amount > 0),
+        attention: stage !== "Done" && isDashboardPastSla(project, stage),
         late_days: lateDays,
         penalty,
         penawaran: Number(rab?.grand_total_final || 0),
