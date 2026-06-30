@@ -33,6 +33,7 @@ type DokumentasiBangunanPrefillOption = {
     spk_awal: string;
     spk_akhir: string;
     tanggal_serah_terima: string;
+    tanggal_serah_terima_source: "SERAH_TERIMA" | "SPK_AKHIR";
 };
 
 const sanitizeFilenamePart = (value: string | undefined, fallback: string): string => {
@@ -335,7 +336,8 @@ export const dokumentasiBangunanService = {
                 kontraktor_me: "",
                 spk_awal: "",
                 spk_akhir: "",
-                tanggal_serah_terima: ""
+                tanggal_serah_terima: "",
+                tanggal_serah_terima_source: "SPK_AKHIR"
             };
 
             option.cabang ||= firstText(row.cabang);
@@ -357,12 +359,21 @@ export const dokumentasiBangunanService = {
                 option.spk_akhir,
                 dateOnly(row.spk_effective_waktu_selesai) || dateOnly(row.spk_waktu_selesai)
             );
-            option.tanggal_serah_terima = maxDate(
-                option.tanggal_serah_terima,
-                dateOnly(row.st_created_at) || dateOnly(row.tanggal_serah_terima_denda)
-            );
+
+            const officialStDate = dateOnly(row.st_created_at) || dateOnly(row.tanggal_serah_terima_denda);
+            if (officialStDate) {
+                option.tanggal_serah_terima = maxDate(option.tanggal_serah_terima, officialStDate);
+                option.tanggal_serah_terima_source = "SERAH_TERIMA";
+            }
 
             grouped.set(key, option);
+        }
+
+        for (const option of grouped.values()) {
+            if (!option.tanggal_serah_terima) {
+                option.tanggal_serah_terima = option.spk_akhir;
+                option.tanggal_serah_terima_source = "SPK_AKHIR";
+            }
         }
 
         return [...grouped.values()].sort((left, right) => left.nomor_ulok.localeCompare(right.nomor_ulok));

@@ -329,7 +329,7 @@ export const dokumentasiBangunanRepository = {
                 ORDER BY r.created_at DESC, r.id DESC
                 LIMIT 1
             ) rab_latest ON true
-            LEFT JOIN LATERAL (
+            JOIN LATERAL (
                 SELECT
                     ps.nama_kontraktor,
                     ps.waktu_mulai,
@@ -361,7 +361,7 @@ export const dokumentasiBangunanRepository = {
                       AND UPPER(TRIM(COALESCE(pt.status_persetujuan, ''))) IN ('APPROVED', 'DISETUJUI', 'DISETUJUI BM')
                 ) extension_latest ON true
                 WHERE ps.id_toko = t.id
-                  AND UPPER(TRIM(COALESCE(ps.status, ''))) NOT LIKE '%REJECT%'
+                  AND UPPER(TRIM(COALESCE(ps.status, ''))) IN ('SPK_APPROVED', 'APPROVED', 'DISETUJUI')
                 ORDER BY ps.created_at DESC, ps.id DESC
                 LIMIT 1
             ) spk_latest ON true
