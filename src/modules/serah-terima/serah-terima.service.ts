@@ -278,6 +278,40 @@ export const serahTerimaService = {
         };
     },
 
+    async createPdfSerahTerimaForMigration(idToko: number) {
+        const { toko, opnameFinal, items } = await buildDetailByTokoId(idToko);
+        if (items.length === 0) {
+            throw new AppError("Data opname_item kosong untuk toko ini", 409);
+        }
+
+        const placeholder = await serahTerimaRepository.ensureBerkasSerahTerima(idToko);
+
+        await opnameFinalService.refreshDendaByTokoId(idToko);
+
+        const detail = { toko, opname_final: opnameFinal, items };
+        const pdfBuffer = await buildSerahTerimaPdfBuffer(detail, placeholder.created_at);
+
+        const proyek = sanitizeFilenamePart(toko.proyek ?? undefined, "PROYEK");
+        const nomorUlok = sanitizeFilenamePart(toko.nomor_ulok ?? undefined, "ULOK");
+        const filename = `SERAH_TERIMA_MIGRASI_${proyek}_${nomorUlok}_${opnameFinal.id}.pdf`;
+
+        const linkPdf = await uploadPdfToDrive(pdfBuffer, filename);
+        const berkas = await serahTerimaRepository.updateBerkasSerahTerimaLink(placeholder.id, linkPdf);
+
+        await opnameFinalService.refreshDendaAndPdfById(String(opnameFinal.id));
+
+        return {
+            id: berkas.id,
+            id_toko: idToko,
+            link_pdf: linkPdf,
+            opname_final_id: opnameFinal.id,
+            link_pdf_opname: opnameFinal.link_pdf_opname,
+            item_count: items.length,
+            created_at: berkas.created_at,
+            toko,
+        };
+    },
+
     async downloadPdfByBerkasId(id: number) {
         const berkas = await serahTerimaRepository.findBerkasSerahTerimaById(id);
         if (!berkas) {
