@@ -80,7 +80,7 @@ export const isDashboardPastSla = (project: DashboardData, stage = getDashboardS
     }
 
     if (stage === "Proses Gantt") {
-        return dayDiff(parseDate(rab?.waktu_persetujuan_manager || rab?.created_at), now) > 2;
+        return false;
     }
 
     if (stage === "Proses PJU") {
@@ -88,11 +88,11 @@ export const isDashboardPastSla = (project: DashboardData, stage = getDashboardS
             .map((spk) => parseDate(spk.created_at))
             .filter((date): date is Date => Boolean(date))
             .sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
-        return dayDiff(parseDate(rab?.waktu_persetujuan_manager || rab?.created_at), firstSpkCreated || now) > 10;
+        return dayDiff(parseDate(rab?.waktu_persetujuan_manager), firstSpkCreated || now) > 10;
     }
 
     if (stage === "Kerja Tambah Kurang") {
-        return dayDiff(parseDate(latestSt?.created_at || opname?.created_at), parseDate(opname?.waktu_persetujuan_direktur) || now) > 14;
+        return dayDiff(parseDate(latestSt?.created_at), parseDate(opname?.created_at) || now) > 14;
     }
 
     return false;
