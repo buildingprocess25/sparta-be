@@ -1,0 +1,32 @@
+{
+  "generated_at": "2026-06-30T11:46:21.780Z",
+  "rule": {
+    "cleanup": "Delete invalid ST unless LUWU old migration batch nomor_ulok starts with 2VZ1-2603.",
+    "keep_exception": "Keep LUWU 2VZ1-2603 because business asked migrated ST date to be taken from opname final.",
+    "invalid_definition": "ST exists but latest normal readiness fails: no opname_final, no opname item, no completed supervision, or completed supervision still missing opname."
+  },
+  "totals": {
+    "invalid": 29,
+    "recommended_cleanup": 16,
+    "keep_exceptions": 13
+  },
+  "cleanup_by_cabang": {
+    "CILACAP": 2,
+    "GORONTALO": 1,
+    "HEAD OFFICE": 1,
+    "JAMBI": 2,
+    "KARAWANG": 2,
+    "LUWU": 3,
+    "NTT": 2,
+    "PARUNG": 1,
+    "REMBANG": 1,
+    "SEMARANG": 1
+  },
+  "keep_by_cabang": {
+    "LUWU": 13
+  },
+  "files": {
+    "cleanup": "C:\\alfamart\\SPARTA\\sparta-be\\sql\\reports\\serah-terima-cleanup-recommended.csv",
+    "keep_exceptions": "C:\\alfamart\\SPARTA\\sparta-be\\sql\\reports\\serah-terima-cleanup-keep-exceptions.csv"
+  }
+}
