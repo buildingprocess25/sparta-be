@@ -201,29 +201,27 @@ export const serahTerimaRepository = {
                 ORDER BY id DESC
                 LIMIT 1
             ),
-            checkpoint AS (
-                SELECT
-                    pg.id,
-                    EXISTS (
-                        SELECT 1
-                        FROM pengawasan p
-                        WHERE p.id_pengawasan_gantt = pg.id
-                    ) AS has_pengawasan,
-                    NOT EXISTS (
-                        SELECT 1
-                        FROM pengawasan p
-                        WHERE p.id_pengawasan_gantt = pg.id
-                          AND LOWER(COALESCE(p.status, '')) <> 'selesai'
-                    ) AS all_pengawasan_selesai
-                FROM latest_gantt g
-                JOIN pengawasan_gantt pg ON pg.id_gantt = g.id
+            latest_item AS (
+                SELECT DISTINCT ON (
+                    UPPER(TRIM(COALESCE(p.kategori_pekerjaan, ''))),
+                    UPPER(TRIM(COALESCE(p.jenis_pekerjaan, '')))
+                )
+                    p.status
+                FROM pengawasan p
+                LEFT JOIN pengawasan_gantt pg ON pg.id = p.id_pengawasan_gantt
+                JOIN latest_gantt g ON g.id = p.id_gantt
+                ORDER BY
+                    UPPER(TRIM(COALESCE(p.kategori_pekerjaan, ''))),
+                    UPPER(TRIM(COALESCE(p.jenis_pekerjaan, ''))),
+                    to_date(pg.tanggal_pengawasan, 'DD/MM/YYYY') DESC NULLS LAST,
+                    p.id DESC
             )
             SELECT
                 (SELECT id FROM latest_gantt) AS gantt_id,
-                COUNT(c.id)::int AS total_checkpoints,
-                COUNT(c.id) FILTER (WHERE c.has_pengawasan AND c.all_pengawasan_selesai)::int AS filled_checkpoints,
-                COUNT(c.id) FILTER (WHERE NOT c.has_pengawasan OR NOT c.all_pengawasan_selesai)::int AS missing_checkpoints
-            FROM checkpoint c
+                COUNT(*)::int AS total_checkpoints,
+                COUNT(*) FILTER (WHERE LOWER(COALESCE(status, '')) = 'selesai')::int AS filled_checkpoints,
+                COUNT(*) FILTER (WHERE LOWER(COALESCE(status, '')) <> 'selesai')::int AS missing_checkpoints
+            FROM latest_item
             `,
             [idToko]
         );
@@ -396,10 +394,8 @@ export const serahTerimaRepository = {
               )
               AND EXISTS (
                   SELECT 1
-                  FROM gantt_chart g
-                  JOIN pengawasan_gantt pg ON pg.id_gantt = g.id
-                  WHERE g.id_toko = t.id
-                    AND g.id = (
+                  FROM pengawasan p
+                  WHERE p.id_gantt = (
                         SELECT g2.id
                         FROM gantt_chart g2
                         WHERE g2.id_toko = t.id
@@ -409,36 +405,28 @@ export const serahTerimaRepository = {
               )
               AND NOT EXISTS (
                   SELECT 1
-                  FROM gantt_chart g
-                  JOIN pengawasan_gantt pg ON pg.id_gantt = g.id
-                  WHERE g.id_toko = t.id
-                    AND g.id = (
-                        SELECT g2.id
-                        FROM gantt_chart g2
-                        WHERE g2.id_toko = t.id
-                        ORDER BY g2.id DESC
-                        LIMIT 1
-                    )
-                    AND NOT EXISTS (
-                        SELECT 1
-                        FROM pengawasan p
-                        WHERE p.id_pengawasan_gantt = pg.id
-                    )
-              )
-              AND NOT EXISTS (
-                  SELECT 1
-                  FROM gantt_chart g
-                  JOIN pengawasan_gantt pg ON pg.id_gantt = g.id
-                  JOIN pengawasan p ON p.id_pengawasan_gantt = pg.id
-                  WHERE g.id_toko = t.id
-                    AND g.id = (
-                        SELECT g2.id
-                        FROM gantt_chart g2
-                        WHERE g2.id_toko = t.id
-                        ORDER BY g2.id DESC
-                        LIMIT 1
-                    )
-                    AND LOWER(COALESCE(p.status, '')) <> 'selesai'
+                  FROM (
+                      SELECT DISTINCT ON (
+                          UPPER(TRIM(COALESCE(p.kategori_pekerjaan, ''))),
+                          UPPER(TRIM(COALESCE(p.jenis_pekerjaan, '')))
+                      )
+                          p.status
+                      FROM pengawasan p
+                      LEFT JOIN pengawasan_gantt pg ON pg.id = p.id_pengawasan_gantt
+                      WHERE p.id_gantt = (
+                          SELECT g2.id
+                          FROM gantt_chart g2
+                          WHERE g2.id_toko = t.id
+                          ORDER BY g2.id DESC
+                          LIMIT 1
+                      )
+                      ORDER BY
+                          UPPER(TRIM(COALESCE(p.kategori_pekerjaan, ''))),
+                          UPPER(TRIM(COALESCE(p.jenis_pekerjaan, ''))),
+                          to_date(pg.tanggal_pengawasan, 'DD/MM/YYYY') DESC NULLS LAST,
+                          p.id DESC
+                  ) latest_item
+                  WHERE LOWER(COALESCE(latest_item.status, '')) <> 'selesai'
               )
               AND NOT EXISTS (
                   SELECT 1 FROM berkas_serah_terima bst

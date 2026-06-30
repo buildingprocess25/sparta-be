@@ -340,15 +340,9 @@ export const ganttRepository = {
             )
             SELECT
                 s.*,
-                COUNT(c.id_pengawasan_gantt)::int AS total_pengawasan_checkpoints,
-                COUNT(c.id_pengawasan_gantt) FILTER (
-                    WHERE c.total_items > 0
-                      AND c.total_items = c.selesai_items
-                )::int AS filled_pengawasan_checkpoints,
-                COUNT(c.id_pengawasan_gantt) FILTER (
-                    WHERE c.total_items = 0
-                       OR c.total_items <> c.selesai_items
-                )::int AS missing_pengawasan_checkpoints,
+                COALESCE(SUM(c.total_items), 0)::int AS total_pengawasan_checkpoints,
+                COALESCE(SUM(c.selesai_items), 0)::int AS filled_pengawasan_checkpoints,
+                COALESCE(SUM(c.total_items - c.selesai_items), 0)::int AS missing_pengawasan_checkpoints,
                 COALESCE(
                     json_agg(
                         json_build_object(

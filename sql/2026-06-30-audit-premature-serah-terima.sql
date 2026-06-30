@@ -1,4 +1,4 @@
--- Audit Serah Terima yang terlanjur dibuat sebelum seluruh checkpoint pengawasan selesai.
+-- Audit Serah Terima yang terlanjur dibuat sebelum seluruh latest item pengawasan selesai.
 -- Jalankan SELECT pertama untuk review. Bagian DELETE sengaja dikomentari agar cleanup
 -- dilakukan eksplisit setelah hasil audit disetujui.
 
@@ -12,37 +12,26 @@ WITH latest_gantt AS (
 completion AS (
     SELECT
         lg.id_toko,
-        lg.gantt_id,
-        COUNT(pg.id)::int AS total_checkpoints,
-        COUNT(pg.id) FILTER (
-            WHERE EXISTS (
-                SELECT 1
-                FROM pengawasan p
-                WHERE p.id_pengawasan_gantt = pg.id
-            )
-              AND NOT EXISTS (
-                SELECT 1
-                FROM pengawasan p
-                WHERE p.id_pengawasan_gantt = pg.id
-                  AND LOWER(COALESCE(p.status, '')) <> 'selesai'
-            )
-        )::int AS filled_checkpoints,
-        COUNT(pg.id) FILTER (
-            WHERE NOT EXISTS (
-                SELECT 1
-                FROM pengawasan p
-                WHERE p.id_pengawasan_gantt = pg.id
-            )
-               OR EXISTS (
-                SELECT 1
-                FROM pengawasan p
-                WHERE p.id_pengawasan_gantt = pg.id
-                  AND LOWER(COALESCE(p.status, '')) <> 'selesai'
-            )
-        )::int AS missing_checkpoints
+        COUNT(latest_item.status)::int AS total_checkpoints,
+        COUNT(latest_item.status) FILTER (WHERE LOWER(COALESCE(latest_item.status, '')) = 'selesai')::int AS filled_checkpoints,
+        COUNT(latest_item.status) FILTER (WHERE LOWER(COALESCE(latest_item.status, '')) <> 'selesai')::int AS missing_checkpoints
     FROM latest_gantt lg
-    LEFT JOIN pengawasan_gantt pg ON pg.id_gantt = lg.gantt_id
-    GROUP BY lg.id_toko, lg.gantt_id
+    LEFT JOIN LATERAL (
+        SELECT DISTINCT ON (
+            UPPER(TRIM(COALESCE(p.kategori_pekerjaan, ''))),
+            UPPER(TRIM(COALESCE(p.jenis_pekerjaan, '')))
+        )
+            p.status
+        FROM pengawasan p
+        LEFT JOIN pengawasan_gantt pg ON pg.id = p.id_pengawasan_gantt
+        WHERE p.id_gantt = lg.gantt_id
+        ORDER BY
+            UPPER(TRIM(COALESCE(p.kategori_pekerjaan, ''))),
+            UPPER(TRIM(COALESCE(p.jenis_pekerjaan, ''))),
+            to_date(pg.tanggal_pengawasan, 'DD/MM/YYYY') DESC NULLS LAST,
+            p.id DESC
+    ) latest_item ON true
+    GROUP BY lg.id_toko
 ),
 latest_opname AS (
     SELECT DISTINCT ON (ofn.id_toko)
@@ -115,27 +104,25 @@ ORDER BY created_at DESC, berkas_serah_terima_id DESC;
 -- completion AS (
 --     SELECT
 --         lg.id_toko,
---         COUNT(pg.id)::int AS total_checkpoints,
---         COUNT(pg.id) FILTER (
---             WHERE EXISTS (SELECT 1 FROM pengawasan p WHERE p.id_pengawasan_gantt = pg.id)
---               AND NOT EXISTS (
---                   SELECT 1
---                   FROM pengawasan p
---                   WHERE p.id_pengawasan_gantt = pg.id
---                     AND LOWER(COALESCE(p.status, '')) <> 'selesai'
---               )
---         )::int AS filled_checkpoints,
---         COUNT(pg.id) FILTER (
---             WHERE NOT EXISTS (SELECT 1 FROM pengawasan p WHERE p.id_pengawasan_gantt = pg.id)
---                OR EXISTS (
---                   SELECT 1
---                   FROM pengawasan p
---                   WHERE p.id_pengawasan_gantt = pg.id
---                     AND LOWER(COALESCE(p.status, '')) <> 'selesai'
---               )
---         )::int AS missing_checkpoints
+--         COUNT(latest_item.status)::int AS total_checkpoints,
+--         COUNT(latest_item.status) FILTER (WHERE LOWER(COALESCE(latest_item.status, '')) = 'selesai')::int AS filled_checkpoints,
+--         COUNT(latest_item.status) FILTER (WHERE LOWER(COALESCE(latest_item.status, '')) <> 'selesai')::int AS missing_checkpoints
 --     FROM latest_gantt lg
---     LEFT JOIN pengawasan_gantt pg ON pg.id_gantt = lg.gantt_id
+--     LEFT JOIN LATERAL (
+--         SELECT DISTINCT ON (
+--             UPPER(TRIM(COALESCE(p.kategori_pekerjaan, ''))),
+--             UPPER(TRIM(COALESCE(p.jenis_pekerjaan, '')))
+--         )
+--             p.status
+--         FROM pengawasan p
+--         LEFT JOIN pengawasan_gantt pg ON pg.id = p.id_pengawasan_gantt
+--         WHERE p.id_gantt = lg.gantt_id
+--         ORDER BY
+--             UPPER(TRIM(COALESCE(p.kategori_pekerjaan, ''))),
+--             UPPER(TRIM(COALESCE(p.jenis_pekerjaan, ''))),
+--             to_date(pg.tanggal_pengawasan, 'DD/MM/YYYY') DESC NULLS LAST,
+--             p.id DESC
+--     ) latest_item ON true
 --     GROUP BY lg.id_toko
 -- ),
 -- latest_opname AS (

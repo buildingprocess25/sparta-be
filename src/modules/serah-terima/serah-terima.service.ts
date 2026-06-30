@@ -78,14 +78,14 @@ const getSerahTerimaReadiness = async (idToko: number) => {
     if (!completion.gantt_id || Number(completion.total_checkpoints) === 0) {
         return {
             ready: false,
-            reason: "Jadwal pengawasan belum tersedia untuk toko ini",
+            reason: "Pengawasan belum tersedia untuk toko ini",
         };
     }
 
     if (Number(completion.missing_checkpoints) > 0) {
         return {
             ready: false,
-            reason: `Masih ada ${completion.missing_checkpoints} checkpoint pengawasan yang belum selesai`,
+            reason: `Masih ada ${completion.missing_checkpoints} pekerjaan pengawasan yang belum selesai`,
         };
     }
 
