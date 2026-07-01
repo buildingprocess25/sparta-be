@@ -3,7 +3,7 @@ import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
 import { calculateDendaByTokoId } from "../denda/denda-keterlambatan";
 import { opnameFinalService } from "../opname-final/opname-final.service";
-import { buildSerahTerimaPdfBuffer, buildSerahTerimaUnifiedCoverPdfBuffer, buildSerahTerimaUnifiedSummaryPdfBuffer, calculateNilaiToko } from "./serah-terima.pdf";
+import { buildSerahTerimaPdfBuffer, buildSerahTerimaUnifiedCoverPdfBuffer } from "./serah-terima.pdf";
 import { serahTerimaRepository } from "./serah-terima.repository";
 import { PDFDocument } from "pdf-lib";
 
@@ -211,30 +211,7 @@ export const serahTerimaService = {
         // Validate the required opname data before writing a serah-terima placeholder.
         // Previously, a failed generation could leave a row with link_pdf = NULL.
         await assertSerahTerimaReady(idToko);
-        const { toko: tokoInfo } = await buildDetailByTokoId(idToko);
-        
-        if (tokoInfo.nomor_ulok) {
-            const scopes = await serahTerimaRepository.findTokoScopesByNomorUlok(tokoInfo.nomor_ulok);
-            const activeScopes = scopes.filter((scope) =>
-                ["SIPIL", "ME"].includes(String(scope.lingkup_pekerjaan || "").trim().toUpperCase())
-            );
-            
-            if (activeScopes.length > 1) {
-                let allReady = true;
-                for (const scope of activeScopes) {
-                    const readiness = await getSerahTerimaReadiness(scope.id);
-                    if (!readiness.ready) {
-                        allReady = false;
-                        break;
-                    }
-                }
-                
-                if (allReady) {
-                    console.log(`[ST] Auto-switching to unified ST for ULOK ${tokoInfo.nomor_ulok} triggered by id_toko=${idToko}`);
-                    return await serahTerimaService.createPdfSerahTerimaUnified(tokoInfo.nomor_ulok);
-                }
-            }
-        }
+        await buildDetailByTokoId(idToko);
 
         const placeholder = await serahTerimaRepository.ensureBerkasSerahTerima(idToko);
 
@@ -332,11 +309,7 @@ export const serahTerimaService = {
             await assertSerahTerimaReady(scope.id);
         }
 
-        const placeholders = await Promise.all(
-            targetScopes.map(scope => serahTerimaRepository.ensureBerkasSerahTerima(scope.id))
-        );
-        const placeholder = placeholders.find(p => p.id_toko === masterScope.id) ?? placeholders[0];
-
+        const placeholder = await serahTerimaRepository.ensureBerkasSerahTerima(masterScope.id);
         const pdfBuffers: Buffer[] = [];
         const details: Array<{
             id_toko: number;
@@ -346,7 +319,6 @@ export const serahTerimaService = {
             kode_toko?: string | null;
             nama_kontraktor?: string | null;
             nilai_opname?: string | number | null;
-            nilai_toko: number;
         }> = [];
 
         for (const [index, scope] of targetScopes.entries()) {
@@ -358,8 +330,6 @@ export const serahTerimaService = {
                 { unifiedPartIndex: index + 1, unifiedPartTotal: targetScopes.length }
             );
 
-            const nilaiToko = calculateNilaiToko(items);
-
             pdfBuffers.push(buffer);
             details.push({
                 id_toko: scope.id,
@@ -369,7 +339,6 @@ export const serahTerimaService = {
                 kode_toko: toko.kode_toko,
                 nama_kontraktor: toko.nama_kontraktor,
                 nilai_opname: opnameFinal.grand_total_opname,
-                nilai_toko: nilaiToko,
             });
         }
 
@@ -386,28 +355,13 @@ export const serahTerimaService = {
             scopes: details,
         });
 
-        const sumNilaiToko = details.reduce((sum, d) => sum + d.nilai_toko, 0);
-        const averageNilaiToko = details.length > 0 ? sumNilaiToko / details.length : 0;
-
-        const summaryBuffer = await buildSerahTerimaUnifiedSummaryPdfBuffer({
-            nomor_ulok: nomorUlok,
-            nama_toko: masterScope.nama_toko,
-            created_at: placeholder.created_at,
-            scopes: details,
-            average_nilai_toko: averageNilaiToko,
-        });
-
-        const mergedBuffer = await mergePdfBuffers([coverBuffer, ...pdfBuffers, summaryBuffer]);
+        const mergedBuffer = await mergePdfBuffers([coverBuffer, ...pdfBuffers]);
 
         const proyek = sanitizeFilenamePart(masterScope.proyek ?? undefined, "PROYEK");
         const safeNomorUlok = sanitizeFilenamePart(nomorUlok, "ULOK");
         const filename = `SERAH_TERIMA_UNIFIED_${proyek}_${safeNomorUlok}.pdf`;
         const linkPdf = await uploadPdfToDrive(mergedBuffer, filename);
-        
-        const berkasList = await Promise.all(
-            placeholders.map(ph => serahTerimaRepository.updateBerkasSerahTerimaLink(ph.id, linkPdf))
-        );
-        const berkas = berkasList.find(b => b.id_toko === masterScope.id) ?? berkasList[0];
+        const berkas = await serahTerimaRepository.updateBerkasSerahTerimaLink(placeholder.id, linkPdf);
 
         setImmediate(() => {
             Promise.allSettled(
