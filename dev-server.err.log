@@ -1,0 +1,112 @@
+(node:25412) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Unhandled error: {
+  request_id: '133b54f2-723a-4cf2-aeab-068d2f8b68d2',
+  error: Error: timeout exceeded when trying to connect
+      at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+      at runNextTicks (node:internal/process/task_queues:65:5)
+      at listOnTimeout (node:internal/timers:549:9)
+      at process.processTimers (node:internal/timers:523:7)
+      at async queryNotificationRows (C:\alfamart\SPARTA\sparta-be\src\modules\task-notification\task-notification.repository.ts:137:20)
+      at async Promise.all (index 1)
+      at async Object.getGroups (C:\alfamart\SPARTA\sparta-be\src\modules\task-notification\task-notification.repository.ts:715:13)
+      at async <anonymous> (C:\alfamart\SPARTA\sparta-be\src\modules\task-notification\task-notification.controller.ts:15:20)
+}
+(node:13740) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:15424) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:2544) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:21064) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:10320) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:16968) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:3252) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:14888) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Gagal memperpanjang session auth: Error: timeout exceeded when trying to connect
+    at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+    at runNextTicks (node:internal/process/task_queues:65:5)
+    at listOnTimeout (node:internal/timers:549:9)
+    at process.processTimers (node:internal/timers:523:7)
+    at async Object.extendExpiry (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.repository.ts:107:9)
+Unhandled error: {
+  request_id: '8e1ff083-d88a-43ec-881d-e17a8cad2d9a',
+  error: Error: timeout exceeded when trying to connect
+      at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+      at async Object.list (C:\alfamart\SPARTA\sparta-be\src\modules\rab\rab.repository.ts:1018:24)
+      at async Object.list (C:\alfamart\SPARTA\sparta-be\src\modules\rab\rab.service.ts:1445:22)
+      at async <anonymous> (C:\alfamart\SPARTA\sparta-be\src\modules\rab\rab.controller.ts:98:18)
+}
+Gagal membaca session auth: Error: timeout exceeded when trying to connect
+    at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+    at async Object.findActiveByTokenHash (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.repository.ts:90:24)
+    at async Object.authenticateToken (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.service.ts:90:21)
+    at async apiAuthMiddleware (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth.middleware.ts:113:26)
+Gagal membaca session auth: Error: timeout exceeded when trying to connect
+    at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+    at async Object.findActiveByTokenHash (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.repository.ts:90:24)
+    at async Object.authenticateToken (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.service.ts:90:21)
+    at async apiAuthMiddleware (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth.middleware.ts:113:26)
+Gagal membaca session auth: Error: timeout exceeded when trying to connect
+    at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+    at async Object.findActiveByTokenHash (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.repository.ts:90:24)
+    at async Object.authenticateToken (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.service.ts:90:21)
+    at async apiAuthMiddleware (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth.middleware.ts:113:26)
+Gagal membaca session auth: Error: timeout exceeded when trying to connect
+    at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+    at runNextTicks (node:internal/process/task_queues:65:5)
+    at listOnTimeout (node:internal/timers:549:9)
+    at process.processTimers (node:internal/timers:523:7)
+    at async Object.findActiveByTokenHash (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.repository.ts:90:24)
+    at async Object.authenticateToken (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.service.ts:90:21)
+    at async apiAuthMiddleware (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth.middleware.ts:113:26)
+Gagal membaca session auth: Error: timeout exceeded when trying to connect
+    at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+    at async Object.findActiveByTokenHash (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.repository.ts:90:24)
+    at async Object.authenticateToken (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.service.ts:90:21)
+    at async apiAuthMiddleware (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth.middleware.ts:113:26)
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+Error: Transform failed with 1 error:
+C:\alfamart\SPARTA\sparta-be\src\modules\serah-terima\serah-terima.pdf.ts:358:0: ERROR: Unexpected "}"
+    at failureErrorWithLog (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:1467:15)
+    at C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:736:50
+    at responseCallbacks.<computed> (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:603:9)
+    at handleIncomingPacket (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:658:12)
+    at Socket.readFromStdout (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:581:7)
+    at Socket.emit (node:events:519:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23) {
+  name: 'TransformError'
+}
+
+Node.js v22.19.0
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+Error: Transform failed with 1 error:
+C:\alfamart\SPARTA\sparta-be\src\modules\serah-terima\serah-terima.service.ts:246:16: ERROR: The symbol "toko" has already been declared
+    at failureErrorWithLog (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:1467:15)
+    at C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:736:50
+    at responseCallbacks.<computed> (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:603:9)
+    at handleIncomingPacket (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:658:12)
+    at Socket.readFromStdout (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:581:7)
+    at Socket.emit (node:events:519:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23) {
+  name: 'TransformError'
+}
+
+Node.js v22.19.0

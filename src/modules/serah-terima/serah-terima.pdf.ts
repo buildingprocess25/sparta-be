@@ -85,7 +85,7 @@ const countMatching = (
     return items.filter((item) => normalizeText(selector(item)) === normalizedExpected).length;
 };
 
-const buildAssessmentSummary = (items: SerahTerimaDetail["items"]) => {
+export const calculateNilaiToko = (items: SerahTerimaDetail["items"]): number => {
     const total = items.length;
     const desainSesuai = countMatching(items, (item) => item.desain, "Sesuai");
     const kualitasBaik = countMatching(items, (item) => item.kualitas, "Baik");
@@ -93,7 +93,15 @@ const buildAssessmentSummary = (items: SerahTerimaDetail["items"]) => {
     const nilaiDesain = total > 0 ? (desainSesuai / total) * 30 : 0;
     const nilaiKualitas = total > 0 ? (kualitasBaik / total) * 35 : 0;
     const nilaiSpesifikasi = total > 0 ? (spesifikasiSesuai / total) * 35 : 0;
-    const nilaiToko = nilaiDesain + nilaiKualitas + nilaiSpesifikasi;
+    return nilaiDesain + nilaiKualitas + nilaiSpesifikasi;
+};
+
+const buildAssessmentSummary = (items: SerahTerimaDetail["items"]) => {
+    const total = items.length;
+    const desainSesuai = countMatching(items, (item) => item.desain, "Sesuai");
+    const kualitasBaik = countMatching(items, (item) => item.kualitas, "Baik");
+    const spesifikasiSesuai = countMatching(items, (item) => item.spesifikasi, "Sesuai");
+    const nilaiToko = calculateNilaiToko(items);
 
     return [
         {
@@ -201,6 +209,31 @@ export const buildSerahTerimaUnifiedCoverPdfBuffer = async (input: {
         })),
     });
     return renderPdfFromHtml(coverHtml);
+};
+
+export const buildSerahTerimaUnifiedSummaryPdfBuffer = async (input: {
+    nomor_ulok: string;
+    nama_toko?: string | null;
+    created_at: string;
+    scopes: Array<{
+        lingkup_pekerjaan: string | null;
+        nilai_toko: number;
+    }>;
+    average_nilai_toko: number;
+}): Promise<Buffer> => {
+    const templatePath = await resolveTemplatePath("serah_terima_unified_summary.njk");
+    const summaryHtml = await renderHtmlTemplate(templatePath, {
+        nomor_ulok: input.nomor_ulok,
+        nama_toko: input.nama_toko ?? "-",
+        created_at_formatted: formatDateIndonesia(input.created_at),
+        scopes: input.scopes.map(s => ({
+            ...s,
+            nilai_toko_formatted: s.nilai_toko.toFixed(1)
+        })),
+        average_nilai_toko_formatted: input.average_nilai_toko.toFixed(1),
+    });
+    return renderPdfFromHtml(summaryHtml);
+}
 
     const html = `<!doctype html>
 <html lang="id">
