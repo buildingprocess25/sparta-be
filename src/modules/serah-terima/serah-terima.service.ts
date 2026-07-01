@@ -211,10 +211,10 @@ export const serahTerimaService = {
         // Validate the required opname data before writing a serah-terima placeholder.
         // Previously, a failed generation could leave a row with link_pdf = NULL.
         await assertSerahTerimaReady(idToko);
-        const { toko } = await buildDetailByTokoId(idToko);
+        const { toko: tokoInfo } = await buildDetailByTokoId(idToko);
         
-        if (toko.nomor_ulok) {
-            const scopes = await serahTerimaRepository.findTokoScopesByNomorUlok(toko.nomor_ulok);
+        if (tokoInfo.nomor_ulok) {
+            const scopes = await serahTerimaRepository.findTokoScopesByNomorUlok(tokoInfo.nomor_ulok);
             const activeScopes = scopes.filter((scope) =>
                 ["SIPIL", "ME"].includes(String(scope.lingkup_pekerjaan || "").trim().toUpperCase())
             );
@@ -230,13 +230,11 @@ export const serahTerimaService = {
                 }
                 
                 if (allReady) {
-                    console.log(`[ST] Auto-switching to unified ST for ULOK ${toko.nomor_ulok} triggered by id_toko=${idToko}`);
-                    return await serahTerimaService.createPdfSerahTerimaUnified(toko.nomor_ulok);
+                    console.log(`[ST] Auto-switching to unified ST for ULOK ${tokoInfo.nomor_ulok} triggered by id_toko=${idToko}`);
+                    return await serahTerimaService.createPdfSerahTerimaUnified(tokoInfo.nomor_ulok);
                 }
             }
         }
-
-        await buildDetailByTokoId(idToko);
 
         const placeholder = await serahTerimaRepository.ensureBerkasSerahTerima(idToko);
 
