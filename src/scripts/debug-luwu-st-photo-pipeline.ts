@@ -8,6 +8,7 @@ import { serahTerimaRepository } from "../modules/serah-terima/serah-terima.repo
 
 const nomorUlok = process.argv[2] || "2VZ1-2603-R614-R";
 const lingkup = process.argv[3] || "SIPIL";
+const includeRows = process.argv.includes("--rows");
 
 const main = async () => {
     await GoogleProvider.initialize();
@@ -105,7 +106,7 @@ const main = async () => {
             has_pengawasan_link: raw.rows.filter((row: any) => row.has_pengawasan_link).length,
             chosen_foto: raw.rows.filter((row: any) => row.chosen_foto_prefix).length,
         },
-        raw_rows: raw.rows,
+        raw_rows: includeRows ? raw.rows : undefined,
         repository_summary: {
             total: items.length,
             foto_values: items.filter((item) => String(item.foto ?? "").trim()).length,

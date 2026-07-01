@@ -246,9 +246,9 @@ export const ganttService = {
         const allActiveScopesReady = activeScopes.length > 0
             && activeScopes.every((scope) => isScopeReadyForSerahTerima(scope));
         const allReadyScopesGenerated = allActiveScopesReady
-            && activeScopes.every((scope) =>
-                Boolean(scope.link_pdf_serah_terima)
-            );
+            && activeScopes.every((scope) => Boolean(scope.link_pdf_serah_terima));
+        const allActiveScopesHaveExistingPdf = activeScopes.length > 0
+            && activeScopes.every((scope) => Boolean(scope.link_pdf_serah_terima));
 
         return {
             nomor_ulok: nomorUlok,
@@ -262,9 +262,9 @@ export const ganttService = {
                 .some((scope) => isScopeReadyForSerahTerima(scope)),
             serah_terima_generated: scopes
                 .filter((scope) => scope.gantt_id)
-                .some((scope) => isScopeReadyForSerahTerima(scope) && Boolean(scope.link_pdf_serah_terima)),
+                .some((scope) => Boolean(scope.link_pdf_serah_terima)),
             unified_serah_terima_ready: allActiveScopesReady,
-            unified_serah_terima_generated: allReadyScopesGenerated,
+            unified_serah_terima_generated: allReadyScopesGenerated || allActiveScopesHaveExistingPdf,
             ...unifiedMetadata,
         };
     },
