@@ -34,7 +34,7 @@ type DokumentasiBangunanPrefillOption = {
     spk_awal: string;
     spk_akhir: string;
     tanggal_serah_terima: string;
-    tanggal_serah_terima_source: "SERAH_TERIMA" | "SPK_AKHIR";
+    tanggal_serah_terima_source: "SERAH_TERIMA" | "NEEDS_ST";
 };
 
 const sanitizeFilenamePart = (value: string | undefined, fallback: string): string => {
@@ -339,7 +339,7 @@ export const dokumentasiBangunanService = {
                 spk_awal: "",
                 spk_akhir: "",
                 tanggal_serah_terima: "",
-                tanggal_serah_terima_source: "SPK_AKHIR"
+                tanggal_serah_terima_source: "NEEDS_ST"
             };
 
             option.cabang ||= firstText(row.cabang);
@@ -377,10 +377,7 @@ export const dokumentasiBangunanService = {
             option.kontraktor_sipil = contractor;
             option.kontraktor_me = contractor;
 
-            if (!option.tanggal_serah_terima) {
-                option.tanggal_serah_terima = option.spk_akhir;
-                option.tanggal_serah_terima_source = "SPK_AKHIR";
-            }
+            if (!option.tanggal_serah_terima) option.tanggal_serah_terima_source = "NEEDS_ST";
         }
 
         return [...grouped.values()].sort((left, right) => left.nomor_ulok.localeCompare(right.nomor_ulok));

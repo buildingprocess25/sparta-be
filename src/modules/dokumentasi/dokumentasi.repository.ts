@@ -331,39 +331,48 @@ export const dokumentasiBangunanRepository = {
             ) rab_latest ON true
             JOIN LATERAL (
                 SELECT
-                    ps.nama_kontraktor,
-                    ps.waktu_mulai,
-                    ps.waktu_selesai,
-                    COALESCE(
-                        extension_latest.approved_until,
-                        CASE
-                            WHEN ps.waktu_selesai::text ~ '^\\d{4}-\\d{2}-\\d{2}'
-                                THEN LEFT(ps.waktu_selesai::text, 10)::date
-                            WHEN ps.waktu_selesai::text ~ '^\\d{1,2}/\\d{1,2}/\\d{4}$'
-                                THEN to_date(ps.waktu_selesai::text, 'DD/MM/YYYY')
-                            ELSE NULL
-                        END
-                    )::text AS effective_waktu_selesai
-                FROM pengajuan_spk ps
-                LEFT JOIN LATERAL (
-                    SELECT MAX(
-                        CASE
-                            WHEN pt.tanggal_spk_akhir_setelah_perpanjangan::text ~ '^\\d{4}-\\d{2}-\\d{2}'
-                                THEN LEFT(pt.tanggal_spk_akhir_setelah_perpanjangan::text, 10)::date
-                            WHEN pt.tanggal_spk_akhir_setelah_perpanjangan::text ~ '^\\d{1,2}/\\d{1,2}/\\d{4}$'
-                                THEN to_date(pt.tanggal_spk_akhir_setelah_perpanjangan::text, 'DD/MM/YYYY')
-                            ELSE NULL
-                        END
-                    ) AS approved_until
-                    FROM pengajuan_spk ps_scope
-                    JOIN pertambahan_spk pt ON pt.id_spk = ps_scope.id
-                    WHERE UPPER(TRIM(COALESCE(ps_scope.nomor_ulok, ''))) = UPPER(TRIM(COALESCE(t.nomor_ulok, '')))
-                      AND UPPER(TRIM(COALESCE(pt.status_persetujuan, ''))) IN ('APPROVED', 'DISETUJUI', 'DISETUJUI BM')
-                ) extension_latest ON true
-                WHERE ps.id_toko = t.id
-                  AND UPPER(TRIM(COALESCE(ps.status, ''))) IN ('SPK_APPROVED', 'APPROVED', 'DISETUJUI')
-                ORDER BY ps.created_at DESC, ps.id DESC
-                LIMIT 1
+                    candidate.nama_kontraktor,
+                    candidate.waktu_mulai,
+                    candidate.waktu_selesai,
+                    candidate.effective_end_date::text AS effective_waktu_selesai
+                FROM (
+                    SELECT
+                        ps.nama_kontraktor,
+                        ps.waktu_mulai,
+                        ps.waktu_selesai,
+                        COALESCE(
+                            extension_latest.approved_until,
+                            CASE
+                                WHEN ps.waktu_selesai::text ~ '^\\d{4}-\\d{2}-\\d{2}'
+                                    THEN LEFT(ps.waktu_selesai::text, 10)::date
+                                WHEN ps.waktu_selesai::text ~ '^\\d{1,2}/\\d{1,2}/\\d{4}$'
+                                    THEN to_date(ps.waktu_selesai::text, 'DD/MM/YYYY')
+                                ELSE NULL
+                            END
+                        ) AS effective_end_date
+                    FROM pengajuan_spk ps
+                    LEFT JOIN LATERAL (
+                        SELECT MAX(
+                            CASE
+                                WHEN pt.tanggal_spk_akhir_setelah_perpanjangan::text ~ '^\\d{4}-\\d{2}-\\d{2}'
+                                    THEN LEFT(pt.tanggal_spk_akhir_setelah_perpanjangan::text, 10)::date
+                                WHEN pt.tanggal_spk_akhir_setelah_perpanjangan::text ~ '^\\d{1,2}/\\d{1,2}/\\d{4}$'
+                                    THEN to_date(pt.tanggal_spk_akhir_setelah_perpanjangan::text, 'DD/MM/YYYY')
+                                ELSE NULL
+                            END
+                        ) AS approved_until
+                        FROM pengajuan_spk ps_scope
+                        JOIN pertambahan_spk pt ON pt.id_spk = ps_scope.id
+                        WHERE UPPER(TRIM(COALESCE(ps_scope.nomor_ulok, ''))) = UPPER(TRIM(COALESCE(t.nomor_ulok, '')))
+                          AND UPPER(TRIM(COALESCE(pt.status_persetujuan, ''))) IN ('APPROVED', 'DISETUJUI', 'DISETUJUI BM')
+                    ) extension_latest ON true
+                    WHERE ps.id_toko = t.id
+                      AND UPPER(TRIM(COALESCE(ps.status, ''))) IN ('SPK_APPROVED', 'APPROVED', 'DISETUJUI')
+                    ORDER BY ps.created_at DESC, ps.id DESC
+                    LIMIT 1
+                ) candidate
+                WHERE candidate.effective_end_date IS NOT NULL
+                  AND candidate.effective_end_date <= CURRENT_DATE
             ) spk_latest ON true
             LEFT JOIN LATERAL (
                 SELECT bst.created_at

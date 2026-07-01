@@ -160,3 +160,25 @@ C:\alfamart\SPARTA\sparta-be\src\modules\serah-terima\serah-terima.pdf.ts:1:5: E
 }
 
 Node.js v22.19.0
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+Error: Transform failed with 1 error:
+C:\alfamart\SPARTA\sparta-be\src\modules\serah-terima\serah-terima.pdf.ts:1:5: ERROR: Expected ";" but found "import"
+    at failureErrorWithLog (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:1467:15)
+    at C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:736:50
+    at responseCallbacks.<computed> (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:603:9)
+    at handleIncomingPacket (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:658:12)
+    at Socket.readFromStdout (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:581:7)
+    at Socket.emit (node:events:519:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23) {
+  name: 'TransformError'
+}
+
+Node.js v22.19.0
+(node:22160) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
