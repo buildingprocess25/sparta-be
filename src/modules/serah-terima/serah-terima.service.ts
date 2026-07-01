@@ -3,7 +3,12 @@ import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
 import { calculateDendaByTokoId } from "../denda/denda-keterlambatan";
 import { opnameFinalService } from "../opname-final/opname-final.service";
-import { buildSerahTerimaPdfBuffer, buildSerahTerimaUnifiedCoverPdfBuffer } from "./serah-terima.pdf";
+import {
+    buildSerahTerimaPdfBuffer,
+    buildSerahTerimaUnifiedAssessmentPdfBuffer,
+    buildSerahTerimaUnifiedCoverPdfBuffer,
+    calculateSerahTerimaAssessmentScore
+} from "./serah-terima.pdf";
 import { serahTerimaRepository } from "./serah-terima.repository";
 import { PDFDocument } from "pdf-lib";
 
@@ -116,6 +121,39 @@ const assertSerahTerimaReady = async (idToko: number) => {
 };
 
 const automaticSerahTerimaInProgress = new Set<number>();
+const automaticUnifiedSerahTerimaInProgress = new Set<string>();
+
+const scheduleAutomaticUnifiedSerahTerimaIfReady = async (nomorUlok?: string | null): Promise<void> => {
+    const key = String(nomorUlok || "").trim();
+    if (!key || automaticUnifiedSerahTerimaInProgress.has(key)) return;
+
+    const scopes = await serahTerimaRepository.findTokoScopesByNomorUlok(key);
+    const activeScopes = scopes.filter((scope) =>
+        ["SIPIL", "ME"].includes(String(scope.lingkup_pekerjaan || "").trim().toUpperCase())
+    );
+    if (activeScopes.length < 2) return;
+
+    const readiness = await Promise.all(activeScopes.map((scope) => getSerahTerimaReadiness(scope.id)));
+    if (readiness.some((item) => !item.ready)) return;
+
+    automaticUnifiedSerahTerimaInProgress.add(key);
+    setImmediate(() => {
+        serahTerimaService
+            .createPdfSerahTerimaUnified(key)
+            .then((result) => {
+                console.log(`[ST][AUTO_UNIFIED] Berhasil generate unified ULOK=${key}, berkas=${result.id}`);
+            })
+            .catch((error) => {
+                console.error("[ST][AUTO_UNIFIED] Gagal generate unified", {
+                    nomorUlok: key,
+                    error: error instanceof Error ? error.message : String(error)
+                });
+            })
+            .finally(() => {
+                automaticUnifiedSerahTerimaInProgress.delete(key);
+            });
+    });
+};
 
 export const scheduleAutomaticSerahTerimaIfReady = async (idToko: number): Promise<void> => {
     if (automaticSerahTerimaInProgress.has(idToko)) return;
@@ -273,10 +311,14 @@ export const serahTerimaService = {
                             );
                         }
                     }
+                    await scheduleAutomaticUnifiedSerahTerimaIfReady(toko.nomor_ulok);
                 })
                 .catch((err) => {
                     console.error(`[ST Cascade] Gagal query sibling tokos: ${err?.message ?? err}`);
                 });
+            scheduleAutomaticUnifiedSerahTerimaIfReady(toko.nomor_ulok).catch((err) => {
+                console.error(`[ST][AUTO_UNIFIED] Gagal schedule ULOK ${toko.nomor_ulok}: ${err?.message ?? err}`);
+            });
         }
 
         return {
@@ -319,6 +361,7 @@ export const serahTerimaService = {
             kode_toko?: string | null;
             nama_kontraktor?: string | null;
             nilai_opname?: string | number | null;
+            nilai_toko: number;
         }> = [];
 
         for (const [index, scope] of targetScopes.entries()) {
@@ -339,6 +382,7 @@ export const serahTerimaService = {
                 kode_toko: toko.kode_toko,
                 nama_kontraktor: toko.nama_kontraktor,
                 nilai_opname: opnameFinal.grand_total_opname,
+                nilai_toko: calculateSerahTerimaAssessmentScore(items).nilaiToko,
             });
         }
 
@@ -354,8 +398,17 @@ export const serahTerimaService = {
             created_at: placeholder.created_at,
             scopes: details,
         });
+        const assessmentBuffer = await buildSerahTerimaUnifiedAssessmentPdfBuffer({
+            nomor_ulok: nomorUlok,
+            nama_toko: masterScope.nama_toko,
+            created_at: placeholder.created_at,
+            scopes: details.map((detail) => ({
+                lingkup_pekerjaan: detail.lingkup_pekerjaan,
+                nilai_toko: detail.nilai_toko,
+            })),
+        });
 
-        const mergedBuffer = await mergePdfBuffers([coverBuffer, ...pdfBuffers]);
+        const mergedBuffer = await mergePdfBuffers([coverBuffer, ...pdfBuffers, assessmentBuffer]);
 
         const proyek = sanitizeFilenamePart(masterScope.proyek ?? undefined, "PROYEK");
         const safeNomorUlok = sanitizeFilenamePart(nomorUlok, "ULOK");

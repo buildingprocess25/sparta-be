@@ -85,7 +85,7 @@ const countMatching = (
     return items.filter((item) => normalizeText(selector(item)) === normalizedExpected).length;
 };
 
-const buildAssessmentSummary = (items: SerahTerimaDetail["items"]) => {
+export const calculateSerahTerimaAssessmentScore = (items: SerahTerimaDetail["items"]) => {
     const total = items.length;
     const desainSesuai = countMatching(items, (item) => item.desain, "Sesuai");
     const kualitasBaik = countMatching(items, (item) => item.kualitas, "Baik");
@@ -95,25 +95,40 @@ const buildAssessmentSummary = (items: SerahTerimaDetail["items"]) => {
     const nilaiSpesifikasi = total > 0 ? (spesifikasiSesuai / total) * 35 : 0;
     const nilaiToko = nilaiDesain + nilaiKualitas + nilaiSpesifikasi;
 
+    return {
+        total,
+        desainSesuai,
+        kualitasBaik,
+        spesifikasiSesuai,
+        nilaiDesain,
+        nilaiKualitas,
+        nilaiSpesifikasi,
+        nilaiToko,
+    };
+};
+
+const buildAssessmentSummary = (items: SerahTerimaDetail["items"]) => {
+    const score = calculateSerahTerimaAssessmentScore(items);
+
     return [
         {
             label: "Desain Sesuai",
-            value: `${desainSesuai} dari ${total}`,
+            value: `${score.desainSesuai} dari ${score.total}`,
             detail: ""
         },
         {
             label: "Kualitas Baik",
-            value: `${kualitasBaik} dari ${total}`,
+            value: `${score.kualitasBaik} dari ${score.total}`,
             detail: ""
         },
         {
             label: "Spesifikasi Sesuai",
-            value: `${spesifikasiSesuai} dari ${total}`,
+            value: `${score.spesifikasiSesuai} dari ${score.total}`,
             detail: ""
         },
         {
             label: "Nilai Toko",
-            value: `${nilaiToko.toFixed(1)} / 100`,
+            value: `${score.nilaiToko.toFixed(1)} / 100`,
             detail: ""
         },
     ];
@@ -322,4 +337,85 @@ export const buildSerahTerimaUnifiedCoverPdfBuffer = async (input: {
 </html>`;
 
     return renderPdfFromHtml(html.replace("{{ sparta_pdf_css() | safe }}", "").replace(/{{ sparta_header\("Berita Acara Serah Terima Gabungan", "([^"]*)"\) \| safe }}/, ""));
+};
+
+export const buildSerahTerimaUnifiedAssessmentPdfBuffer = async (input: {
+    nomor_ulok: string;
+    nama_toko?: string | null;
+    created_at: string;
+    scopes: Array<{
+        lingkup_pekerjaan: string | null;
+        nilai_toko: number;
+    }>;
+}): Promise<Buffer> => {
+    const logo = staticAssetPath("Building-Logo.png");
+    const totalScore = input.scopes.reduce((sum, scope) => sum + Number(scope.nilai_toko || 0), 0);
+    const averageScore = input.scopes.length > 0 ? totalScore / input.scopes.length : 0;
+    const formula = input.scopes.length > 1
+        ? `(${input.scopes.map((scope) => `${scope.lingkup_pekerjaan || "-"} ${Number(scope.nilai_toko || 0).toFixed(1)}`).join(" + ")}) / ${input.scopes.length}`
+        : `${input.scopes[0]?.lingkup_pekerjaan || "-"} ${Number(input.scopes[0]?.nilai_toko || 0).toFixed(1)}`;
+    const rows = input.scopes.map((scope, index) => `
+        <tr>
+            <td class="center">${index + 1}</td>
+            <td>${scope.lingkup_pekerjaan || "-"}</td>
+            <td class="num">${Number(scope.nilai_toko || 0).toFixed(1)} / 100</td>
+        </tr>
+    `).join("");
+
+    const html = `<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    @page { size: A4; margin: 18mm; }
+    body { font-family: Arial, sans-serif; color: #0f172a; font-size: 12px; }
+    .header { border-bottom: 3px solid #dc2626; padding-bottom: 12px; margin-bottom: 24px; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .logo { width: 54px; height: 54px; object-fit: contain; }
+    h1 { margin: 0; color: #dc2626; font-size: 22px; letter-spacing: .3px; }
+    .subtitle { margin-top: 4px; color: #64748b; font-weight: 700; }
+    .meta { margin: 18px 0; border: 1px solid #cbd5e1; border-collapse: collapse; width: 100%; }
+    .meta td { border: 1px solid #cbd5e1; padding: 8px 10px; }
+    .label { background: #f8fafc; font-weight: 800; width: 26%; }
+    table.score { width: 100%; border-collapse: collapse; margin-top: 16px; }
+    .score th { background: #eff6ff; color: #0f172a; border: 1px solid #93c5fd; padding: 9px; }
+    .score td { border: 1px solid #cbd5e1; padding: 9px; }
+    .center { text-align: center; }
+    .num { text-align: right; font-weight: 800; }
+    .summary { margin-top: 28px; border: 2px solid #dc2626; padding: 18px; text-align: center; }
+    .summary-title { color: #64748b; text-transform: uppercase; font-size: 11px; font-weight: 800; letter-spacing: 1px; }
+    .summary-score { margin-top: 8px; color: #dc2626; font-size: 34px; font-weight: 900; }
+    .formula { margin-top: 8px; color: #475569; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="brand">
+      ${logo ? `<img class="logo" src="${logo}" />` : ""}
+      <div>
+        <h1>Nilai Toko Gabungan</h1>
+        <div class="subtitle">Rekap nilai akhir Serah Terima SIPIL + ME</div>
+      </div>
+    </div>
+  </div>
+  <table class="meta">
+    <tr><td class="label">Nomor ULOK</td><td>${input.nomor_ulok}</td></tr>
+    <tr><td class="label">Nama Toko</td><td>${input.nama_toko || "-"}</td></tr>
+    <tr><td class="label">Tanggal Dokumen</td><td>${formatDateIndonesia(input.created_at)}</td></tr>
+  </table>
+  <table class="score">
+    <thead>
+      <tr><th class="center">No</th><th>Lingkup</th><th class="num">Nilai Toko</th></tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div class="summary">
+    <div class="summary-title">Nilai Toko Rata-rata</div>
+    <div class="summary-score">${averageScore.toFixed(1)} / 100</div>
+    <div class="formula">${formula}</div>
+  </div>
+</body>
+</html>`;
+
+    return renderPdfFromHtml(html);
 };
