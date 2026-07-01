@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { env } from "../../config/env";
-import { isSameBranchScope } from "../../common/branch-scope";
+import { getBranchScopeCandidates } from "../../common/branch-scope";
+import { pool } from "../../db/pool";
 import { authSessionService, type AuthenticatedUser } from "./auth-session.service";
 import { canManageSystemMaintenance, systemMaintenanceService } from "../system-maintenance/system-maintenance.service";
 
@@ -42,6 +43,40 @@ function hasGlobalAccess(user: AuthenticatedUser): boolean {
     return user.roles.some((role) => GLOBAL_ACCESS_ROLES.includes(normalizeText(role)));
 }
 
+function isBranchSupportRole(user: AuthenticatedUser): boolean {
+    return user.roles.some((role) => normalizeText(role).includes("BRANCH BUILDING SUPPORT"));
+}
+
+async function getUserCoverageBranches(user: AuthenticatedUser): Promise<string[]> {
+    const result = await pool.query<{ covered_cabang: string }>(
+        `
+        SELECT DISTINCT ubc.covered_cabang
+        FROM user_cabang uc
+        JOIN user_branch_coverage ubc ON ubc.user_cabang_id = uc.id
+        WHERE LOWER(TRIM(uc.email_sat)) = LOWER(TRIM($1))
+          AND LOWER(TRIM(uc.cabang)) = LOWER(TRIM($2))
+        ORDER BY ubc.covered_cabang ASC
+        `,
+        [user.email_sat, user.cabang]
+    );
+
+    return result.rows.map(row => normalizeText(row.covered_cabang)).filter(Boolean);
+}
+
+async function canAccessRequestedBranch(user: AuthenticatedUser, requestedCabang: string): Promise<boolean> {
+    const normalizedRequested = normalizeText(requestedCabang);
+    const normalizedUserCabang = normalizeText(user.cabang);
+    if (!normalizedRequested || ["ALL", "SEMUA", "SEMUA CABANG", "-"].includes(normalizedRequested)) return true;
+
+    if (isBranchSupportRole(user)) {
+        return getBranchScopeCandidates(normalizedUserCabang).includes(normalizedRequested);
+    }
+
+    const coverage = await getUserCoverageBranches(user);
+    if (coverage.length > 0) return coverage.includes(normalizedRequested);
+    return normalizedRequested === normalizedUserCabang;
+}
+
 async function isMaintenanceActive(): Promise<boolean> {
     const now = Date.now();
     if (cachedMaintenanceStatus && cachedMaintenanceStatus.expiresAt > now) {
@@ -69,17 +104,13 @@ function getStringValue(value: unknown): string | null {
     return null;
 }
 
-function validateScopedRequest(req: Request, res: Response): boolean {
+async function validateScopedRequest(req: Request, res: Response): Promise<boolean> {
     const user = req.user;
     if (!user || hasGlobalAccess(user)) return true;
 
     const requestedCabang = getStringValue(req.query.cabang) ?? getStringValue((req.body as Record<string, unknown> | undefined)?.cabang);
     if (requestedCabang) {
-        const normalizedRequested = normalizeText(requestedCabang);
-        const normalizedUserCabang = normalizeText(user.cabang);
-        const isWildcard = ["ALL", "SEMUA", "SEMUA CABANG", "-"].includes(normalizedRequested);
-
-        if (!isWildcard && !isSameBranchScope(normalizedRequested, normalizedUserCabang)) {
+        if (!(await canAccessRequestedBranch(user, requestedCabang))) {
             res.status(403).json({
                 status: "error",
                 message: "Anda tidak memiliki akses ke cabang yang diminta."
@@ -154,7 +185,7 @@ export async function apiAuthMiddleware(req: Request, res: Response, next: NextF
                     rejectForMaintenance(res);
                     return;
                 }
-                if (env.AUTH_ENFORCEMENT_MODE === "strict" && !validateScopedRequest(req, res)) {
+                if (env.AUTH_ENFORCEMENT_MODE === "strict" && !(await validateScopedRequest(req, res))) {
                     return;
                 }
                 return next();

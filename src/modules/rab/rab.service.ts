@@ -332,6 +332,51 @@ const validateDirectorContractorApprovalCompany = async (
     }
 };
 
+const isBranchSupportRole = (jabatan?: string | null): boolean =>
+    String(jabatan ?? "").trim().toUpperCase().includes("BRANCH BUILDING SUPPORT");
+
+const matchesInternalApprovalRole = (userJabatan: string | null | undefined, actionJabatan: ApprovalActionInput["jabatan"]): boolean => {
+    const role = String(userJabatan ?? "").trim().toUpperCase();
+    if (actionJabatan === "KOORDINATOR") return role.includes("BRANCH BUILDING COORDINATOR") || role === "BBC";
+    if (actionJabatan === "MANAGER") return role.includes("BRANCH BUILDING & MAINTENANCE MANAGER") || role.includes("MAINTENANCE MANAGER") || role === "BBMM";
+    return false;
+};
+
+const canInternalUserAccessBranch = (user: { cabang?: string | null; jabatan?: string | null; coverage?: string[] }, targetCabang: string): boolean => {
+    const normalizedTarget = normalizeCabangForPrice(targetCabang);
+    if (!normalizedTarget) return false;
+
+    if (isBranchSupportRole(user.jabatan)) {
+        const scopeCandidates = getBranchScopeCandidates(user.cabang);
+        return scopeCandidates.includes(normalizedTarget);
+    }
+
+    const coverage = (user.coverage ?? []).map(normalizeCabangForPrice).filter(Boolean);
+    if (coverage.length > 0) return coverage.includes(normalizedTarget);
+    return normalizeCabangForPrice(user.cabang) === normalizedTarget;
+};
+
+const validateInternalApprovalBranchAccess = async (
+    data: { toko: { cabang?: string | null } },
+    action: ApprovalActionInput
+): Promise<void> => {
+    if (!["KOORDINATOR", "MANAGER"].includes(action.jabatan)) return;
+
+    const cabang = String(data.toko.cabang ?? "").trim();
+    const approverEmail = String(action.approver_email ?? "").trim();
+    if (!cabang || !approverEmail) {
+        throw new AppError("Data cabang atau email approver tidak valid untuk approval.", 422);
+    }
+
+    const approverRows = await userCabangRepository.findAll({ email_sat: approverEmail });
+    const matchingRoleRows = approverRows.filter(user => matchesInternalApprovalRole(user.jabatan, action.jabatan));
+    const canAccess = matchingRoleRows.some(user => canInternalUserAccessBranch(user, cabang));
+
+    if (!canAccess) {
+        throw new AppError(`Approver ${approverEmail} tidak memiliki akses approval untuk cabang ${cabang}.`, 403);
+    }
+};
+
 const validateRabCoordinatorAdditionalInfo = (action: ApprovalActionInput): void => {
     if (action.tindakan !== "APPROVE" || action.jabatan !== "KOORDINATOR") return;
 
@@ -1549,6 +1594,7 @@ export const rabService = {
             nama_kontraktor: data.toko.nama_kontraktor,
         };
 
+        await validateInternalApprovalBranchAccess(data, action);
         const newStatus = resolveStatusTransition(data.rab.status, action, data.toko.cabang);
         if (action.tindakan === "REJECT") {
             const revisionItemIds = action.revisi_item_ids ?? [];

@@ -1,6 +1,7 @@
 import { AppError } from "../../common/app-error";
 import { authOtpService } from "../auth/auth-otp.service";
 import { authSessionService } from "../auth/auth-session.service";
+import { userBranchCoverageRepository } from "../user-branch-coverage/user-branch-coverage.repository";
 import { tokoRepository } from "./toko.repository";
 import type { UserCabangRow } from "./toko.repository";
 import type {
@@ -22,6 +23,7 @@ const buildLoginResponse = async (input: {
 }) => {
     const alamatCabangRow = await tokoRepository.findAlamatCabangByCabang(input.matchedUser.cabang);
     const alamat_cabang = alamatCabangRow?.alamat ?? null;
+    const coverage = await userBranchCoverageRepository.findCoveredBranchesByUserCabangId(input.matchedUser.id);
     const session = await authSessionService.createForUser({
         email_sat: input.matchedUser.email_sat,
         cabang: input.matchedUser.cabang,
@@ -31,7 +33,7 @@ const buildLoginResponse = async (input: {
         nama_pt: input.matchedUser.nama_pt
     });
 
-    return { ...input.matchedUser, alamat_cabang, ...session };
+    return { ...input.matchedUser, coverage, alamat_cabang, ...session };
 };
 
 const resolveLoginCandidate = (input: {
