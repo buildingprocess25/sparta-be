@@ -132,6 +132,10 @@ export async function apiAuthMiddleware(req: Request, res: Response, next: NextF
         return next();
     }
 
+    if (req.method === "GET" && isMaintenanceControlPath(req.path)) {
+        return next();
+    }
+
     if (!isProtectedPath(req.path)) {
         return next();
     }

@@ -11,25 +11,27 @@ const cleanupAuthSessions = async () => {
     }
 };
 
-// Refresh Google OAuth tokens sebelum mulai listen
-GoogleProvider.initialize()
-    .then(async () => {
-        await authSessionRepository.ensureSchema();
-        await systemMaintenanceService.ensureSchema();
-        await cleanupAuthSessions();
-    })
-    .then(() => {
-        app.listen(env.PORT, () => {
-            console.log(`rab-service running on port ${env.PORT}`);
-        });
+const bootstrap = async () => {
+    await GoogleProvider.initialize();
+    await authSessionRepository.ensureSchema();
+    await systemMaintenanceService.ensureSchema();
+    await cleanupAuthSessions();
 
-        setInterval(() => {
-            cleanupAuthSessions().catch((error) => {
-                console.warn("Auth session cleanup gagal:", error);
-            });
-        }, 24 * 60 * 60 * 1000).unref();
-    })
-    .catch((err) => {
-        console.error("Fatal: gagal inisialisasi Google credentials:", err);
-        process.exit(1);
-    });
+    setInterval(() => {
+        cleanupAuthSessions().catch((error) => {
+            console.warn("Auth session cleanup gagal:", error);
+        });
+    }, 24 * 60 * 60 * 1000).unref();
+};
+
+app.listen(env.PORT, () => {
+    console.log(`rab-service running on port ${env.PORT}`);
+
+    bootstrap()
+        .then(() => {
+            console.log("Startup bootstrap selesai");
+        })
+        .catch((error) => {
+            console.error("Startup bootstrap gagal:", error);
+        });
+});
