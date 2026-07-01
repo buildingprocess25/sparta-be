@@ -67,10 +67,11 @@ const canViewAllBranches = (user: AuthenticatedUser) =>
         "STORE & BRANCH CONTROLLING SPECIALIST",
     ]);
 
-type ApprovalStage = "KOORDINATOR" | "MANAGER" | "DIREKTUR" | "KONTRAKTOR" | "ALL" | null;
+type ApprovalStage = "KOORDINATOR" | "MANAGER" | "DIREKTUR" | "DIREKTUR_KONTRAKTOR" | "KONTRAKTOR" | "ALL" | null;
 
 const getApprovalStage = (user: AuthenticatedUser): ApprovalStage => {
     if (isSuperHuman(user) || isRegionalManager(user)) return "ALL";
+    if (hasRole(user, "DIREKTUR KONTRAKTOR")) return "DIREKTUR_KONTRAKTOR";
     if (hasRole(user, "DIREKTUR")) return "DIREKTUR";
     if (hasRole(user, "KONTRAKTOR")) return "KONTRAKTOR";
     if (hasRole(user, "BRANCH BUILDING & MAINTENANCE MANAGER") || hasRole(user, "MANAGER")) return "MANAGER";
@@ -124,7 +125,8 @@ const addBranchScope = (user: AuthenticatedUser, values: SqlValue[], branchExpre
 };
 
 const addCompanyScope = (user: AuthenticatedUser, values: SqlValue[], companyExpression: string): string => {
-    if (!hasRole(user, "KONTRAKTOR") || !user.nama_pt) return "";
+    if (!hasRole(user, "KONTRAKTOR")) return "";
+    if (!user.nama_pt) return "AND FALSE";
     values.push(user.nama_pt);
     return `AND ${normalizeCompanySql(companyExpression)} = ${normalizeCompanySql(`$${values.length}::text`)}`;
 };
@@ -193,7 +195,11 @@ const findRabApproval = async (user: AuthenticatedUser): Promise<NotificationRow
             ? ["Menunggu Persetujuan Koordinator"]
             : stage === "MANAGER"
                 ? ["Menunggu Persetujuan Manajer"]
-                : ["Menunggu Persetujuan Direktur Kontraktor"];
+                : stage === "DIREKTUR" || stage === "DIREKTUR_KONTRAKTOR"
+                    ? ["Menunggu Persetujuan Direktur Kontraktor"]
+                    : [];
+
+    if (statuses.length === 0) return [];
 
     values.push(statuses);
     const branchWhere = addBranchScope(user, values, "t.cabang");
@@ -294,7 +300,7 @@ const findOpnameApproval = async (user: AuthenticatedUser): Promise<Notification
             ? ["Menunggu Persetujuan Koordinator"]
             : stage === "MANAGER"
                 ? ["Menunggu Persetujuan Manajer"]
-                : stage === "DIREKTUR" || stage === "KONTRAKTOR"
+                : stage === "DIREKTUR_KONTRAKTOR"
                     ? ["Menunggu Persetujuan Direktur Kontraktor"]
                     : [];
 
