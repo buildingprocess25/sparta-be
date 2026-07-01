@@ -182,3 +182,5 @@ C:\alfamart\SPARTA\sparta-be\src\modules\serah-terima\serah-terima.pdf.ts:1:5: E
 Node.js v22.19.0
 (node:22160) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
 (Use `node --trace-deprecation ...` to show where the warning was created)
+(node:25744) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)

@@ -16,6 +16,14 @@ const parseDate = (value: unknown) => {
     return date && !Number.isNaN(date.getTime()) ? date : null;
 };
 
+const isDateEffective = (value: unknown, now = new Date()) => {
+    const date = parseDate(value);
+    if (!date) return false;
+    const effectiveDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return effectiveDate.getTime() <= today.getTime();
+};
+
 const dayDiff = (from: Date | null, to: Date | null = new Date()) => {
     if (!from || !to) return 0;
     return Math.max(0, Math.floor((to.getTime() - from.getTime()) / 86_400_000));
@@ -36,16 +44,17 @@ const spkAllowedDays = (spk: ReturnType<typeof approvedSpks>[number]) => {
 };
 
 export const getDashboardStage = (project: DashboardData) => {
+    const now = new Date();
     const rab = project.rab[0];
     const rabStatus = normalize(rab?.status);
     const hasApprovedSpk = project.spk.some((spk) =>
         ["APPROVED", "ACTIVE", "SPK_APPROVED", "DISETUJUI", "AKTIF", "SELESAI"].includes(normalize(spk.status))
     );
     const hasWaitingSpk = project.spk.some((spk) => normalize(spk.status) === "WAITING_FOR_BM_APPROVAL");
-    const opname = project.opname_final.find((item) => String(item.link_pdf_opname || "").trim());
-    const hasSt = project.berkas_serah_terima.length > 0;
+    const opname = project.opname_final.find((item) => String(item.link_pdf_opname || "").trim() && isDateEffective(item.created_at, now));
+    const hasSt = project.berkas_serah_terima.some((item) => isDateEffective(item.created_at, now));
 
-    if (opname && normalize(opname.status_opname_final) === "DISETUJUI" && opname.waktu_persetujuan_direktur) return "Done";
+    if (opname && normalize(opname.status_opname_final) === "DISETUJUI" && isDateEffective(opname.waktu_persetujuan_direktur, now)) return "Done";
     if (opname || hasSt) return "Kerja Tambah Kurang";
     if (hasApprovedSpk) return "Ongoing";
     if (hasWaitingSpk) return "Approval SPK";
