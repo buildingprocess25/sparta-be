@@ -489,6 +489,39 @@ export const serahTerimaService = {
         const proyek = sanitizeFilenamePart(toko.proyek ?? undefined, "PROYEK");
         const nomorUlok = sanitizeFilenamePart(toko.nomor_ulok ?? undefined, "ULOK");
 
+        if (toko.nomor_ulok) {
+            const scopes = await serahTerimaRepository.findTokoScopesByNomorUlok(toko.nomor_ulok);
+            const activeScopes = scopes.filter((scope) =>
+                ["SIPIL", "ME"].includes(String(scope.lingkup_pekerjaan || "").trim().toUpperCase())
+            );
+            const hasSipil = activeScopes.some((scope) => String(scope.lingkup_pekerjaan || "").trim().toUpperCase() === "SIPIL");
+            const hasMe = activeScopes.some((scope) => String(scope.lingkup_pekerjaan || "").trim().toUpperCase() === "ME");
+
+            if (hasSipil && hasMe) {
+                const readiness = await Promise.all(activeScopes.map((scope) => getSerahTerimaReadiness(scope.id)));
+                if (readiness.every((item) => item.ready)) {
+                    const regenerated = await serahTerimaService.createPdfSerahTerimaUnified(toko.nomor_ulok);
+                    const fileId = extractDriveFileId(regenerated.link_pdf);
+                    if (fileId) {
+                        const gp = GoogleProvider.instance;
+                        let unifiedBuffer: Buffer | null = null;
+                        if (gp.spartaDrive) {
+                            unifiedBuffer = await gp.getFileBufferById(gp.spartaDrive, fileId);
+                        }
+                        if (!unifiedBuffer && gp.docDrive) {
+                            unifiedBuffer = await gp.getFileBufferById(gp.docDrive, fileId);
+                        }
+                        if (unifiedBuffer && unifiedBuffer.length > 0) {
+                            return {
+                                buffer: unifiedBuffer,
+                                filename: `SERAH_TERIMA_UNIFIED_${proyek}_${nomorUlok}.pdf`,
+                            };
+                        }
+                    }
+                }
+            }
+        }
+
         if (berkas.link_pdf) {
             const gp = GoogleProvider.instance;
             const fileId = extractDriveFileId(berkas.link_pdf);
