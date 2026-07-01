@@ -55,6 +55,7 @@ const hasAnyRole = (user: AuthenticatedUser, matchers: string[]) =>
 const isSuperHuman = (user: AuthenticatedUser) => hasRole(user, "SUPER HUMAN");
 const isRegionalManager = (user: AuthenticatedUser) => hasRole(user, "REGIONAL MANAGER");
 const isHeadOffice = (user: AuthenticatedUser) => normalize(user.cabang) === "HEAD OFFICE";
+const isBranchSupportRole = (user: AuthenticatedUser) => hasRole(user, "BRANCH BUILDING SUPPORT");
 
 const canViewAllBranches = (user: AuthenticatedUser) =>
     isHeadOffice(user)
@@ -82,9 +83,44 @@ const normalizeCompanySql = (expression: string) =>
 
 const addBranchScope = (user: AuthenticatedUser, values: SqlValue[], branchExpression: string): string => {
     if (canViewAllBranches(user)) return "";
-    const branches = getBranchScopeCandidates(user.cabang);
-    values.push(branches);
-    return `AND UPPER(TRIM(COALESCE(${branchExpression}, ''))) = ANY($${values.length}::text[])`;
+
+    if (isBranchSupportRole(user)) {
+        const branches = getBranchScopeCandidates(user.cabang);
+        values.push(branches);
+        return `AND UPPER(TRIM(COALESCE(${branchExpression}, ''))) = ANY($${values.length}::text[])`;
+    }
+
+    values.push(user.email_sat);
+    const emailIndex = values.length;
+    values.push(user.cabang);
+    const cabangIndex = values.length;
+    values.push(user.cabang);
+    const fallbackCabangIndex = values.length;
+
+    return `
+        AND (
+            EXISTS (
+                SELECT 1
+                FROM user_cabang uc_scope
+                JOIN user_branch_coverage ubc_scope
+                  ON ubc_scope.user_cabang_id = uc_scope.id
+                WHERE LOWER(TRIM(uc_scope.email_sat)) = LOWER(TRIM($${emailIndex}))
+                  AND LOWER(TRIM(uc_scope.cabang)) = LOWER(TRIM($${cabangIndex}))
+                  AND UPPER(TRIM(ubc_scope.covered_cabang)) = UPPER(TRIM(COALESCE(${branchExpression}, '')))
+            )
+            OR (
+                NOT EXISTS (
+                    SELECT 1
+                    FROM user_cabang uc_scope
+                    JOIN user_branch_coverage ubc_scope
+                      ON ubc_scope.user_cabang_id = uc_scope.id
+                    WHERE LOWER(TRIM(uc_scope.email_sat)) = LOWER(TRIM($${emailIndex}))
+                      AND LOWER(TRIM(uc_scope.cabang)) = LOWER(TRIM($${cabangIndex}))
+                )
+                AND UPPER(TRIM(COALESCE(${branchExpression}, ''))) = UPPER(TRIM($${fallbackCabangIndex}))
+            )
+        )
+    `;
 };
 
 const addCompanyScope = (user: AuthenticatedUser, values: SqlValue[], companyExpression: string): string => {
@@ -93,7 +129,15 @@ const addCompanyScope = (user: AuthenticatedUser, values: SqlValue[], companyExp
     return `AND ${normalizeCompanySql(companyExpression)} = ${normalizeCompanySql(`$${values.length}::text`)}`;
 };
 
-const toCount = (rows: NotificationRow[]) => rows.length;
+const toCount = (rows: NotificationRow[]) => {
+    if (rows.length === 0) return 0;
+    const totalsByEntity = new Map<string, number>();
+    for (const row of rows) {
+        const total = Number(row.total_count) || 0;
+        totalsByEntity.set(row.entity_type, Math.max(totalsByEntity.get(row.entity_type) ?? 0, total));
+    }
+    return Array.from(totalsByEntity.values()).reduce((sum, total) => sum + total, 0);
+};
 
 const toItems = (rows: NotificationRow[]): TaskNotificationItem[] =>
     rows.map(row => ({
