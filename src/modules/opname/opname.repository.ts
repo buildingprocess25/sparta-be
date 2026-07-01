@@ -206,6 +206,11 @@ export const opnameRepository = {
                 SELECT ${opnameFinalColumns}
                 FROM opname_final
                 WHERE id_toko = $1 AND tipe_opname = ANY($2::text[])
+                  AND EXISTS (
+                      SELECT 1
+                      FROM opname_item oi
+                      WHERE oi.id_opname_final = opname_final.id
+                  )
                 ORDER BY id DESC
                 LIMIT 1
                 FOR UPDATE

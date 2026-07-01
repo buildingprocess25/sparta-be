@@ -224,6 +224,14 @@ export const opnameFinalRepository = {
             conditions.push(`ofn.tipe_opname = $${values.length}`);
         }
 
+        conditions.push(`
+            EXISTS (
+                SELECT 1
+                FROM opname_item oi
+                WHERE oi.id_opname_final = ofn.id
+            )
+        `);
+
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
         const result = await pool.query<OpnameFinalListRow>(
