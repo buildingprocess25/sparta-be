@@ -7,11 +7,32 @@ types.setTypeParser(1082, (val: string) => val);          // date
 types.setTypeParser(1114, (val: string) => val);          // timestamp without timezone
 types.setTypeParser(1184, (val: string) => val);          // timestamp with timezone
 
+type PgSslConfig = false | { rejectUnauthorized: boolean };
+
+const parseDatabaseUrl = (rawUrl: string): URL => {
+    const parsed = new URL(rawUrl);
+    return parsed;
+};
+
+const buildConnectionString = (rawUrl: string): string => {
+    const parsed = parseDatabaseUrl(rawUrl);
+    parsed.searchParams.delete("sslmode");
+    parsed.searchParams.delete("ssl");
+    return parsed.toString();
+};
+
+const buildSslConfig = (rawUrl: string): PgSslConfig => {
+    const parsed = parseDatabaseUrl(rawUrl);
+    const sslMode = (process.env.PGSSLMODE || parsed.searchParams.get("sslmode") || "require").trim().toLowerCase();
+
+    if (sslMode === "disable") return false;
+    if (sslMode === "verify-full" || sslMode === "verify-ca") return { rejectUnauthorized: true };
+    return { rejectUnauthorized: false };
+};
+
 export const pool = new Pool({
-    connectionString: env.DATABASE_URL,
-    ssl: {
-        rejectUnauthorized: false
-    },
+    connectionString: buildConnectionString(env.DATABASE_URL),
+    ssl: buildSslConfig(env.DATABASE_URL),
     max: env.PG_POOL_MAX,
     keepAlive: env.PG_KEEP_ALIVE,
     connectionTimeoutMillis: env.PG_CONN_TIMEOUT_MS,
