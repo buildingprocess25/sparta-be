@@ -21,7 +21,7 @@ const isDateEffective = (value: unknown, now = new Date()) => {
     if (!date) return false;
     const effectiveDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    return effectiveDate.getTime() <= today.getTime();
+    return effectiveDate.getTime() < today.getTime();
 };
 
 const dayDiff = (from: Date | null, to: Date | null = new Date()) => {
