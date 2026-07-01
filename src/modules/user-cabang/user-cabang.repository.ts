@@ -9,6 +9,7 @@ export type UserCabangRow = {
     jabatan: string | null;
     email_sat: string;
     nama_pt: string | null;
+    coverage?: string[];
 };
 
 export const userCabangRepository = {
@@ -34,7 +35,7 @@ export const userCabangRepository = {
     async findById(id: number): Promise<UserCabangRow | null> {
         const result = await pool.query<UserCabangRow>(
             `
-      SELECT id, cabang, nama_lengkap, jabatan, email_sat, nama_pt
+            SELECT id, cabang, nama_lengkap, jabatan, email_sat, nama_pt, ARRAY[]::text[] AS coverage
       FROM user_cabang
       WHERE id = $1
       `,
@@ -52,45 +53,57 @@ export const userCabangRepository = {
             values.push(`%${query.search}%`);
             const index = values.length;
             filters.push(`(
-                cabang ILIKE $${index}
-                OR nama_lengkap ILIKE $${index}
-                OR jabatan ILIKE $${index}
-                OR email_sat ILIKE $${index}
-                OR nama_pt ILIKE $${index}
+                uc.cabang ILIKE $${index}
+                OR uc.nama_lengkap ILIKE $${index}
+                OR uc.jabatan ILIKE $${index}
+                OR uc.email_sat ILIKE $${index}
+                OR uc.nama_pt ILIKE $${index}
             )`);
         }
 
         if (query.cabang) {
             if (query.include_branch_scope) {
                 values.push(getBranchScopeCandidates(query.cabang));
-                filters.push(`UPPER(TRIM(cabang)) = ANY($${values.length}::text[])`);
+                filters.push(`UPPER(TRIM(uc.cabang)) = ANY($${values.length}::text[])`);
             } else {
                 values.push(query.cabang);
-                filters.push(`LOWER(cabang) = LOWER($${values.length})`);
+                filters.push(`LOWER(uc.cabang) = LOWER($${values.length})`);
             }
         }
 
         if (query.email_sat) {
             values.push(query.email_sat.trim());
-            filters.push(`LOWER(TRIM(email_sat)) = LOWER($${values.length})`);
+            filters.push(`LOWER(TRIM(uc.email_sat)) = LOWER($${values.length})`);
         }
 
         if (query.jabatan) {
             values.push(query.jabatan);
-            filters.push(`LOWER(jabatan) = LOWER($${values.length})`);
+            filters.push(`LOWER(uc.jabatan) = LOWER($${values.length})`);
         }
 
         if (query.nama_pt) {
             values.push(query.nama_pt);
-            filters.push(`LOWER(nama_pt) = LOWER($${values.length})`);
+            filters.push(`LOWER(uc.nama_pt) = LOWER($${values.length})`);
         }
 
         const whereClause = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
         const result = await pool.query<UserCabangRow>(
             `
-            SELECT id, cabang, nama_lengkap, jabatan, email_sat, nama_pt
-      FROM user_cabang
+            SELECT
+                uc.id,
+                uc.cabang,
+                uc.nama_lengkap,
+                uc.jabatan,
+                uc.email_sat,
+                uc.nama_pt,
+                COALESCE(
+                    ARRAY_REMOVE(ARRAY_AGG(ubc.covered_cabang ORDER BY ubc.covered_cabang), NULL),
+                    ARRAY[]::text[]
+                ) AS coverage
+      FROM user_cabang uc
+      LEFT JOIN user_branch_coverage ubc ON ubc.user_cabang_id = uc.id
       ${whereClause}
+      GROUP BY uc.id, uc.cabang, uc.nama_lengkap, uc.jabatan, uc.email_sat, uc.nama_pt
       ORDER BY cabang ASC, nama_lengkap ASC, email_sat ASC
       `,
             values
@@ -150,11 +163,17 @@ export const userCabangRepository = {
         const branchCandidates = getBranchScopeCandidates(cabang);
         const result = await pool.query<UserCabangRow>(
             `
-      SELECT id, cabang, nama_lengkap, jabatan, email_sat, nama_pt
-      FROM user_cabang
-      WHERE UPPER(TRIM(cabang)) = ANY($1::text[])
-        AND LOWER(jabatan) = LOWER($2)
-      ORDER BY CASE WHEN LOWER(cabang) = LOWER($3) THEN 0 ELSE 1 END, email_sat ASC
+      SELECT uc.id, uc.cabang, uc.nama_lengkap, uc.jabatan, uc.email_sat, uc.nama_pt, ARRAY[]::text[] AS coverage
+      FROM user_cabang uc
+      LEFT JOIN user_branch_coverage ubc
+        ON ubc.user_cabang_id = uc.id
+       AND UPPER(TRIM(ubc.covered_cabang)) = UPPER(TRIM($3))
+      WHERE UPPER(TRIM(uc.cabang)) = ANY($1::text[])
+        AND LOWER(uc.jabatan) = LOWER($2)
+      ORDER BY
+        CASE WHEN UPPER(TRIM(uc.cabang)) = UPPER(TRIM($3)) THEN 0 ELSE 1 END,
+        CASE WHEN ubc.id IS NOT NULL THEN 0 ELSE 1 END,
+        uc.email_sat ASC
       LIMIT 1
       `,
             [branchCandidates, jabatan, cabang]

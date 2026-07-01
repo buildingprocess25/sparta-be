@@ -19,7 +19,8 @@ export type ListTokoQueryInput = z.infer<typeof listTokoQuerySchema>;
 
 export const loginUserCabangSchema = z.object({
     email_sat: z.string().trim().email(),
-    cabang: z.string().trim().min(1)
+    cabang: z.string().trim().min(1),
+    user_cabang_id: z.coerce.number().int().positive().optional()
 });
 
 export type LoginUserCabangInput = z.infer<typeof loginUserCabangSchema>;
@@ -27,6 +28,7 @@ export type LoginUserCabangInput = z.infer<typeof loginUserCabangSchema>;
 export const verifyOtpSchema = z.object({
     email_sat: z.string().trim().email(),
     cabang: z.string().trim().min(1),
+    user_cabang_id: z.coerce.number().int().positive().optional(),
     otp_token: z.string().trim().min(1),
     otp_code: z.string().trim().regex(/^\d{6}$/)
 });

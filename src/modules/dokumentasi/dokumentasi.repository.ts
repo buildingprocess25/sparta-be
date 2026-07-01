@@ -1,4 +1,5 @@
 import { pool, withTransaction } from "../../db/pool";
+import { getBranchScopeCandidates } from "../../common/branch-scope";
 import type {
     DokumentasiBangunanCreateInput,
     DokumentasiBangunanListQueryInput,
@@ -231,11 +232,11 @@ export const dokumentasiBangunanRepository = {
 
     async list(query: DokumentasiBangunanListQueryInput): Promise<DokumentasiBangunanRow[]> {
         const conditions: string[] = [];
-        const values: Array<string> = [];
+        const values: Array<string | string[]> = [];
 
         if (query.cabang) {
-            values.push(query.cabang);
-            conditions.push(`LOWER(cabang) = LOWER($${values.length})`);
+            values.push(getBranchScopeCandidates(query.cabang));
+            conditions.push(`UPPER(TRIM(cabang)) = ANY($${values.length}::text[])`);
         }
 
         if (query.kode_toko) {
@@ -286,11 +287,11 @@ export const dokumentasiBangunanRepository = {
         const conditions: string[] = [
             `NULLIF(TRIM(COALESCE(t.nomor_ulok, '')), '') IS NOT NULL`
         ];
-        const values: Array<string> = [];
+        const values: Array<string | string[]> = [];
 
         if (query.cabang) {
-            values.push(query.cabang);
-            conditions.push(`LOWER(t.cabang) = LOWER($${values.length})`);
+            values.push(getBranchScopeCandidates(query.cabang));
+            conditions.push(`UPPER(TRIM(t.cabang)) = ANY($${values.length}::text[])`);
         }
 
         if (!query.include_submitted) {

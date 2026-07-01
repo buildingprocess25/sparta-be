@@ -1,4 +1,5 @@
 import { pool } from "../../db/pool";
+import { getBranchScopeCandidates } from "../../common/branch-scope";
 import type { CreateTokoInput, ListTokoQueryInput, GetTokoDetailQueryInput, UpdateTokoByIdBodyInput } from "./toko.schema";
 
 export type TokoRow = {
@@ -14,6 +15,7 @@ export type TokoRow = {
 };
 
 export type UserCabangRow = {
+    id: number;
     cabang: string;
     nama_lengkap: string;
     jabatan: string;
@@ -213,7 +215,7 @@ export const tokoRepository = {
     async findAll(query: ListTokoQueryInput): Promise<TokoRow[]> {
         const { search, cabang } = query;
         const filters: string[] = [];
-        const values: string[] = [];
+        const values: Array<string | string[]> = [];
 
         if (search) {
             values.push(`%${search}%`);
@@ -224,9 +226,9 @@ export const tokoRepository = {
         }
 
         if (cabang) {
-            values.push(cabang);
+            values.push(getBranchScopeCandidates(cabang));
             const cabangIndex = values.length;
-            filters.push(`LOWER(cabang) = LOWER($${cabangIndex})`);
+            filters.push(`UPPER(TRIM(cabang)) = ANY($${cabangIndex}::text[])`);
         }
 
         const whereClause = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
@@ -246,7 +248,7 @@ export const tokoRepository = {
     async findUserCabangByEmailSat(emailSat: string): Promise<UserCabangRow | null> {
         const result = await pool.query<UserCabangRow>(
             `
-      SELECT cabang, nama_lengkap, jabatan, email_sat, nama_pt
+      SELECT id, cabang, nama_lengkap, jabatan, email_sat, nama_pt
       FROM user_cabang
       WHERE LOWER(TRIM(email_sat)) = LOWER(TRIM($1))
       LIMIT 1
@@ -260,10 +262,10 @@ export const tokoRepository = {
     async findUserCabangByEmailSatAll(emailSat: string): Promise<UserCabangRow[]> {
         const result = await pool.query<UserCabangRow>(
             `
-      SELECT cabang, nama_lengkap, jabatan, email_sat, nama_pt
+      SELECT id, cabang, nama_lengkap, jabatan, email_sat, nama_pt
       FROM user_cabang
       WHERE LOWER(TRIM(email_sat)) = LOWER(TRIM($1))
-      ORDER BY jabatan ASC
+      ORDER BY jabatan ASC, id ASC
       `,
             [emailSat]
         );
@@ -274,7 +276,7 @@ export const tokoRepository = {
     async findUserCabangByEmailSatAndCabang(emailSat: string, cabang: string): Promise<UserCabangRow | null> {
         const result = await pool.query<UserCabangRow>(
             `
-      SELECT cabang, nama_lengkap, jabatan, email_sat, nama_pt
+      SELECT id, cabang, nama_lengkap, jabatan, email_sat, nama_pt
       FROM user_cabang
       WHERE LOWER(TRIM(email_sat)) = LOWER(TRIM($1))
         AND LOWER(cabang) = LOWER($2)

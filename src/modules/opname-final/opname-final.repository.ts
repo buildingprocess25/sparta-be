@@ -1,4 +1,5 @@
 import { pool, withTransaction } from "../../db/pool";
+import { getBranchScopeCandidates } from "../../common/branch-scope";
 import type { ApprovalActionInput } from "../approval/approval.schema";
 import { calculateOpnameFinalFinancials, isNoPpnArea } from "./opname-final.financial";
 import type { OpnameFinalStatus } from "./opname-final.constants";
@@ -186,7 +187,7 @@ const approvalTimestampExpression = "to_char(timezone('Asia/Jakarta', now()), 'Y
 export const opnameFinalRepository = {
     async list(filter: OpnameFinalListQueryInput): Promise<OpnameFinalListRow[]> {
         const conditions: string[] = [];
-        const values: Array<string | number> = [];
+        const values: Array<string | number | string[]> = [];
 
         if (filter.status) {
             values.push(filter.status);
@@ -209,8 +210,8 @@ export const opnameFinalRepository = {
         }
 
         if (filter.cabang) {
-            values.push(filter.cabang);
-            conditions.push(`t.cabang = $${values.length}`);
+            values.push(getBranchScopeCandidates(filter.cabang));
+            conditions.push(`UPPER(TRIM(t.cabang)) = ANY($${values.length}::text[])`);
         }
 
         if (filter.nama_kontraktor) {
@@ -237,26 +238,34 @@ export const opnameFinalRepository = {
             JOIN toko t ON t.id = ofn.id_toko
             LEFT JOIN LATERAL (
                 SELECT uc.nama_lengkap FROM user_cabang uc
+                LEFT JOIN user_branch_coverage ubc ON ubc.user_cabang_id = uc.id
+                  AND UPPER(TRIM(ubc.covered_cabang)) = UPPER(TRIM(t.cabang))
                 WHERE LOWER(uc.email_sat) = LOWER(ofn.email_pembuat)
-                ORDER BY CASE WHEN UPPER(uc.cabang) = UPPER(t.cabang) THEN 0 ELSE 1 END, uc.id
+                ORDER BY CASE WHEN UPPER(uc.cabang) = UPPER(t.cabang) THEN 0 ELSE 1 END, CASE WHEN ubc.id IS NOT NULL THEN 0 ELSE 1 END, uc.id
                 LIMIT 1
             ) creator_user ON TRUE
             LEFT JOIN LATERAL (
                 SELECT uc.nama_lengkap FROM user_cabang uc
+                LEFT JOIN user_branch_coverage ubc ON ubc.user_cabang_id = uc.id
+                  AND UPPER(TRIM(ubc.covered_cabang)) = UPPER(TRIM(t.cabang))
                 WHERE LOWER(uc.email_sat) = LOWER(ofn.pemberi_persetujuan_direktur)
-                ORDER BY CASE WHEN UPPER(uc.cabang) = UPPER(t.cabang) THEN 0 ELSE 1 END, uc.id
+                ORDER BY CASE WHEN UPPER(uc.cabang) = UPPER(t.cabang) THEN 0 ELSE 1 END, CASE WHEN ubc.id IS NOT NULL THEN 0 ELSE 1 END, uc.id
                 LIMIT 1
             ) director_user ON TRUE
             LEFT JOIN LATERAL (
                 SELECT uc.nama_lengkap FROM user_cabang uc
+                LEFT JOIN user_branch_coverage ubc ON ubc.user_cabang_id = uc.id
+                  AND UPPER(TRIM(ubc.covered_cabang)) = UPPER(TRIM(t.cabang))
                 WHERE LOWER(uc.email_sat) = LOWER(ofn.pemberi_persetujuan_koordinator)
-                ORDER BY CASE WHEN UPPER(uc.cabang) = UPPER(t.cabang) THEN 0 ELSE 1 END, uc.id
+                ORDER BY CASE WHEN UPPER(uc.cabang) = UPPER(t.cabang) THEN 0 ELSE 1 END, CASE WHEN ubc.id IS NOT NULL THEN 0 ELSE 1 END, uc.id
                 LIMIT 1
             ) coordinator_user ON TRUE
             LEFT JOIN LATERAL (
                 SELECT uc.nama_lengkap FROM user_cabang uc
+                LEFT JOIN user_branch_coverage ubc ON ubc.user_cabang_id = uc.id
+                  AND UPPER(TRIM(ubc.covered_cabang)) = UPPER(TRIM(t.cabang))
                 WHERE LOWER(uc.email_sat) = LOWER(ofn.pemberi_persetujuan_manager)
-                ORDER BY CASE WHEN UPPER(uc.cabang) = UPPER(t.cabang) THEN 0 ELSE 1 END, uc.id
+                ORDER BY CASE WHEN UPPER(uc.cabang) = UPPER(t.cabang) THEN 0 ELSE 1 END, CASE WHEN ubc.id IS NOT NULL THEN 0 ELSE 1 END, uc.id
                 LIMIT 1
             ) manager_user ON TRUE
               ${whereClause}
@@ -290,26 +299,34 @@ export const opnameFinalRepository = {
             JOIN toko t ON t.id = ofn.id_toko
             LEFT JOIN LATERAL (
                 SELECT uc.nama_lengkap FROM user_cabang uc
+                LEFT JOIN user_branch_coverage ubc ON ubc.user_cabang_id = uc.id
+                  AND UPPER(TRIM(ubc.covered_cabang)) = UPPER(TRIM(t.cabang))
                 WHERE LOWER(uc.email_sat) = LOWER(ofn.email_pembuat)
-                ORDER BY CASE WHEN UPPER(uc.cabang) = UPPER(t.cabang) THEN 0 ELSE 1 END, uc.id
+                ORDER BY CASE WHEN UPPER(uc.cabang) = UPPER(t.cabang) THEN 0 ELSE 1 END, CASE WHEN ubc.id IS NOT NULL THEN 0 ELSE 1 END, uc.id
                 LIMIT 1
             ) creator_user ON TRUE
             LEFT JOIN LATERAL (
                 SELECT uc.nama_lengkap FROM user_cabang uc
+                LEFT JOIN user_branch_coverage ubc ON ubc.user_cabang_id = uc.id
+                  AND UPPER(TRIM(ubc.covered_cabang)) = UPPER(TRIM(t.cabang))
                 WHERE LOWER(uc.email_sat) = LOWER(ofn.pemberi_persetujuan_direktur)
-                ORDER BY CASE WHEN UPPER(uc.cabang) = UPPER(t.cabang) THEN 0 ELSE 1 END, uc.id
+                ORDER BY CASE WHEN UPPER(uc.cabang) = UPPER(t.cabang) THEN 0 ELSE 1 END, CASE WHEN ubc.id IS NOT NULL THEN 0 ELSE 1 END, uc.id
                 LIMIT 1
             ) director_user ON TRUE
             LEFT JOIN LATERAL (
                 SELECT uc.nama_lengkap FROM user_cabang uc
+                LEFT JOIN user_branch_coverage ubc ON ubc.user_cabang_id = uc.id
+                  AND UPPER(TRIM(ubc.covered_cabang)) = UPPER(TRIM(t.cabang))
                 WHERE LOWER(uc.email_sat) = LOWER(ofn.pemberi_persetujuan_koordinator)
-                ORDER BY CASE WHEN UPPER(uc.cabang) = UPPER(t.cabang) THEN 0 ELSE 1 END, uc.id
+                ORDER BY CASE WHEN UPPER(uc.cabang) = UPPER(t.cabang) THEN 0 ELSE 1 END, CASE WHEN ubc.id IS NOT NULL THEN 0 ELSE 1 END, uc.id
                 LIMIT 1
             ) coordinator_user ON TRUE
             LEFT JOIN LATERAL (
                 SELECT uc.nama_lengkap FROM user_cabang uc
+                LEFT JOIN user_branch_coverage ubc ON ubc.user_cabang_id = uc.id
+                  AND UPPER(TRIM(ubc.covered_cabang)) = UPPER(TRIM(t.cabang))
                 WHERE LOWER(uc.email_sat) = LOWER(ofn.pemberi_persetujuan_manager)
-                ORDER BY CASE WHEN UPPER(uc.cabang) = UPPER(t.cabang) THEN 0 ELSE 1 END, uc.id
+                ORDER BY CASE WHEN UPPER(uc.cabang) = UPPER(t.cabang) THEN 0 ELSE 1 END, CASE WHEN ubc.id IS NOT NULL THEN 0 ELSE 1 END, uc.id
                 LIMIT 1
             ) manager_user ON TRUE
               WHERE ofn.id = $1

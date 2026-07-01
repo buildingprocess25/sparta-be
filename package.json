@@ -17,6 +17,7 @@
         "test:denda": "tsx --test src/modules/denda/denda-keterlambatan.test.ts",
         "test:opname-financial": "tsx --test src/modules/opname-final/opname-final.financial.test.ts",
         "test:opname-schema": "tsx --test src/modules/opname/opname.schema.test.ts",
+        "migrate:full-db": "tsx src/scripts/migrate-full-database.ts",
         "migrate:schema-only": "tsx src/scripts/migrate-schema-only.ts",
         "migrate:local-schema-only": "tsx src/scripts/apply-local-schema-only.ts",
         "inspect:target-schema": "tsx src/scripts/inspect-target-schema.ts",

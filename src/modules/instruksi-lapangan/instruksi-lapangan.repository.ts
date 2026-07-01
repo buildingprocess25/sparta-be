@@ -1,4 +1,5 @@
 import { pool } from "../../db/pool";
+import { getBranchScopeCandidates } from "../../common/branch-scope";
 import type { InstruksiLapanganItemInput, SubmitInstruksiLapanganInput } from "./instruksi-lapangan.schema";
 
 export interface InstruksiLapanganRow {
@@ -359,8 +360,8 @@ export const instruksiLapanganRepository = {
             params.push(`%${query.nomor_ulok}%`);
         }
         if (query.cabang) {
-            conditions.push(`t.cabang ILIKE $${index++}`);
-            params.push(`%${query.cabang}%`);
+            conditions.push(`UPPER(TRIM(t.cabang)) = ANY($${index++}::text[])`);
+            params.push(getBranchScopeCandidates(query.cabang));
         }
         if (query.email_pembuat) {
             conditions.push(`il.email_pembuat ILIKE $${index++}`);

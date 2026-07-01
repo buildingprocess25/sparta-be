@@ -683,8 +683,12 @@ const findRabProjectPlanningRequests = async (user: AuthenticatedUser): Promise<
           AND EXISTS (
               SELECT 1
               FROM user_cabang uc
+              LEFT JOIN user_branch_coverage ubc ON ubc.user_cabang_id = uc.id
               WHERE LOWER(TRIM(uc.email_sat)) = LOWER(TRIM($1))
-                AND LOWER(TRIM(uc.cabang)) = LOWER(TRIM(pp.cabang))
+                AND (
+                    LOWER(TRIM(uc.cabang)) = LOWER(TRIM(pp.cabang))
+                    OR UPPER(TRIM(ubc.covered_cabang)) = UPPER(TRIM(pp.cabang))
+                )
                 AND UPPER(COALESCE(uc.jabatan, '')) LIKE '%KONTRAKTOR%'
           )
           AND NOT EXISTS (

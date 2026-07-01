@@ -1,3 +1,4 @@
+import { isSameBranchScope } from "../../common/branch-scope";
 import type { DashboardData } from "./dashboard.repository";
 import type { DashboardProjectsQueryInput, DashboardSummaryQueryInput } from "./dashboard.schema";
 
@@ -169,7 +170,7 @@ export const scopeDashboardProjects = (
     const search = normalize(query.search);
     return projects.filter((project) => {
         const branch = normalize(project.toko.cabang);
-        if (!canViewAllBranches(query) && branch !== actorBranch) return false;
+        if (!canViewAllBranches(query) && !isSameBranchScope(branch, actorBranch)) return false;
         if (selectedBranch && selectedBranch !== "ALL" && branch !== selectedBranch) return false;
         if (!matchesCompany(project, query.actor_company)) return false;
         if (search && ![

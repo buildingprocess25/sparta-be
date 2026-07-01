@@ -1,6 +1,6 @@
 import type { PoolClient } from "pg";
 import { pool, withTransaction } from "../../db/pool";
-import { isSameBranchScope } from "../../common/branch-scope";
+import { getBranchScopeCandidates, isSameBranchScope } from "../../common/branch-scope";
 import type { ApprovalActionInput } from "../approval/approval.schema";
 import { activityLogRepository } from "../activity-log/activity-log.repository";
 import { ACTIVE_RAB_STATUSES, RAB_STATUS, REJECTED_RAB_STATUSES, type RabStatus } from "./rab.constants";
@@ -690,12 +690,22 @@ export const rabRepository = {
             `SELECT ${RAB_COLUMNS},
                 t.id AS toko_id, t.nomor_ulok, t.lingkup_pekerjaan,
                 t.nama_toko, t.kode_toko, t.proyek, t.cabang, t.alamat, t.nama_kontraktor,
-                uc_dir.nama_lengkap AS nama_lengkap_persetujuan_direktur
+                director_user.nama_lengkap AS nama_lengkap_persetujuan_direktur
             FROM rab r
             JOIN toko t ON t.id = r.id_toko
-            LEFT JOIN user_cabang uc_dir
-                ON LOWER(uc_dir.email_sat) = LOWER(r.pemberi_persetujuan_direktur)
-                AND LOWER(uc_dir.cabang) = LOWER(t.cabang)
+            LEFT JOIN LATERAL (
+                SELECT uc.nama_lengkap
+                FROM user_cabang uc
+                LEFT JOIN user_branch_coverage ubc
+                  ON ubc.user_cabang_id = uc.id
+                 AND UPPER(TRIM(ubc.covered_cabang)) = UPPER(TRIM(t.cabang))
+                WHERE LOWER(uc.email_sat) = LOWER(r.pemberi_persetujuan_direktur)
+                ORDER BY
+                    CASE WHEN UPPER(TRIM(uc.cabang)) = UPPER(TRIM(t.cabang)) THEN 0 ELSE 1 END,
+                    CASE WHEN ubc.id IS NOT NULL THEN 0 ELSE 1 END,
+                    uc.id
+                LIMIT 1
+            ) director_user ON TRUE
             WHERE r.id = $1`,
             [id]
         );
@@ -988,8 +998,8 @@ export const rabRepository = {
         }
 
         if (filter.cabang) {
-            values.push(filter.cabang);
-            conditions.push(`LOWER(t.cabang) = LOWER($${values.length})`);
+            values.push(getBranchScopeCandidates(filter.cabang));
+            conditions.push(`UPPER(TRIM(t.cabang)) = ANY($${values.length}::text[])`);
         }
 
         if (filter.nama_pt) {

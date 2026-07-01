@@ -352,8 +352,8 @@ export const projekPlanningRepository = {
             conditions.push(`nomor_ulok = $${values.length}`);
         }
         if (filter.cabang) {
-            values.push(`%${filter.cabang}%`);
-            conditions.push(`cabang ILIKE $${values.length}`);
+            values.push(getBranchScopeCandidates(filter.cabang));
+            conditions.push(`UPPER(TRIM(cabang)) = ANY($${values.length}::text[])`);
         }
         if (filter.email_pembuat) {
             values.push(filter.email_pembuat);
@@ -402,8 +402,12 @@ export const projekPlanningRepository = {
                AND EXISTS (
                     SELECT 1
                     FROM user_cabang uc
+                    LEFT JOIN user_branch_coverage ubc ON ubc.user_cabang_id = uc.id
                     WHERE LOWER(TRIM(uc.email_sat)) = LOWER(TRIM($1))
-                      AND LOWER(TRIM(uc.cabang)) = LOWER(TRIM(pp.cabang))
+                      AND (
+                          LOWER(TRIM(uc.cabang)) = LOWER(TRIM(pp.cabang))
+                          OR UPPER(TRIM(ubc.covered_cabang)) = UPPER(TRIM(pp.cabang))
+                      )
                       AND UPPER(COALESCE(uc.jabatan, '')) LIKE '%KONTRAKTOR%'
                )
                AND NOT EXISTS (
@@ -460,8 +464,8 @@ export const projekPlanningRepository = {
         const conditions = [`status = ANY($1::text[])`];
 
         if (cabang && cabang.toUpperCase() !== "HEAD OFFICE") {
-            values.push(cabang);
-            conditions.push(`UPPER(cabang) = UPPER($${values.length})`);
+            values.push(getBranchScopeCandidates(cabang));
+            conditions.push(`UPPER(TRIM(cabang)) = ANY($${values.length}::text[])`);
         }
 
         const result = await pool.query<{ count: string }>(
@@ -482,8 +486,8 @@ export const projekPlanningRepository = {
         const conditions = [`status = ANY($1::text[])`];
 
         if (cabang && cabang.toUpperCase() !== "HEAD OFFICE") {
-            values.push(cabang);
-            conditions.push(`UPPER(cabang) = UPPER($${values.length})`);
+            values.push(getBranchScopeCandidates(cabang));
+            conditions.push(`UPPER(TRIM(cabang)) = ANY($${values.length}::text[])`);
         }
 
         if (email) {

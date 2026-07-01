@@ -1,4 +1,5 @@
 import { pool, withTransaction } from "../../db/pool";
+import { getBranchScopeCandidates } from "../../common/branch-scope";
 import { activityLogRepository } from "../activity-log/activity-log.repository";
 import { ACTIVE_SPK_STATUSES, type SpkStatus } from "./spk.constants";
 import type { SpkApprovalInput, SpkInterventionInput } from "./spk.schema";
@@ -318,7 +319,7 @@ export const spkRepository = {
 
     async list(filter: { status?: string; nomor_ulok?: string; nama_kontraktor?: string; cabang?: string }): Promise<SpkListRow[]> {
         const conditions: string[] = [];
-        const values: string[] = [];
+        const values: Array<string | string[]> = [];
 
         if (filter.status) {
             values.push(filter.status);
@@ -342,8 +343,8 @@ export const spkRepository = {
         }
 
         if (filter.cabang) {
-            values.push(filter.cabang);
-            conditions.push(`UPPER(t.cabang) = UPPER($${values.length})`);
+            values.push(getBranchScopeCandidates(filter.cabang));
+            conditions.push(`UPPER(TRIM(t.cabang)) = ANY($${values.length}::text[])`);
         }
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";

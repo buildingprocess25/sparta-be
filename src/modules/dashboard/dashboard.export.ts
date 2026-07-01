@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
 import { AppError } from "../../common/app-error";
+import { isSameBranchScope } from "../../common/branch-scope";
 import { renderPdfFromHtml } from "../../common/html-pdf";
 import type { DashboardData } from "./dashboard.repository";
 import type { DashboardExportQueryInput } from "./dashboard.schema";
@@ -281,7 +282,7 @@ export const filterDashboardExportAccess = (projects: DashboardData[], query: Da
     const cabangFilter = normalizeUpper(query.cabang);
     return projects.filter((project) => {
         const projectCabang = normalizeUpper(project.toko.cabang);
-        if (actorCabang !== "HEAD OFFICE" && projectCabang !== actorCabang) return false;
+        if (actorCabang !== "HEAD OFFICE" && !isSameBranchScope(projectCabang, actorCabang)) return false;
         if (cabangFilter && cabangFilter !== "ALL" && projectCabang !== cabangFilter) return false;
         return true;
     });
