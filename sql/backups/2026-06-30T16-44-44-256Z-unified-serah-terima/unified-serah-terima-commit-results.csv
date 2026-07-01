@@ -1,0 +1,11 @@
+nomor_ulok,status,berkas_id,link_pdf,item_count,error
+1JZ1-2602-0001,failed,,,,Masih ada 4 pekerjaan selesai yang belum masuk Opname
+1JZ1-2602-1J6T-R,success,90,https://drive.google.com/file/d/15PVWfgpas51oICZkdeZfKQJyv9z9VV0N/view?usp=drivesdk,12,
+1JZ1-2602-1J94-R,success,91,https://drive.google.com/file/d/1P7wVebnMMxRxePxlUEYOujThWGCzVtpb/view?usp=drivesdk,12,
+1JZ1-2605-1J3U-R,failed,,,,Belum ada pekerjaan pengawasan selesai untuk toko ini
+1MZ1-2603-0002,failed,,,,Data opname_final belum tersedia untuk toko ini
+1YZ1-2604-0001,success,244,https://drive.google.com/file/d/1rI3OX0T_TswM8m0tylOnLivuyHu4RtRb/view?usp=drivesdk,89,
+2AZ1-2602-0001,success,132,https://drive.google.com/file/d/1jjOPCMz_3k4Cn8s4ue0UJ3lr5lvSoKvk/view?usp=drivesdk,132,
+2AZ1-2603-0001,failed,,,,Masih ada 50 pekerjaan selesai yang belum masuk Opname
+2DZ1-2601-0002,success,103,https://drive.google.com/file/d/15S8r3OypyQMAyxmeyuH-lxUqo2bwZS7r/view?usp=drivesdk,97,
+2DZ1-2601-0003-R,success,111,https://drive.google.com/file/d/1w-h7N8MUc1Wn19Rye9LpYlZRZa3LjXC1/view?usp=drivesdk,79,

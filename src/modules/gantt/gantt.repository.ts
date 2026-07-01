@@ -268,20 +268,20 @@ export const ganttRepository = {
                 ) spk ON true
                 WHERE t.nomor_ulok = $1
             ),
-            latest_pengawasan AS (
+            pengawasan_per_date AS (
                 SELECT DISTINCT ON (
                     p.id_gantt,
+                    p.id_pengawasan_gantt,
                     UPPER(TRIM(COALESCE(p.kategori_pekerjaan, ''))),
                     UPPER(TRIM(COALESCE(p.jenis_pekerjaan, '')))
                 )
-                    p.id
+                    p.*
                 FROM pengawasan p
-                JOIN pengawasan_gantt pg ON pg.id = p.id_pengawasan_gantt
                 ORDER BY
                     p.id_gantt,
+                    p.id_pengawasan_gantt,
                     UPPER(TRIM(COALESCE(p.kategori_pekerjaan, ''))),
                     UPPER(TRIM(COALESCE(p.jenis_pekerjaan, ''))),
-                    to_date(pg.tanggal_pengawasan, 'DD/MM/YYYY') DESC,
                     p.id DESC
             ),
             checkpoint AS (
@@ -333,9 +333,8 @@ export const ganttRepository = {
                     )::int AS opname_items
                 FROM scope s
                 JOIN pengawasan_gantt pg ON pg.id_gantt = s.gantt_id
-                LEFT JOIN pengawasan p
+                LEFT JOIN pengawasan_per_date p
                     ON p.id_pengawasan_gantt = pg.id
-                   AND EXISTS (SELECT 1 FROM latest_pengawasan lp WHERE lp.id = p.id)
                 GROUP BY s.id_toko, pg.id, pg.tanggal_pengawasan
             )
             SELECT

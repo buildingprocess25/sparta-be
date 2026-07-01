@@ -1,0 +1,6 @@
+nomor_ulok,status,berkas_id,link_pdf,item_count,error
+HZ01-2604-H070-R,success,42,https://drive.google.com/file/d/10_OhS5Rg1Dzs0qe0B0aODY3Ej6yHSi-C/view?usp=drivesdk,27,
+IZ01-2602-0001,success,117,https://drive.google.com/file/d/1KxSGtB9plJXrCGyzSctKPtRnC74rzMeN/view?usp=drivesdk,132,
+IZ01-2602-0006,failed,,,,Masih ada 60 pekerjaan selesai yang belum masuk Opname
+IZ01-2603-0003,success,48,https://drive.google.com/file/d/1fnDDj2lNK7lCzMOlWxNJ0IKRk943zaRh/view?usp=drivesdk,142,
+IZ01-2605-0004,failed,,,,Data opname_final belum tersedia untuk toko ini

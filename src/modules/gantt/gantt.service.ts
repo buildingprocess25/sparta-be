@@ -119,12 +119,136 @@ const isScopeReadyForSerahTerima = (scope: any) =>
     && scope.checkpoints.reduce((sum: number, checkpoint: any) => sum + Number(checkpoint?.opname_items || 0), 0) > 0
     && scope.checkpoints.reduce((sum: number, checkpoint: any) => sum + Number(checkpoint?.ready_opname_items || 0), 0) === 0;
 
+const normalizePengawasanDate = (value: any): string => {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+
+    const slashMatch = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/.exec(raw);
+    if (slashMatch) {
+        const year = slashMatch[3].length === 2 ? `20${slashMatch[3]}` : slashMatch[3];
+        return `${slashMatch[1].padStart(2, "0")}/${slashMatch[2].padStart(2, "0")}/${year}`;
+    }
+
+    const isoMatch = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(raw);
+    if (isoMatch) {
+        return `${isoMatch[3].padStart(2, "0")}/${isoMatch[2].padStart(2, "0")}/${isoMatch[1]}`;
+    }
+
+    return raw;
+};
+
+const parseDateKey = (value: string): number => {
+    const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(normalizePengawasanDate(value));
+    if (!match) return Number.MAX_SAFE_INTEGER;
+    return Number(`${match[3]}${match[2]}${match[1]}`);
+};
+
+const sortDates = (dates: string[]) =>
+    [...dates].map(normalizePengawasanDate).filter(Boolean).sort((left, right) => parseDateKey(left) - parseDateKey(right));
+
+const normalizeScopeName = (scope: any): string =>
+    String(scope?.lingkup_pekerjaan || "").trim().toUpperCase();
+
+const getScopeCheckpoints = (scope: any): any[] =>
+    Array.isArray(scope?.checkpoints) ? scope.checkpoints : [];
+
+const buildUnifiedSupervisionMetadata = (scopes: any[]) => {
+    const activeScopes = scopes.filter((scope) => scope.gantt_id);
+    const sipilScope = activeScopes.find((scope) => normalizeScopeName(scope) === "SIPIL");
+    const meScope = activeScopes.find((scope) => normalizeScopeName(scope) === "ME");
+    const masterScope = sipilScope ?? meScope ?? activeScopes[0] ?? scopes[0];
+    const masterScopeName = sipilScope && meScope
+        ? "SIPIL"
+        : normalizeScopeName(masterScope) || "single";
+
+    const masterDates = sortDates([
+        ...new Set(getScopeCheckpoints(masterScope).map((checkpoint) => normalizePengawasanDate(checkpoint.tanggal_pengawasan)).filter(Boolean))
+    ]);
+
+    const dateSetByScope = new Map<number, Set<string>>();
+    const checkpointByScopeAndDate = new Map<number, Map<string, any>>();
+
+    activeScopes.forEach((scope) => {
+        const dateSet = new Set<string>();
+        const checkpointByDate = new Map<string, any>();
+
+        getScopeCheckpoints(scope).forEach((checkpoint) => {
+            if (!checkpoint?.tanggal_pengawasan) return;
+            const dateKey = normalizePengawasanDate(checkpoint.tanggal_pengawasan);
+            if (!dateKey) return;
+            dateSet.add(dateKey);
+            checkpointByDate.set(dateKey, {
+                ...checkpoint,
+                tanggal_pengawasan: dateKey,
+            });
+        });
+
+        dateSetByScope.set(Number(scope.id_toko), dateSet);
+        checkpointByScopeAndDate.set(Number(scope.id_toko), checkpointByDate);
+    });
+
+    const scopeDateAlignment = activeScopes.map((scope) => {
+        const scopeDates = dateSetByScope.get(Number(scope.id_toko)) ?? new Set<string>();
+        const masterDateSet = new Set(masterDates);
+
+        return {
+            id_toko: scope.id_toko,
+            gantt_id: scope.gantt_id,
+            lingkup_pekerjaan: scope.lingkup_pekerjaan,
+            is_master: Number(scope.id_toko) === Number(masterScope?.id_toko),
+            missing_from_scope: sortDates(masterDates.filter((date) => !scopeDates.has(date))),
+            extra_in_scope: sortDates([...scopeDates].filter((date) => !masterDateSet.has(date))),
+        };
+    });
+
+    const unifiedCheckpoints = masterDates.map((date) => {
+        const scopeCheckpoints = activeScopes.map((scope) => {
+            const checkpoint = checkpointByScopeAndDate.get(Number(scope.id_toko))?.get(date) ?? null;
+            return {
+                id_toko: scope.id_toko,
+                gantt_id: scope.gantt_id,
+                lingkup_pekerjaan: scope.lingkup_pekerjaan,
+                checkpoint,
+            };
+        });
+
+        return {
+            tanggal_pengawasan: date,
+            total_items: scopeCheckpoints.reduce((sum, item) => sum + Number(item.checkpoint?.total_items || 0), 0),
+            selesai_items: scopeCheckpoints.reduce((sum, item) => sum + Number(item.checkpoint?.selesai_items || 0), 0),
+            ready_opname_items: scopeCheckpoints.reduce((sum, item) => sum + Number(item.checkpoint?.ready_opname_items || 0), 0),
+            opname_items: scopeCheckpoints.reduce((sum, item) => sum + Number(item.checkpoint?.opname_items || 0), 0),
+            scopes: scopeCheckpoints,
+        };
+    });
+
+    return {
+        master_scope: masterScopeName,
+        master_scope_id_toko: masterScope?.id_toko ?? null,
+        master_gantt_id: masterScope?.gantt_id ?? null,
+        unified_dates: masterDates,
+        unified_checkpoints: unifiedCheckpoints,
+        scope_date_alignment: scopeDateAlignment,
+        has_date_mismatch: scopeDateAlignment.some((scope) =>
+            scope.missing_from_scope.length > 0 || scope.extra_in_scope.length > 0
+        ),
+    };
+};
+
 export const ganttService = {
     async getSupervisionWorkspace(nomorUlok: string) {
         const scopes = await ganttRepository.findSupervisionWorkspace(nomorUlok);
         if (scopes.length === 0) {
             throw new AppError("ULOK tidak ditemukan", 404);
         }
+        const unifiedMetadata = buildUnifiedSupervisionMetadata(scopes);
+        const activeScopes = scopes.filter((scope) => scope.gantt_id);
+        const allActiveScopesReady = activeScopes.length > 0
+            && activeScopes.every((scope) => isScopeReadyForSerahTerima(scope));
+        const allReadyScopesGenerated = allActiveScopesReady
+            && activeScopes.every((scope) =>
+                Boolean(scope.link_pdf_serah_terima)
+            );
 
         return {
             nomor_ulok: nomorUlok,
@@ -139,6 +263,9 @@ export const ganttService = {
             serah_terima_generated: scopes
                 .filter((scope) => scope.gantt_id)
                 .some((scope) => isScopeReadyForSerahTerima(scope) && Boolean(scope.link_pdf_serah_terima)),
+            unified_serah_terima_ready: allActiveScopesReady,
+            unified_serah_terima_generated: allReadyScopesGenerated,
+            ...unifiedMetadata,
         };
     },
     async submit(payload: SubmitGanttInput) {

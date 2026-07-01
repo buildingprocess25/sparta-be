@@ -3,8 +3,9 @@ import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
 import { calculateDendaByTokoId } from "../denda/denda-keterlambatan";
 import { opnameFinalService } from "../opname-final/opname-final.service";
-import { buildSerahTerimaPdfBuffer } from "./serah-terima.pdf";
+import { buildSerahTerimaPdfBuffer, buildSerahTerimaUnifiedCoverPdfBuffer } from "./serah-terima.pdf";
 import { serahTerimaRepository } from "./serah-terima.repository";
+import { PDFDocument } from "pdf-lib";
 
 const sanitizeFilenamePart = (value: string | undefined, fallback: string): string => {
     const normalized = (value ?? "").trim().replace(/[^a-zA-Z0-9_-]+/g, "_");
@@ -63,6 +64,18 @@ const buildDetailByTokoId = async (idToko: number) => {
 
     const items = await serahTerimaRepository.findOpnameItemsByOpnameFinalId(opnameFinal.id);
     return { toko, opnameFinal, items };
+};
+
+const mergePdfBuffers = async (buffers: Buffer[]): Promise<Buffer> => {
+    const merged = await PDFDocument.create();
+
+    for (const buffer of buffers) {
+        const source = await PDFDocument.load(buffer);
+        const pages = await merged.copyPages(source, source.getPageIndices());
+        pages.forEach((page) => merged.addPage(page));
+    }
+
+    return Buffer.from(await merged.save());
 };
 
 const getSerahTerimaReadiness = async (idToko: number) => {
@@ -278,6 +291,103 @@ export const serahTerimaService = {
         };
     },
 
+    async createPdfSerahTerimaUnified(nomorUlok: string) {
+        const scopes = await serahTerimaRepository.findTokoScopesByNomorUlok(nomorUlok);
+        if (scopes.length === 0) {
+            throw new AppError("ULOK tidak ditemukan", 404);
+        }
+
+        const activeScopes = scopes.filter((scope) =>
+            ["SIPIL", "ME"].includes(String(scope.lingkup_pekerjaan || "").trim().toUpperCase())
+        );
+        const targetScopes = activeScopes.length > 0 ? activeScopes : scopes;
+        const masterScope = targetScopes.find((scope) =>
+            String(scope.lingkup_pekerjaan || "").trim().toUpperCase() === "SIPIL"
+        ) ?? targetScopes[0];
+
+        for (const scope of targetScopes) {
+            await assertSerahTerimaReady(scope.id);
+        }
+
+        const placeholder = await serahTerimaRepository.ensureBerkasSerahTerima(masterScope.id);
+        const pdfBuffers: Buffer[] = [];
+        const details: Array<{
+            id_toko: number;
+            lingkup_pekerjaan: string | null;
+            opname_final_id: number;
+            item_count: number;
+            kode_toko?: string | null;
+            nama_kontraktor?: string | null;
+            nilai_opname?: string | number | null;
+        }> = [];
+
+        for (const [index, scope] of targetScopes.entries()) {
+            await opnameFinalService.refreshDendaByTokoId(scope.id);
+            const { toko, opnameFinal, items } = await buildDetailByTokoId(scope.id);
+            const buffer = await buildSerahTerimaPdfBuffer(
+                { toko, opname_final: opnameFinal, items },
+                placeholder.created_at,
+                { unifiedPartIndex: index + 1, unifiedPartTotal: targetScopes.length }
+            );
+
+            pdfBuffers.push(buffer);
+            details.push({
+                id_toko: scope.id,
+                lingkup_pekerjaan: scope.lingkup_pekerjaan,
+                opname_final_id: opnameFinal.id,
+                item_count: items.length,
+                kode_toko: toko.kode_toko,
+                nama_kontraktor: toko.nama_kontraktor,
+                nilai_opname: opnameFinal.grand_total_opname,
+            });
+        }
+
+        if (pdfBuffers.length === 0) {
+            throw new AppError("Tidak ada scope yang siap dibuat Serah Terima", 409);
+        }
+
+        const coverBuffer = await buildSerahTerimaUnifiedCoverPdfBuffer({
+            nomor_ulok: nomorUlok,
+            nama_toko: masterScope.nama_toko,
+            cabang: masterScope.cabang,
+            proyek: masterScope.proyek,
+            created_at: placeholder.created_at,
+            scopes: details,
+        });
+
+        const mergedBuffer = await mergePdfBuffers([coverBuffer, ...pdfBuffers]);
+
+        const proyek = sanitizeFilenamePart(masterScope.proyek ?? undefined, "PROYEK");
+        const safeNomorUlok = sanitizeFilenamePart(nomorUlok, "ULOK");
+        const filename = `SERAH_TERIMA_UNIFIED_${proyek}_${safeNomorUlok}.pdf`;
+        const linkPdf = await uploadPdfToDrive(mergedBuffer, filename);
+        const berkas = await serahTerimaRepository.updateBerkasSerahTerimaLink(placeholder.id, linkPdf);
+
+        setImmediate(() => {
+            Promise.allSettled(
+                details.map((detail) => opnameFinalService.refreshDendaAndPdfById(String(detail.opname_final_id)))
+            ).then((results) => {
+                const rejected = results.filter((result) => result.status === "rejected").length;
+                if (rejected > 0) {
+                    console.error(`[ST][UNIFIED][OPNAME_PDF_BACKGROUND] ${rejected} regenerate opname final gagal`, {
+                        nomorUlok,
+                    });
+                }
+            });
+        });
+
+        return {
+            id: berkas.id,
+            id_toko: masterScope.id,
+            nomor_ulok: nomorUlok,
+            link_pdf: linkPdf,
+            scopes: details,
+            item_count: details.reduce((sum, detail) => sum + detail.item_count, 0),
+            created_at: berkas.created_at,
+            toko: masterScope,
+        };
+    },
+
     async createPdfSerahTerimaForMigration(idToko: number) {
         const { toko, opnameFinal, items } = await buildDetailByTokoId(idToko);
         if (items.length === 0) {
@@ -325,6 +435,35 @@ export const serahTerimaService = {
 
         const proyek = sanitizeFilenamePart(toko.proyek ?? undefined, "PROYEK");
         const nomorUlok = sanitizeFilenamePart(toko.nomor_ulok ?? undefined, "ULOK");
+
+        if (berkas.link_pdf) {
+            const gp = GoogleProvider.instance;
+            const fileId = extractDriveFileId(berkas.link_pdf);
+            let storedBuffer: Buffer | null = null;
+
+            if (fileId) {
+                if (gp.spartaDrive) {
+                    storedBuffer = await gp.getFileBufferById(gp.spartaDrive, fileId);
+                }
+                if (!storedBuffer && gp.docDrive) {
+                    storedBuffer = await gp.getFileBufferById(gp.docDrive, fileId);
+                }
+            }
+
+            if (!storedBuffer && /^https?:\/\//i.test(berkas.link_pdf)) {
+                const response = await fetch(normalizeDriveDownloadLink(berkas.link_pdf));
+                if (response.ok) {
+                    storedBuffer = Buffer.from(await response.arrayBuffer());
+                }
+            }
+
+            if (storedBuffer && storedBuffer.length > 0) {
+                return {
+                    buffer: storedBuffer,
+                    filename: `SERAH_TERIMA_${proyek}_${nomorUlok}_STORED.pdf`,
+                };
+            }
+        }
 
         const opnameFinal = await serahTerimaRepository.findOpnameFinalByIdToko(berkas.id_toko);
         if (!opnameFinal) {

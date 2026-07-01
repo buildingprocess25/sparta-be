@@ -1,0 +1,9 @@
+
+> sparta-api@1.0.1 dev
+> tsx watch src/index.ts
+
+✅ Token refreshed dari token.json
+✅ Service Sparta (Sheets) Berhasil.
+✅ Token refreshed dari token_doc.json
+✅ Service Dokumen (Sheets + Drive) Berhasil.
+rab-service running on port 8081

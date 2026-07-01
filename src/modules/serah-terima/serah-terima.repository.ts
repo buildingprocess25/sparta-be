@@ -99,6 +99,35 @@ export type SupervisionCompletionRow = {
 };
 
 export const serahTerimaRepository = {
+    async findTokoScopesByNomorUlok(nomorUlok: string): Promise<TokoRow[]> {
+        const result = await pool.query<TokoRow>(
+            `
+            SELECT
+                id,
+                nomor_ulok,
+                lingkup_pekerjaan,
+                nama_toko,
+                kode_toko,
+                proyek,
+                cabang,
+                alamat,
+                nama_kontraktor
+            FROM toko
+            WHERE nomor_ulok = $1
+            ORDER BY
+                CASE
+                    WHEN UPPER(TRIM(COALESCE(lingkup_pekerjaan, ''))) = 'SIPIL' THEN 0
+                    WHEN UPPER(TRIM(COALESCE(lingkup_pekerjaan, ''))) = 'ME' THEN 1
+                    ELSE 2
+                END,
+                id
+            `,
+            [nomorUlok]
+        );
+
+        return result.rows;
+    },
+
     async findTokoById(idToko: number): Promise<TokoRow | null> {
         const result = await pool.query<TokoRow>(
             `

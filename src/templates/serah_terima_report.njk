@@ -207,6 +207,14 @@
   <div class="content">
   {{ sparta_header("Berita Acara Serah Terima", toko.nomor_ulok ~ " - " ~ (toko.nama_toko or '-')) | safe }}
 
+  {% if unified_part_index %}
+  <div style="margin: 0 0 14px; border: 1.5px solid #dc2626; background: #fff7f7; border-radius: 6px; padding: 10px 12px;">
+    <div style="font-size: 9px; font-weight: 800; color: #991b1b; text-transform: uppercase; letter-spacing: 1px;">Lampiran Lingkup {{ unified_part_index }} dari {{ unified_part_total }}</div>
+    <div style="margin-top: 4px; font-size: 18px; font-weight: 800; color: #dc2626;">{{ toko.lingkup_pekerjaan or '-' }}</div>
+    <div style="margin-top: 2px; font-size: 10px; color: #475569;">Bagian ini hanya berisi item opname untuk lingkup {{ toko.lingkup_pekerjaan or '-' }}.</div>
+  </div>
+  {% endif %}
+
   <div class="section-title">Informasi Serah Terima</div>
   <table class="meta">
     <tr>

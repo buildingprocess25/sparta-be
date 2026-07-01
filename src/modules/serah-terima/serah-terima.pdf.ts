@@ -119,7 +119,11 @@ const buildAssessmentSummary = (items: SerahTerimaDetail["items"]) => {
     ];
 };
 
-export const buildSerahTerimaPdfBuffer = async (detail: SerahTerimaDetail, createdAt: string): Promise<Buffer> => {
+export const buildSerahTerimaPdfBuffer = async (
+    detail: SerahTerimaDetail,
+    createdAt: string,
+    options: { unifiedPartIndex?: number; unifiedPartTotal?: number } = {}
+): Promise<Buffer> => {
     const templatePath = await resolveTemplatePath("serah_terima_report.njk");
 
     const grandTotalOpname = toNumber(detail.opname_final.grand_total_opname);
@@ -134,6 +138,8 @@ export const buildSerahTerimaPdfBuffer = async (detail: SerahTerimaDetail, creat
 
     const html = await renderHtmlTemplate(templatePath, {
         generated_at: formatDateIndonesia(createdAt),
+        unified_part_index: options.unifiedPartIndex,
+        unified_part_total: options.unifiedPartTotal,
         opname_final: detail.opname_final,
         toko: detail.toko,
         items: itemsWithPhotos,
@@ -151,4 +157,169 @@ export const buildSerahTerimaPdfBuffer = async (detail: SerahTerimaDetail, creat
     });
 
     return renderPdfFromHtml(html);
+};
+
+export const buildSerahTerimaUnifiedCoverPdfBuffer = async (input: {
+    nomor_ulok: string;
+    nama_toko?: string | null;
+    cabang?: string | null;
+    proyek?: string | null;
+    created_at: string;
+    scopes: Array<{
+        lingkup_pekerjaan: string | null;
+        kode_toko?: string | null;
+        nama_kontraktor?: string | null;
+        item_count: number;
+        nilai_opname?: string | number | null;
+    }>;
+}): Promise<Buffer> => {
+    const totalItems = input.scopes.reduce((sum, scope) => sum + Number(scope.item_count || 0), 0);
+    const totalNilai = input.scopes.reduce((sum, scope) => sum + toNumber(scope.nilai_opname), 0);
+    const rows = input.scopes.map((scope, index) => `
+        <tr>
+            <td class="center">${index + 1}</td>
+            <td class="scope-name">${scope.lingkup_pekerjaan || "-"}</td>
+            <td>${scope.kode_toko || "-"}</td>
+            <td>${scope.nama_kontraktor || "-"}</td>
+            <td class="center">${scope.item_count}</td>
+            <td class="num">${rupiah(toNumber(scope.nilai_opname))}</td>
+        </tr>
+    `).join("");
+
+    const templatePath = await resolveTemplatePath("serah_terima_unified_cover.njk");
+    const coverHtml = await renderHtmlTemplate(templatePath, {
+        nomor_ulok: input.nomor_ulok,
+        nama_toko: input.nama_toko ?? "-",
+        created_at_formatted: formatDateIndonesia(input.created_at),
+        scope_count: input.scopes.length,
+        total_items: totalItems,
+        total_nilai_formatted: rupiah(totalNilai),
+        scope_order: input.scopes.map((scope) => scope.lingkup_pekerjaan || "-").join(" lalu "),
+        scopes: input.scopes.map((scope) => ({
+            ...scope,
+            nilai_opname_formatted: rupiah(toNumber(scope.nilai_opname)),
+        })),
+    });
+    return renderPdfFromHtml(coverHtml);
+
+    const html = `<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    ${""}
+    ${staticAssetPath("Building-Logo.png") ? "" : ""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    ${""}
+    body { font-family: Arial, sans-serif; font-size: 11px; color: #1f2937; margin: 0; }
+    .cover-title { margin-top: 30px; border: 2px solid #dc2626; border-radius: 8px; padding: 22px; }
+    .eyebrow { color: #dc2626; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.6px; }
+    h1 { margin: 8px 0 8px; font-size: 24px; color: #111827; }
+    .subtitle { color: #475569; font-size: 12px; line-height: 1.5; }
+    .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 18px 0; }
+    .summary-card { background: #f8fafc; border: 1px solid #d8dee6; border-radius: 6px; padding: 11px; }
+    .summary-label { color: #64748b; font-size: 9px; font-weight: 800; text-transform: uppercase; }
+    .summary-value { margin-top: 5px; color: #111827; font-size: 17px; font-weight: 800; }
+    table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+    th, td { border: 1px solid #cbd5e1; padding: 7px 8px; vertical-align: top; }
+    th { background: #eef6ff; font-weight: 800; text-align: center; }
+    .center { text-align: center; }
+    .num { text-align: right; white-space: nowrap; }
+    .scope-name { font-weight: 800; color: #dc2626; }
+    .note { margin-top: 18px; padding: 12px; background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412; border-radius: 6px; line-height: 1.45; }
+    {{ sparta_pdf_css() | safe }}
+  </style>
+</head>
+<body>
+  {{ sparta_header("Berita Acara Serah Terima Gabungan", "${input.nomor_ulok} - ${input.nama_toko || "-"}") | safe }}
+  <div class="cover-title">
+    <div class="eyebrow">Dokumen Unified SIPIL + ME</div>
+    <h1>Serah Terima Gabungan ULOK ${input.nomor_ulok}</h1>
+    <div class="subtitle">Dokumen ini menggabungkan lingkup pekerjaan yang tersedia dalam satu PDF. Bagian detail setelah halaman ini dipisahkan per lingkup supaya pemeriksaan SIPIL dan ME tetap mudah dibaca.</div>
+  </div>
+  <div class="summary-grid">
+    <div class="summary-card"><div class="summary-label">Tanggal ST</div><div class="summary-value">${formatDateIndonesia(input.created_at)}</div></div>
+    <div class="summary-card"><div class="summary-label">Total Lingkup</div><div class="summary-value">${input.scopes.length}</div></div>
+    <div class="summary-card"><div class="summary-label">Total Item</div><div class="summary-value">${totalItems}</div></div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:32px">No</th>
+        <th>Lingkup</th>
+        <th>Kode Toko</th>
+        <th>Kontraktor</th>
+        <th style="width:70px">Item</th>
+        <th style="width:110px">Nilai Opname</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+    <tfoot>
+      <tr>
+        <td colspan="4" class="num"><strong>Total</strong></td>
+        <td class="center"><strong>${totalItems}</strong></td>
+        <td class="num"><strong>${rupiah(totalNilai)}</strong></td>
+      </tr>
+    </tfoot>
+  </table>
+  <div class="note">Urutan lampiran: ${input.scopes.map((scope) => scope.lingkup_pekerjaan || "-").join(" lalu ")}. Setiap lampiran memiliki header lingkup sendiri.</div>
+</body>
+</html>`;
+
+    return renderPdfFromHtml(html.replace("{{ sparta_pdf_css() | safe }}", "").replace(/{{ sparta_header\("Berita Acara Serah Terima Gabungan", "([^"]*)"\) \| safe }}/, ""));
 };

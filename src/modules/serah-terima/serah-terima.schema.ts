@@ -9,6 +9,12 @@ export const createSerahTerimaPdfSchema = z.object({
 
 export type CreateSerahTerimaPdfInput = z.infer<typeof createSerahTerimaPdfSchema>;
 
+export const createUnifiedSerahTerimaPdfSchema = z.object({
+    nomor_ulok: z.string().trim().min(1),
+});
+
+export type CreateUnifiedSerahTerimaPdfInput = z.infer<typeof createUnifiedSerahTerimaPdfSchema>;
+
 export const listBerkasSerahTerimaQuerySchema = z.object({
     id_toko: z.coerce.number().int().positive().optional(),
     nomor_ulok: z.string().trim().min(1).optional(),
