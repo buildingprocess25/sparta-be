@@ -24,6 +24,9 @@ const GLOBAL_ACCESS_ROLES = [
     "STORE & BRANCH CONTROLLING SPECIALIST"
 ];
 
+const MAINTENANCE_LOCK_DATE = "2026-07-01";
+const MAINTENANCE_LOCK_START_MINUTES = 17 * 60;
+
 function normalizeText(value: unknown): string {
     return String(value ?? "")
         .trim()
@@ -36,6 +39,46 @@ function normalizeText(value: unknown): string {
 function hasGlobalAccess(user: AuthenticatedUser): boolean {
     if (normalizeText(user.cabang) === "HEAD OFFICE") return true;
     return user.roles.some((role) => GLOBAL_ACCESS_ROLES.includes(normalizeText(role)));
+}
+
+function hasSuperHumanAccess(user: AuthenticatedUser): boolean {
+    return user.roles.some((role) => normalizeText(role).includes("SUPER HUMAN"));
+}
+
+function getJakartaNow() {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Jakarta",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23"
+    }).formatToParts(new Date());
+
+    const value = (type: string) => parts.find((part) => part.type === type)?.value ?? "00";
+    const hour = Number(value("hour"));
+    const minute = Number(value("minute"));
+
+    return {
+        date: `${value("year")}-${value("month")}-${value("day")}`,
+        totalMinutes: hour * 60 + minute
+    };
+}
+
+function isWithinMaintenanceLock(): boolean {
+    const jakartaNow = getJakartaNow();
+    return (
+        jakartaNow.date === MAINTENANCE_LOCK_DATE
+        && jakartaNow.totalMinutes >= MAINTENANCE_LOCK_START_MINUTES
+    );
+}
+
+function rejectForMaintenance(res: Response): void {
+    res.status(503).json({
+        status: "maintenance",
+        message: "SPARTA sedang dalam maintenance mulai Rabu, 1 Juli 2026 pukul 17:00 WIB. Akses sementara hanya dibuka untuk akun Super Human."
+    });
 }
 
 function getStringValue(value: unknown): string | null {
@@ -113,6 +156,10 @@ export async function apiAuthMiddleware(req: Request, res: Response, next: NextF
             const user = await authSessionService.authenticateToken(token);
             if (user) {
                 req.user = user;
+                if (isWithinMaintenanceLock() && !hasSuperHumanAccess(user)) {
+                    rejectForMaintenance(res);
+                    return;
+                }
                 if (env.AUTH_ENFORCEMENT_MODE === "strict" && !validateScopedRequest(req, res)) {
                     return;
                 }
@@ -124,6 +171,10 @@ export async function apiAuthMiddleware(req: Request, res: Response, next: NextF
     }
 
     if (env.AUTH_ENFORCEMENT_MODE === "compat") {
+        if (isWithinMaintenanceLock()) {
+            rejectForMaintenance(res);
+            return;
+        }
         console.warn("[AUTH][compat] Request tanpa session valid:", {
             method: req.method,
             path: req.originalUrl
