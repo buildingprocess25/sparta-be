@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { AppError } from "../../common/app-error";
 import { asyncHandler } from "../../common/async-handler";
+import { injectBranchFilter } from "../../common/branch-filter-helper";
 import { approvalActionSchema } from "../approval/approval.schema";
 import { listInstruksiLapanganQuerySchema, submitInstruksiLapanganSchema } from "./instruksi-lapangan.schema";
 import { instruksiLapanganService } from "./instruksi-lapangan.service";
@@ -61,7 +62,16 @@ export const submitInstruksiLapangan = asyncHandler(async (req: Request, res: Re
 });
 
 export const listInstruksiLapangan = asyncHandler(async (req: Request, res: Response) => {
-    const query = listInstruksiLapanganQuerySchema.parse(req.query);
+    let query = listInstruksiLapanganQuerySchema.parse(req.query);
+    
+    const user = req.user;
+    if (!user) {
+        throw new AppError("User tidak terautentikasi", 401);
+    }
+
+    // Enforce branch filtering di backend
+    query = await injectBranchFilter(user, query);
+    
     const data = await instruksiLapanganService.list(query);
 
     res.json({ status: "success", data });

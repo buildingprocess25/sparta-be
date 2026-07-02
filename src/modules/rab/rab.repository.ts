@@ -975,7 +975,15 @@ export const rabRepository = {
         );
     },
     /** List RAB dengan filter. Join toko untuk nomor_ulok filter. */
-    async list(filter: { status?: string; nomor_ulok?: string; cabang?: string; nama_pt?: string; email_pembuat?: string; id_toko?: number }): Promise<(RabRow & {
+    async list(filter: { 
+        status?: string; 
+        nomor_ulok?: string; 
+        cabang?: string; 
+        cabang_array?: string[]; // NEW: Accept array of branches
+        nama_pt?: string; 
+        email_pembuat?: string; 
+        id_toko?: number;
+    }): Promise<(RabRow & {
         nomor_ulok: string;
         lingkup_pekerjaan: string | null;
         nama_toko: string | null;
@@ -997,7 +1005,15 @@ export const rabRepository = {
             conditions.push(`t.nomor_ulok ILIKE $${values.length}`);
         }
 
-        if (filter.cabang) {
+        // NEW: Prioritize cabang_array over cabang for more precise filtering
+        if (filter.cabang_array && filter.cabang_array.length > 0) {
+            // Direct array match - no expansion needed
+            // Controller already determined the exact branches user can access
+            const normalizedBranches = filter.cabang_array.map(b => b.trim().toUpperCase());
+            values.push(normalizedBranches);
+            conditions.push(`UPPER(TRIM(t.cabang)) = ANY($${values.length}::text[])`);
+        } else if (filter.cabang) {
+            // Fallback to old behavior: expand using getBranchScopeCandidates
             values.push(getBranchScopeCandidates(filter.cabang));
             conditions.push(`UPPER(TRIM(t.cabang)) = ANY($${values.length}::text[])`);
         }

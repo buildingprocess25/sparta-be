@@ -58,6 +58,7 @@ export const rabListQuerySchema = z.object({
     status: z.string().optional(),
     nomor_ulok: z.string().optional(),
     cabang: z.string().optional(),
+    cabang_array: z.array(z.string()).optional(), // NEW: Backend-injected branches array
     nama_pt: z.string().optional(),
     email_pembuat: z.string().optional(),
     id_toko: z.coerce.number().int().positive().optional()

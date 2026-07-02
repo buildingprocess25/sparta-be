@@ -209,7 +209,12 @@ export const opnameFinalRepository = {
             conditions.push(`t.nomor_ulok = $${values.length}`);
         }
 
-        if (filter.cabang) {
+        // NEW: Prioritize cabang_array over cabang
+        if (filter.cabang_array && filter.cabang_array.length > 0) {
+            const normalizedBranches = filter.cabang_array.map(b => b.trim().toUpperCase());
+            values.push(normalizedBranches);
+            conditions.push(`UPPER(TRIM(t.cabang)) = ANY($${values.length}::text[])`);
+        } else if (filter.cabang) {
             values.push(getBranchScopeCandidates(filter.cabang));
             conditions.push(`UPPER(TRIM(t.cabang)) = ANY($${values.length}::text[])`);
         }

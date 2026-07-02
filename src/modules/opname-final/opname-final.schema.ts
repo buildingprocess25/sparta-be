@@ -6,6 +6,7 @@ export const opnameFinalListQuerySchema = z.object({
     id_toko: z.coerce.number().int().positive().optional(),
     nomor_ulok: z.string().trim().min(1).optional(),
     cabang: z.string().trim().min(1).optional(),
+    cabang_array: z.array(z.string()).optional(), // Backend-injected branches
     nama_kontraktor: z.string().trim().min(1).optional(),
     tipe_opname: z.enum(["OPNAME", "OPNAME_FINAL"]).optional()
 });

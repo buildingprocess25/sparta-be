@@ -1,11 +1,22 @@
 import type { Request, Response } from "express";
+import { AppError } from "../../common/app-error";
 import { asyncHandler } from "../../common/async-handler";
+import { injectBranchFilter } from "../../common/branch-filter-helper";
 import { approvalActionSchema } from "../approval/approval.schema";
 import { lockOpnameFinalSchema, opnameFinalListQuerySchema } from "./opname-final.schema";
 import { opnameFinalService } from "./opname-final.service";
 
 export const listOpnameFinal = asyncHandler(async (req: Request, res: Response) => {
-    const query = opnameFinalListQuerySchema.parse(req.query);
+    let query = opnameFinalListQuerySchema.parse(req.query);
+    
+    const user = req.user;
+    if (!user) {
+        throw new AppError("User tidak terautentikasi", 401);
+    }
+
+    // Enforce branch filtering di backend
+    query = await injectBranchFilter(user, query);
+    
     const data = await opnameFinalService.list(query);
 
     res.json({ status: "success", data });

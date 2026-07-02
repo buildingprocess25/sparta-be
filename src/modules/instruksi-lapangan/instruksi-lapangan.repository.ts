@@ -339,7 +339,14 @@ export const instruksiLapanganRepository = {
         await pool.query(query, params);
     },
 
-    async findMany(query: { status?: string; nomor_ulok?: string; cabang?: string; email_pembuat?: string; id_toko?: number }) {
+    async findMany(query: { 
+        status?: string; 
+        nomor_ulok?: string; 
+        cabang?: string; 
+        cabang_array?: string[]; // NEW: Accept array of branches
+        email_pembuat?: string; 
+        id_toko?: number;
+    }) {
         const conditions: string[] = [];
         const params: any[] = [];
         let index = 1;
@@ -359,10 +366,17 @@ export const instruksiLapanganRepository = {
             conditions.push(`t.nomor_ulok ILIKE $${index++}`);
             params.push(`%${query.nomor_ulok}%`);
         }
-        if (query.cabang) {
+        
+        // NEW: Prioritize cabang_array over cabang
+        if (query.cabang_array && query.cabang_array.length > 0) {
+            conditions.push(`UPPER(TRIM(t.cabang)) = ANY($${index++}::text[])`);
+            const normalizedBranches = query.cabang_array.map(b => b.trim().toUpperCase());
+            params.push(normalizedBranches);
+        } else if (query.cabang) {
             conditions.push(`UPPER(TRIM(t.cabang)) = ANY($${index++}::text[])`);
             params.push(getBranchScopeCandidates(query.cabang));
         }
+        
         if (query.email_pembuat) {
             conditions.push(`il.email_pembuat ILIKE $${index++}`);
             params.push(`%${query.email_pembuat}%`);

@@ -108,6 +108,19 @@ const addBranchScope = (user: AuthenticatedUser, values: SqlValue[], branchExpre
         return `AND UPPER(TRIM(COALESCE(${branchExpression}, ''))) = ANY($${values.length}::text[])`;
     }
 
+    // Business Rule Clarification: Only CIKOKOL & CILEUNGSI have subdivision coverage
+    // Other branches (Lombok, Medan, Lampung, etc.) get entire branch group
+    const normalizedCabang = (user.cabang ?? '').trim().toUpperCase();
+    const BRANCHES_WITH_SPECIFIC_COVERAGE = ['CIKOKOL', 'CILEUNGSI'];
+    
+    if (!BRANCHES_WITH_SPECIFIC_COVERAGE.includes(normalizedCabang)) {
+        // Other branches: Return entire branch group (no subdivision)
+        const branches = getBranchScopeCandidates(user.cabang);
+        values.push(branches);
+        return `AND UPPER(TRIM(COALESCE(${branchExpression}, ''))) = ANY($${values.length}::text[])`;
+    }
+
+    // CIKOKOL/CILEUNGSI only: Check user_branch_coverage for subdivisions
     values.push(user.email_sat);
     const emailIndex = values.length;
     values.push(user.cabang);

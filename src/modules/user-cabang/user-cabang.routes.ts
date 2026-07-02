@@ -4,11 +4,13 @@ import {
     deleteUserCabangById,
     getUserCabangById,
     listUserCabang,
-    updateUserCabangById
+    updateUserCabangById,
+    getMyCoverage
 } from "./user-cabang.controller";
 
 const userCabangRouter = Router();
 
+userCabangRouter.get("/my-coverage", getMyCoverage);
 userCabangRouter.post("/", createUserCabang);
 userCabangRouter.get("/", listUserCabang);
 userCabangRouter.get("/:id", getUserCabangById);

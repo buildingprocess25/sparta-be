@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { asyncHandler } from "../../common/async-handler";
+import { getEffectiveBranchesForUser } from "../../common/branch-scope";
 import {
     createUserCabangSchema,
     listUserCabangQuerySchema,
@@ -53,5 +54,42 @@ export const deleteUserCabangById = asyncHandler(async (req: Request, res: Respo
         status: "success",
         message: "Data user_cabang berhasil dihapus",
         data
+    });
+});
+
+/**
+ * GET /api/user-cabang/my-coverage
+ * Returns the effective branches accessible by the current authenticated user.
+ * This is the single source of truth for frontend branch filtering.
+ */
+export const getMyCoverage = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user;
+    
+    if (!user) {
+        res.status(401).json({
+            status: "error",
+            message: "Sesi tidak valid. Silakan login kembali."
+        });
+        return;
+    }
+
+    const result = await getEffectiveBranchesForUser({
+        emailSat: user.email_sat,
+        cabang: user.cabang,
+        roles: user.roles
+    });
+
+    res.json({
+        status: "success",
+        data: {
+            branches: result.branches,
+            source: result.source,
+            user: {
+                email_sat: user.email_sat,
+                cabang: user.cabang,
+                jabatan: user.jabatan,
+                roles: user.roles
+            }
+        }
     });
 });

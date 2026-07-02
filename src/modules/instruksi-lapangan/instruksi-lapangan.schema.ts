@@ -30,6 +30,7 @@ export const listInstruksiLapanganQuerySchema = z.object({
     status: z.string().optional(),
     nomor_ulok: z.string().optional(),
     cabang: z.string().optional(),
+    cabang_array: z.array(z.string()).optional(), // Backend-injected branches
     email_pembuat: z.string().optional(),
     id_toko: z.coerce.number().int().positive().optional()
 });

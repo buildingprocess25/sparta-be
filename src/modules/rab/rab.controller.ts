@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { AppError } from "../../common/app-error";
 import { asyncHandler } from "../../common/async-handler";
+import { injectBranchFilter } from "../../common/branch-filter-helper";
 import { approvalActionSchema } from "../approval/approval.schema";
 import {
     bulkUpdateRabItemsSchema,
@@ -94,16 +95,22 @@ export const submitRab = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const listRab = asyncHandler(async (req: Request, res: Response) => {
-    const query = rabListQuerySchema.parse(req.query);
+    let query = rabListQuerySchema.parse(req.query);
     
-    // Auto-inject nama_pt filter untuk role kontraktor
     const user = req.user;
-    if (user && user.roles.some(role => role.toUpperCase().includes('KONTRAKTOR')) && user.nama_pt) {
-        // Hanya inject jika tidak ada explicit filter nama_pt dari query
+    if (!user) {
+        throw new AppError("User tidak terautentikasi", 401);
+    }
+
+    // Auto-inject nama_pt filter untuk role kontraktor
+    if (user.roles.some(role => role.toUpperCase().includes('KONTRAKTOR')) && user.nama_pt) {
         if (!query.nama_pt) {
             query.nama_pt = user.nama_pt;
         }
     }
+
+    // CRITICAL: Enforce branch filtering di backend sesuai business rules
+    query = await injectBranchFilter(user, query);
     
     const data = await rabService.list(query);
 
