@@ -533,7 +533,10 @@ const findRevisionRequired = async (user: AuthenticatedUser): Promise<Notificati
     const userEmail = normalize(user.email_sat);
 
     // RAB Revision - hanya untuk role KONTRAKTOR aktif (bukan DIREKTUR KONTRAKTOR)
-    if (isSuperHuman(user) || hasActiveRole(user, "KONTRAKTOR")) {
+    // Check: Active role harus "KONTRAKTOR" dan BUKAN "DIREKTUR KONTRAKTOR"
+    const isKontraktorOnly = hasActiveRole(user, "KONTRAKTOR") && !hasActiveRole(user, "DIREKTUR KONTRAKTOR");
+    
+    if (isSuperHuman(user) || isKontraktorOnly) {
         const values: SqlValue[] = [];
         const companyWhere = addCompanyScope(user, values, "r.nama_pt");
         let emailCondition = "TRUE";
@@ -730,7 +733,9 @@ const findPicAssignmentRequired = async (user: AuthenticatedUser): Promise<Notif
 };
 
 const findRabProjectPlanningRequests = async (user: AuthenticatedUser): Promise<NotificationRow[]> => {
-    if (!hasActiveRole(user, "KONTRAKTOR") || !user.email_sat) return [];
+    // Only for KONTRAKTOR role (not DIREKTUR KONTRAKTOR) - they create/upload RAB
+    const isKontraktorOnly = hasActiveRole(user, "KONTRAKTOR") && !hasActiveRole(user, "DIREKTUR KONTRAKTOR");
+    if (!isKontraktorOnly || !user.email_sat) return [];
 
     const values: SqlValue[] = [user.email_sat, ITEM_LIMIT];
     return queryNotificationRows(`
