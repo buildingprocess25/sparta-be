@@ -21,3 +21,12 @@ export const listBerkasSerahTerimaQuerySchema = z.object({
 });
 
 export type ListBerkasSerahTerimaQueryInput = z.infer<typeof listBerkasSerahTerimaQuerySchema>;
+
+export const correctSerahTerimaDateSchema = z.object({
+    nomor_ulok: z.string().trim().min(1, "Nomor ULOK wajib diisi"),
+    cabang: z.string().trim().min(1).optional(),
+    tanggal_serah_terima: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal harus berformat YYYY-MM-DD"),
+    catatan: z.string().trim().max(500).optional(),
+});
+
+export type CorrectSerahTerimaDateInput = z.infer<typeof correctSerahTerimaDateSchema>;

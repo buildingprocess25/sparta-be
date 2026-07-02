@@ -26,6 +26,21 @@ export type BerkasSerahTerimaWithTokoRow = BerkasSerahTerimaRow & {
     nomor_spk: string | null;
 };
 
+export type BerkasSerahTerimaDateCorrectionTargetRow = BerkasSerahTerimaRow & {
+    nomor_ulok: string | null;
+    lingkup_pekerjaan: string | null;
+    nama_toko: string | null;
+    kode_toko: string | null;
+    proyek: string | null;
+    cabang: string | null;
+    nama_kontraktor: string | null;
+    opname_final_id: number | null;
+    hari_denda: number | null;
+    nilai_denda: string | null;
+    tanggal_akhir_spk_denda: string | null;
+    tanggal_serah_terima_denda: string | null;
+};
+
 export type OpnameFinalRow = {
     id: number;
     id_toko: number;
@@ -99,6 +114,28 @@ export type SupervisionCompletionRow = {
 };
 
 export const serahTerimaRepository = {
+    async ensureDateCorrectionAuditSchema(): Promise<void> {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS serah_terima_date_correction_audit (
+                id SERIAL PRIMARY KEY,
+                berkas_serah_terima_id INTEGER NOT NULL REFERENCES berkas_serah_terima(id) ON DELETE CASCADE,
+                id_toko INTEGER NOT NULL,
+                nomor_ulok TEXT,
+                cabang TEXT,
+                old_created_at TIMESTAMP,
+                new_created_at TIMESTAMP NOT NULL,
+                old_hari_denda INTEGER,
+                old_nilai_denda NUMERIC,
+                old_tanggal_akhir_spk_denda DATE,
+                old_tanggal_serah_terima_denda DATE,
+                actor_email TEXT,
+                actor_role TEXT,
+                catatan TEXT,
+                created_at TIMESTAMP NOT NULL DEFAULT NOW()
+            )
+        `);
+    },
+
     async findTokoScopesByNomorUlok(nomorUlok: string): Promise<TokoRow[]> {
         const result = await pool.query<TokoRow>(
             `
@@ -435,6 +472,129 @@ export const serahTerimaRepository = {
         );
 
         return result.rows;
+    },
+
+    async findDateCorrectionTargets(input: { nomor_ulok: string; cabang?: string | null }): Promise<BerkasSerahTerimaDateCorrectionTargetRow[]> {
+        const result = await pool.query<BerkasSerahTerimaDateCorrectionTargetRow>(
+            `
+            SELECT
+                bst.id,
+                bst.id_toko,
+                bst.link_pdf,
+                bst.created_at,
+                t.nomor_ulok,
+                t.lingkup_pekerjaan,
+                t.nama_toko,
+                t.kode_toko,
+                t.proyek,
+                t.cabang,
+                t.nama_kontraktor,
+                opname_latest.id AS opname_final_id,
+                opname_latest.hari_denda,
+                opname_latest.nilai_denda,
+                opname_latest.tanggal_akhir_spk_denda,
+                opname_latest.tanggal_serah_terima_denda
+            FROM berkas_serah_terima bst
+            JOIN toko t ON t.id = bst.id_toko
+            LEFT JOIN LATERAL (
+                SELECT id, hari_denda, nilai_denda, tanggal_akhir_spk_denda, tanggal_serah_terima_denda
+                FROM opname_final
+                WHERE id_toko = bst.id_toko
+                ORDER BY id DESC
+                LIMIT 1
+            ) opname_latest ON true
+            WHERE t.nomor_ulok = $1
+              AND ($2::text IS NULL OR UPPER(t.cabang) = UPPER($2::text))
+            ORDER BY
+                CASE
+                    WHEN UPPER(TRIM(COALESCE(t.lingkup_pekerjaan, ''))) = 'SIPIL' THEN 0
+                    WHEN UPPER(TRIM(COALESCE(t.lingkup_pekerjaan, ''))) = 'ME' THEN 1
+                    ELSE 2
+                END,
+                bst.id
+            `,
+            [input.nomor_ulok, input.cabang ?? null]
+        );
+
+        return result.rows;
+    },
+
+    async updateBerkasSerahTerimaDate(input: { ids: number[]; tanggal: string }): Promise<BerkasSerahTerimaRow[]> {
+        if (input.ids.length === 0) return [];
+
+        const updated = await pool.query<BerkasSerahTerimaRow>(
+            `
+            UPDATE berkas_serah_terima
+            SET created_at = ($1::date + COALESCE(created_at::time, TIME '00:00:00'))::timestamp
+            WHERE id = ANY($2::int[])
+            RETURNING id, id_toko, link_pdf, created_at
+            `,
+            [input.tanggal, input.ids]
+        );
+
+        return updated.rows;
+    },
+
+    async insertDateCorrectionAudit(input: {
+        targets: BerkasSerahTerimaDateCorrectionTargetRow[];
+        updatedRows: BerkasSerahTerimaRow[];
+        actorEmail?: string | null;
+        actorRole?: string | null;
+        catatan?: string | null;
+    }): Promise<void> {
+        if (input.targets.length === 0) return;
+
+        const newCreatedAtById = new Map(input.updatedRows.map((row) => [row.id, row.created_at]));
+        const values: unknown[] = [];
+        const placeholders: string[] = [];
+
+        input.targets.forEach((target, index) => {
+            const offset = index * 14;
+            placeholders.push(`(
+                $${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5},
+                $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 10},
+                $${offset + 11}, $${offset + 12}, $${offset + 13}, $${offset + 14}
+            )`);
+            values.push(
+                target.id,
+                target.id_toko,
+                target.nomor_ulok,
+                target.cabang,
+                target.created_at,
+                newCreatedAtById.get(target.id) ?? target.created_at,
+                target.hari_denda,
+                target.nilai_denda,
+                target.tanggal_akhir_spk_denda,
+                target.tanggal_serah_terima_denda,
+                input.actorEmail ?? null,
+                input.actorRole ?? null,
+                input.catatan ?? null,
+                new Date()
+            );
+        });
+
+        await pool.query(
+            `
+            INSERT INTO serah_terima_date_correction_audit (
+                berkas_serah_terima_id,
+                id_toko,
+                nomor_ulok,
+                cabang,
+                old_created_at,
+                new_created_at,
+                old_hari_denda,
+                old_nilai_denda,
+                old_tanggal_akhir_spk_denda,
+                old_tanggal_serah_terima_denda,
+                actor_email,
+                actor_role,
+                catatan,
+                created_at
+            )
+            VALUES ${placeholders.join(", ")}
+            `,
+            values
+        );
     },
 
     async ensureBerkasSerahTerima(idToko: number): Promise<BerkasSerahTerimaRow> {

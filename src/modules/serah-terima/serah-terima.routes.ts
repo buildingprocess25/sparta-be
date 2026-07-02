@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createPdfSerahTerima, createUnifiedPdfSerahTerima, downloadBerkasSerahTerimaPdf, listBerkasSerahTerima } from "./serah-terima.controller";
+import { correctSerahTerimaDate, createPdfSerahTerima, createUnifiedPdfSerahTerima, downloadBerkasSerahTerimaPdf, listBerkasSerahTerima } from "./serah-terima.controller";
 import multer from "multer";
 import {
     commitSerahTerimaMigration,
@@ -16,6 +16,7 @@ serahTerimaRouter.post("/serah-terima/migration/preview", migrationUpload.single
 serahTerimaRouter.post("/serah-terima/migration/commit", migrationUpload.single("file"), commitSerahTerimaMigration);
 serahTerimaRouter.post("/create_pdf_serah_terima_unified", createUnifiedPdfSerahTerima);
 serahTerimaRouter.post("/create_pdf_serah_terima", createPdfSerahTerima);
+serahTerimaRouter.patch("/serah-terima/date-correction", correctSerahTerimaDate);
 serahTerimaRouter.get("/berkas_serah_terima", listBerkasSerahTerima);
 serahTerimaRouter.get("/berkas_serah_terima/:id/pdf", downloadBerkasSerahTerimaPdf);
 

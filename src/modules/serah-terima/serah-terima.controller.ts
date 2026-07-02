@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { asyncHandler } from "../../common/async-handler";
-import { createSerahTerimaPdfSchema, createUnifiedSerahTerimaPdfSchema, listBerkasSerahTerimaQuerySchema } from "./serah-terima.schema";
+import { correctSerahTerimaDateSchema, createSerahTerimaPdfSchema, createUnifiedSerahTerimaPdfSchema, listBerkasSerahTerimaQuerySchema } from "./serah-terima.schema";
 import { serahTerimaService } from "./serah-terima.service";
 
 export const listBerkasSerahTerima = asyncHandler(async (req: Request, res: Response) => {
@@ -31,6 +31,20 @@ export const createUnifiedPdfSerahTerima = asyncHandler(async (req: Request, res
     res.json({
         status: "success",
         message: "Berkas serah terima gabungan berhasil dibuat dan diupload",
+        data,
+    });
+});
+
+export const correctSerahTerimaDate = asyncHandler(async (req: Request, res: Response) => {
+    const payload = correctSerahTerimaDateSchema.parse(req.body);
+    const data = await serahTerimaService.correctDate({
+        ...payload,
+        actor: req.user,
+    });
+
+    res.json({
+        status: "success",
+        message: "Tanggal Serah Terima berhasil diperbarui. Denda sudah disinkronkan dan dokumen terkait dijadwalkan untuk dibuat ulang.",
         data,
     });
 });

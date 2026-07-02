@@ -1,8 +1,10 @@
 import { AppError } from "../../common/app-error";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
+import type { AuthenticatedUser } from "../auth/auth-session.service";
 import { calculateDendaByTokoId } from "../denda/denda-keterlambatan";
 import { opnameFinalService } from "../opname-final/opname-final.service";
+import { canManageSystemMaintenance } from "../system-maintenance/system-maintenance.service";
 import {
     buildSerahTerimaPdfBuffer,
     buildSerahTerimaUnifiedAssessmentPdfBuffer,
@@ -184,6 +186,8 @@ export const scheduleAutomaticSerahTerimaIfReady = async (idToko: number): Promi
 };
 
 export const serahTerimaService = {
+    ensureDateCorrectionAuditSchema: () => serahTerimaRepository.ensureDateCorrectionAuditSchema(),
+
     async list(filter: { id_toko?: number; nomor_ulok?: string } = {}) {
         const rows = await serahTerimaRepository.listBerkasSerahTerima({
             id_toko: filter.id_toko,
@@ -242,6 +246,81 @@ export const serahTerimaService = {
         );
 
         return enriched;
+    },
+
+    async correctDate(input: {
+        nomor_ulok: string;
+        cabang?: string | null;
+        tanggal_serah_terima: string;
+        catatan?: string | null;
+        actor?: AuthenticatedUser | null;
+    }) {
+        if (!canManageSystemMaintenance(input.actor)) {
+            throw new AppError("Anda tidak memiliki akses untuk mengubah tanggal serah terima.", 403);
+        }
+
+        await serahTerimaRepository.ensureDateCorrectionAuditSchema();
+
+        const targets = await serahTerimaRepository.findDateCorrectionTargets({
+            nomor_ulok: input.nomor_ulok,
+            cabang: input.cabang ?? null,
+        });
+
+        if (targets.length === 0) {
+            throw new AppError("Berkas Serah Terima pada scope tersebut tidak ditemukan.", 404);
+        }
+
+        const updatedRows = await serahTerimaRepository.updateBerkasSerahTerimaDate({
+            ids: targets.map((target) => target.id),
+            tanggal: input.tanggal_serah_terima,
+        });
+
+        await serahTerimaRepository.insertDateCorrectionAudit({
+            targets,
+            updatedRows,
+            actorEmail: input.actor?.email_sat ?? null,
+            actorRole: input.actor?.jabatan ?? input.actor?.roles.join(", ") ?? null,
+            catatan: input.catatan ?? null,
+        });
+
+        for (const row of updatedRows) {
+            await opnameFinalService.refreshDendaByTokoId(row.id_toko);
+        }
+
+        setImmediate(() => {
+            Promise.allSettled(updatedRows.map((row) => serahTerimaService.regeneratePdfByBerkasId(row.id)))
+                .then((results) => {
+                    const failed = results.filter((result) => result.status === "rejected");
+                    if (failed.length > 0) {
+                        console.error(`[ST][DATE_CORRECTION] ${failed.length} PDF gagal diregenerasi`, {
+                            nomorUlok: input.nomor_ulok,
+                            cabang: input.cabang ?? null,
+                        });
+                    }
+                })
+                .catch((error) => {
+                    console.error("[ST][DATE_CORRECTION] Regenerate PDF background gagal", {
+                        nomorUlok: input.nomor_ulok,
+                        cabang: input.cabang ?? null,
+                        error: error instanceof Error ? error.message : String(error),
+                    });
+                });
+        });
+
+        const refreshed = await serahTerimaService.list({ nomor_ulok: input.nomor_ulok });
+
+        return {
+            nomor_ulok: input.nomor_ulok,
+            cabang: input.cabang ?? null,
+            tanggal_serah_terima: input.tanggal_serah_terima,
+            affected_count: updatedRows.length,
+            refreshed_denda_count: updatedRows.length,
+            pdf_refresh_queued_count: updatedRows.length,
+            items: refreshed.filter((item) => {
+                if (!input.cabang) return true;
+                return String(item.toko.cabang ?? "").trim().toUpperCase() === String(input.cabang).trim().toUpperCase();
+            }),
+        };
     },
 
 
