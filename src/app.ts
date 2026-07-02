@@ -140,7 +140,7 @@ app.use("/api/pic_pengawasan", picPengawasanRouter);
 app.use("/api/pengawasan", pengawasanRouter);
 app.use("/api/opname", opnameRouter);
 app.use("/api/final_opname", opnameFinalRouter);
-app.use("/api/user_cabang", userCabangRouter);
+app.use("/api/user-cabang", userCabangRouter); // FIX: Use hyphen for consistency
 app.use("/api/instruksi-lapangan", instruksiLapanganRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/denda", dendaRouter);
