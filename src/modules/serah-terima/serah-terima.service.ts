@@ -323,6 +323,21 @@ export const serahTerimaService = {
         };
     },
 
+    async listDateCorrectionHistory(input: {
+        nomor_ulok: string;
+        cabang?: string | null;
+        actor?: AuthenticatedUser | null;
+    }) {
+        if (!canManageSystemMaintenance(input.actor)) {
+            throw new AppError("Anda tidak memiliki akses untuk melihat riwayat koreksi tanggal serah terima.", 403);
+        }
+
+        return serahTerimaRepository.listDateCorrectionAudit({
+            nomor_ulok: input.nomor_ulok,
+            cabang: input.cabang ?? null,
+        });
+    },
+
 
     async createPdfSerahTerima(idToko: number) {
         // Validate the required opname data before writing a serah-terima placeholder.

@@ -41,6 +41,27 @@ export type BerkasSerahTerimaDateCorrectionTargetRow = BerkasSerahTerimaRow & {
     tanggal_serah_terima_denda: string | null;
 };
 
+export type SerahTerimaDateCorrectionAuditRow = {
+    id: number;
+    berkas_serah_terima_id: number;
+    id_toko: number;
+    nomor_ulok: string | null;
+    cabang: string | null;
+    old_created_at: string | null;
+    new_created_at: string;
+    old_hari_denda: number | null;
+    old_nilai_denda: string | null;
+    old_tanggal_akhir_spk_denda: string | null;
+    old_tanggal_serah_terima_denda: string | null;
+    actor_email: string | null;
+    actor_role: string | null;
+    catatan: string | null;
+    created_at: string;
+    lingkup_pekerjaan: string | null;
+    nama_toko: string | null;
+    proyek: string | null;
+};
+
 export type OpnameFinalRow = {
     id: number;
     id_toko: number;
@@ -595,6 +616,43 @@ export const serahTerimaRepository = {
             `,
             values
         );
+    },
+
+    async listDateCorrectionAudit(input: { nomor_ulok: string; cabang?: string | null }): Promise<SerahTerimaDateCorrectionAuditRow[]> {
+        await this.ensureDateCorrectionAuditSchema();
+
+        const result = await pool.query<SerahTerimaDateCorrectionAuditRow>(
+            `
+            SELECT
+                audit.id,
+                audit.berkas_serah_terima_id,
+                audit.id_toko,
+                audit.nomor_ulok,
+                audit.cabang,
+                audit.old_created_at,
+                audit.new_created_at,
+                audit.old_hari_denda,
+                audit.old_nilai_denda,
+                audit.old_tanggal_akhir_spk_denda,
+                audit.old_tanggal_serah_terima_denda,
+                audit.actor_email,
+                audit.actor_role,
+                audit.catatan,
+                audit.created_at,
+                t.lingkup_pekerjaan,
+                t.nama_toko,
+                t.proyek
+            FROM serah_terima_date_correction_audit audit
+            LEFT JOIN toko t ON t.id = audit.id_toko
+            WHERE audit.nomor_ulok = $1
+              AND ($2::text IS NULL OR UPPER(audit.cabang) = UPPER($2::text))
+            ORDER BY audit.created_at DESC, audit.id DESC
+            LIMIT 50
+            `,
+            [input.nomor_ulok, input.cabang ?? null]
+        );
+
+        return result.rows;
     },
 
     async ensureBerkasSerahTerima(idToko: number): Promise<BerkasSerahTerimaRow> {

@@ -30,3 +30,10 @@ export const correctSerahTerimaDateSchema = z.object({
 });
 
 export type CorrectSerahTerimaDateInput = z.infer<typeof correctSerahTerimaDateSchema>;
+
+export const listSerahTerimaDateCorrectionHistoryQuerySchema = z.object({
+    nomor_ulok: z.string().trim().min(1, "Nomor ULOK wajib diisi"),
+    cabang: z.string().trim().min(1).optional(),
+});
+
+export type ListSerahTerimaDateCorrectionHistoryQueryInput = z.infer<typeof listSerahTerimaDateCorrectionHistoryQuerySchema>;
