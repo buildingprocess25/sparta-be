@@ -7,7 +7,7 @@ export const BRANCH_GROUPS: Record<string, string[]> = {
     MEDAN: ["MEDAN", "ACEH"],
     LAMPUNG: ["LAMPUNG", "KOTABUMI"],
     PALEMBANG: ["PALEMBANG", "BENGKULU", "BANGKA", "BELITUNG"],
-    SIDOARJO: ["SIDOARJO", "SIDOARJO BPN_SMD", "MANOKWARI", "NTT", "SORONG"],
+    SIDOARJO: ["SIDOARJO", "SIDOARJO BPN SMD", "MANOKWARI", "NTT", "SORONG"], // FIX: Use space not underscore
 };
 
 export const GLOBAL_ACCESS_ROLES = [
@@ -19,7 +19,11 @@ export const GLOBAL_ACCESS_ROLES = [
 ];
 
 export const normalizeBranchScopeName = (value?: string | null): string =>
-    String(value ?? "").trim().replace(/\s+/g, " ").toUpperCase();
+    String(value ?? "")
+        .trim()
+        .replace(/\s+/g, " ")        // Multiple spaces → single space
+        .replace(/_+/g, " ")         // Underscores → space (FIX for SIDOARJO BPN_SMD)
+        .toUpperCase();
 
 export const getBranchScopeCandidates = (branch?: string | null): string[] => {
     const normalized = normalizeBranchScopeName(branch);
