@@ -95,6 +95,16 @@ export const submitRab = asyncHandler(async (req: Request, res: Response) => {
 
 export const listRab = asyncHandler(async (req: Request, res: Response) => {
     const query = rabListQuerySchema.parse(req.query);
+    
+    // Auto-inject nama_pt filter untuk role kontraktor
+    const user = req.user;
+    if (user && user.roles.some(role => role.toUpperCase().includes('KONTRAKTOR')) && user.nama_pt) {
+        // Hanya inject jika tidak ada explicit filter nama_pt dari query
+        if (!query.nama_pt) {
+            query.nama_pt = user.nama_pt;
+        }
+    }
+    
     const data = await rabService.list(query);
 
     res.json({ status: "success", data });
