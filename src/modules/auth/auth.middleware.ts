@@ -1,7 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { env } from "../../config/env";
-import { getBranchScopeCandidates } from "../../common/branch-scope";
-import { pool } from "../../db/pool";
+import { getEffectiveBranchesForUser, hasGlobalAccess, normalizeBranchScopeName } from "../../common/branch-scope";
 import { authSessionService, type AuthenticatedUser } from "./auth-session.service";
 import { canManageSystemMaintenance, systemMaintenanceService } from "../system-maintenance/system-maintenance.service";
 
@@ -18,63 +17,27 @@ const PUBLIC_API_PATHS = new Set([
     "/api/auth/verify-otp"
 ]);
 
-const GLOBAL_ACCESS_ROLES = [
-    "BUILDING & MAINTENANCE SUPER HUMAN",
-    "BUILDING & MAINTENANCE REGIONAL MANAGER",
-    "BUILDING MAINTENANCE & ENERGY SYSTEM MANAGER",
-    "BUILDING & MAINTENANCE GENERAL MANAGER",
-    "STORE & BRANCH CONTROLLING SPECIALIST"
-];
-
 const MAINTENANCE_STATUS_CACHE_MS = 5_000;
 let cachedMaintenanceStatus: { isActive: boolean; expiresAt: number } | null = null;
 
 function normalizeText(value: unknown): string {
-    return String(value ?? "")
-        .trim()
-        .toUpperCase()
+    return normalizeBranchScopeName(value as string | null)
         .replace(/^CAB(?:ANG)?\.?\s+/, "")
-        .replace(/^CABANG\s+/, "")
-        .replace(/\s+/g, " ");
-}
-
-function hasGlobalAccess(user: AuthenticatedUser): boolean {
-    if (normalizeText(user.cabang) === "HEAD OFFICE") return true;
-    return user.roles.some((role) => GLOBAL_ACCESS_ROLES.includes(normalizeText(role)));
-}
-
-function isBranchSupportRole(user: AuthenticatedUser): boolean {
-    return user.roles.some((role) => normalizeText(role).includes("BRANCH BUILDING SUPPORT"));
-}
-
-async function getUserCoverageBranches(user: AuthenticatedUser): Promise<string[]> {
-    const result = await pool.query<{ covered_cabang: string }>(
-        `
-        SELECT DISTINCT ubc.covered_cabang
-        FROM user_cabang uc
-        JOIN user_branch_coverage ubc ON ubc.user_cabang_id = uc.id
-        WHERE LOWER(TRIM(uc.email_sat)) = LOWER(TRIM($1))
-          AND LOWER(TRIM(uc.cabang)) = LOWER(TRIM($2))
-        ORDER BY ubc.covered_cabang ASC
-        `,
-        [user.email_sat, user.cabang]
-    );
-
-    return result.rows.map(row => normalizeText(row.covered_cabang)).filter(Boolean);
+        .replace(/^CABANG\s+/, "");
 }
 
 async function canAccessRequestedBranch(user: AuthenticatedUser, requestedCabang: string): Promise<boolean> {
     const normalizedRequested = normalizeText(requestedCabang);
-    const normalizedUserCabang = normalizeText(user.cabang);
     if (!normalizedRequested || ["ALL", "SEMUA", "SEMUA CABANG", "-"].includes(normalizedRequested)) return true;
 
-    if (isBranchSupportRole(user)) {
-        return getBranchScopeCandidates(normalizedUserCabang).includes(normalizedRequested);
-    }
+    const scope = await getEffectiveBranchesForUser({
+        emailSat: user.email_sat,
+        cabang: user.cabang,
+        roles: user.roles
+    });
+    if (scope.source === "global") return true;
 
-    const coverage = await getUserCoverageBranches(user);
-    if (coverage.length > 0) return coverage.includes(normalizedRequested);
-    return normalizedRequested === normalizedUserCabang;
+    return scope.branches.map(normalizeText).includes(normalizedRequested);
 }
 
 async function isMaintenanceActive(): Promise<boolean> {
@@ -106,7 +69,7 @@ function getStringValue(value: unknown): string | null {
 
 async function validateScopedRequest(req: Request, res: Response): Promise<boolean> {
     const user = req.user;
-    if (!user || hasGlobalAccess(user)) return true;
+    if (!user || hasGlobalAccess(user.cabang, user.roles)) return true;
 
     // Skip branch scope check for price data endpoints - these are reference data accessible to all contractors
     const path = req.path;

@@ -3,7 +3,7 @@ import { pool } from "../db/pool";
 export const BRANCH_GROUPS: Record<string, string[]> = {
     LOMBOK: ["LOMBOK", "SUMBAWA"],
     CILEUNGSI: ["CILEUNGSI", "BOGOR", "BEKASI", "KARAWANG"],
-    CIKOKOL: ["CIKOKOL", "BINTAN", "PARUNG", "BALARAJA", "SERANG"],
+    CIKOKOL: ["CIKOKOL", "PARUNG", "BALARAJA", "SERANG"],
     MEDAN: ["MEDAN", "ACEH"],
     LAMPUNG: ["LAMPUNG", "KOTABUMI"],
     PALEMBANG: ["PALEMBANG", "BENGKULU", "BANGKA", "BELITUNG"],
@@ -124,44 +124,32 @@ export const getEffectiveBranchesForUser = async (input: {
     const { emailSat, cabang, roles } = input;
     const normalizedCabang = normalizeBranchScopeName(cabang);
 
-    console.log('[getEffectiveBranchesForUser] Input:', {
-        emailSat,
-        cabang,
-        normalizedCabang,
-        roles
-    });
-
     // 1. Global access
     if (hasGlobalAccess(cabang, roles)) {
         const allBranches = Array.from(
             new Set(Object.values(BRANCH_GROUPS).flat())
         ).sort();
-        console.log('[getEffectiveBranchesForUser] Global access detected, returning all branches:', allBranches.length);
         return { branches: allBranches, source: "global" };
     }
 
     // 2. Branch Support role → Always entire branch group
     if (isBranchSupportRole(roles)) {
         const branchGroup = getBranchScopeCandidates(normalizedCabang);
-        console.log('[getEffectiveBranchesForUser] Support role detected, returning branch group:', branchGroup);
         return { branches: branchGroup.sort(), source: "support" };
     }
 
     // 3. Check if this branch has specific coverage rules (CIKOKOL/CILEUNGSI only)
     const hasSpecificRules = hasSpecificCoverageRules(normalizedCabang);
-    console.log('[getEffectiveBranchesForUser] Has specific coverage rules?', hasSpecificRules, 'for branch:', normalizedCabang);
-    
+
     if (hasSpecificRules) {
         // For CIKOKOL/CILEUNGSI: Manager/Coordinator have subdivisions
         const coverage = await getUserCoverageBranches(emailSat, cabang);
-        console.log('[getEffectiveBranchesForUser] CIKOKOL/CILEUNGSI coverage from DB:', coverage);
-        
+
         if (coverage.length > 0) {
             return { branches: coverage.sort(), source: "coverage" };
         }
-        
+
         // Fallback: login branch only
-        console.log('[getEffectiveBranchesForUser] No coverage found, fallback to login branch:', normalizedCabang);
         return { 
             branches: normalizedCabang ? [normalizedCabang] : [], 
             source: "fallback" 
@@ -170,10 +158,5 @@ export const getEffectiveBranchesForUser = async (input: {
 
     // 4. Other branches (Lombok, Medan, Lampung, etc): ALL roles access entire branch group
     const branchGroup = getBranchScopeCandidates(normalizedCabang);
-    console.log('[getEffectiveBranchesForUser] Branch group access:', {
-        normalizedCabang,
-        branchGroup,
-        source: 'branch_group'
-    });
     return { branches: branchGroup.sort(), source: "branch_group" };
 };

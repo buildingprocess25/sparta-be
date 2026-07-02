@@ -2,6 +2,8 @@ import type { Request, Response } from "express";
 import { AppError } from "../../common/app-error";
 import { asyncHandler } from "../../common/async-handler";
 import { injectBranchFilter } from "../../common/branch-filter-helper";
+import { getEffectiveBranchesForUser, normalizeBranchScopeName } from "../../common/branch-scope";
+import type { AuthenticatedUser } from "../auth/auth-session.service";
 import { approvalActionSchema } from "../approval/approval.schema";
 import {
     bulkUpdateRabItemsSchema,
@@ -12,6 +14,27 @@ import {
     updateRabStatusSchema
 } from "./rab.schema";
 import { rabService } from "./rab.service";
+
+const userCanAccessBranch = async (user: AuthenticatedUser, cabang?: string | null): Promise<boolean> => {
+    const normalizedCabang = normalizeBranchScopeName(cabang);
+    if (!normalizedCabang || normalizedCabang === "-") return true;
+
+    const scope = await getEffectiveBranchesForUser({
+        emailSat: user.email_sat,
+        cabang: user.cabang,
+        roles: user.roles
+    });
+    if (scope.source === "global") return true;
+
+    return scope.branches.map(normalizeBranchScopeName).includes(normalizedCabang);
+};
+
+const assertCurrentUserCanAccessRab = async (user: AuthenticatedUser, data: Awaited<ReturnType<typeof rabService.getById>>) => {
+    const canAccess = await userCanAccessBranch(user, data.toko.cabang);
+    if (!canAccess) {
+        throw new AppError("Anda tidak memiliki akses ke cabang dokumen ini.", 403);
+    }
+};
 
 export const submitRab = asyncHandler(async (req: Request, res: Response) => {
     let detailItems = req.body.detail_items;
@@ -135,7 +158,13 @@ export const listRab = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const getRabById = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user;
+    if (!user) {
+        throw new AppError("User tidak terautentikasi", 401);
+    }
+
     const data = await rabService.getById(req.params.id);
+    await assertCurrentUserCanAccessRab(user, data);
 
     res.json({ status: "success", data });
 });
@@ -185,7 +214,22 @@ export const downloadRabInsuranceFile = asyncHandler(async (req: Request, res: R
 });
 
 export const handleRabApproval = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user;
+    if (!user) {
+        throw new AppError("User tidak terautentikasi", 401);
+    }
+
     const action = approvalActionSchema.parse(req.body);
+    if (
+        action.approver_email
+        && normalizeBranchScopeName(action.approver_email) !== normalizeBranchScopeName(user.email_sat)
+    ) {
+        throw new AppError("Identitas approver tidak sesuai dengan sesi login.", 403);
+    }
+
+    const data = await rabService.getById(req.params.id);
+    await assertCurrentUserCanAccessRab(user, data);
+
     const result = await rabService.handleApproval(req.params.id, action);
 
     res.json({

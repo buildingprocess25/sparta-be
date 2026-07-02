@@ -51,10 +51,17 @@ export const injectBranchFilter = async <T extends QueryWithBranchArray>(
     user: AuthenticatedUser,
     query: T
 ): Promise<T> => {
-    const branches = await getUserAccessibleBranches(user);
-    
+    const scope = await getEffectiveBranchesForUser({
+        emailSat: user.email_sat,
+        cabang: user.cabang,
+        roles: user.roles
+    });
+    if (scope.source === "global") {
+        return query;
+    }
+
     return {
         ...query,
-        cabang_array: branches
+        cabang_array: scope.branches
     };
 };
