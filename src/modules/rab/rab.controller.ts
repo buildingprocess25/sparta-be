@@ -102,6 +102,13 @@ export const listRab = asyncHandler(async (req: Request, res: Response) => {
         throw new AppError("User tidak terautentikasi", 401);
     }
 
+    console.log('[RAB LIST] Request from user:', {
+        email: user.email_sat,
+        cabang: user.cabang,
+        roles: user.roles,
+        query_cabang_before: query.cabang
+    });
+
     // Auto-inject nama_pt filter untuk role kontraktor
     if (user.roles.some(role => role.toUpperCase().includes('KONTRAKTOR')) && user.nama_pt) {
         if (!query.nama_pt) {
@@ -112,7 +119,17 @@ export const listRab = asyncHandler(async (req: Request, res: Response) => {
     // CRITICAL: Enforce branch filtering di backend sesuai business rules
     query = await injectBranchFilter(user, query);
     
+    console.log('[RAB LIST] After injectBranchFilter:', {
+        cabang_array: query.cabang_array,
+        cabang_array_length: query.cabang_array?.length || 0
+    });
+    
     const data = await rabService.list(query);
+
+    console.log('[RAB LIST] Result:', {
+        total_documents: data.length,
+        unique_branches: [...new Set(data.map((d: any) => d.cabang))]
+    });
 
     res.json({ status: "success", data });
 });
