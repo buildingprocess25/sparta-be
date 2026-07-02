@@ -46,16 +46,33 @@ const ITEM_LIMIT = 20;
 const normalize = (value?: string | null) =>
     String(value ?? "").trim().replace(/\s+/g, " ").toUpperCase();
 
+/**
+ * Check if user's ACTIVE role (jabatan) matches the matcher.
+ * For multi-role users, only the currently active role is considered.
+ */
+const hasActiveRole = (user: AuthenticatedUser, matcher: string) => {
+    const activeRole = normalize(user.jabatan);
+    const normalizedMatcher = normalize(matcher);
+    return activeRole.includes(normalizedMatcher);
+};
+
+/**
+ * Check if user has role in their roles array (for backward compatibility).
+ * This checks ALL roles, not just active role.
+ */
 const hasRole = (user: AuthenticatedUser, matcher: string) =>
     user.roles.some(role => normalize(role).includes(normalize(matcher)));
+
+const hasAnyActiveRole = (user: AuthenticatedUser, matchers: string[]) =>
+    matchers.some(matcher => hasActiveRole(user, matcher));
 
 const hasAnyRole = (user: AuthenticatedUser, matchers: string[]) =>
     matchers.some(matcher => hasRole(user, matcher));
 
-const isSuperHuman = (user: AuthenticatedUser) => hasRole(user, "SUPER HUMAN");
-const isRegionalManager = (user: AuthenticatedUser) => hasRole(user, "REGIONAL MANAGER");
+const isSuperHuman = (user: AuthenticatedUser) => hasActiveRole(user, "SUPER HUMAN");
+const isRegionalManager = (user: AuthenticatedUser) => hasActiveRole(user, "REGIONAL MANAGER");
 const isHeadOffice = (user: AuthenticatedUser) => normalize(user.cabang) === "HEAD OFFICE";
-const isBranchSupportRole = (user: AuthenticatedUser) => hasRole(user, "BRANCH BUILDING SUPPORT");
+const isBranchSupportRole = (user: AuthenticatedUser) => hasActiveRole(user, "BRANCH BUILDING SUPPORT");
 
 const canViewAllBranches = (user: AuthenticatedUser) =>
     isHeadOffice(user)
@@ -71,11 +88,11 @@ type ApprovalStage = "KOORDINATOR" | "MANAGER" | "DIREKTUR" | "DIREKTUR_KONTRAKT
 
 const getApprovalStage = (user: AuthenticatedUser): ApprovalStage => {
     if (isSuperHuman(user) || isRegionalManager(user)) return "ALL";
-    if (hasRole(user, "DIREKTUR KONTRAKTOR")) return "DIREKTUR_KONTRAKTOR";
-    if (hasRole(user, "DIREKTUR")) return "DIREKTUR";
-    if (hasRole(user, "KONTRAKTOR")) return "KONTRAKTOR";
-    if (hasRole(user, "BRANCH BUILDING & MAINTENANCE MANAGER") || hasRole(user, "MANAGER")) return "MANAGER";
-    if (hasRole(user, "BRANCH BUILDING COORDINATOR") || hasRole(user, "COORDINATOR")) return "KOORDINATOR";
+    if (hasActiveRole(user, "DIREKTUR KONTRAKTOR")) return "DIREKTUR_KONTRAKTOR";
+    if (hasActiveRole(user, "DIREKTUR")) return "DIREKTUR";
+    if (hasActiveRole(user, "KONTRAKTOR")) return "KONTRAKTOR";
+    if (hasActiveRole(user, "BRANCH BUILDING & MAINTENANCE MANAGER") || hasActiveRole(user, "MANAGER")) return "MANAGER";
+    if (hasActiveRole(user, "BRANCH BUILDING COORDINATOR") || hasActiveRole(user, "COORDINATOR")) return "KOORDINATOR";
     return null;
 };
 
@@ -125,7 +142,7 @@ const addBranchScope = (user: AuthenticatedUser, values: SqlValue[], branchExpre
 };
 
 const addCompanyScope = (user: AuthenticatedUser, values: SqlValue[], companyExpression: string): string => {
-    if (!hasRole(user, "KONTRAKTOR")) return "";
+    if (!hasActiveRole(user, "KONTRAKTOR")) return "";
     if (!user.nama_pt) return "AND FALSE";
     values.push(user.nama_pt);
     return `AND ${normalizeCompanySql(companyExpression)} = ${normalizeCompanySql(`$${values.length}::text`)}`;
@@ -232,7 +249,7 @@ const findRabApproval = async (user: AuthenticatedUser): Promise<NotificationRow
 };
 
 const findSpkApproval = async (user: AuthenticatedUser): Promise<NotificationRow[]> => {
-    if (!isSuperHuman(user) && !hasRole(user, "BRANCH MANAGER")) return [];
+    if (!isSuperHuman(user) && !hasActiveRole(user, "BRANCH MANAGER")) return [];
     const values: SqlValue[] = [];
     const branchWhere = addBranchScope(user, values, "t.cabang");
     values.push(ITEM_LIMIT);
@@ -261,7 +278,7 @@ const findSpkApproval = async (user: AuthenticatedUser): Promise<NotificationRow
 };
 
 const findPertambahanSpkApproval = async (user: AuthenticatedUser): Promise<NotificationRow[]> => {
-    if (!isSuperHuman(user) && !hasRole(user, "BRANCH MANAGER")) return [];
+    if (!isSuperHuman(user) && !hasActiveRole(user, "BRANCH MANAGER")) return [];
     const values: SqlValue[] = [];
     const branchWhere = addBranchScope(user, values, "t.cabang");
     values.push(ITEM_LIMIT);
@@ -378,9 +395,9 @@ const findInstruksiLapanganApproval = async (user: AuthenticatedUser): Promise<N
 };
 
 const findProjectPlanningApproval = async (user: AuthenticatedUser): Promise<NotificationRow[]> => {
-    const isBmManager = hasRole(user, "BRANCH BUILDING & MAINTENANCE MANAGER") || hasRole(user, "BBMM");
-    const isPpSpecialist = hasRole(user, "PROJECT PLANNING & DEVELOPMENT SPECIALIST") || hasRole(user, "PP SPECIALIST");
-    const isPpManager = hasRole(user, "PROJECT PLANNING & DEVELOPMENT MANAGER") || hasRole(user, "PP MANAGER");
+    const isBmManager = hasActiveRole(user, "BRANCH BUILDING & MAINTENANCE MANAGER") || hasActiveRole(user, "BBMM");
+    const isPpSpecialist = hasActiveRole(user, "PROJECT PLANNING & DEVELOPMENT SPECIALIST") || hasActiveRole(user, "PP SPECIALIST");
+    const isPpManager = hasActiveRole(user, "PROJECT PLANNING & DEVELOPMENT MANAGER") || hasActiveRole(user, "PP MANAGER");
     if (!isSuperHuman(user) && !isBmManager && !isPpSpecialist && !isPpManager) return [];
 
     const statusConditions: string[] = [];
@@ -419,7 +436,7 @@ const findProjectPlanningApproval = async (user: AuthenticatedUser): Promise<Not
 };
 
 const findSupportKtkReady = async (user: AuthenticatedUser): Promise<NotificationRow[]> => {
-    if (!isSuperHuman(user) && !hasRole(user, "BRANCH BUILDING SUPPORT")) return [];
+    if (!isSuperHuman(user) && !hasActiveRole(user, "BRANCH BUILDING SUPPORT")) return [];
 
     const values: SqlValue[] = [];
     const branchWhere = addBranchScope(user, values, "t.cabang");
@@ -515,7 +532,8 @@ const findRevisionRequired = async (user: AuthenticatedUser): Promise<Notificati
     const rows: NotificationRow[][] = [];
     const userEmail = normalize(user.email_sat);
 
-    if (isSuperHuman(user) || hasRole(user, "KONTRAKTOR")) {
+    // RAB Revision - hanya untuk role KONTRAKTOR aktif (bukan DIREKTUR KONTRAKTOR)
+    if (isSuperHuman(user) || hasActiveRole(user, "KONTRAKTOR")) {
         const values: SqlValue[] = [];
         const companyWhere = addCompanyScope(user, values, "r.nama_pt");
         let emailCondition = "TRUE";
@@ -548,7 +566,7 @@ const findRevisionRequired = async (user: AuthenticatedUser): Promise<Notificati
         `, values));
     }
 
-    if (isSuperHuman(user) || hasRole(user, "BRANCH BUILDING COORDINATOR") || hasRole(user, "BRANCH BUILDING & MAINTENANCE MANAGER")) {
+    if (isSuperHuman(user) || hasActiveRole(user, "BRANCH BUILDING COORDINATOR") || hasActiveRole(user, "BRANCH BUILDING & MAINTENANCE MANAGER")) {
         const values: SqlValue[] = [];
         const branchWhere = addBranchScope(user, values, "t.cabang");
         values.push(ITEM_LIMIT);
@@ -575,7 +593,7 @@ const findRevisionRequired = async (user: AuthenticatedUser): Promise<Notificati
         `, values));
     }
 
-    if (isSuperHuman(user) || hasRole(user, "BRANCH BUILDING & MAINTENANCE MANAGER") || hasRole(user, "BRANCH BUILDING SUPPORT DOKUMENTASI")) {
+    if (isSuperHuman(user) || hasActiveRole(user, "BRANCH BUILDING & MAINTENANCE MANAGER") || hasActiveRole(user, "BRANCH BUILDING SUPPORT DOKUMENTASI")) {
         const values: SqlValue[] = [];
         const branchWhere = addBranchScope(user, values, "t.cabang");
         values.push(ITEM_LIMIT);
@@ -603,7 +621,7 @@ const findRevisionRequired = async (user: AuthenticatedUser): Promise<Notificati
         `, values));
     }
 
-    if (isSuperHuman(user) || hasRole(user, "BRANCH BUILDING SUPPORT")) {
+    if (isSuperHuman(user) || hasActiveRole(user, "BRANCH BUILDING SUPPORT")) {
         const values: SqlValue[] = [];
         const branchWhere = addBranchScope(user, values, "t.cabang");
         let emailCondition = "TRUE";
@@ -636,7 +654,7 @@ const findRevisionRequired = async (user: AuthenticatedUser): Promise<Notificati
         `, values));
     }
 
-    if (isSuperHuman(user) || hasRole(user, "BRANCH BUILDING SUPPORT")) {
+    if (isSuperHuman(user) || hasActiveRole(user, "BRANCH BUILDING SUPPORT")) {
         const values: SqlValue[] = [];
         const branchWhere = addBranchScope(user, values, "t.cabang");
         let emailCondition = "TRUE";
@@ -674,7 +692,7 @@ const findRevisionRequired = async (user: AuthenticatedUser): Promise<Notificati
 };
 
 const findPicAssignmentRequired = async (user: AuthenticatedUser): Promise<NotificationRow[]> => {
-    if (!isSuperHuman(user) && !hasRole(user, "BRANCH BUILDING COORDINATOR") && !hasRole(user, "BRANCH BUILDING & MAINTENANCE MANAGER")) {
+    if (!isSuperHuman(user) && !hasActiveRole(user, "BRANCH BUILDING COORDINATOR") && !hasActiveRole(user, "BRANCH BUILDING & MAINTENANCE MANAGER")) {
         return [];
     }
 
@@ -712,7 +730,7 @@ const findPicAssignmentRequired = async (user: AuthenticatedUser): Promise<Notif
 };
 
 const findRabProjectPlanningRequests = async (user: AuthenticatedUser): Promise<NotificationRow[]> => {
-    if (!hasRole(user, "KONTRAKTOR") || !user.email_sat) return [];
+    if (!hasActiveRole(user, "KONTRAKTOR") || !user.email_sat) return [];
 
     const values: SqlValue[] = [user.email_sat, ITEM_LIMIT];
     return queryNotificationRows(`
