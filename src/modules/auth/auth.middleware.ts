@@ -108,6 +108,12 @@ async function validateScopedRequest(req: Request, res: Response): Promise<boole
     const user = req.user;
     if (!user || hasGlobalAccess(user)) return true;
 
+    // Skip branch scope check for price data endpoints - these are reference data accessible to all contractors
+    const path = req.path;
+    if (path === "/get-data" || path === "/get-data-price-rab" || path === "/api/get-data" || path === "/api/get-data-price-rab") {
+        return true;
+    }
+
     const requestedCabang = getStringValue(req.query.cabang) ?? getStringValue((req.body as Record<string, unknown> | undefined)?.cabang);
     if (requestedCabang) {
         if (!(await canAccessRequestedBranch(user, requestedCabang))) {
