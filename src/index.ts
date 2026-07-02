@@ -3,6 +3,7 @@ import { env } from "./config/env";
 import { GoogleProvider } from "./common/google";
 import { authSessionRepository } from "./modules/auth/auth-session.repository";
 import { systemMaintenanceService } from "./modules/system-maintenance/system-maintenance.service";
+import { systemAccessScheduleService } from "./modules/system-access-schedule/system-access-schedule.service";
 
 const cleanupAuthSessions = async () => {
     const deletedCount = await authSessionRepository.deleteExpiredOlderThan(env.AUTH_SESSION_RETENTION_DAYS);
@@ -15,6 +16,7 @@ const bootstrap = async () => {
     await GoogleProvider.initialize();
     await authSessionRepository.ensureSchema();
     await systemMaintenanceService.ensureSchema();
+    await systemAccessScheduleService.ensureSchema();
     await cleanupAuthSessions();
 
     setInterval(() => {

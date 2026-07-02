@@ -31,6 +31,7 @@ import { activityLogRouter } from "./modules/activity-log/activity-log.routes";
 import { dcDevelopmentRouter } from "./modules/dc-development/dc-development.routes";
 import { taskNotificationRouter } from "./modules/task-notification/task-notification.routes";
 import { systemMaintenanceRouter } from "./modules/system-maintenance/system-maintenance.routes";
+import systemAccessScheduleRouter from "./modules/system-access-schedule/system-access-schedule.routes";
 
 
 
@@ -149,6 +150,7 @@ app.use("/api/activity-log", activityLogRouter);
 app.use("/api/dc-development", dcDevelopmentRouter);
 app.use("/api/task-notifications", taskNotificationRouter);
 app.use("/api/system-maintenance", systemMaintenanceRouter);
+app.use("/api/system-access-schedule", systemAccessScheduleRouter);
 app.use("/api", emailNotificationRouter);
 app.use("/api", serahTerimaRouter);
 app.use("/", priceRabRouter);
