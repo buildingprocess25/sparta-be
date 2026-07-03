@@ -1,4 +1,4 @@
-import { pool } from "../../db/pool";
+import { pool, withTransaction } from "../../db/pool";
 import type {
     CreatePertambahanSpkInput,
     PertambahanSpkApprovalInput,
@@ -350,18 +350,17 @@ export const pertambahanSpkRepository = {
         targetStatus: string,
         action: PertambahanSpkInterventionInput
     ): Promise<PertambahanSpkDetailRow | null> {
-        let updated: PertambahanSpkDetailRow | null = null;
+        let updatedId: string | null = null;
         const customReason = action.alasan_intervensi?.trim();
         const logReason = customReason
             ? `[INTERVENSI SUPER HUMAN] ${oldStatus} -> ${targetStatus}. ${customReason}`
             : `[INTERVENSI SUPER HUMAN] ${oldStatus} -> ${targetStatus}`;
 
-        await pool.query('BEGIN');
-        try {
+        await withTransaction(async (client) => {
             const isApprove = targetStatus === "Disetujui BM" || targetStatus === "APPROVED_BY_BM";
             const isReject = targetStatus === "Ditolak BM" || targetStatus === "REJECTED_BY_BM";
 
-            const result = await pool.query<{ id: string }>(
+            const result = await client.query<{ id: string }>(
                 `
                 UPDATE pertambahan_spk p
                 SET status_persetujuan = $1,
@@ -383,8 +382,7 @@ export const pertambahanSpkRepository = {
             );
 
             if (!result.rows[0]) {
-                await pool.query('ROLLBACK');
-                return null;
+                return;
             }
 
             await activityLogRepository.insert({
@@ -399,15 +397,11 @@ export const pertambahanSpkRepository = {
                 metadata: {
                     legacy_log_reason: logReason
                 }
-            }, pool as any);
+            }, client);
 
-            await pool.query('COMMIT');
-            updated = await this.findById(id);
-        } catch (error) {
-            await pool.query('ROLLBACK');
-            throw error;
-        }
+            updatedId = result.rows[0].id;
+        });
 
-        return updated;
+        return updatedId ? this.findById(updatedId) : null;
     }
 };

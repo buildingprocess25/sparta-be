@@ -44,10 +44,10 @@ const envSchema = z.object({
     PUPPETEER_NAVIGATION_TIMEOUT_MS: z.coerce.number().int().positive().default(120000),
 
     // Postgres pool
-    PG_POOL_MAX: z.coerce.number().int().positive().default(2),
+    PG_POOL_MAX: z.coerce.number().int().positive().default(1),
     PG_KEEP_ALIVE: z.coerce.boolean().default(true),
     PG_CONN_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
-    PG_IDLE_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
+    PG_IDLE_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
 
     // API auth rollout
     AUTH_ENFORCEMENT_MODE: z.enum(["compat", "strict"]).default("strict"),
