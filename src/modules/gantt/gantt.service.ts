@@ -115,9 +115,14 @@ const releaseRabApprovalAfterGantt = async (tokoId: number, source: string) => {
 const isScopeReadyForSerahTerima = (scope: any) =>
     Boolean(scope.gantt_id)
     && Boolean(scope.opname_final_id)
-    && Array.isArray(scope.checkpoints)
-    && scope.checkpoints.reduce((sum: number, checkpoint: any) => sum + Number(checkpoint?.opname_items || 0), 0) > 0
-    && scope.checkpoints.reduce((sum: number, checkpoint: any) => sum + Number(checkpoint?.ready_opname_items || 0), 0) === 0;
+    && (
+        (
+            Array.isArray(scope.checkpoints)
+            && scope.checkpoints.reduce((sum: number, checkpoint: any) => sum + Number(checkpoint?.opname_items || 0), 0) > 0
+            && scope.checkpoints.reduce((sum: number, checkpoint: any) => sum + Number(checkpoint?.ready_opname_items || 0), 0) === 0
+        )
+        || Number(scope.opname_item_count || 0) > 0
+    );
 
 const normalizePengawasanDate = (value: any): string => {
     const raw = String(value || "").trim();
@@ -245,8 +250,12 @@ export const ganttService = {
         const activeScopes = scopes.filter((scope) => scope.gantt_id);
         const allActiveScopesReady = activeScopes.length > 0
             && activeScopes.every((scope) => isScopeReadyForSerahTerima(scope));
+        const masterScopeHasGeneratedPdf = activeScopes.some((scope) =>
+            scope.id_toko === unifiedMetadata.master_scope_id_toko
+            && Boolean(scope.link_pdf_serah_terima)
+        );
         const allReadyScopesGenerated = allActiveScopesReady
-            && activeScopes.every((scope) => Boolean(scope.link_pdf_serah_terima));
+            && masterScopeHasGeneratedPdf;
         const allActiveScopesHaveExistingPdf = activeScopes.length > 0
             && activeScopes.every((scope) => Boolean(scope.link_pdf_serah_terima));
 

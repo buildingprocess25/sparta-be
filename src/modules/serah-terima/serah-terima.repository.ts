@@ -363,6 +363,21 @@ export const serahTerimaRepository = {
                 )::int AS filled_checkpoints,
                 COUNT(*) FILTER (
                     WHERE lp.status = 'selesai'
+                      AND EXISTS (
+                        SELECT 1
+                        FROM rab r
+                        JOIN rab_item ri ON ri.id_rab = r.id
+                        WHERE r.id_toko = $1
+                          AND UPPER(TRIM(COALESCE(ri.kategori_pekerjaan, ''))) = UPPER(TRIM(REPLACE(COALESCE(lp.kategori_pekerjaan, ''), '[IL] ', '')))
+                          AND UPPER(TRIM(COALESCE(ri.jenis_pekerjaan, ''))) = UPPER(TRIM(COALESCE(lp.jenis_pekerjaan, '')))
+                        UNION ALL
+                        SELECT 1
+                        FROM instruksi_lapangan il
+                        JOIN instruksi_lapangan_item ili ON ili.id_instruksi_lapangan = il.id
+                        WHERE il.id_toko = $1
+                          AND UPPER(TRIM(COALESCE(ili.kategori_pekerjaan, ''))) = UPPER(TRIM(REPLACE(COALESCE(lp.kategori_pekerjaan, ''), '[IL] ', '')))
+                          AND UPPER(TRIM(COALESCE(ili.jenis_pekerjaan, ''))) = UPPER(TRIM(COALESCE(lp.jenis_pekerjaan, '')))
+                      )
                       AND NOT EXISTS (
                         SELECT 1
                         FROM opname_item oi
@@ -392,6 +407,19 @@ export const serahTerimaRepository = {
             filled_checkpoints: 0,
             missing_checkpoints: 0,
         };
+    },
+
+    async countOpnameItemsByOpnameFinalId(opnameFinalId: number): Promise<number> {
+        const result = await pool.query<{ count: string }>(
+            `
+            SELECT COUNT(*)::text AS count
+            FROM opname_item
+            WHERE id_opname_final = $1
+            `,
+            [opnameFinalId]
+        );
+
+        return Number(result.rows[0]?.count ?? 0);
     },
 
     async findBerkasSerahTerimaByIdToko(idToko: number): Promise<BerkasSerahTerimaRow | null> {
@@ -692,6 +720,25 @@ export const serahTerimaRepository = {
             RETURNING id, id_toko, link_pdf, created_at
             `,
             [linkPdf, id]
+        );
+
+        return updated.rows[0];
+    },
+
+    async updateBerkasSerahTerimaLinkAndDate(input: {
+        id: number;
+        linkPdf: string;
+        createdAt: string;
+    }): Promise<BerkasSerahTerimaRow> {
+        const updated = await pool.query<BerkasSerahTerimaRow>(
+            `
+            UPDATE berkas_serah_terima
+            SET link_pdf = $1,
+                created_at = $2::timestamp
+            WHERE id = $3
+            RETURNING id, id_toko, link_pdf, created_at
+            `,
+            [input.linkPdf, input.createdAt, input.id]
         );
 
         return updated.rows[0];

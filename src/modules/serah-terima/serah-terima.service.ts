@@ -96,6 +96,14 @@ const getSerahTerimaReadiness = async (idToko: number) => {
 
     const completion = await serahTerimaRepository.getSupervisionCompletionByTokoId(idToko);
     if (!completion.gantt_id || Number(completion.total_checkpoints) === 0) {
+        const opnameItemCount = await serahTerimaRepository.countOpnameItemsByOpnameFinalId(opnameFinal.id);
+        if (completion.gantt_id && opnameItemCount > 0) {
+            return {
+                ready: true,
+                reason: null,
+            };
+        }
+
         return {
             ready: false,
             reason: "Belum ada pekerjaan pengawasan selesai untuk toko ini",
@@ -508,7 +516,20 @@ export const serahTerimaService = {
         const safeNomorUlok = sanitizeFilenamePart(nomorUlok, "ULOK");
         const filename = `SERAH_TERIMA_UNIFIED_${proyek}_${safeNomorUlok}.pdf`;
         const linkPdf = await uploadPdfToDrive(mergedBuffer, filename);
-        const berkas = await serahTerimaRepository.updateBerkasSerahTerimaLink(placeholder.id, linkPdf);
+        const berkasRows = await Promise.all(
+            targetScopes.map(async (scope) => {
+                const row = scope.id === masterScope.id
+                    ? placeholder
+                    : await serahTerimaRepository.ensureBerkasSerahTerima(scope.id);
+
+                return serahTerimaRepository.updateBerkasSerahTerimaLinkAndDate({
+                    id: row.id,
+                    linkPdf,
+                    createdAt: placeholder.created_at,
+                });
+            })
+        );
+        const berkas = berkasRows.find((row) => row.id_toko === masterScope.id) ?? berkasRows[0];
 
         setImmediate(() => {
             Promise.allSettled(

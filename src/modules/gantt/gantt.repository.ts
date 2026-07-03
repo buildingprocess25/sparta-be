@@ -226,6 +226,7 @@ export const ganttRepository = {
                     latest_opname.id AS opname_final_id,
                     latest_opname.status_opname_final,
                     latest_opname.aksi AS opname_aksi,
+                    latest_opname.item_count AS opname_item_count,
                     bst.id AS berkas_serah_terima_id,
                     bst.link_pdf AS link_pdf_serah_terima,
                     spk.waktu_mulai AS spk_start_date,
@@ -246,7 +247,15 @@ export const ganttRepository = {
                     LIMIT 1
                 ) latest_pic ON true
                 LEFT JOIN LATERAL (
-                    SELECT ofn.id, ofn.status_opname_final, ofn.aksi
+                    SELECT
+                        ofn.id,
+                        ofn.status_opname_final,
+                        ofn.aksi,
+                        (
+                            SELECT COUNT(*)::int
+                            FROM opname_item oi_count
+                            WHERE oi_count.id_opname_final = ofn.id
+                        ) AS item_count
                     FROM opname_final ofn
                     WHERE ofn.id_toko = t.id
                     ORDER BY ofn.id DESC
@@ -293,6 +302,21 @@ export const ganttRepository = {
                     COUNT(p.id) FILTER (WHERE p.status = 'selesai')::int AS selesai_items,
                     COUNT(p.id) FILTER (
                         WHERE p.status = 'selesai'
+                          AND EXISTS (
+                            SELECT 1
+                            FROM rab r
+                            JOIN rab_item ri ON ri.id_rab = r.id
+                            WHERE r.id_toko = s.id_toko
+                              AND UPPER(TRIM(COALESCE(ri.kategori_pekerjaan, ''))) = UPPER(TRIM(REPLACE(COALESCE(p.kategori_pekerjaan, ''), '[IL] ', '')))
+                              AND UPPER(TRIM(COALESCE(ri.jenis_pekerjaan, ''))) = UPPER(TRIM(COALESCE(p.jenis_pekerjaan, '')))
+                            UNION ALL
+                            SELECT 1
+                            FROM instruksi_lapangan il
+                            JOIN instruksi_lapangan_item ili ON ili.id_instruksi_lapangan = il.id
+                            WHERE il.id_toko = s.id_toko
+                              AND UPPER(TRIM(COALESCE(ili.kategori_pekerjaan, ''))) = UPPER(TRIM(REPLACE(COALESCE(p.kategori_pekerjaan, ''), '[IL] ', '')))
+                              AND UPPER(TRIM(COALESCE(ili.jenis_pekerjaan, ''))) = UPPER(TRIM(COALESCE(p.jenis_pekerjaan, '')))
+                          )
                           AND NOT EXISTS (
                             SELECT 1
                             FROM opname_item oi
@@ -362,7 +386,7 @@ export const ganttRepository = {
                 s.id_toko, s.nomor_ulok, s.lingkup_pekerjaan, s.nama_toko,
                 s.kode_toko, s.cabang, s.gantt_id, s.gantt_status, s.pic_id,
                 s.plc_building_support, s.opname_final_id, s.status_opname_final,
-                s.opname_aksi, s.berkas_serah_terima_id, s.link_pdf_serah_terima,
+                s.opname_aksi, s.opname_item_count, s.berkas_serah_terima_id, s.link_pdf_serah_terima,
                 s.spk_start_date, s.spk_duration
             ORDER BY
                 CASE
