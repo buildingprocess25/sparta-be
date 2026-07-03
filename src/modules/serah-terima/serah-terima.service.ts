@@ -38,6 +38,32 @@ const normalizeDriveDownloadLink = (value: string): string => {
     return `https://drive.google.com/uc?export=download&id=${fileId}`;
 };
 
+const downloadStoredPdfBuffer = async (linkPdf?: string | null): Promise<Buffer | null> => {
+    if (!linkPdf) return null;
+
+    const gp = GoogleProvider.instance;
+    const fileId = extractDriveFileId(linkPdf);
+    let buffer: Buffer | null = null;
+
+    if (fileId) {
+        if (gp.spartaDrive) {
+            buffer = await gp.getFileBufferById(gp.spartaDrive, fileId);
+        }
+        if (!buffer && gp.docDrive) {
+            buffer = await gp.getFileBufferById(gp.docDrive, fileId);
+        }
+    }
+
+    if (!buffer && /^https?:\/\//i.test(linkPdf)) {
+        const response = await fetch(normalizeDriveDownloadLink(linkPdf));
+        if (response.ok) {
+            buffer = Buffer.from(await response.arrayBuffer());
+        }
+    }
+
+    return buffer && buffer.length > 0 ? buffer : null;
+};
+
 
 const uploadPdfToDrive = async (buffer: Buffer, filename: string): Promise<string> => {
     const gp = GoogleProvider.instance;
@@ -614,25 +640,38 @@ export const serahTerimaService = {
             const hasMe = activeScopes.some((scope) => String(scope.lingkup_pekerjaan || "").trim().toUpperCase() === "ME");
 
             if (hasSipil && hasMe) {
+                const activeBerkasRows = await Promise.all(
+                    activeScopes.map((scope) => serahTerimaRepository.findBerkasSerahTerimaByIdToko(scope.id))
+                );
+                const sharedLinks = new Set(
+                    activeBerkasRows
+                        .map((row) => row?.link_pdf ?? null)
+                        .filter((link): link is string => Boolean(link))
+                );
+
+                if (
+                    activeBerkasRows.length === activeScopes.length
+                    && activeBerkasRows.every((row) => Boolean(row?.link_pdf))
+                    && sharedLinks.size === 1
+                ) {
+                    const unifiedBuffer = await downloadStoredPdfBuffer(activeBerkasRows[0]?.link_pdf);
+                    if (unifiedBuffer) {
+                        return {
+                            buffer: unifiedBuffer,
+                            filename: `SERAH_TERIMA_UNIFIED_${proyek}_${nomorUlok}.pdf`,
+                        };
+                    }
+                }
+
                 const readiness = await Promise.all(activeScopes.map((scope) => getSerahTerimaReadiness(scope.id)));
                 if (readiness.every((item) => item.ready)) {
                     const regenerated = await serahTerimaService.createPdfSerahTerimaUnified(toko.nomor_ulok);
-                    const fileId = extractDriveFileId(regenerated.link_pdf);
-                    if (fileId) {
-                        const gp = GoogleProvider.instance;
-                        let unifiedBuffer: Buffer | null = null;
-                        if (gp.spartaDrive) {
-                            unifiedBuffer = await gp.getFileBufferById(gp.spartaDrive, fileId);
-                        }
-                        if (!unifiedBuffer && gp.docDrive) {
-                            unifiedBuffer = await gp.getFileBufferById(gp.docDrive, fileId);
-                        }
-                        if (unifiedBuffer && unifiedBuffer.length > 0) {
-                            return {
-                                buffer: unifiedBuffer,
-                                filename: `SERAH_TERIMA_UNIFIED_${proyek}_${nomorUlok}.pdf`,
-                            };
-                        }
+                    const unifiedBuffer = await downloadStoredPdfBuffer(regenerated.link_pdf);
+                    if (unifiedBuffer) {
+                        return {
+                            buffer: unifiedBuffer,
+                            filename: `SERAH_TERIMA_UNIFIED_${proyek}_${nomorUlok}.pdf`,
+                        };
                     }
                 }
             }
@@ -652,25 +691,7 @@ export const serahTerimaService = {
             throw new AppError("Data opname_final tidak ditemukan dan link PDF tidak tersedia", 404);
         }
 
-        const gp = GoogleProvider.instance;
-        const fileId = extractDriveFileId(berkas.link_pdf);
-        let buffer: Buffer | null = null;
-
-        if (fileId) {
-            if (gp.spartaDrive) {
-                buffer = await gp.getFileBufferById(gp.spartaDrive, fileId);
-            }
-            if (!buffer && gp.docDrive) {
-                buffer = await gp.getFileBufferById(gp.docDrive, fileId);
-            }
-        }
-
-        if (!buffer && /^https?:\/\//i.test(berkas.link_pdf)) {
-            const response = await fetch(normalizeDriveDownloadLink(berkas.link_pdf));
-            if (response.ok) {
-                buffer = Buffer.from(await response.arrayBuffer());
-            }
-        }
+        const buffer = await downloadStoredPdfBuffer(berkas.link_pdf);
 
         if (!buffer || buffer.length === 0) {
             throw new AppError("Gagal mengunduh file PDF Serah Terima dari Google Drive", 500);
