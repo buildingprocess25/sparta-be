@@ -1265,15 +1265,12 @@ export const rabService = {
                 );
             }
 
-            if (!existingTokoByCombination) {
+            if (existingTokoByCombination && targetRab.id_toko !== existingTokoByCombination.id) {
                 throw new AppError(
-                    `Data toko untuk kombinasi ULOK ${payload.nomor_ulok} dan lingkup ${payload.lingkup_pekerjaan ?? "-"} tidak ditemukan`,
-                    404
+                    `Nomor ULOK ${payload.nomor_ulok} dengan lingkup ${normalizedLingkupPekerjaan} sudah terdaftar pada toko/proyek lain. ` +
+                    `Gunakan nomor ULOK lain atau hubungi admin untuk merge data.`,
+                    409
                 );
-            }
-
-            if (targetRab.id_toko !== existingTokoByCombination.id) {
-                throw new AppError("id_rab_revisi tidak cocok dengan toko/lingkup yang dipilih", 409);
             }
 
             rejectedRabToReplaceId = targetRab.id;
@@ -1453,6 +1450,13 @@ export const rabService = {
                 throw new AppError(
                     "RAB untuk ULOK dan lingkup ini sudah berhasil tersimpan. " +
                     "Silakan refresh halaman dan cek daftar RAB Anda untuk melanjutkan ke Gantt Chart.",
+                    409
+                );
+            }
+            if (code === "TOKO_ULOK_LINGKUP_DUPLICATE") {
+                throw new AppError(
+                    `Nomor ULOK ${payload.nomor_ulok} dengan lingkup ${normalizedLingkupPekerjaan} sudah terdaftar pada toko/proyek lain. ` +
+                    "Gunakan nomor ULOK lain atau hubungi admin untuk merge data.",
                     409
                 );
             }

@@ -402,18 +402,41 @@ export const rabRepository = {
 
             const logoToPersist = toPersistedAssetLink(payload.logo);
             const insuranceToPersist = toPersistedAssetLink(payload.file_asuransi);
+            const normalizedNomorUlok = payload.nomor_ulok?.trim().toUpperCase() || null;
+            const normalizedLingkup = payload.lingkup_pekerjaan?.trim().toUpperCase() || null;
+
+            if (normalizedNomorUlok) {
+                const duplicateTokoRes = await client.query<{ id: number }>(
+                    `SELECT id
+                     FROM toko
+                     WHERE UPPER(TRIM(nomor_ulok)) = UPPER(TRIM($1))
+                       AND UPPER(TRIM(COALESCE(lingkup_pekerjaan, ''))) = UPPER(TRIM(COALESCE($2, '')))
+                       AND id <> $3
+                     LIMIT 1
+                     FOR UPDATE`,
+                    [normalizedNomorUlok, normalizedLingkup, currentRab.id_toko]
+                );
+
+                if ((duplicateTokoRes.rowCount ?? 0) > 0) {
+                    const duplicateError = new Error("Nomor ULOK dan lingkup sudah dipakai toko lain") as Error & { code?: string };
+                    duplicateError.code = "TOKO_ULOK_LINGKUP_DUPLICATE";
+                    throw duplicateError;
+                }
+            }
 
             await client.query(
                 `UPDATE toko
-                 SET lingkup_pekerjaan = COALESCE(NULLIF(UPPER(TRIM($1)), ''), lingkup_pekerjaan),
-                     nama_toko = COALESCE(NULLIF(TRIM($2), ''), nama_toko),
-                     proyek = COALESCE(NULLIF(TRIM($3), ''), proyek),
-                     cabang = COALESCE(NULLIF(TRIM($4), ''), cabang),
-                     alamat = COALESCE(NULLIF(TRIM($5), ''), alamat),
-                     nama_kontraktor = COALESCE(NULLIF(TRIM(nama_kontraktor), ''), $6, nama_kontraktor)
-                 WHERE id = $7`,
+                 SET nomor_ulok = COALESCE(NULLIF(UPPER(TRIM($1)), ''), nomor_ulok),
+                     lingkup_pekerjaan = COALESCE(NULLIF(UPPER(TRIM($2)), ''), lingkup_pekerjaan),
+                     nama_toko = COALESCE(NULLIF(TRIM($3), ''), nama_toko),
+                     proyek = COALESCE(NULLIF(TRIM($4), ''), proyek),
+                     cabang = COALESCE(NULLIF(TRIM($5), ''), cabang),
+                     alamat = COALESCE(NULLIF(TRIM($6), ''), alamat),
+                     nama_kontraktor = COALESCE(NULLIF(TRIM(nama_kontraktor), ''), $7, nama_kontraktor)
+                 WHERE id = $8`,
                 [
-                    payload.lingkup_pekerjaan ?? null,
+                    normalizedNomorUlok,
+                    normalizedLingkup,
                     payload.nama_toko ?? null,
                     payload.proyek ?? null,
                     payload.cabang ?? null,
