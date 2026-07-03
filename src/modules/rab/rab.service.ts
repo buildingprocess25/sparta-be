@@ -1265,14 +1265,6 @@ export const rabService = {
                 );
             }
 
-            if (existingTokoByCombination && targetRab.id_toko !== existingTokoByCombination.id) {
-                throw new AppError(
-                    `Nomor ULOK ${payload.nomor_ulok} dengan lingkup ${normalizedLingkupPekerjaan} sudah terdaftar pada toko/proyek lain. ` +
-                    `Gunakan nomor ULOK lain atau hubungi admin untuk merge data.`,
-                    409
-                );
-            }
-
             rejectedRabToReplaceId = targetRab.id;
             rejectedRabExistingLogo = targetRab.logo;
             rejectedRabExistingInsurance = targetRab.file_asuransi;

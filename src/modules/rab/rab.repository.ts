@@ -418,9 +418,77 @@ export const rabRepository = {
                 );
 
                 if ((duplicateTokoRes.rowCount ?? 0) > 0) {
-                    const duplicateError = new Error("Nomor ULOK dan lingkup sudah dipakai toko lain") as Error & { code?: string };
-                    duplicateError.code = "TOKO_ULOK_LINGKUP_DUPLICATE";
-                    throw duplicateError;
+                    const duplicateTokoId = duplicateTokoRes.rows[0].id;
+                    const duplicateUsageRes = await client.query<{
+                        rab_count: string;
+                        blocking_rab_count: string;
+                        mismatched_owner_count: string;
+                        gantt_count: string;
+                        spk_count: string;
+                        instruksi_lapangan_count: string;
+                        opname_final_count: string;
+                        berkas_serah_terima_count: string;
+                        projek_planning_count: string;
+                        pic_pengawasan_count: string;
+                        penyimpanan_dokumen_count: string;
+                    }>(
+                        `SELECT
+                            (SELECT COUNT(*) FROM rab r WHERE r.id_toko = $1) AS rab_count,
+                            (SELECT COUNT(*) FROM rab r WHERE r.id_toko = $1 AND r.status <> $2) AS blocking_rab_count,
+                            (SELECT COUNT(*) FROM rab r
+                             WHERE r.id_toko = $1
+                               AND (
+                                   ($3::text IS NOT NULL AND LOWER(TRIM(COALESCE(r.email_pembuat, ''))) <> LOWER(TRIM($3::text)))
+                                   OR ($4::text IS NOT NULL AND TRIM(COALESCE(r.nama_pt, '')) <> TRIM($4::text))
+                               )
+                            ) AS mismatched_owner_count,
+                            (SELECT COUNT(*) FROM gantt_chart g WHERE g.id_toko = $1) AS gantt_count,
+                            (SELECT COUNT(*) FROM pengajuan_spk s WHERE s.id_toko = $1) AS spk_count,
+                            (SELECT COUNT(*) FROM instruksi_lapangan il WHERE il.id_toko = $1) AS instruksi_lapangan_count,
+                            (SELECT COUNT(*) FROM opname_final ofn WHERE ofn.id_toko = $1) AS opname_final_count,
+                            (SELECT COUNT(*) FROM berkas_serah_terima bst WHERE bst.id_toko = $1) AS berkas_serah_terima_count,
+                            (SELECT COUNT(*) FROM projek_planning pp WHERE pp.id_toko = $1) AS projek_planning_count,
+                            (SELECT COUNT(*) FROM pic_pengawasan pic WHERE pic.id_toko = $1) AS pic_pengawasan_count,
+                            (SELECT COUNT(*) FROM penyimpanan_dokumen doc WHERE doc.id_toko = $1) AS penyimpanan_dokumen_count`,
+                        [
+                            duplicateTokoId,
+                            RAB_STATUS.WAITING_FOR_GANTT,
+                            payload.email_pembuat?.trim() || null,
+                            payload.nama_pt?.trim() || null
+                        ]
+                    );
+                    const usage = duplicateUsageRes.rows[0];
+                    const hasBlockingData = [
+                        usage.blocking_rab_count,
+                        usage.mismatched_owner_count,
+                        usage.gantt_count,
+                        usage.spk_count,
+                        usage.instruksi_lapangan_count,
+                        usage.opname_final_count,
+                        usage.berkas_serah_terima_count,
+                        usage.projek_planning_count,
+                        usage.pic_pengawasan_count,
+                        usage.penyimpanan_dokumen_count
+                    ].some((count) => Number(count) > 0);
+
+                    if (hasBlockingData) {
+                        const duplicateError = new Error("Nomor ULOK dan lingkup sudah dipakai toko lain") as Error & { code?: string };
+                        duplicateError.code = "TOKO_ULOK_LINGKUP_DUPLICATE";
+                        throw duplicateError;
+                    }
+
+                    const duplicateRabIdsRes = await client.query<{ id: number }>(
+                        `SELECT id FROM rab WHERE id_toko = $1 FOR UPDATE`,
+                        [duplicateTokoId]
+                    );
+                    const duplicateRabIds = duplicateRabIdsRes.rows.map((row) => row.id);
+
+                    if (duplicateRabIds.length > 0) {
+                        await client.query(`DELETE FROM rab_revisi_item WHERE id_rab = ANY($1::int[])`, [duplicateRabIds]);
+                        await client.query(`DELETE FROM rab_item WHERE id_rab = ANY($1::int[])`, [duplicateRabIds]);
+                        await client.query(`DELETE FROM rab WHERE id = ANY($1::int[])`, [duplicateRabIds]);
+                    }
+                    await client.query(`DELETE FROM toko WHERE id = $1`, [duplicateTokoId]);
                 }
             }
 
