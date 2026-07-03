@@ -1,4 +1,5 @@
 import { pool } from "../db/pool";
+import { GoogleProvider } from "../common/google";
 import { serahTerimaService } from "../modules/serah-terima/serah-terima.service";
 
 const arg = (name: string): string | undefined => {
@@ -33,6 +34,8 @@ const run = async () => {
     if (result.rows.length === 0) {
         throw new Error("Berkas Serah Terima pada scope tersebut tidak ditemukan.");
     }
+
+    await GoogleProvider.initialize();
 
     for (const row of result.rows) {
         await serahTerimaService.regeneratePdfByBerkasId(row.id);
