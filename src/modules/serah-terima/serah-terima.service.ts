@@ -156,6 +156,25 @@ const assertSerahTerimaReady = async (idToko: number) => {
     }
 };
 
+const assertSerahTerimaReadyForUnified = async (idToko: number) => {
+    const readiness = await getSerahTerimaReadiness(idToko);
+    if (readiness.ready) return;
+
+    const [existingBerkas, opnameFinal] = await Promise.all([
+        serahTerimaRepository.findBerkasSerahTerimaByIdToko(idToko),
+        serahTerimaRepository.findOpnameFinalByIdToko(idToko),
+    ]);
+    const opnameItemCount = opnameFinal
+        ? await serahTerimaRepository.countOpnameItemsByOpnameFinalId(opnameFinal.id)
+        : 0;
+
+    if (existingBerkas?.link_pdf && opnameItemCount > 0) {
+        return;
+    }
+
+    throw new AppError(readiness.reason ?? "Serah Terima belum siap dibuat", 409);
+};
+
 const automaticSerahTerimaInProgress = new Set<number>();
 const automaticUnifiedSerahTerimaInProgress = new Set<string>();
 
@@ -476,7 +495,7 @@ export const serahTerimaService = {
         ) ?? targetScopes[0];
 
         for (const scope of targetScopes) {
-            await assertSerahTerimaReady(scope.id);
+            await assertSerahTerimaReadyForUnified(scope.id);
         }
 
         const placeholder = await serahTerimaRepository.ensureBerkasSerahTerima(masterScope.id);
