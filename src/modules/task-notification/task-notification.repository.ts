@@ -371,7 +371,7 @@ const findOpnameApproval = async (user: AuthenticatedUser): Promise<Notification
 
 const findInstruksiLapanganApproval = async (user: AuthenticatedUser): Promise<NotificationRow[]> => {
     const stage = getApprovalStage(user);
-    if (!stage || stage === "DIREKTUR" || stage === "KONTRAKTOR") return [];
+    if (!stage || stage === "DIREKTUR" || stage === "DIREKTUR_KONTRAKTOR" || stage === "KONTRAKTOR") return [];
 
     const values: SqlValue[] = [];
     const statuses = stage === "ALL"
