@@ -1,6 +1,11 @@
-import type { Request, Response } from "express";
+﻿import type { Request, Response } from "express";
 import { asyncHandler } from "../../common/async-handler";
-import { createDendaActionSchema, listDendaActionsQuerySchema } from "./denda-action.schema";
+import {
+    createDendaActionSchema,
+    dendaActionIdParamsSchema,
+    listDendaActionsQuerySchema,
+    rejectDendaActionSchema,
+} from "./denda-action.schema";
 import { dendaActionService } from "./denda-action.service";
 
 export const listDendaActionCandidates = asyncHandler(async (_req: Request, res: Response) => {
@@ -32,8 +37,40 @@ export const createDendaAction = asyncHandler(async (req: Request, res: Response
     res.status(201).json({
         status: "success",
         message: payload.action_type === "SP"
-            ? "Keputusan Surat Peringatan berhasil disimpan."
-            : "Keputusan Takeover berhasil disimpan.",
+            ? "Surat Peringatan berhasil diajukan ke manager."
+            : "Takeover berhasil diajukan ke manager.",
+        data,
+    });
+});
+
+export const approveDendaAction = asyncHandler(async (req: Request, res: Response) => {
+    const { id } = dendaActionIdParamsSchema.parse(req.params);
+    const data = await dendaActionService.approveAction({
+        id,
+        actor: req.user,
+    });
+
+    res.json({
+        status: "success",
+        message: data.action_type === "SP"
+            ? "Surat Peringatan berhasil di-approve dan aktif selama 6 bulan."
+            : "Takeover berhasil di-approve sebagai catatan administratif.",
+        data,
+    });
+});
+
+export const rejectDendaAction = asyncHandler(async (req: Request, res: Response) => {
+    const { id } = dendaActionIdParamsSchema.parse(req.params);
+    const payload = rejectDendaActionSchema.parse(req.body);
+    const data = await dendaActionService.rejectAction({
+        id,
+        payload,
+        actor: req.user,
+    });
+
+    res.json({
+        status: "success",
+        message: "Pengajuan SP/Takeover berhasil ditolak.",
         data,
     });
 });

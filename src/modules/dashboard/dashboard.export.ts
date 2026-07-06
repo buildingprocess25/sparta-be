@@ -269,6 +269,14 @@ const findTanggalGo = (
     return "";
 };
 
+const parseSelectedTokoIds = (value?: string): Set<number> => {
+    const ids = String(value ?? "")
+        .split(",")
+        .map((item) => Number(item.trim()))
+        .filter((id) => Number.isInteger(id) && id > 0);
+    return new Set(ids);
+};
+
 export const filterDashboardExportAccess = (projects: DashboardData[], query: DashboardExportQueryInput): DashboardData[] => {
     const actorRole = normalizeUpper(query.actor_role);
     const actorCabang = normalizeUpper(query.actor_cabang);
@@ -278,11 +286,13 @@ export const filterDashboardExportAccess = (projects: DashboardData[], query: Da
     }
 
     const cabangFilter = normalizeUpper(query.cabang);
+    const selectedTokoIds = parseSelectedTokoIds(query.toko_ids);
     return projects.filter((project) => {
         const projectCabang = normalizeUpper(project.toko.cabang);
         if (isHeadOfficeCabang(projectCabang)) return false;
         if (actorCabang !== "HEAD OFFICE" && !isSameBranchScope(projectCabang, actorCabang)) return false;
         if (cabangFilter && cabangFilter !== "ALL" && projectCabang !== cabangFilter) return false;
+        if (selectedTokoIds.size > 0 && !selectedTokoIds.has(Number(project.toko.id))) return false;
         return true;
     });
 };
