@@ -161,6 +161,11 @@ export async function apiAuthMiddleware(req: Request, res: Response, next: NextF
             }
         } catch (error) {
             console.warn("Gagal membaca session auth:", error);
+            return res.status(503).json({
+                status: "error",
+                code: "AUTH_SESSION_UNAVAILABLE",
+                message: "Sesi belum dapat diverifikasi karena layanan sedang sibuk. Silakan coba lagi."
+            });
         }
     }
 
