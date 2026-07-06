@@ -344,13 +344,16 @@ export const filterDashboardExportAccess = (projects: DashboardData[], query: Da
 
     const cabangFilter = normalizeUpper(query.cabang);
     const selectedCabangs = parseCsvSet(query.cabangs);
+    const selectedJobTypes = parseCsvSet(query.job_types);
     const selectedTokoIds = parseSelectedTokoIds(query.toko_ids);
     return projects.filter((project) => {
         const projectCabang = normalizeUpper(project.toko.cabang);
+        const projectJobType = normalizeUpper(project.toko.lingkup_pekerjaan);
         if (isHeadOfficeCabang(projectCabang)) return false;
         if (actorCabang !== "HEAD OFFICE" && !isSameBranchScope(projectCabang, actorCabang)) return false;
         if (cabangFilter && cabangFilter !== "ALL" && projectCabang !== cabangFilter) return false;
         if (selectedCabangs.size > 0 && !selectedCabangs.has(projectCabang)) return false;
+        if (selectedJobTypes.size > 0 && !selectedJobTypes.has(projectJobType)) return false;
         if (selectedTokoIds.size > 0 && !selectedTokoIds.has(Number(project.toko.id))) return false;
         if (query.spk_status === "with_spk" && !hasSpk(project)) return false;
         if (query.spk_status === "without_spk" && hasSpk(project)) return false;

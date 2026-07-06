@@ -25,6 +25,7 @@ export const dashboardExportQuerySchema = z.object({
     year: z.coerce.number().int().min(2000).max(2100).optional(),
     period_mode: z.enum(["months", "ytd", "all"]).default("all"),
     data_types: z.string().trim().optional(),
+    job_types: z.string().trim().optional(),
     cabangs: z.string().trim().optional(),
     spk_status: z.enum(["all", "with_spk", "without_spk"]).default("all"),
     actor_role: z.string().trim().min(1),
