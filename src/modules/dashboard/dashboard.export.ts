@@ -437,7 +437,7 @@ export const buildDashboardExportRows = (
             luas_area_parkir: normalize(rab?.luas_area_parkir),
             luas_area_sales: normalize(rab?.luas_area_sales),
             luas_gudang: normalize(rab?.luas_gudang),
-            pekerjaan_area_terbuka: totalInvestArea,
+            pekerjaan_area_terbuka: areaTerbuka,
             pekerjaan_beanspot: beanspot,
             total_penawaran_final: totalPenawaran,
             kategori: normalize(rab?.kategori_lokasi ?? project.pic_pengawasan?.kategori_lokasi),
