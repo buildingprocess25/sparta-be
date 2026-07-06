@@ -132,8 +132,15 @@ export const listRab = asyncHandler(async (req: Request, res: Response) => {
         query_cabang_before: query.cabang
     });
 
-    // Auto-inject nama_pt filter untuk role kontraktor
-    if (user.roles.some(role => role.toUpperCase().includes('KONTRAKTOR')) && user.nama_pt) {
+    // Auto-inject nama_pt hanya untuk jabatan aktif kontraktor.
+    // Multi-role user cabang bisa saja punya role kontraktor di daftar roles,
+    // tapi ketika jabatan aktifnya coordinator/manager RAB approval tidak boleh
+    // tersaring oleh company scope.
+    const activeJabatan = String(user.jabatan ?? "").trim().toUpperCase();
+    const isActiveContractorScope =
+        activeJabatan === "KONTRAKTOR" ||
+        activeJabatan.includes("DIREKTUR KONTRAKTOR");
+    if (isActiveContractorScope && user.nama_pt) {
         if (!query.nama_pt) {
             query.nama_pt = user.nama_pt;
         }
