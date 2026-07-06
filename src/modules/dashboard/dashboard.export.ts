@@ -311,6 +311,29 @@ const matchesPeriodFilter = (project: DashboardData, query: DashboardExportQuery
 
 const hasSpk = (project: DashboardData): boolean => project.spk.length > 0;
 
+const collectProjectWorkItems = (project: DashboardData): Set<string> => {
+    const values: string[] = [];
+
+    project.rab.forEach((rab) => rab.items.forEach((item) => {
+        values.push(normalizeUpper(item.kategori_pekerjaan || item.jenis_pekerjaan));
+    }));
+
+    project.opname_final.forEach((opname) => opname.items.forEach((item) => {
+        values.push(normalizeUpper(item.kategori_pekerjaan || item.jenis_pekerjaan));
+    }));
+
+    project.instruksi_lapangan.forEach((instruksi) => instruksi.items.forEach((item) => {
+        values.push(normalizeUpper(item.kategori_pekerjaan || item.jenis_pekerjaan));
+    }));
+
+    project.gantt.forEach((gantt) => {
+        gantt.kategori_pekerjaan.forEach((item) => values.push(normalizeUpper(item.kategori_pekerjaan)));
+        gantt.pengawasan.forEach((item) => values.push(normalizeUpper(item.kategori_pekerjaan || item.jenis_pekerjaan)));
+    });
+
+    return new Set(values.filter(Boolean));
+};
+
 const dataTypeColumns: Record<string, Array<keyof DashboardExportRow>> = {
     IDENTITAS: ["timestamp", "cabang", "nomor_ulok", "proyek", "lingkup_pekerjaan", "kontraktor", "nama_toko", "kode_toko", "kategori", "pic", "status"],
     RAB: ["status_rab", "luas_bangunan", "luas_terbangunan", "luas_area_terbuka", "luas_area_parkir", "luas_area_sales", "luas_gudang", "pekerjaan_area_terbuka", "pekerjaan_beanspot", "total_penawaran_final", "timestamp_acc_manager", "tanggal_grand_opening"],
@@ -348,12 +371,12 @@ export const filterDashboardExportAccess = (projects: DashboardData[], query: Da
     const selectedTokoIds = parseSelectedTokoIds(query.toko_ids);
     return projects.filter((project) => {
         const projectCabang = normalizeUpper(project.toko.cabang);
-        const projectJobType = normalizeUpper(project.toko.lingkup_pekerjaan);
+        const projectWorkItems = collectProjectWorkItems(project);
         if (isHeadOfficeCabang(projectCabang)) return false;
         if (actorCabang !== "HEAD OFFICE" && !isSameBranchScope(projectCabang, actorCabang)) return false;
         if (cabangFilter && cabangFilter !== "ALL" && projectCabang !== cabangFilter) return false;
         if (selectedCabangs.size > 0 && !selectedCabangs.has(projectCabang)) return false;
-        if (selectedJobTypes.size > 0 && !selectedJobTypes.has(projectJobType)) return false;
+        if (selectedJobTypes.size > 0 && ![...selectedJobTypes].some((item) => projectWorkItems.has(item))) return false;
         if (selectedTokoIds.size > 0 && !selectedTokoIds.has(Number(project.toko.id))) return false;
         if (query.spk_status === "with_spk" && !hasSpk(project)) return false;
         if (query.spk_status === "without_spk" && hasSpk(project)) return false;
