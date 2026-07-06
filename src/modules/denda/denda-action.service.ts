@@ -107,19 +107,21 @@ export const dendaActionService = {
         }
 
         await dendaActionRepository.ensureSchema();
-        const target = await dendaActionRepository.findTargetByOpnameFinalId(input.id_opname_final);
+        const target = input.action_type === "SP"
+            ? await dendaActionRepository.findTargetByTokoId(input.id_toko)
+            : await dendaActionRepository.findTargetByOpnameFinalId(input.id_opname_final);
         if (!target) {
-            throw new AppError("Data opname final tidak ditemukan atau termasuk HEAD OFFICE.", 404);
+            throw new AppError("Data target SP/Takeover tidak ditemukan, sudah selesai, belum memiliki kontraktor, atau termasuk HEAD OFFICE.", 404);
         }
 
-        if (target.hari_denda < DENDA_ACTION_THRESHOLD_DAYS) {
+        if (input.action_type === "TAKEOVER" && target.hari_denda < DENDA_ACTION_THRESHOLD_DAYS) {
             throw new AppError(
-                `SP/Takeover hanya dapat diajukan mulai ${DENDA_ACTION_THRESHOLD_DAYS} hari denda.`,
+                `Takeover hanya dapat diajukan mulai ${DENDA_ACTION_THRESHOLD_DAYS} hari denda.`,
                 409
             );
         }
 
-        const stats = await dendaActionRepository.getActionStatsByOpnameFinalId(input.id_opname_final);
+        const stats = await dendaActionRepository.getActionStatsByTokoId(target.id_toko);
         if (stats.pending_approval_count > 0) {
             throw new AppError("Masih ada pengajuan SP/Takeover yang menunggu approval manager.", 409);
         }

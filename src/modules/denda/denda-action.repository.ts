@@ -2,7 +2,7 @@
 import type { DendaActionStatus, DendaActionType, ListDendaActionsQuery, SpReason } from "./denda-action.schema";
 
 export type DendaActionCandidateRow = {
-    opname_final_id: number;
+    opname_final_id: number | null;
     id_toko: number;
     nomor_ulok: string | null;
     lingkup_pekerjaan: string | null;
@@ -28,7 +28,7 @@ export type DendaActionCandidateRow = {
 export type DendaActionRow = {
     id: number;
     id_toko: number;
-    id_opname_final: number;
+    id_opname_final: number | null;
     nomor_ulok: string | null;
     lingkup_pekerjaan: string | null;
     cabang: string | null;
@@ -70,7 +70,7 @@ export type DendaActionRow = {
 };
 
 export type DendaActionTargetRow = {
-    id_opname_final: number;
+    id_opname_final: number | null;
     id_toko: number;
     nomor_ulok: string | null;
     lingkup_pekerjaan: string | null;
@@ -104,7 +104,7 @@ export const dendaActionRepository = {
             CREATE TABLE IF NOT EXISTS denda_keterlambatan_action (
                 id BIGSERIAL PRIMARY KEY,
                 id_toko INTEGER NOT NULL REFERENCES toko(id) ON DELETE CASCADE,
-                id_opname_final INTEGER NOT NULL REFERENCES opname_final(id) ON DELETE CASCADE,
+                id_opname_final INTEGER REFERENCES opname_final(id) ON DELETE CASCADE,
                 nomor_ulok TEXT,
                 lingkup_pekerjaan TEXT,
                 cabang TEXT,
@@ -147,6 +147,7 @@ export const dendaActionRepository = {
         await pool.query(`
             ALTER TABLE denda_keterlambatan_action
                 ALTER COLUMN status SET DEFAULT 'WAITING_MANAGER',
+                ALTER COLUMN id_opname_final DROP NOT NULL,
                 ADD COLUMN IF NOT EXISTS sp_level INTEGER,
                 ADD COLUMN IF NOT EXISTS nama_kontraktor TEXT,
                 ADD COLUMN IF NOT EXISTS nomor_spk TEXT,
@@ -214,13 +215,13 @@ export const dendaActionRepository = {
             )
             SELECT
                 ofn.id AS opname_final_id,
-                ofn.id_toko,
+                t.id AS id_toko,
                 t.nomor_ulok,
                 t.lingkup_pekerjaan,
                 t.nama_toko,
                 t.kode_toko,
                 t.cabang,
-                t.nama_kontraktor,
+                COALESCE(NULLIF(TRIM(spk.nama_kontraktor), ''), NULLIF(TRIM(t.nama_kontraktor), '')) AS nama_kontraktor,
                 spk.nomor_spk,
                 COALESCE(ofn.hari_denda, 0)::int AS hari_denda,
                 COALESCE(ofn.nilai_denda, 0)::text AS nilai_denda,
@@ -237,16 +238,22 @@ export const dendaActionRepository = {
                 latest_action.created_at AS latest_action_created_at,
                 latest_action.expires_at AS latest_action_expires_at,
                 COALESCE(latest_action.expires_at < timezone('Asia/Jakarta', now()), false) AS latest_action_is_expired
-            FROM latest_opname ofn
-            JOIN toko t ON t.id = ofn.id_toko
+            FROM toko t
+            LEFT JOIN latest_opname ofn ON ofn.id_toko = t.id
             LEFT JOIN LATERAL (
-                SELECT nomor_spk
+                SELECT nomor_spk, nama_kontraktor
                 FROM pengajuan_spk ps
-                WHERE ps.id_toko = ofn.id_toko
-                  AND UPPER(TRIM(COALESCE(ps.status, ''))) IN ('SPK_APPROVED', 'APPROVED', 'DISETUJUI', 'AKTIF', 'ACTIVE', 'SELESAI')
+                WHERE ps.id_toko = t.id
                 ORDER BY ps.created_at DESC NULLS LAST, ps.id DESC
                 LIMIT 1
             ) spk ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT id
+                FROM berkas_serah_terima bst
+                WHERE bst.id_toko = t.id
+                ORDER BY bst.created_at DESC NULLS LAST, bst.id DESC
+                LIMIT 1
+            ) st ON TRUE
             LEFT JOIN LATERAL (
                 SELECT
                     COUNT(*) FILTER (
@@ -256,18 +263,19 @@ export const dendaActionRepository = {
                     ) AS active_sp_count,
                     COUNT(*) FILTER (WHERE status = 'WAITING_MANAGER') AS pending_approval_count
                 FROM denda_keterlambatan_action action
-                WHERE action.id_opname_final = ofn.id
+                WHERE action.id_toko = t.id
             ) sp_stats ON TRUE
             LEFT JOIN LATERAL (
                 SELECT action_type, status, created_at, expires_at
                 FROM denda_keterlambatan_action action
-                WHERE action.id_opname_final = ofn.id
+                WHERE action.id_toko = t.id
                 ORDER BY action.created_at DESC, action.id DESC
                 LIMIT 1
             ) latest_action ON TRUE
             WHERE UPPER(TRIM(COALESCE(t.cabang, ''))) <> 'HEAD OFFICE'
-              AND COALESCE(ofn.hari_denda, 0) >= 11
-            ORDER BY ofn.hari_denda DESC, ofn.tanggal_serah_terima_denda DESC NULLS LAST, ofn.id DESC
+              AND st.id IS NULL
+              AND NULLIF(TRIM(COALESCE(spk.nama_kontraktor, t.nama_kontraktor, '')), '') IS NOT NULL
+            ORDER BY COALESCE(ofn.hari_denda, 0) DESC, ofn.created_at DESC NULLS LAST, t.id DESC
         `);
 
         return result.rows;
@@ -353,6 +361,53 @@ export const dendaActionRepository = {
         return result.rows[0] ?? null;
     },
 
+    async findTargetByTokoId(idToko: number): Promise<DendaActionTargetRow | null> {
+        const result = await pool.query<DendaActionTargetRow>(
+            `
+            SELECT
+                ofn.id AS id_opname_final,
+                t.id AS id_toko,
+                t.nomor_ulok,
+                t.lingkup_pekerjaan,
+                t.cabang,
+                COALESCE(NULLIF(TRIM(spk.nama_kontraktor), ''), NULLIF(TRIM(t.nama_kontraktor), '')) AS nama_kontraktor,
+                spk.nomor_spk,
+                COALESCE(ofn.hari_denda, 0)::int AS hari_denda,
+                COALESCE(ofn.nilai_denda, 0)::text AS nilai_denda
+            FROM toko t
+            LEFT JOIN LATERAL (
+                SELECT id, hari_denda, nilai_denda
+                FROM opname_final latest
+                WHERE latest.id_toko = t.id
+                ORDER BY latest.created_at DESC NULLS LAST, latest.id DESC
+                LIMIT 1
+            ) ofn ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT nomor_spk, nama_kontraktor
+                FROM pengajuan_spk ps
+                WHERE ps.id_toko = t.id
+                ORDER BY ps.created_at DESC NULLS LAST, ps.id DESC
+                LIMIT 1
+            ) spk ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT id
+                FROM berkas_serah_terima bst
+                WHERE bst.id_toko = t.id
+                ORDER BY bst.created_at DESC NULLS LAST, bst.id DESC
+                LIMIT 1
+            ) st ON TRUE
+            WHERE t.id = $1
+              AND UPPER(TRIM(COALESCE(t.cabang, ''))) <> 'HEAD OFFICE'
+              AND st.id IS NULL
+              AND NULLIF(TRIM(COALESCE(spk.nama_kontraktor, t.nama_kontraktor, '')), '') IS NOT NULL
+            LIMIT 1
+            `,
+            [idToko]
+        );
+
+        return result.rows[0] ?? null;
+    },
+
     async getActionStatsByOpnameFinalId(idOpnameFinal: number): Promise<{
         active_sp_count: number;
         pending_approval_count: number;
@@ -370,6 +425,31 @@ export const dendaActionRepository = {
             WHERE id_opname_final = $1
             `,
             [idOpnameFinal]
+        );
+
+        return {
+            active_sp_count: Number(result.rows[0]?.active_sp_count ?? 0),
+            pending_approval_count: Number(result.rows[0]?.pending_approval_count ?? 0),
+        };
+    },
+
+    async getActionStatsByTokoId(idToko: number): Promise<{
+        active_sp_count: number;
+        pending_approval_count: number;
+    }> {
+        const result = await pool.query<{ active_sp_count: string; pending_approval_count: string }>(
+            `
+            SELECT
+                COUNT(*) FILTER (
+                    WHERE action_type = 'SP'
+                      AND status IN ('APPROVED', 'SENT_TO_CONTRACTOR', 'VIEWED_BY_CONTRACTOR', 'ACKNOWLEDGED_BY_CONTRACTOR')
+                      AND (expires_at IS NULL OR expires_at >= timezone('Asia/Jakarta', now()))
+                ) AS active_sp_count,
+                COUNT(*) FILTER (WHERE status = 'WAITING_MANAGER') AS pending_approval_count
+            FROM denda_keterlambatan_action
+            WHERE id_toko = $1
+            `,
+            [idToko]
         );
 
         return {

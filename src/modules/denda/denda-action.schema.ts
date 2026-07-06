@@ -21,7 +21,8 @@ const requiredText = (max = 2000) => z.string().trim().min(1).max(max);
 
 export const createDendaActionSchema = z.discriminatedUnion("action_type", [
     z.object({
-        id_opname_final: z.coerce.number().positive(),
+        id_toko: z.coerce.number().positive(),
+        id_opname_final: z.coerce.number().positive().optional().nullable(),
         action_type: z.literal("SP"),
         sp_level: z.coerce.number().int().min(1).max(3),
         alasan_sp: spReasonSchema,
