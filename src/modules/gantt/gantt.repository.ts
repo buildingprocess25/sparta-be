@@ -277,6 +277,14 @@ export const ganttRepository = {
                 ) spk ON true
                 WHERE t.nomor_ulok = $1
             ),
+            target_pengawasan_gantt AS (
+                SELECT
+                    s.id_toko,
+                    pg.id AS id_pengawasan_gantt,
+                    pg.tanggal_pengawasan
+                FROM scope s
+                JOIN pengawasan_gantt pg ON pg.id_gantt = s.gantt_id
+            ),
             pengawasan_per_date AS (
                 SELECT DISTINCT ON (
                     p.id_gantt,
@@ -286,6 +294,7 @@ export const ganttRepository = {
                 )
                     p.*
                 FROM pengawasan p
+                JOIN target_pengawasan_gantt tpg ON tpg.id_pengawasan_gantt = p.id_pengawasan_gantt
                 ORDER BY
                     p.id_gantt,
                     p.id_pengawasan_gantt,
@@ -295,9 +304,9 @@ export const ganttRepository = {
             ),
             checkpoint AS (
                 SELECT
-                    s.id_toko,
-                    pg.id AS id_pengawasan_gantt,
-                    pg.tanggal_pengawasan,
+                    tpg.id_toko,
+                    tpg.id_pengawasan_gantt,
+                    tpg.tanggal_pengawasan,
                     COUNT(p.id)::int AS total_items,
                     COUNT(p.id) FILTER (WHERE p.status = 'selesai')::int AS selesai_items,
                     COUNT(p.id) FILTER (
@@ -306,14 +315,14 @@ export const ganttRepository = {
                             SELECT 1
                             FROM rab r
                             JOIN rab_item ri ON ri.id_rab = r.id
-                            WHERE r.id_toko = s.id_toko
+                            WHERE r.id_toko = tpg.id_toko
                               AND UPPER(TRIM(COALESCE(ri.kategori_pekerjaan, ''))) = UPPER(TRIM(REPLACE(COALESCE(p.kategori_pekerjaan, ''), '[IL] ', '')))
                               AND UPPER(TRIM(COALESCE(ri.jenis_pekerjaan, ''))) = UPPER(TRIM(COALESCE(p.jenis_pekerjaan, '')))
                             UNION ALL
                             SELECT 1
                             FROM instruksi_lapangan il
                             JOIN instruksi_lapangan_item ili ON ili.id_instruksi_lapangan = il.id
-                            WHERE il.id_toko = s.id_toko
+                            WHERE il.id_toko = tpg.id_toko
                               AND UPPER(TRIM(COALESCE(ili.kategori_pekerjaan, ''))) = UPPER(TRIM(REPLACE(COALESCE(p.kategori_pekerjaan, ''), '[IL] ', '')))
                               AND UPPER(TRIM(COALESCE(ili.jenis_pekerjaan, ''))) = UPPER(TRIM(COALESCE(p.jenis_pekerjaan, '')))
                           )
@@ -322,7 +331,7 @@ export const ganttRepository = {
                             FROM opname_item oi
                             LEFT JOIN rab_item ri ON ri.id = oi.id_rab_item
                             LEFT JOIN instruksi_lapangan_item ili ON ili.id = oi.id_instruksi_lapangan_item
-                            WHERE oi.id_toko = s.id_toko
+                            WHERE oi.id_toko = tpg.id_toko
                               AND UPPER(TRIM(COALESCE(
                                     ri.kategori_pekerjaan,
                                     ili.kategori_pekerjaan,
@@ -342,7 +351,7 @@ export const ganttRepository = {
                             FROM opname_item oi
                             LEFT JOIN rab_item ri ON ri.id = oi.id_rab_item
                             LEFT JOIN instruksi_lapangan_item ili ON ili.id = oi.id_instruksi_lapangan_item
-                            WHERE oi.id_toko = s.id_toko
+                            WHERE oi.id_toko = tpg.id_toko
                               AND UPPER(TRIM(COALESCE(
                                     ri.kategori_pekerjaan,
                                     ili.kategori_pekerjaan,
@@ -355,11 +364,10 @@ export const ganttRepository = {
                               ))) = UPPER(TRIM(COALESCE(p.jenis_pekerjaan, '')))
                           )
                     )::int AS opname_items
-                FROM scope s
-                JOIN pengawasan_gantt pg ON pg.id_gantt = s.gantt_id
+                FROM target_pengawasan_gantt tpg
                 LEFT JOIN pengawasan_per_date p
-                    ON p.id_pengawasan_gantt = pg.id
-                GROUP BY s.id_toko, pg.id, pg.tanggal_pengawasan
+                    ON p.id_pengawasan_gantt = tpg.id_pengawasan_gantt
+                GROUP BY tpg.id_toko, tpg.id_pengawasan_gantt, tpg.tanggal_pengawasan
             )
             SELECT
                 s.*,
