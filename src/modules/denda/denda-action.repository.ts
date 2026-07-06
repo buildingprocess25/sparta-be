@@ -223,9 +223,9 @@ export const dendaActionRepository = {
                 t.cabang,
                 COALESCE(NULLIF(TRIM(spk.nama_kontraktor), ''), NULLIF(TRIM(t.nama_kontraktor), '')) AS nama_kontraktor,
                 spk.nomor_spk,
-                COALESCE(ofn.hari_denda, 0)::int AS hari_denda,
-                COALESCE(ofn.nilai_denda, 0)::text AS nilai_denda,
-                ofn.tanggal_akhir_spk_denda,
+                GREATEST(COALESCE(ofn.hari_denda, 0), COALESCE(delay.hari_terlambat, 0))::int AS hari_denda,
+                GREATEST(COALESCE(ofn.nilai_denda, 0), COALESCE(delay.nilai_terlambat, 0))::text AS nilai_denda,
+                COALESCE(ofn.tanggal_akhir_spk_denda, spk.effective_waktu_selesai) AS tanggal_akhir_spk_denda,
                 ofn.tanggal_serah_terima_denda,
                 COALESCE(sp_stats.active_sp_count, 0)::int AS active_sp_count,
                 CASE
@@ -241,12 +241,65 @@ export const dendaActionRepository = {
             FROM toko t
             LEFT JOIN latest_opname ofn ON ofn.id_toko = t.id
             LEFT JOIN LATERAL (
-                SELECT nomor_spk, nama_kontraktor
+                SELECT
+                    ps.nomor_spk,
+                    ps.nama_kontraktor,
+                    COALESCE(extension.approved_until, ps.waktu_selesai::date) AS effective_waktu_selesai
                 FROM pengajuan_spk ps
+                LEFT JOIN LATERAL (
+                    SELECT MAX(parsed_extension_date) AS approved_until
+                    FROM (
+                        SELECT
+                            CASE
+                                WHEN TRIM(COALESCE(pt.tanggal_spk_akhir_setelah_perpanjangan, '')) ~ '^\\d{4}-\\d{2}-\\d{2}'
+                                    THEN LEFT(TRIM(pt.tanggal_spk_akhir_setelah_perpanjangan), 10)::date
+                                WHEN TRIM(COALESCE(pt.tanggal_spk_akhir_setelah_perpanjangan, '')) ~ '^\\d{1,2}/\\d{1,2}/\\d{4}$'
+                                    THEN to_date(TRIM(pt.tanggal_spk_akhir_setelah_perpanjangan), 'DD/MM/YYYY')
+                                ELSE NULL::date
+                            END AS parsed_extension_date
+                        FROM pertambahan_spk pt
+                        WHERE pt.id_spk = ps.id
+                          AND UPPER(TRIM(COALESCE(pt.status_persetujuan, ''))) IN ('APPROVED_BY_BM', 'DISETUJUI BM', 'DISETUJUI', 'APPROVED')
+                    ) parsed
+                ) extension ON TRUE
                 WHERE ps.id_toko = t.id
                 ORDER BY ps.created_at DESC NULLS LAST, ps.id DESC
                 LIMIT 1
             ) spk ON TRUE
+            LEFT JOIN LATERAL (
+                WITH base AS (
+                    SELECT
+                        spk.effective_waktu_selesai AS end_date,
+                        (timezone('Asia/Jakarta', now()))::date AS today
+                ),
+                free_day AS (
+                    SELECT
+                        CASE
+                            WHEN end_date IS NULL THEN NULL::date
+                            WHEN EXTRACT(ISODOW FROM end_date + 1) = 6 THEN end_date + 3
+                            WHEN EXTRACT(ISODOW FROM end_date + 1) = 7 THEN end_date + 2
+                            ELSE end_date + 1
+                        END AS free_date,
+                        today
+                    FROM base
+                ),
+                counted AS (
+                    SELECT COUNT(*)::int AS hari
+                    FROM free_day,
+                    LATERAL generate_series(free_date + 1, today, INTERVAL '1 day') AS day(value)
+                    WHERE free_date IS NOT NULL
+                      AND today > free_date
+                      AND EXTRACT(ISODOW FROM day.value) BETWEEN 1 AND 5
+                )
+                SELECT
+                    COALESCE(hari, 0)::int AS hari_terlambat,
+                    LEAST(
+                        (LEAST(COALESCE(hari, 0), 5) * 1000000)
+                        + (GREATEST(0, LEAST(COALESCE(hari, 0) - 5, 5)) * 500000),
+                        7500000
+                    )::numeric AS nilai_terlambat
+                FROM counted
+            ) delay ON TRUE
             LEFT JOIN LATERAL (
                 SELECT id
                 FROM berkas_serah_terima bst
@@ -275,7 +328,7 @@ export const dendaActionRepository = {
             WHERE UPPER(TRIM(COALESCE(t.cabang, ''))) <> 'HEAD OFFICE'
               AND st.id IS NULL
               AND NULLIF(TRIM(COALESCE(spk.nama_kontraktor, t.nama_kontraktor, '')), '') IS NOT NULL
-            ORDER BY COALESCE(ofn.hari_denda, 0) DESC, ofn.created_at DESC NULLS LAST, t.id DESC
+            ORDER BY GREATEST(COALESCE(ofn.hari_denda, 0), COALESCE(delay.hari_terlambat, 0)) DESC, ofn.created_at DESC NULLS LAST, t.id DESC
         `);
 
         return result.rows;
@@ -372,8 +425,8 @@ export const dendaActionRepository = {
                 t.cabang,
                 COALESCE(NULLIF(TRIM(spk.nama_kontraktor), ''), NULLIF(TRIM(t.nama_kontraktor), '')) AS nama_kontraktor,
                 spk.nomor_spk,
-                COALESCE(ofn.hari_denda, 0)::int AS hari_denda,
-                COALESCE(ofn.nilai_denda, 0)::text AS nilai_denda
+                GREATEST(COALESCE(ofn.hari_denda, 0), COALESCE(delay.hari_terlambat, 0))::int AS hari_denda,
+                GREATEST(COALESCE(ofn.nilai_denda, 0), COALESCE(delay.nilai_terlambat, 0))::text AS nilai_denda
             FROM toko t
             LEFT JOIN LATERAL (
                 SELECT id, hari_denda, nilai_denda
@@ -383,12 +436,65 @@ export const dendaActionRepository = {
                 LIMIT 1
             ) ofn ON TRUE
             LEFT JOIN LATERAL (
-                SELECT nomor_spk, nama_kontraktor
+                SELECT
+                    ps.nomor_spk,
+                    ps.nama_kontraktor,
+                    COALESCE(extension.approved_until, ps.waktu_selesai::date) AS effective_waktu_selesai
                 FROM pengajuan_spk ps
+                LEFT JOIN LATERAL (
+                    SELECT MAX(parsed_extension_date) AS approved_until
+                    FROM (
+                        SELECT
+                            CASE
+                                WHEN TRIM(COALESCE(pt.tanggal_spk_akhir_setelah_perpanjangan, '')) ~ '^\\d{4}-\\d{2}-\\d{2}'
+                                    THEN LEFT(TRIM(pt.tanggal_spk_akhir_setelah_perpanjangan), 10)::date
+                                WHEN TRIM(COALESCE(pt.tanggal_spk_akhir_setelah_perpanjangan, '')) ~ '^\\d{1,2}/\\d{1,2}/\\d{4}$'
+                                    THEN to_date(TRIM(pt.tanggal_spk_akhir_setelah_perpanjangan), 'DD/MM/YYYY')
+                                ELSE NULL::date
+                            END AS parsed_extension_date
+                        FROM pertambahan_spk pt
+                        WHERE pt.id_spk = ps.id
+                          AND UPPER(TRIM(COALESCE(pt.status_persetujuan, ''))) IN ('APPROVED_BY_BM', 'DISETUJUI BM', 'DISETUJUI', 'APPROVED')
+                    ) parsed
+                ) extension ON TRUE
                 WHERE ps.id_toko = t.id
                 ORDER BY ps.created_at DESC NULLS LAST, ps.id DESC
                 LIMIT 1
             ) spk ON TRUE
+            LEFT JOIN LATERAL (
+                WITH base AS (
+                    SELECT
+                        spk.effective_waktu_selesai AS end_date,
+                        (timezone('Asia/Jakarta', now()))::date AS today
+                ),
+                free_day AS (
+                    SELECT
+                        CASE
+                            WHEN end_date IS NULL THEN NULL::date
+                            WHEN EXTRACT(ISODOW FROM end_date + 1) = 6 THEN end_date + 3
+                            WHEN EXTRACT(ISODOW FROM end_date + 1) = 7 THEN end_date + 2
+                            ELSE end_date + 1
+                        END AS free_date,
+                        today
+                    FROM base
+                ),
+                counted AS (
+                    SELECT COUNT(*)::int AS hari
+                    FROM free_day,
+                    LATERAL generate_series(free_date + 1, today, INTERVAL '1 day') AS day(value)
+                    WHERE free_date IS NOT NULL
+                      AND today > free_date
+                      AND EXTRACT(ISODOW FROM day.value) BETWEEN 1 AND 5
+                )
+                SELECT
+                    COALESCE(hari, 0)::int AS hari_terlambat,
+                    LEAST(
+                        (LEAST(COALESCE(hari, 0), 5) * 1000000)
+                        + (GREATEST(0, LEAST(COALESCE(hari, 0) - 5, 5)) * 500000),
+                        7500000
+                    )::numeric AS nilai_terlambat
+                FROM counted
+            ) delay ON TRUE
             LEFT JOIN LATERAL (
                 SELECT id
                 FROM berkas_serah_terima bst
