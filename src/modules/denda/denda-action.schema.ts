@@ -1,6 +1,7 @@
 ﻿import { z } from "zod";
 
 export const dendaActionTypeSchema = z.enum(["SP", "TAKEOVER"]);
+export const spReasonSchema = z.enum(["KETERLAMBATAN", "MENOLAK_SPK", "MANIPULASI"]);
 export const dendaActionStatusSchema = z.enum([
     "WAITING_MANAGER",
     "REJECTED_BY_MANAGER",
@@ -23,11 +24,10 @@ export const createDendaActionSchema = z.discriminatedUnion("action_type", [
         id_opname_final: z.coerce.number().positive(),
         action_type: z.literal("SP"),
         sp_level: z.coerce.number().int().min(1).max(3),
+        alasan_sp: spReasonSchema,
         catatan: requiredText(),
-        instruksi_tindak_lanjut: requiredText(),
-        deadline_tindak_lanjut: requiredText(64),
-        lampiran_1_url: requiredText(1000),
-        lampiran_2_url: requiredText(1000),
+        lampiran_1_url: z.string().trim().max(1000).optional().nullable(),
+        lampiran_2_url: z.string().trim().max(1000).optional().nullable(),
     }),
     z.object({
         id_opname_final: z.coerce.number().positive(),
@@ -48,6 +48,7 @@ export const rejectDendaActionSchema = z.object({
 
 export type DendaActionType = z.infer<typeof dendaActionTypeSchema>;
 export type DendaActionStatus = z.infer<typeof dendaActionStatusSchema>;
+export type SpReason = z.infer<typeof spReasonSchema>;
 export type ListDendaActionsQuery = z.infer<typeof listDendaActionsQuerySchema>;
 export type CreateDendaActionInput = z.infer<typeof createDendaActionSchema>;
 export type RejectDendaActionInput = z.infer<typeof rejectDendaActionSchema>;

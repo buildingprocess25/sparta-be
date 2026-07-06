@@ -1,4 +1,4 @@
-import { AppError } from "../../common/app-error";
+﻿import { AppError } from "../../common/app-error";
 import {
     buildDashboardExportFile,
     buildDashboardExportRows,
@@ -121,6 +121,9 @@ export const dashboardService = {
         return buildDashboardExportFile(query.format, rows, {
             cabang: cabangLabel,
             generatedBy: query.actor_role
-        });
+        }, query.data_types);
     }
 };
+
+
+

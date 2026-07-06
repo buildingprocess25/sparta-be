@@ -1,4 +1,4 @@
-import { z } from "zod";
+﻿import { z } from "zod";
 
 export const dashboardQuerySchema = z.object({
     search: z.string().trim().min(1).optional(),
@@ -21,6 +21,12 @@ export const dashboardExportQuerySchema = z.object({
     search: z.string().trim().min(1).optional(),
     cabang: z.string().trim().optional(),
     toko_ids: z.string().trim().optional(),
+    months: z.string().trim().optional(),
+    year: z.coerce.number().int().min(2000).max(2100).optional(),
+    period_mode: z.enum(["months", "ytd", "all"]).default("all"),
+    data_types: z.string().trim().optional(),
+    cabangs: z.string().trim().optional(),
+    spk_status: z.enum(["all", "with_spk", "without_spk"]).default("all"),
     actor_role: z.string().trim().min(1),
     actor_cabang: z.string().trim().min(1)
 });
@@ -51,3 +57,4 @@ export const dashboardProjectsQuerySchema = z.object({
 });
 
 export type DashboardProjectsQueryInput = z.infer<typeof dashboardProjectsQuerySchema>;
+

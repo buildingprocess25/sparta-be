@@ -1,4 +1,4 @@
-import * as XLSX from "xlsx";
+﻿import * as XLSX from "xlsx";
 import { AppError } from "../../common/app-error";
 import { isSameBranchScope } from "../../common/branch-scope";
 import { renderPdfFromHtml } from "../../common/html-pdf";
@@ -276,6 +276,70 @@ const parseSelectedTokoIds = (value?: string): Set<number> => {
         .filter((id) => Number.isInteger(id) && id > 0);
     return new Set(ids);
 };
+const parseCsvSet = (value?: string): Set<string> => new Set(
+    String(value ?? "")
+        .split(",")
+        .map((item) => normalizeUpper(item))
+        .filter(Boolean)
+);
+
+const parseMonthSet = (value?: string): Set<number> => new Set(
+    String(value ?? "")
+        .split(",")
+        .map((item) => Number(item.trim()))
+        .filter((month) => Number.isInteger(month) && month >= 1 && month <= 12)
+);
+
+const getProjectDates = (project: DashboardData): Date[] => [
+    ...project.rab.map((item) => item.created_at),
+    ...project.spk.map((item) => item.created_at),
+    ...project.opname_final.map((item) => item.created_at),
+    ...project.berkas_serah_terima.map((item) => item.created_at)
+]
+    .map(toDate)
+    .filter((date): date is Date => Boolean(date));
+
+const matchesPeriodFilter = (project: DashboardData, query: DashboardExportQueryInput): boolean => {
+    if (query.period_mode === "all") return true;
+    const year = query.year ?? new Date().getFullYear();
+    const months = parseMonthSet(query.months);
+    const dates = getProjectDates(project);
+    if (dates.length === 0) return false;
+
+    if (query.period_mode === "ytd") {
+        const now = new Date();
+        return dates.some((date) => date.getFullYear() === year && date <= now);
+    }
+
+    if (months.size === 0) return true;
+    return dates.some((date) => date.getFullYear() === year && months.has(date.getMonth() + 1));
+};
+
+const hasSpk = (project: DashboardData): boolean => project.spk.length > 0;
+
+const dataTypeColumns: Record<string, Array<keyof DashboardExportRow>> = {
+    IDENTITAS: ["timestamp", "cabang", "nomor_ulok", "proyek", "lingkup_pekerjaan", "kontraktor", "nama_toko", "kode_toko", "kategori", "pic", "status"],
+    RAB: ["status_rab", "luas_bangunan", "luas_terbangunan", "luas_area_terbuka", "luas_area_parkir", "luas_area_sales", "luas_gudang", "pekerjaan_area_terbuka", "pekerjaan_beanspot", "total_penawaran_final", "timestamp_acc_manager", "tanggal_grand_opening"],
+    SPK: ["timestamp_spk", "durasi_spk", "nominal_spk", "awal_spk", "akhir_spk", "tambah_spk", "akhir_spk_setelah", "real_spk"],
+    OPNAME: ["tanggal_serah_terima", "keterlambatan", "denda", "kerja_tambah", "kerja_kurang", "grand_total_opname_final", "tanggal_opname_final", "status_opname_final", "nilai_toko"],
+    INVESTASI: ["total_investasi_bangunan", "total_investasi_area_terbuka", "total_investasi_non_sbo"]
+};
+
+const resolveDashboardExportColumns = (dataTypes?: string): DashboardExportColumn[] => {
+    const selected = parseCsvSet(dataTypes);
+    if (selected.size === 0) return dashboardExportColumns;
+    const keys = new Set<keyof DashboardExportRow>();
+    selected.forEach((type) => dataTypeColumns[type]?.forEach((key) => keys.add(key)));
+    if (keys.size === 0) return dashboardExportColumns;
+    return dashboardExportColumns.filter((column) => keys.has(column.key));
+};
+
+const htmlEscape = (value: unknown): string => String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 
 export const filterDashboardExportAccess = (projects: DashboardData[], query: DashboardExportQueryInput): DashboardData[] => {
     const actorRole = normalizeUpper(query.actor_role);
@@ -286,13 +350,18 @@ export const filterDashboardExportAccess = (projects: DashboardData[], query: Da
     }
 
     const cabangFilter = normalizeUpper(query.cabang);
+    const selectedCabangs = parseCsvSet(query.cabangs);
     const selectedTokoIds = parseSelectedTokoIds(query.toko_ids);
     return projects.filter((project) => {
         const projectCabang = normalizeUpper(project.toko.cabang);
         if (isHeadOfficeCabang(projectCabang)) return false;
         if (actorCabang !== "HEAD OFFICE" && !isSameBranchScope(projectCabang, actorCabang)) return false;
         if (cabangFilter && cabangFilter !== "ALL" && projectCabang !== cabangFilter) return false;
+        if (selectedCabangs.size > 0 && !selectedCabangs.has(projectCabang)) return false;
         if (selectedTokoIds.size > 0 && !selectedTokoIds.has(Number(project.toko.id))) return false;
+        if (query.spk_status === "with_spk" && !hasSpk(project)) return false;
+        if (query.spk_status === "without_spk" && hasSpk(project)) return false;
+        if (!matchesPeriodFilter(project, query)) return false;
         return true;
     });
 };
@@ -440,30 +509,31 @@ export const buildDashboardExportRows = (
     });
 };
 
-const rowsToAoA = (rows: DashboardExportRow[]) => [
-    dashboardExportColumns.map((column) => column.label),
-    ...rows.map((row) => dashboardExportColumns.map((column) => row[column.key]))
+const rowsToAoA = (rows: DashboardExportRow[], columns: DashboardExportColumn[]) => [
+    columns.map((column) => column.label),
+    ...rows.map((row) => columns.map((column) => row[column.key]))
 ];
 
-export const buildDashboardExcelBuffer = (rows: DashboardExportRow[]): Buffer => {
+export const buildDashboardExcelBuffer = (rows: DashboardExportRow[], columns: DashboardExportColumn[]): Buffer => {
     const workbook = XLSX.utils.book_new();
-    const worksheet = XLSX.utils.aoa_to_sheet(rowsToAoA(rows));
-    worksheet["!cols"] = dashboardExportColumns.map((column) => ({
+    const worksheet = XLSX.utils.aoa_to_sheet(rowsToAoA(rows, columns));
+    worksheet["!cols"] = columns.map((column) => ({
         wch: Math.min(Math.max(column.label.replace(/\n/g, " ").length + 2, 12), 32)
     }));
     XLSX.utils.book_append_sheet(workbook, worksheet, "Dashboard Export");
     return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
 };
 
-export const buildDashboardCsvBuffer = (rows: DashboardExportRow[]): Buffer => {
-    const worksheet = XLSX.utils.aoa_to_sheet(rowsToAoA(rows));
+export const buildDashboardCsvBuffer = (rows: DashboardExportRow[], columns: DashboardExportColumn[]): Buffer => {
+    const worksheet = XLSX.utils.aoa_to_sheet(rowsToAoA(rows, columns));
     const csv = XLSX.utils.sheet_to_csv(worksheet);
     return Buffer.from(csv, "utf8");
 };
 
 export const buildDashboardPdfBuffer = async (
     rows: DashboardExportRow[],
-    meta: { cabang: string; generatedBy: string }
+    meta: { cabang: string; generatedBy: string },
+    columns: DashboardExportColumn[]
 ): Promise<Buffer> => {
     const generatedAt = new Intl.DateTimeFormat("id-ID", {
         day: "2-digit",
@@ -524,34 +594,14 @@ export const buildDashboardPdfBuffer = async (
     <thead>
       <tr>
         <th style="width:24px;">No</th>
-        <th>Cabang</th>
-        <th>Ulok</th>
-        <th>Toko</th>
-        <th>Kontraktor</th>
-        <th>Status RAB</th>
-        <th>Status Opname</th>
-        <th>SPK</th>
-        <th>Serah Terima</th>
-        <th>Denda</th>
-        <th>Grand Total</th>
-        <th>Status</th>
+        ${columns.map((column) => `<th>${htmlEscape(column.label).replace(/\n/g, "<br/>")}</th>`).join("")}
       </tr>
     </thead>
     <tbody>
       ${rows.map((row, index) => `
         <tr>
           <td class="center">${index + 1}</td>
-          <td>${row.cabang}</td>
-          <td>${row.nomor_ulok}</td>
-          <td>${row.nama_toko}</td>
-          <td>${row.kontraktor}</td>
-          <td>${row.status_rab}</td>
-          <td>${row.status_opname_final}</td>
-          <td class="num">${formatMoney(row.nominal_spk)}</td>
-          <td>${row.tanggal_serah_terima}</td>
-          <td class="num">${formatMoney(row.denda)}</td>
-          <td class="num">${formatMoney(row.grand_total_opname_final)}</td>
-          <td class="center">${row.status}</td>
+          ${columns.map((column) => `<td>${htmlEscape(row[column.key])}</td>`).join("")}
         </tr>
       `).join("")}
     </tbody>
@@ -566,14 +616,16 @@ export const buildDashboardPdfBuffer = async (
 export const buildDashboardExportFile = async (
     format: DashboardExportQueryInput["format"],
     rows: DashboardExportRow[],
-    meta: { cabang: string; generatedBy: string }
+    meta: { cabang: string; generatedBy: string },
+    dataTypes?: string
 ): Promise<{ buffer: Buffer; filename: string; contentType: string }> => {
+    const columns = resolveDashboardExportColumns(dataTypes);
     const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     const cabang = normalizeUpper(meta.cabang || "ALL").replace(/[^A-Z0-9]+/g, "_") || "ALL";
 
     if (format === "csv") {
         return {
-            buffer: buildDashboardCsvBuffer(rows),
+            buffer: buildDashboardCsvBuffer(rows, columns),
             filename: `SPARTA_DASHBOARD_EXPORT_${cabang}_${stamp}.csv`,
             contentType: "text/csv; charset=utf-8"
         };
@@ -581,15 +633,18 @@ export const buildDashboardExportFile = async (
 
     if (format === "pdf") {
         return {
-            buffer: await buildDashboardPdfBuffer(rows, meta),
+            buffer: await buildDashboardPdfBuffer(rows, meta, columns),
             filename: `SPARTA_DASHBOARD_EXPORT_${cabang}_${stamp}.pdf`,
             contentType: "application/pdf"
         };
     }
 
     return {
-        buffer: buildDashboardExcelBuffer(rows),
+        buffer: buildDashboardExcelBuffer(rows, columns),
         filename: `SPARTA_DASHBOARD_EXPORT_${cabang}_${stamp}.xlsx`,
         contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     };
 };
+
+
+

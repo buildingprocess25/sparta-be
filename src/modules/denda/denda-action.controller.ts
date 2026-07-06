@@ -29,8 +29,17 @@ export const listDendaActions = asyncHandler(async (req: Request, res: Response)
 
 export const createDendaAction = asyncHandler(async (req: Request, res: Response) => {
     const payload = createDendaActionSchema.parse(req.body);
+    const attachment = req.file
+        ? {
+            originalname: req.file.originalname,
+            mimetype: req.file.mimetype,
+            buffer: req.file.buffer,
+        }
+        : undefined;
+
     const data = await dendaActionService.createAction({
         ...payload,
+        attachment,
         actor: req.user,
     });
 

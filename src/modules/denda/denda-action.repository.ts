@@ -1,7 +1,5 @@
 ﻿import { pool } from "../../db/pool";
-import type { DendaActionStatus, DendaActionType, ListDendaActionsQuery } from "./denda-action.schema";
-
-const ACTIVE_SP_STATUSES = ["APPROVED", "SENT_TO_CONTRACTOR", "VIEWED_BY_CONTRACTOR", "ACKNOWLEDGED_BY_CONTRACTOR"];
+import type { DendaActionStatus, DendaActionType, ListDendaActionsQuery, SpReason } from "./denda-action.schema";
 
 export type DendaActionCandidateRow = {
     opname_final_id: number;
@@ -34,11 +32,14 @@ export type DendaActionRow = {
     nomor_ulok: string | null;
     lingkup_pekerjaan: string | null;
     cabang: string | null;
+    nama_kontraktor: string | null;
+    nomor_spk: string | null;
     action_type: DendaActionType;
     status: DendaActionStatus;
     sp_level: number | null;
     hari_denda: number;
     nilai_denda: string;
+    alasan_sp: SpReason | null;
     catatan: string | null;
     instruksi_tindak_lanjut: string | null;
     deadline_tindak_lanjut: string | null;
@@ -74,13 +75,15 @@ export type DendaActionTargetRow = {
     nomor_ulok: string | null;
     lingkup_pekerjaan: string | null;
     cabang: string | null;
+    nama_kontraktor: string | null;
+    nomor_spk: string | null;
     hari_denda: number;
     nilai_denda: string;
 };
 
 const ACTION_SELECT = `
-    id, id_toko, id_opname_final, nomor_ulok, lingkup_pekerjaan, cabang,
-    action_type, status, sp_level, hari_denda, nilai_denda, catatan,
+    id, id_toko, id_opname_final, nomor_ulok, lingkup_pekerjaan, cabang, nama_kontraktor, nomor_spk,
+    action_type, status, sp_level, hari_denda, nilai_denda, alasan_sp, catatan,
     instruksi_tindak_lanjut, deadline_tindak_lanjut, lampiran_1_url, lampiran_2_url,
     nomor_surat, link_pdf, submitted_by_email, submitted_by_role, submitted_at,
     manager_approved_by, manager_approved_role, manager_approved_at,
@@ -105,11 +108,14 @@ export const dendaActionRepository = {
                 nomor_ulok TEXT,
                 lingkup_pekerjaan TEXT,
                 cabang TEXT,
+                nama_kontraktor TEXT,
+                nomor_spk TEXT,
                 action_type TEXT NOT NULL CHECK (action_type IN ('SP', 'TAKEOVER')),
                 status TEXT NOT NULL DEFAULT 'WAITING_MANAGER',
                 sp_level INTEGER,
                 hari_denda INTEGER NOT NULL,
                 nilai_denda NUMERIC NOT NULL DEFAULT 0,
+                alasan_sp TEXT,
                 catatan TEXT,
                 instruksi_tindak_lanjut TEXT,
                 deadline_tindak_lanjut DATE,
@@ -142,6 +148,9 @@ export const dendaActionRepository = {
             ALTER TABLE denda_keterlambatan_action
                 ALTER COLUMN status SET DEFAULT 'WAITING_MANAGER',
                 ADD COLUMN IF NOT EXISTS sp_level INTEGER,
+                ADD COLUMN IF NOT EXISTS nama_kontraktor TEXT,
+                ADD COLUMN IF NOT EXISTS nomor_spk TEXT,
+                ADD COLUMN IF NOT EXISTS alasan_sp TEXT,
                 ADD COLUMN IF NOT EXISTS instruksi_tindak_lanjut TEXT,
                 ADD COLUMN IF NOT EXISTS deadline_tindak_lanjut DATE,
                 ADD COLUMN IF NOT EXISTS lampiran_1_url TEXT,
@@ -320,10 +329,20 @@ export const dendaActionRepository = {
                 t.nomor_ulok,
                 t.lingkup_pekerjaan,
                 t.cabang,
+                t.nama_kontraktor,
+                spk.nomor_spk,
                 COALESCE(ofn.hari_denda, 0)::int AS hari_denda,
                 COALESCE(ofn.nilai_denda, 0)::text AS nilai_denda
             FROM opname_final ofn
             JOIN toko t ON t.id = ofn.id_toko
+            LEFT JOIN LATERAL (
+                SELECT nomor_spk
+                FROM pengajuan_spk ps
+                WHERE ps.id_toko = ofn.id_toko
+                  AND UPPER(TRIM(COALESCE(ps.status, ''))) IN ('SPK_APPROVED', 'APPROVED', 'DISETUJUI', 'AKTIF', 'ACTIVE', 'SELESAI')
+                ORDER BY ps.created_at DESC NULLS LAST, ps.id DESC
+                LIMIT 1
+            ) spk ON TRUE
             WHERE ofn.id = $1
               AND UPPER(TRIM(COALESCE(t.cabang, ''))) <> 'HEAD OFFICE'
             LIMIT 1
@@ -363,6 +382,7 @@ export const dendaActionRepository = {
         target: DendaActionTargetRow;
         action_type: DendaActionType;
         sp_level?: number | null;
+        alasan_sp?: SpReason | null;
         catatan: string;
         instruksi_tindak_lanjut?: string | null;
         deadline_tindak_lanjut?: string | null;
@@ -379,11 +399,14 @@ export const dendaActionRepository = {
                 nomor_ulok,
                 lingkup_pekerjaan,
                 cabang,
+                nama_kontraktor,
+                nomor_spk,
                 action_type,
                 status,
                 sp_level,
                 hari_denda,
                 nilai_denda,
+                alasan_sp,
                 catatan,
                 instruksi_tindak_lanjut,
                 deadline_tindak_lanjut,
@@ -395,7 +418,9 @@ export const dendaActionRepository = {
                 actor_email,
                 actor_role
             )
-            VALUES ($1, $2, $3, $4, $5, $6, 'WAITING_MANAGER', $7, $8, $9, $10, $11, $12::date, $13, $14, $15, $16, timezone('Asia/Jakarta', now()), $15, $16)
+            VALUES (
+                $1, $2, $3, $4, $5, $6, $7, $8, 'WAITING_MANAGER', $9, $10, $11, $12, $13, $14, $15::date, $16, $17, $18, $19, timezone('Asia/Jakarta', now()), $18, $19
+            )
             RETURNING id
             `,
             [
@@ -404,10 +429,13 @@ export const dendaActionRepository = {
                 input.target.nomor_ulok,
                 input.target.lingkup_pekerjaan,
                 input.target.cabang,
+                input.target.nama_kontraktor,
+                input.target.nomor_spk,
                 input.action_type,
                 input.sp_level ?? null,
                 input.target.hari_denda,
                 input.target.nilai_denda,
+                input.alasan_sp ?? null,
                 input.catatan,
                 input.instruksi_tindak_lanjut ?? null,
                 input.deadline_tindak_lanjut ?? null,
@@ -481,3 +509,10 @@ export const dendaActionRepository = {
         return updated;
     },
 };
+
+
+
+
+
+
+
