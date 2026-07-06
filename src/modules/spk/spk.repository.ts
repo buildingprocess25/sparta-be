@@ -383,19 +383,27 @@ export const spkRepository = {
       FROM pengajuan_spk p
         LEFT JOIN toko t ON t.id = p.id_toko
         LEFT JOIN LATERAL (
-            SELECT MAX(
-                CASE
-                    WHEN pt.tanggal_spk_akhir_setelah_perpanjangan ~ '^\\d{4}-\\d{2}-\\d{2}'
-                        THEN LEFT(pt.tanggal_spk_akhir_setelah_perpanjangan, 10)::date
-                    WHEN pt.tanggal_spk_akhir_setelah_perpanjangan ~ '^\\d{1,2}/\\d{1,2}/\\d{4}$'
-                        THEN to_date(pt.tanggal_spk_akhir_setelah_perpanjangan, 'DD/MM/YYYY')
-                    ELSE NULL
-                END
-            ) AS approved_until
-            FROM pengajuan_spk ps_scope
-            JOIN pertambahan_spk pt ON pt.id_spk = ps_scope.id
-            WHERE ps_scope.nomor_ulok = p.nomor_ulok
-              AND UPPER(TRIM(COALESCE(pt.status_persetujuan, ''))) IN ('APPROVED', 'DISETUJUI', 'DISETUJUI BM')
+            SELECT MAX(parsed_extension_date) AS approved_until
+            FROM (
+                SELECT
+                    CASE
+                        WHEN parsed.raw_value ~ '^\\d{4}-\\d{2}-\\d{2}'
+                         AND to_char(to_date(LEFT(parsed.raw_value, 10), 'YYYY-MM-DD'), 'YYYY-MM-DD') = LEFT(parsed.raw_value, 10)
+                            THEN to_date(LEFT(parsed.raw_value, 10), 'YYYY-MM-DD')
+                        WHEN parsed.raw_value ~ '^\\d{1,2}/\\d{1,2}/\\d{4}$'
+                         AND (to_char(to_date(parsed.raw_value, 'DD/MM/YYYY'), 'FMDD/FMMM/YYYY') = parsed.raw_value
+                          OR to_char(to_date(parsed.raw_value, 'DD/MM/YYYY'), 'DD/MM/YYYY') = parsed.raw_value)
+                            THEN to_date(parsed.raw_value, 'DD/MM/YYYY')
+                        ELSE NULL
+                    END AS parsed_extension_date
+                FROM pengajuan_spk ps_scope
+                JOIN pertambahan_spk pt ON pt.id_spk = ps_scope.id
+                CROSS JOIN LATERAL (
+                    SELECT TRIM(COALESCE(pt.tanggal_spk_akhir_setelah_perpanjangan, '')) AS raw_value
+                ) parsed
+                WHERE ps_scope.nomor_ulok = p.nomor_ulok
+                  AND UPPER(TRIM(COALESCE(pt.status_persetujuan, ''))) IN ('APPROVED', 'DISETUJUI', 'DISETUJUI BM')
+            ) safe_extension_dates
         ) psp ON true
       ${whereClause}
       ORDER BY p.created_at DESC

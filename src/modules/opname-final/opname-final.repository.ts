@@ -489,6 +489,8 @@ export const opnameFinalRepository = {
             JOIN toko peer_toko ON peer_toko.id = ofn.id_toko
             JOIN toko target_toko ON target_toko.id = $1
             WHERE peer_toko.nomor_ulok = target_toko.nomor_ulok
+              AND UPPER(TRIM(COALESCE(target_toko.cabang, ''))) <> 'HEAD OFFICE'
+              AND UPPER(TRIM(COALESCE(peer_toko.cabang, ''))) <> 'HEAD OFFICE'
               AND (
                   target_toko.cabang IS NULL
                   OR peer_toko.cabang IS NULL

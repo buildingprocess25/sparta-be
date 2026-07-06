@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { calculateDendaFromDates } from "./denda-keterlambatan";
+import { calculateDendaFromDates, calculateDendaNominal, DENDA_ACTION_THRESHOLD_DAYS } from "./denda-keterlambatan";
 
 test("denda uses the first serah terima date for the shared ULOK result", () => {
     const akhirSpk = new Date(2026, 5, 14);
@@ -28,4 +28,13 @@ test("denda remains zero when the first serah terima is within the free period",
 
     assert.equal(result.hari_denda, 0);
     assert.equal(result.nilai_denda, 0);
+});
+
+test("denda nominal is capped at 7.5 million before SP or takeover decision", () => {
+    assert.equal(calculateDendaNominal(0), 0);
+    assert.equal(calculateDendaNominal(5), 5_000_000);
+    assert.equal(calculateDendaNominal(6), 5_500_000);
+    assert.equal(calculateDendaNominal(10), 7_500_000);
+    assert.equal(calculateDendaNominal(DENDA_ACTION_THRESHOLD_DAYS), 7_500_000);
+    assert.equal(calculateDendaNominal(30), 7_500_000);
 });

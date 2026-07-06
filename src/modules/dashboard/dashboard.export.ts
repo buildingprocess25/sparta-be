@@ -2,6 +2,7 @@ import * as XLSX from "xlsx";
 import { AppError } from "../../common/app-error";
 import { isSameBranchScope } from "../../common/branch-scope";
 import { renderPdfFromHtml } from "../../common/html-pdf";
+import { calculateDendaNominal, isHeadOfficeCabang } from "../denda/denda-keterlambatan";
 import type { DashboardData } from "./dashboard.repository";
 import type { DashboardExportQueryInput } from "./dashboard.schema";
 
@@ -190,10 +191,7 @@ const countWeekdaysAfter = (freeDate: Date, compareDate: Date): number => {
 };
 
 const calculatePenalty = (lateDays: number): number => {
-    if (lateDays <= 0) return 0;
-    const firstTier = Math.min(lateDays, 5);
-    const secondTier = Math.max(0, Math.min(lateDays - 5, 10));
-    return Math.min(firstTier * 1000000 + secondTier * 500000, 10000000);
+    return calculateDendaNominal(lateDays);
 };
 
 const roundDownTenThousand = (value: number): number => {
@@ -282,6 +280,7 @@ export const filterDashboardExportAccess = (projects: DashboardData[], query: Da
     const cabangFilter = normalizeUpper(query.cabang);
     return projects.filter((project) => {
         const projectCabang = normalizeUpper(project.toko.cabang);
+        if (isHeadOfficeCabang(projectCabang)) return false;
         if (actorCabang !== "HEAD OFFICE" && !isSameBranchScope(projectCabang, actorCabang)) return false;
         if (cabangFilter && cabangFilter !== "ALL" && projectCabang !== cabangFilter) return false;
         return true;

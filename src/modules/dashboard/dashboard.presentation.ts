@@ -1,4 +1,9 @@
 import { isSameBranchScope } from "../../common/branch-scope";
+import {
+    calculateDendaNominal,
+    DENDA_ACTION_THRESHOLD_DAYS,
+    isHeadOfficeCabang
+} from "../denda/denda-keterlambatan";
 import type { DashboardData } from "./dashboard.repository";
 import type { DashboardProjectsQueryInput, DashboardSummaryQueryInput } from "./dashboard.schema";
 
@@ -140,10 +145,23 @@ export const getDashboardPenalty = (project: DashboardData) => {
     const hasOfficialCalculation = Boolean(opname?.tanggal_akhir_spk_denda);
 
     if (official > 0 || officialHari > 0 || hasOfficialCalculation) {
-        return { amount: official, days: officialHari || days, source: "Resmi" as const };
+        const actionDays = officialHari || days;
+        return {
+            amount: official,
+            days: actionDays,
+            source: "Resmi" as const,
+            requires_action: actionDays >= DENDA_ACTION_THRESHOLD_DAYS,
+            action_options: actionDays >= DENDA_ACTION_THRESHOLD_DAYS ? ["SP", "TAKEOVER"] : [],
+        };
     }
-    const amount = Math.min((Math.min(days, 5) * 1_000_000) + (Math.max(0, Math.min(days - 5, 10)) * 500_000), 10_000_000);
-    return { amount, days, source: "Estimasi" as const };
+    const amount = calculateDendaNominal(days);
+    return {
+        amount,
+        days,
+        source: "Estimasi" as const,
+        requires_action: days >= DENDA_ACTION_THRESHOLD_DAYS,
+        action_options: days >= DENDA_ACTION_THRESHOLD_DAYS ? ["SP", "TAKEOVER"] : [],
+    };
 };
 
 const canViewAllBranches = (query: DashboardSummaryQueryInput | DashboardProjectsQueryInput) => {
@@ -170,6 +188,7 @@ export const scopeDashboardProjects = (
     const search = normalize(query.search);
     return projects.filter((project) => {
         const branch = normalize(project.toko.cabang);
+        if (isHeadOfficeCabang(branch)) return false;
         if (!canViewAllBranches(query) && !isSameBranchScope(branch, actorBranch)) return false;
         if (selectedBranch && selectedBranch !== "ALL" && branch !== selectedBranch) return false;
         if (!matchesCompany(project, query.actor_company)) return false;

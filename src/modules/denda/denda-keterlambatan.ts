@@ -23,6 +23,15 @@ type PenaltyScopeRow = {
 };
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+export const DENDA_TIER_1_DAYS = 5;
+export const DENDA_TIER_1_RATE = 1_000_000;
+export const DENDA_TIER_2_DAYS = 5;
+export const DENDA_TIER_2_RATE = 500_000;
+export const DENDA_MAX_NOMINAL = 7_500_000;
+export const DENDA_ACTION_THRESHOLD_DAYS = 11;
+
+export const isHeadOfficeCabang = (value?: string | null): boolean =>
+    String(value ?? "").trim().toUpperCase() === "HEAD OFFICE";
 
 const startOfLocalDay = (date: Date): Date => {
     return new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -103,9 +112,9 @@ const countWeekdaysAfterFreeDate = (freeDate: Date, stDate: Date): number => {
 
 export const calculateDendaNominal = (hariDenda: number): number => {
     if (hariDenda <= 0) return 0;
-    const hariPertama = Math.min(hariDenda, 5);
-    const hariBerikutnya = Math.max(0, Math.min(hariDenda - 5, 10));
-    return Math.min((hariPertama * 1_000_000) + (hariBerikutnya * 500_000), 10_000_000);
+    const hariPertama = Math.min(hariDenda, DENDA_TIER_1_DAYS);
+    const hariBerikutnya = Math.max(0, Math.min(hariDenda - DENDA_TIER_1_DAYS, DENDA_TIER_2_DAYS));
+    return Math.min((hariPertama * DENDA_TIER_1_RATE) + (hariBerikutnya * DENDA_TIER_2_RATE), DENDA_MAX_NOMINAL);
 };
 
 const resolvePenaltyScopeByTokoId = async (idToko: number): Promise<{ tokoIds: number[]; nomorUlok: string | null }> => {
@@ -120,6 +129,10 @@ const resolvePenaltyScopeByTokoId = async (idToko: number): Promise<{ tokoIds: n
     );
 
     const target = targetResult.rows[0];
+    if (isHeadOfficeCabang(target?.cabang)) {
+        return { tokoIds: [], nomorUlok: target?.nomor_ulok ?? null };
+    }
+
     if (!target?.nomor_ulok) {
         return { tokoIds: [idToko], nomorUlok: target?.nomor_ulok ?? null };
     }
@@ -129,6 +142,7 @@ const resolvePenaltyScopeByTokoId = async (idToko: number): Promise<{ tokoIds: n
         SELECT id, nomor_ulok, cabang
         FROM toko
         WHERE nomor_ulok = $1
+          AND UPPER(TRIM(COALESCE(cabang, ''))) <> 'HEAD OFFICE'
           AND (
               $2::text IS NULL
               OR cabang IS NULL
@@ -209,6 +223,15 @@ export const calculateDendaByTokoId = async (idToko: number): Promise<DendaKeter
     const scope = await resolvePenaltyScopeByTokoId(idToko);
     console.log(`[DENDA] Toko ${idToko} → scope tokoIds=${JSON.stringify(scope.tokoIds)}, nomorUlok=${scope.nomorUlok}`);
 
+    if (scope.tokoIds.length === 0) {
+        return {
+            hari_denda: 0,
+            nilai_denda: 0,
+            tanggal_akhir_spk: null,
+            tanggal_serah_terima: null
+        };
+    }
+
     const individualDendas: DendaKeterlambatanResult[] = [];
 
     for (const peerId of scope.tokoIds) {
@@ -239,8 +262,12 @@ export const calculateDendaByTokoId = async (idToko: number): Promise<DendaKeter
         return calculateSingleTokoDenda(idToko);
     }
 
-    // Sort ascending by denda value and pick the smallest (taking the minimum)
-    individualDendas.sort((a, b) => a.nilai_denda - b.nilai_denda);
+    // Pick the lightest penalty. When nominal is tied at the cap, keep the smaller day count/date.
+    individualDendas.sort((a, b) =>
+        (a.nilai_denda - b.nilai_denda)
+        || (a.hari_denda - b.hari_denda)
+        || String(a.tanggal_serah_terima ?? "").localeCompare(String(b.tanggal_serah_terima ?? ""))
+    );
     const minDenda = individualDendas[0];
 
     console.log(`[DENDA] Toko ${idToko} → final minimum denda among peers = ${minDenda.nilai_denda} (${minDenda.hari_denda} days)`);
