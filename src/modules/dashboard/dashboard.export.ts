@@ -1,4 +1,4 @@
-﻿import * as XLSX from "xlsx";
+import * as XLSX from "xlsx";
 import { AppError } from "../../common/app-error";
 import { isSameBranchScope } from "../../common/branch-scope";
 import { renderPdfFromHtml } from "../../common/html-pdf";
@@ -52,9 +52,6 @@ export type DashboardExportRow = {
     tanggal_opname_final: string;
     status_opname_final: string;
     nilai_toko: number;
-    total_investasi_bangunan: number;
-    total_investasi_area_terbuka: number;
-    total_investasi_non_sbo: number;
 };
 
 export const dashboardExportColumns: DashboardExportColumn[] = [
@@ -97,10 +94,7 @@ export const dashboardExportColumns: DashboardExportColumn[] = [
     { key: "grand_total_opname_final", label: "Grand Total Opname Final" },
     { key: "tanggal_opname_final", label: "tanggal_opname_final" },
     { key: "status_opname_final", label: "Status Opname Final" },
-    { key: "nilai_toko", label: "Nilai Toko" },
-    { key: "total_investasi_bangunan", label: "TOTAL INVESTASI  BIAYA \n(BANGUNAN)\n(CF+CG)-BB)" },
-    { key: "total_investasi_area_terbuka", label: "TOTAL INVESTASI  BIAYA \n(AREA TERBUKA)\n(BB) " },
-    { key: "total_investasi_non_sbo", label: "TOTAL INVESTASI BIAYA NON SBO" }
+    { key: "nilai_toko", label: "Nilai Toko" }
 ];
 
 const normalize = (value: unknown) => String(value ?? "").trim();
@@ -321,8 +315,7 @@ const dataTypeColumns: Record<string, Array<keyof DashboardExportRow>> = {
     IDENTITAS: ["timestamp", "cabang", "nomor_ulok", "proyek", "lingkup_pekerjaan", "kontraktor", "nama_toko", "kode_toko", "kategori", "pic", "status"],
     RAB: ["status_rab", "luas_bangunan", "luas_terbangunan", "luas_area_terbuka", "luas_area_parkir", "luas_area_sales", "luas_gudang", "pekerjaan_area_terbuka", "pekerjaan_beanspot", "total_penawaran_final", "timestamp_acc_manager", "tanggal_grand_opening"],
     SPK: ["timestamp_spk", "durasi_spk", "nominal_spk", "awal_spk", "akhir_spk", "tambah_spk", "akhir_spk_setelah", "real_spk"],
-    OPNAME: ["tanggal_serah_terima", "keterlambatan", "denda", "kerja_tambah", "kerja_kurang", "grand_total_opname_final", "tanggal_opname_final", "status_opname_final", "nilai_toko"],
-    INVESTASI: ["total_investasi_bangunan", "total_investasi_area_terbuka", "total_investasi_non_sbo"]
+    OPNAME: ["tanggal_serah_terima", "keterlambatan", "denda", "kerja_tambah", "kerja_kurang", "grand_total_opname_final", "tanggal_opname_final", "status_opname_final", "nilai_toko"]
 };
 
 const resolveDashboardExportColumns = (dataTypes?: string): DashboardExportColumn[] => {
@@ -427,8 +420,6 @@ export const buildDashboardExportRows = (
             ? Math.max(0, lateDaysFromDb)
             : (spkEndDate && stDate ? countWeekdaysAfter(nextBusinessDayAfter(spkEndDate), stDate) : 0);
         const penalty = toNumber(opname?.nilai_denda) || calculatePenalty(lateDays);
-        const totalInvestArea = areaTerbuka;
-        const totalInvestBuilding = Math.max(0, grandTotalOpname - totalInvestArea);
 
         const row: DashboardExportRow = {
             timestamp: formatDateTime(rab?.created_at),
@@ -470,10 +461,7 @@ export const buildDashboardExportRows = (
             grand_total_opname_final: grandTotalOpname,
             tanggal_opname_final: toIsoDate(opname?.created_at),
             status_opname_final: normalize(opname?.status_opname_final),
-            nilai_toko: grandTotalOpname,
-            total_investasi_bangunan: totalInvestBuilding,
-            total_investasi_area_terbuka: totalInvestArea,
-            total_investasi_non_sbo: totalInvestBuilding + totalInvestArea
+            nilai_toko: grandTotalOpname
         };
 
         const requiredKeys: Array<keyof DashboardExportRow> = [
@@ -517,9 +505,35 @@ const rowsToAoA = (rows: DashboardExportRow[], columns: DashboardExportColumn[])
 export const buildDashboardExcelBuffer = (rows: DashboardExportRow[], columns: DashboardExportColumn[]): Buffer => {
     const workbook = XLSX.utils.book_new();
     const worksheet = XLSX.utils.aoa_to_sheet(rowsToAoA(rows, columns));
-    worksheet["!cols"] = columns.map((column) => ({
-        wch: Math.min(Math.max(column.label.replace(/\n/g, " ").length + 2, 12), 32)
-    }));
+    
+    // Auto fit columns based on header and data length
+    const colWidths = columns.map((column, index) => {
+        const headerLen = column.label.split('\n').reduce((max, line) => Math.max(max, line.length), 0);
+        let maxDataLen = headerLen;
+        for (const row of rows) {
+            const val = String(row[column.key] || "");
+            maxDataLen = Math.max(maxDataLen, val.length);
+        }
+        return { wch: Math.min(Math.max(maxDataLen + 2, 12), 40) }; // Cap at 40
+    });
+    worksheet["!cols"] = colWidths;
+
+    // Apply number formatting for numeric cells
+    const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1");
+    for (let R = range.s.r + 1; R <= range.e.r; ++R) { // skip header row
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+            const cellRef = XLSX.utils.encode_cell({ c: C, r: R });
+            const cell = worksheet[cellRef];
+            if (!cell || cell.t !== 'n') continue;
+            
+            // Check if this column is likely a currency/money field based on key
+            const colKey = columns[C]?.key;
+            if (colKey && (colKey.includes('nominal') || colKey.includes('penawaran') || colKey.includes('denda') || colKey.includes('kerja_') || colKey.includes('total_') || colKey.includes('nilai_') || colKey.includes('pekerjaan_'))) {
+                cell.z = '#,##0'; // Accounting format without decimals
+            }
+        }
+    }
+
     XLSX.utils.book_append_sheet(workbook, worksheet, "Dashboard Export");
     return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
 };
@@ -550,26 +564,27 @@ export const buildDashboardPdfBuffer = async (
   <meta charset="UTF-8" />
   <style>
     ${""}
-    @page { size: A4 landscape; margin: 12mm; }
-    body { font-family: Arial, sans-serif; color: #1f2937; font-size: 8.5px; margin: 0; }
-    .header { background: #d71920; color: #fff; padding: 10px 14px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-    .brand { font-size: 18px; font-weight: 800; letter-spacing: 1px; }
-    .subtitle { font-size: 9px; opacity: .9; margin-top: 2px; }
-    .title { text-align: right; font-size: 12px; font-weight: 800; text-transform: uppercase; }
-    .meta { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 8.5px; }
-    .meta td { border: 1px solid #d8dee6; padding: 5px 7px; }
-    .meta .label { width: 120px; background: #f8fafc; font-weight: 700; }
-    .summary { display: flex; gap: 8px; margin: 8px 0 10px; }
-    .summary-box { border: 1px solid #d8dee6; border-radius: 5px; padding: 7px 9px; min-width: 120px; background: #f8fafc; }
-    .summary-box .k { color: #64748b; font-size: 7.5px; text-transform: uppercase; font-weight: 700; }
-    .summary-box .v { font-size: 12px; font-weight: 800; margin-top: 3px; }
-    table.data { width: 100%; border-collapse: collapse; table-layout: fixed; }
-    table.data th, table.data td { border: 1px solid #cbd5e1; padding: 4px 5px; vertical-align: top; overflow-wrap: anywhere; }
-    table.data th { background: #eef6ff; color: #111827; font-weight: 800; text-align: center; }
+    @page { size: A2 landscape; margin: 15mm; }
+    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #334155; font-size: 9px; margin: 0; line-height: 1.3; }
+    .header { background: #d71920; color: #fff; padding: 12px 18px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+    .brand { font-size: 20px; font-weight: 900; letter-spacing: 1px; }
+    .subtitle { font-size: 10px; opacity: .9; margin-top: 2px; }
+    .title { text-align: right; font-size: 14px; font-weight: 800; text-transform: uppercase; }
+    .meta { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 9.5px; border-radius: 4px; overflow: hidden; }
+    .meta td { border: 1px solid #e2e8f0; padding: 6px 10px; }
+    .meta .label { width: 120px; background: #f8fafc; font-weight: bold; color: #475569; }
+    .summary { display: flex; gap: 10px; margin: 10px 0 15px; }
+    .summary-box { border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; min-width: 140px; background: #f8fafc; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
+    .summary-box .k { color: #64748b; font-size: 8px; text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px; }
+    .summary-box .v { font-size: 14px; font-weight: 800; margin-top: 4px; color: #0f172a; }
+    table.data { width: 100%; border-collapse: collapse; table-layout: fixed; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    table.data th, table.data td { border: 1px solid #cbd5e1; padding: 6px 5px; vertical-align: top; overflow-wrap: break-word; word-break: break-all; }
+    table.data th { background: #f1f5f9; color: #334155; font-weight: 800; text-align: center; border-bottom: 2px solid #94a3b8; }
     table.data tr:nth-child(even) td { background: #f8fafc; }
+    table.data tr:hover td { background: #f1f5f9; }
     .num { text-align: right; white-space: nowrap; }
     .center { text-align: center; }
-    .footer { margin-top: 10px; text-align: center; color: #94a3b8; font-size: 7.5px; border-top: 1px solid #e5e7eb; padding-top: 6px; }
+    .footer { margin-top: 15px; text-align: center; color: #94a3b8; font-size: 8px; border-top: 1px solid #e2e8f0; padding-top: 8px; }
   </style>
 </head>
 <body>
