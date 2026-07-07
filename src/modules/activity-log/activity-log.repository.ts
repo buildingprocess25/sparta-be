@@ -14,6 +14,7 @@ export type ActivityLogEntityType =
     | "PROJECT_PLANNING"
     | "DOKUMENTASI_BANGUNAN"
     | "PENYIMPANAN_DOKUMEN"
+    | "SURAT_PERINGATAN"
     | "DC_DEVELOPMENT";
 
 export type ActivityLogRow = {

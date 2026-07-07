@@ -450,7 +450,7 @@ const findProjectPlanningApproval = async (user: AuthenticatedUser): Promise<Not
 
 const findDendaActionApproval = async (user: AuthenticatedUser): Promise<NotificationRow[]> => {
     // Only Manager can approve SP
-    if (!hasActiveRole(user, "BRANCH BUILDING & MAINTENANCE MANAGER") && !isSuperHuman(user)) return [];
+    if (!hasActiveRole(user, "BRANCH MANAGER") && !isSuperHuman(user)) return [];
 
     const values: SqlValue[] = [];
     const branchWhere = addBranchScope(user, values, "d.cabang");
@@ -470,7 +470,7 @@ const findDendaActionApproval = async (user: AuthenticatedUser): Promise<Notific
             'Buka Approval SP' AS action_label,
             '/approval?type=SURAT_PERINGATAN&id=' || d.id AS action_url,
             COUNT(*) OVER() AS total_count
-        FROM denda_action d
+        FROM denda_keterlambatan_action d
         LEFT JOIN toko t ON t.id = d.id_toko
         WHERE d.action_type = 'SP'
           AND d.status = 'WAITING_MANAGER'
@@ -502,7 +502,7 @@ const findDendaActionToAcknowledge = async (user: AuthenticatedUser): Promise<No
             'Lihat SP' AS action_label,
             '/surat-peringatan' AS action_url,
             COUNT(*) OVER() AS total_count
-        FROM denda_action d
+        FROM denda_keterlambatan_action d
         LEFT JOIN toko t ON t.id = d.id_toko
         WHERE d.action_type = 'SP'
           AND d.status IN ('SENT_TO_CONTRACTOR', 'VIEWED_BY_CONTRACTOR')
@@ -673,9 +673,9 @@ const findRevisionRequired = async (user: AuthenticatedUser): Promise<Notificati
         `, values));
     }
 
-    if (isSuperHuman(user) || hasActiveRole(user, "BRANCH BUILDING COORDINATOR")) {
+    if (isSuperHuman(user) || hasActiveRole(user, "BRANCH BUILDING COORDINATOR") || hasActiveRole(user, "KOORDINATOR") || hasActiveRole(user, "COORDINATOR")) {
         const values: SqlValue[] = [];
-        const branchWhere = addBranchScope(user, values, "t.cabang");
+        const branchWhere = addBranchScope(user, values, "d.cabang");
         values.push(ITEM_LIMIT);
         rows.push(await queryNotificationRows(`
             SELECT
@@ -687,11 +687,11 @@ const findRevisionRequired = async (user: AuthenticatedUser): Promise<Notificati
                 NULL AS lingkup_pekerjaan,
                 d.cabang,
                 d.status,
-                COALESCE('Alasan Penolakan: ' || NULLIF(d.manager_rejected_reason, ''), 'Surat Peringatan ditolak Manager.') AS description,
-                'Lihat SP Ditolak' AS action_label,
+                COALESCE('Alasan Penolakan: ' || NULLIF(d.manager_rejected_reason, ''), 'Surat Peringatan ditolak oleh Branch Manager, perlu diperbaiki.') AS description,
+                'Revisi SP' AS action_label,
                 '/surat-peringatan' AS action_url,
                 COUNT(*) OVER() AS total_count
-            FROM denda_action d
+            FROM denda_keterlambatan_action d
             LEFT JOIN toko t ON t.id = d.id_toko
             WHERE d.action_type = 'SP'
               AND d.status = 'REJECTED_BY_MANAGER'

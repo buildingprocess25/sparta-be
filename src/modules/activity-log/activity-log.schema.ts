@@ -12,7 +12,9 @@ export const activityLogEntityTypeSchema = z.enum([
     "GANTT",
     "PROJECT_PLANNING",
     "DOKUMENTASI_BANGUNAN",
-    "PENYIMPANAN_DOKUMEN"
+    "PENYIMPANAN_DOKUMEN",
+    "SURAT_PERINGATAN",
+    "DC_DEVELOPMENT"
 ]);
 
 export const activityLogListQuerySchema = z.object({

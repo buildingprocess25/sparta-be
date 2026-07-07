@@ -72,7 +72,7 @@ export const canSubmitDendaAction = (user?: AuthenticatedUser | null): boolean =
 export const canApproveDendaAction = (user?: AuthenticatedUser | null): boolean => {
     if (!user) return false;
     const roles = userRolesText(user);
-    return roles.includes("SUPER HUMAN") || roles.includes("BRANCH BUILDING & MAINTENANCE MANAGER") || roles.includes("MANAGER");
+    return roles.includes("SUPER HUMAN") || roles.includes("BRANCH MANAGER");
 };
 
 export const dendaActionService = {
