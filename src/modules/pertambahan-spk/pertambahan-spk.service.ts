@@ -428,8 +428,10 @@ export const pertambahanSpkService = {
 
     async intervene(id: string, action: PertambahanSpkInterventionInput): Promise<PertambahanSpkDetailRow> {
         const role = action.actor_role.toUpperCase();
-        if (!role.includes("SUPER HUMAN")) {
-            throw new AppError("Hanya role Super Human yang dapat melakukan intervensi Pertambahan SPK", 403);
+        const isAllowed = role.includes("SUPER HUMAN")
+            || role.includes("STORE & BRANCH CONTROLLING");
+        if (!isAllowed) {
+            throw new AppError("Hanya Super Human atau Store & Branch Controlling Specialist yang dapat melakukan intervensi Pertambahan SPK", 403);
         }
 
         const data = await pertambahanSpkRepository.findById(id);

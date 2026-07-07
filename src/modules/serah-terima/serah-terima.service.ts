@@ -308,7 +308,14 @@ export const serahTerimaService = {
         catatan?: string | null;
         actor?: AuthenticatedUser | null;
     }) {
-        if (!canManageSystemMaintenance(input.actor)) {
+        // Koreksi tanggal diizinkan untuk Super Human dan Store & Branch Controlling Specialist
+        const actorRoles = input.actor?.roles ?? [];
+        const canCorrect = actorRoles.some((role) => {
+            const r = String(role).trim().toUpperCase();
+            return r.includes("SUPER HUMAN")
+                || r.includes("STORE & BRANCH CONTROLLING");
+        });
+        if (!canCorrect) {
             throw new AppError("Anda tidak memiliki akses untuk mengubah tanggal serah terima.", 403);
         }
 

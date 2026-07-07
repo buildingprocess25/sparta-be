@@ -555,7 +555,7 @@ export const spkRepository = {
                 entity_id: Number(pengajuanSpkId),
                 actor_email: action.actor_email,
                 actor_role: action.actor_role,
-                action: "SUPER_HUMAN_INTERVENTION",
+                action: "INTERVENTION",
                 status_before: oldStatus,
                 status_after: targetStatus,
                 reason: customReason || null,

@@ -1832,13 +1832,17 @@ export const rabService = {
         if (status === RAB_STATUS.WAITING_FOR_GANTT) {
             await rabRepository.resetToWaitingGantt(id_rab);
 
-            if (hasSuperHumanRole(input.actor_role)) {
+            const roleUpper = String(input.actor_role ?? "").trim().toUpperCase();
+            const isInterventionRole = roleUpper.includes("SUPER HUMAN")
+                || roleUpper.includes("STORE & BRANCH CONTROLLING");
+
+            if (isInterventionRole) {
                 await activityLogRepository.insert({
                     entity_type: "RAB",
                     entity_id: id_rab,
                     actor_email: input.actor_email ?? null,
                     actor_role: input.actor_role ?? null,
-                    action: "SUPER_HUMAN_INTERVENTION",
+                    action: "INTERVENTION", // diganti dari SUPER_HUMAN_INTERVENTION agar lebih umum
                     status_before: rabData.rab.status,
                     status_after: status,
                     reason: input.alasan_intervensi?.trim() || null,
@@ -1923,22 +1927,28 @@ export const rabService = {
             emailPenolak
         );
 
-        if (hasSuperHumanRole(input.actor_role)) {
-            await activityLogRepository.insert({
-                entity_type: "RAB",
-                entity_id: id_rab,
-                actor_email: input.actor_email ?? null,
-                actor_role: input.actor_role ?? null,
-                action: "SUPER_HUMAN_INTERVENTION",
-                status_before: rabData.rab.status,
-                status_after: status,
-                reason: input.alasan_intervensi?.trim() || null,
-                metadata: {
-                    id_toko,
-                    ditolak_oleh: emailPenolak,
-                    jabatan_penolak: matchedJabatan
-                }
-            });
+        if (input.actor_role) {
+            const roleUpper = String(input.actor_role).trim().toUpperCase();
+            const isInterventionRole = roleUpper.includes("SUPER HUMAN")
+                || roleUpper.includes("STORE & BRANCH CONTROLLING");
+
+            if (isInterventionRole) {
+                await activityLogRepository.insert({
+                    entity_type: "RAB",
+                    entity_id: id_rab,
+                    actor_email: input.actor_email ?? null,
+                    actor_role: input.actor_role,
+                    action: "INTERVENTION",
+                    status_before: rabData.rab.status,
+                    status_after: status,
+                    reason: input.alasan_intervensi?.trim() || null,
+                    metadata: {
+                        id_toko,
+                        ditolak_oleh: emailPenolak,
+                        jabatan_penolak: matchedJabatan
+                    }
+                });
+            }
         }
 
         logRab("STATUS", "Update status RAB selesai", {
