@@ -7,7 +7,7 @@ import type { DashboardData } from "./dashboard.repository";
 import type { DashboardExportQueryInput } from "./dashboard.schema";
 
 export type DashboardExportColumn = {
-    key: keyof DashboardExportRow;
+    key: string;
     label: string;
 };
 
@@ -53,6 +53,28 @@ export type DashboardExportRow = {
     status_opname_final: string;
     nilai_toko: number;
     _work_items?: string[];
+    _job_items?: DashboardJobItemExportRow[];
+};
+
+export type DashboardJobItemExportRow = {
+    sumber: string;
+    cabang: string;
+    nomor_ulok: string;
+    nama_toko: string;
+    kode_toko: string;
+    lingkup_pekerjaan: string;
+    kategori_pekerjaan: string;
+    jenis_pekerjaan: string;
+    satuan: string;
+    volume: string | number;
+    harga_material: number;
+    harga_upah: number;
+    total_material: number;
+    total_upah: number;
+    total_harga: number;
+    status: string;
+    catatan: string;
+    tanggal: string;
 };
 
 export const dashboardExportColumns: DashboardExportColumn[] = [
@@ -335,12 +357,140 @@ const collectProjectWorkItems = (project: DashboardData): Set<string> => {
     return new Set(values.filter(Boolean));
 };
 
+const buildJobItemBase = (project: DashboardData, source: string) => ({
+    sumber: source,
+    cabang: normalize(project.toko.cabang),
+    nomor_ulok: normalize(project.toko.nomor_ulok),
+    nama_toko: normalize(project.toko.nama_toko),
+    kode_toko: normalize(project.toko.kode_toko),
+    lingkup_pekerjaan: normalize(project.toko.lingkup_pekerjaan)
+});
+
+const collectProjectJobItems = (project: DashboardData): DashboardJobItemExportRow[] => {
+    const rows: DashboardJobItemExportRow[] = [];
+
+    project.rab.forEach((rab) => rab.items.forEach((item) => {
+        rows.push({
+            ...buildJobItemBase(project, "RAB"),
+            kategori_pekerjaan: normalize(item.kategori_pekerjaan),
+            jenis_pekerjaan: normalize(item.jenis_pekerjaan),
+            satuan: normalize(item.satuan),
+            volume: normalize(item.volume),
+            harga_material: toNumber(item.harga_material),
+            harga_upah: toNumber(item.harga_upah),
+            total_material: toNumber(item.total_material),
+            total_upah: toNumber(item.total_upah),
+            total_harga: toNumber(item.total_harga),
+            status: normalize(rab.status),
+            catatan: normalize(item.catatan),
+            tanggal: toIsoDate(rab.created_at)
+        });
+    }));
+
+    project.instruksi_lapangan.forEach((instruksi) => instruksi.items.forEach((item) => {
+        rows.push({
+            ...buildJobItemBase(project, "Instruksi Lapangan"),
+            kategori_pekerjaan: normalize(item.kategori_pekerjaan),
+            jenis_pekerjaan: normalize(item.jenis_pekerjaan),
+            satuan: normalize(item.satuan),
+            volume: item.volume ?? "",
+            harga_material: toNumber(item.harga_material),
+            harga_upah: toNumber(item.harga_upah),
+            total_material: toNumber(item.total_material),
+            total_upah: toNumber(item.total_upah),
+            total_harga: toNumber(item.total_harga),
+            status: normalize(instruksi.status),
+            catatan: "",
+            tanggal: toIsoDate(instruksi.created_at)
+        });
+    }));
+
+    project.opname_final.forEach((opname) => opname.items.forEach((item) => {
+        rows.push({
+            ...buildJobItemBase(project, "Opname Final"),
+            kategori_pekerjaan: normalize(item.kategori_pekerjaan),
+            jenis_pekerjaan: normalize(item.jenis_pekerjaan),
+            satuan: normalize(item.satuan),
+            volume: item.volume_akhir ?? "",
+            harga_material: 0,
+            harga_upah: 0,
+            total_material: 0,
+            total_upah: 0,
+            total_harga: toNumber(item.total_harga_opname),
+            status: normalize(item.status || opname.status_opname_final),
+            catatan: normalize(item.catatan),
+            tanggal: toIsoDate(item.created_at ?? opname.created_at)
+        });
+    }));
+
+    project.gantt.forEach((gantt) => {
+        gantt.kategori_pekerjaan.forEach((item) => {
+            rows.push({
+                ...buildJobItemBase(project, "Gantt"),
+                kategori_pekerjaan: normalize(item.kategori_pekerjaan),
+                jenis_pekerjaan: "",
+                satuan: "",
+                volume: "",
+                harga_material: 0,
+                harga_upah: 0,
+                total_material: 0,
+                total_upah: 0,
+                total_harga: 0,
+                status: normalize(gantt.status),
+                catatan: "",
+                tanggal: toIsoDate(gantt.timestamp)
+            });
+        });
+
+        gantt.pengawasan.forEach((item) => {
+            rows.push({
+                ...buildJobItemBase(project, "Pengawasan"),
+                kategori_pekerjaan: normalize(item.kategori_pekerjaan),
+                jenis_pekerjaan: normalize(item.jenis_pekerjaan),
+                satuan: "",
+                volume: "",
+                harga_material: 0,
+                harga_upah: 0,
+                total_material: 0,
+                total_upah: 0,
+                total_harga: 0,
+                status: normalize(item.status),
+                catatan: normalize(item.catatan),
+                tanggal: toIsoDate(item.created_at)
+            });
+        });
+    });
+
+    return rows.filter((row) => normalize(row.kategori_pekerjaan || row.jenis_pekerjaan));
+};
+
 const dataTypeColumns: Record<string, Array<keyof DashboardExportRow>> = {
     IDENTITAS: ["timestamp", "cabang", "nomor_ulok", "proyek", "lingkup_pekerjaan", "kontraktor", "nama_toko", "kode_toko", "kategori", "pic", "status"],
     RAB: ["status_rab", "luas_bangunan", "luas_terbangunan", "luas_area_terbuka", "luas_area_parkir", "luas_area_sales", "luas_gudang", "pekerjaan_area_terbuka", "pekerjaan_beanspot", "total_penawaran_final", "timestamp_acc_manager", "tanggal_grand_opening"],
     SPK: ["timestamp_spk", "durasi_spk", "nominal_spk", "awal_spk", "akhir_spk", "tambah_spk", "akhir_spk_setelah", "real_spk"],
     OPNAME: ["tanggal_serah_terima", "keterlambatan", "denda", "kerja_tambah", "kerja_kurang", "grand_total_opname_final", "tanggal_opname_final", "status_opname_final", "nilai_toko"]
 };
+
+const jobItemExportColumns: DashboardExportColumn[] = [
+    { key: "sumber", label: "Sumber" },
+    { key: "cabang", label: "Cabang" },
+    { key: "nomor_ulok", label: "Nomor ULOK" },
+    { key: "nama_toko", label: "Nama Toko" },
+    { key: "kode_toko", label: "Kode Toko" },
+    { key: "lingkup_pekerjaan", label: "Lingkup Pekerjaan" },
+    { key: "kategori_pekerjaan", label: "Kategori Pekerjaan" },
+    { key: "jenis_pekerjaan", label: "Jenis Pekerjaan" },
+    { key: "satuan", label: "Satuan" },
+    { key: "volume", label: "Volume" },
+    { key: "harga_material", label: "Harga Material" },
+    { key: "harga_upah", label: "Harga Upah" },
+    { key: "total_material", label: "Total Material" },
+    { key: "total_upah", label: "Total Upah" },
+    { key: "total_harga", label: "Total Harga" },
+    { key: "status", label: "Status" },
+    { key: "catatan", label: "Catatan" },
+    { key: "tanggal", label: "Tanggal" }
+];
 
 const dataTypeLabels: Record<string, string> = {
     IDENTITAS: "Identitas Toko",
@@ -364,13 +514,13 @@ const resolveDashboardExportColumns = (dataTypes?: string, jobTypes?: string): D
     selected.forEach((type) => dataTypeColumns[type]?.forEach((key) => keys.add(key)));
     addJobTypeColumns(keys, jobTypes);
     if (keys.size === 0) return dashboardExportColumns;
-    return dashboardExportColumns.filter((column) => keys.has(column.key));
+    return dashboardExportColumns.filter((column) => keys.has(column.key as keyof DashboardExportRow));
 };
 
 const resolveDataTypeColumns = (dataType: string): DashboardExportColumn[] => {
     const keys = new Set(dataTypeColumns[dataType] ?? []);
     if (keys.size === 0) return dashboardExportColumns;
-    return dashboardExportColumns.filter((column) => keys.has(column.key));
+    return dashboardExportColumns.filter((column) => keys.has(column.key as keyof DashboardExportRow));
 };
 
 const normalizeSheetName = (value: string, fallback: string): string => {
@@ -391,7 +541,7 @@ const normalizeFilePart = (value: string, fallback: string): string => {
 type DashboardExportSection = {
     title: string;
     filenamePart: string;
-    rows: DashboardExportRow[];
+    rows: Array<Record<string, unknown>>;
     columns: DashboardExportColumn[];
 };
 
@@ -402,6 +552,11 @@ const rowMatchesJobType = (row: DashboardExportRow, jobType: string): boolean =>
     if (type.includes("AREA TERBUKA")) return toNumber(row.pekerjaan_area_terbuka) !== 0;
     if (type.includes("BEANSPOT")) return toNumber(row.pekerjaan_beanspot) !== 0;
     return true;
+};
+
+const jobItemMatchesJobType = (row: DashboardJobItemExportRow, jobType: string): boolean => {
+    const type = normalizeUpper(jobType);
+    return normalizeUpper(row.kategori_pekerjaan || row.jenis_pekerjaan) === type;
 };
 
 const buildDashboardExportSections = (
@@ -426,8 +581,11 @@ const buildDashboardExportSections = (
         sections.push({
             title: jobType,
             filenamePart: `pekerjaan_${normalizeFilePart(jobType, "ITEM")}`,
-            rows: rows.filter((row) => rowMatchesJobType(row, jobType)),
-            columns: resolveDashboardExportColumns(dataTypes, jobType)
+            rows: rows
+                .filter((row) => rowMatchesJobType(row, jobType))
+                .flatMap((row) => row._job_items ?? [])
+                .filter((row) => jobItemMatchesJobType(row, jobType)),
+            columns: jobItemExportColumns
         });
     });
 
@@ -581,7 +739,8 @@ export const buildDashboardExportRows = (
             tanggal_opname_final: toIsoDate(opname?.created_at),
             status_opname_final: normalize(opname?.status_opname_final),
             nilai_toko: grandTotalOpname,
-            _work_items: [...collectProjectWorkItems(project)]
+            _work_items: [...collectProjectWorkItems(project)],
+            _job_items: collectProjectJobItems(project)
         };
 
         const requiredKeys: Array<keyof DashboardExportRow> = [
@@ -617,14 +776,14 @@ export const buildDashboardExportRows = (
     });
 };
 
-const rowsToAoA = (rows: DashboardExportRow[], columns: DashboardExportColumn[]) => [
+const rowsToAoA = (rows: Array<Record<string, unknown>>, columns: DashboardExportColumn[]) => [
     columns.map((column) => column.label),
     ...rows.map((row) => columns.map((column) => row[column.key]))
 ];
 
 const applyWorksheetFormatting = (
     worksheet: XLSX.WorkSheet,
-    rows: DashboardExportRow[],
+    rows: Array<Record<string, unknown>>,
     columns: DashboardExportColumn[]
 ) => {
     const colWidths = columns.map((column) => {
@@ -656,7 +815,7 @@ const applyWorksheetFormatting = (
 const appendDashboardWorksheet = (
     workbook: XLSX.WorkBook,
     sheetName: string,
-    rows: DashboardExportRow[],
+    rows: Array<Record<string, unknown>>,
     columns: DashboardExportColumn[]
 ) => {
     const worksheet = XLSX.utils.aoa_to_sheet(rowsToAoA(rows, columns));
@@ -666,7 +825,7 @@ const appendDashboardWorksheet = (
 
 export const buildDashboardExcelBuffer = (rows: DashboardExportRow[], columns: DashboardExportColumn[]): Buffer => {
     const workbook = XLSX.utils.book_new();
-    appendDashboardWorksheet(workbook, "Dashboard Export", rows, columns);
+    appendDashboardWorksheet(workbook, "Dashboard Export", rows as unknown as Array<Record<string, unknown>>, columns);
     return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
 };
 
@@ -688,7 +847,7 @@ export const buildDashboardExcelMultiSheetBuffer = (sections: DashboardExportSec
     return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
 };
 
-export const buildDashboardCsvBuffer = (rows: DashboardExportRow[], columns: DashboardExportColumn[]): Buffer => {
+export const buildDashboardCsvBuffer = (rows: Array<Record<string, unknown>>, columns: DashboardExportColumn[]): Buffer => {
     const worksheet = XLSX.utils.aoa_to_sheet(rowsToAoA(rows, columns));
     const csv = XLSX.utils.sheet_to_csv(worksheet);
     return Buffer.from(csv, "utf8");
@@ -861,7 +1020,7 @@ export const buildDashboardPdfBuffer = async (
       ${rows.map((row, index) => `
         <tr>
           <td class="center">${index + 1}</td>
-          ${columns.map((column) => `<td>${htmlEscape(row[column.key])}</td>`).join("")}
+          ${columns.map((column) => `<td>${htmlEscape((row as unknown as Record<string, unknown>)[column.key])}</td>`).join("")}
         </tr>
       `).join("")}
     </tbody>
