@@ -322,10 +322,11 @@ export type DashboardData = {
 
 const toArrayParam = (values: number[]) => values.length > 0 ? values : [0];
 
-const pushMapArray = <T>(map: Map<number, T[]>, key: number, value: T) => {
-    const items = map.get(key) ?? [];
+const pushMapArray = <T>(map: Map<number, T[]>, key: number | string, value: T) => {
+    const numericKey = Number(key);
+    const items = map.get(numericKey) ?? [];
     items.push(value);
-    map.set(key, items);
+    map.set(numericKey, items);
 };
 
 const normalizeDashboardUlok = (value: string | null | undefined) => String(value || "").trim().toUpperCase();
