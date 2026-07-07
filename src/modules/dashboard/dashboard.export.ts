@@ -545,6 +545,12 @@ type DashboardExportSection = {
     columns: DashboardExportColumn[];
 };
 
+const displayValue = (value: unknown): unknown => {
+    if (typeof value === "number") return value;
+    if (typeof value === "boolean") return value;
+    return normalize(value) || "Tidak ada";
+};
+
 const rowMatchesJobType = (row: DashboardExportRow, jobType: string): boolean => {
     const type = normalizeUpper(jobType);
     if (!type) return true;
@@ -557,6 +563,54 @@ const rowMatchesJobType = (row: DashboardExportRow, jobType: string): boolean =>
 const jobItemMatchesJobType = (row: DashboardJobItemExportRow, jobType: string): boolean => {
     const type = normalizeUpper(jobType);
     return normalizeUpper(row.kategori_pekerjaan || row.jenis_pekerjaan) === type;
+};
+
+const uniqueJoined = (values: unknown[], separator = "\n"): string => {
+    const unique = Array.from(new Set(values.map((value) => normalize(value)).filter(Boolean)));
+    return unique.length > 0 ? unique.join(separator) : "";
+};
+
+const sumValues = (values: unknown[]): number => values.reduce<number>((total, value) => total + toNumber(value), 0);
+
+const aggregateJobItemsByUlok = (items: DashboardJobItemExportRow[]): DashboardJobItemExportRow[] => {
+    const groups = new Map<string, DashboardJobItemExportRow[]>();
+    items.forEach((item) => {
+        const key = [
+            normalizeUpper(item.cabang),
+            normalizeUpper(item.nomor_ulok),
+            normalizeUpper(item.nama_toko),
+            normalizeUpper(item.kode_toko),
+            normalizeUpper(item.lingkup_pekerjaan),
+            normalizeUpper(item.kategori_pekerjaan)
+        ].join("|");
+        const rows = groups.get(key) ?? [];
+        rows.push(item);
+        groups.set(key, rows);
+    });
+
+    return [...groups.values()].map((rows) => {
+        const first = rows[0];
+        return {
+            sumber: uniqueJoined(rows.map((row) => row.sumber), ", "),
+            cabang: first.cabang,
+            nomor_ulok: first.nomor_ulok,
+            nama_toko: first.nama_toko,
+            kode_toko: first.kode_toko,
+            lingkup_pekerjaan: first.lingkup_pekerjaan,
+            kategori_pekerjaan: first.kategori_pekerjaan,
+            jenis_pekerjaan: uniqueJoined(rows.map((row) => row.jenis_pekerjaan)),
+            satuan: uniqueJoined(rows.map((row) => row.satuan)),
+            volume: uniqueJoined(rows.map((row) => row.volume)),
+            harga_material: sumValues(rows.map((row) => row.harga_material)),
+            harga_upah: sumValues(rows.map((row) => row.harga_upah)),
+            total_material: sumValues(rows.map((row) => row.total_material)),
+            total_upah: sumValues(rows.map((row) => row.total_upah)),
+            total_harga: sumValues(rows.map((row) => row.total_harga)),
+            status: uniqueJoined(rows.map((row) => row.status), ", "),
+            catatan: uniqueJoined(rows.map((row) => row.catatan)),
+            tanggal: uniqueJoined(rows.map((row) => row.tanggal), ", ")
+        };
+    });
 };
 
 const buildDashboardExportSections = (
@@ -578,13 +632,14 @@ const buildDashboardExportSections = (
     });
 
     selectedJobTypes.forEach((jobType) => {
+        const jobRows = rows
+            .filter((row) => rowMatchesJobType(row, jobType))
+            .flatMap((row) => row._job_items ?? [])
+            .filter((row) => jobItemMatchesJobType(row, jobType));
         sections.push({
             title: jobType,
             filenamePart: `pekerjaan_${normalizeFilePart(jobType, "ITEM")}`,
-            rows: rows
-                .filter((row) => rowMatchesJobType(row, jobType))
-                .flatMap((row) => row._job_items ?? [])
-                .filter((row) => jobItemMatchesJobType(row, jobType)),
+            rows: aggregateJobItemsByUlok(jobRows),
             columns: jobItemExportColumns
         });
     });
@@ -778,7 +833,7 @@ export const buildDashboardExportRows = (
 
 const rowsToAoA = (rows: Array<Record<string, unknown>>, columns: DashboardExportColumn[]) => [
     columns.map((column) => column.label),
-    ...rows.map((row) => columns.map((column) => row[column.key]))
+    ...rows.map((row) => columns.map((column) => displayValue(row[column.key])))
 ];
 
 const applyWorksheetFormatting = (
@@ -1020,7 +1075,7 @@ export const buildDashboardPdfBuffer = async (
       ${rows.map((row, index) => `
         <tr>
           <td class="center">${index + 1}</td>
-          ${columns.map((column) => `<td>${htmlEscape((row as unknown as Record<string, unknown>)[column.key])}</td>`).join("")}
+          ${columns.map((column) => `<td>${htmlEscape(displayValue((row as unknown as Record<string, unknown>)[column.key]))}</td>`).join("")}
         </tr>
       `).join("")}
     </tbody>
