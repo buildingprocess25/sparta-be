@@ -346,7 +346,6 @@ const findTargetsByUlok = async (nomorUloks: string[]): Promise<Map<string, Targ
             SELECT id
             FROM pic_pengawasan
             WHERE id_toko = t.id
-               OR UPPER(nomor_ulok) = UPPER(t.nomor_ulok)
                OR id_rab = r.id
                OR id_spk = s.id
             ORDER BY CASE WHEN id_toko = t.id THEN 0 ELSE 1 END, id DESC
@@ -862,7 +861,6 @@ const ensurePicPengawasan = async (client: PoolClient, item: WorkItem): Promise<
         SELECT id
         FROM pic_pengawasan
         WHERE id_toko = $1
-           OR UPPER(nomor_ulok) = UPPER($2)
            OR id_rab = $3
            OR id_spk = $4
         ORDER BY CASE WHEN id_toko = $1 THEN 0 ELSE 1 END, id ASC
@@ -904,7 +902,6 @@ const ensurePicPengawasan = async (client: PoolClient, item: WorkItem): Promise<
         SELECT id
         FROM pic_pengawasan
         WHERE id_toko = $1
-           OR UPPER(nomor_ulok) = UPPER($2)
            OR id_rab = $3
            OR id_spk = $4
         ORDER BY

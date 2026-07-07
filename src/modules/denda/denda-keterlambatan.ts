@@ -254,6 +254,10 @@ export const calculateDendaByTokoId = async (idToko: number): Promise<DendaKeter
 
         const denda = await calculateSingleTokoDenda(peerId);
         console.log(`[DENDA] Peer Toko ${peerId} → calculated denda = ${denda.nilai_denda} (${denda.hari_denda} days)`);
+        if (!denda.tanggal_serah_terima) {
+            console.log(`[DENDA] Peer Toko ${peerId} has no ST date, skipping from minimum calculation`);
+            continue;
+        }
         individualDendas.push(denda);
     }
 
