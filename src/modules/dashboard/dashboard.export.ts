@@ -52,6 +52,7 @@ export type DashboardExportRow = {
     tanggal_opname_final: string;
     status_opname_final: string;
     nilai_toko: number;
+    _work_items?: string[];
 };
 
 export const dashboardExportColumns: DashboardExportColumn[] = [
@@ -341,13 +342,105 @@ const dataTypeColumns: Record<string, Array<keyof DashboardExportRow>> = {
     OPNAME: ["tanggal_serah_terima", "keterlambatan", "denda", "kerja_tambah", "kerja_kurang", "grand_total_opname_final", "tanggal_opname_final", "status_opname_final", "nilai_toko"]
 };
 
-const resolveDashboardExportColumns = (dataTypes?: string): DashboardExportColumn[] => {
+const dataTypeLabels: Record<string, string> = {
+    IDENTITAS: "Identitas Toko",
+    RAB: "RAB & Luasan",
+    SPK: "SPK",
+    OPNAME: "Opname & Denda"
+};
+
+const addJobTypeColumns = (keys: Set<keyof DashboardExportRow>, jobTypes?: string) => {
+    const selectedJobTypes = parseCsvSet(jobTypes);
+    selectedJobTypes.forEach((type) => {
+        if (type.includes("AREA TERBUKA")) keys.add("pekerjaan_area_terbuka");
+        if (type.includes("BEANSPOT")) keys.add("pekerjaan_beanspot");
+    });
+};
+
+const resolveDashboardExportColumns = (dataTypes?: string, jobTypes?: string): DashboardExportColumn[] => {
     const selected = parseCsvSet(dataTypes);
     if (selected.size === 0) return dashboardExportColumns;
     const keys = new Set<keyof DashboardExportRow>();
     selected.forEach((type) => dataTypeColumns[type]?.forEach((key) => keys.add(key)));
+    addJobTypeColumns(keys, jobTypes);
     if (keys.size === 0) return dashboardExportColumns;
     return dashboardExportColumns.filter((column) => keys.has(column.key));
+};
+
+const resolveDataTypeColumns = (dataType: string): DashboardExportColumn[] => {
+    const keys = new Set(dataTypeColumns[dataType] ?? []);
+    if (keys.size === 0) return dashboardExportColumns;
+    return dashboardExportColumns.filter((column) => keys.has(column.key));
+};
+
+const normalizeSheetName = (value: string, fallback: string): string => {
+    const cleaned = normalize(value)
+        .replace(/[\\/?*[\]:]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    return (cleaned || fallback).slice(0, 31);
+};
+
+const normalizeFilePart = (value: string, fallback: string): string => {
+    const cleaned = normalizeUpper(value)
+        .replace(/[^A-Z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+    return cleaned || fallback;
+};
+
+type DashboardExportSection = {
+    title: string;
+    filenamePart: string;
+    rows: DashboardExportRow[];
+    columns: DashboardExportColumn[];
+};
+
+const rowMatchesJobType = (row: DashboardExportRow, jobType: string): boolean => {
+    const type = normalizeUpper(jobType);
+    if (!type) return true;
+    if (row._work_items?.length) return row._work_items.includes(type);
+    if (type.includes("AREA TERBUKA")) return toNumber(row.pekerjaan_area_terbuka) !== 0;
+    if (type.includes("BEANSPOT")) return toNumber(row.pekerjaan_beanspot) !== 0;
+    return true;
+};
+
+const buildDashboardExportSections = (
+    rows: DashboardExportRow[],
+    dataTypes?: string,
+    jobTypes?: string
+): DashboardExportSection[] => {
+    const selectedDataTypes = [...parseCsvSet(dataTypes)];
+    const selectedJobTypes = [...parseCsvSet(jobTypes)];
+    const sections: DashboardExportSection[] = [];
+
+    selectedDataTypes.forEach((type) => {
+        sections.push({
+            title: dataTypeLabels[type] ?? type,
+            filenamePart: `jenis_data_${normalizeFilePart(dataTypeLabels[type] ?? type, type)}`,
+            rows,
+            columns: resolveDataTypeColumns(type)
+        });
+    });
+
+    selectedJobTypes.forEach((jobType) => {
+        sections.push({
+            title: jobType,
+            filenamePart: `pekerjaan_${normalizeFilePart(jobType, "ITEM")}`,
+            rows: rows.filter((row) => rowMatchesJobType(row, jobType)),
+            columns: resolveDashboardExportColumns(dataTypes, jobType)
+        });
+    });
+
+    if (sections.length === 0) {
+        sections.push({
+            title: "Dashboard Export",
+            filenamePart: "dashboard_export",
+            rows,
+            columns: dashboardExportColumns
+        });
+    }
+
+    return sections;
 };
 
 const htmlEscape = (value: unknown): string => String(value ?? "")
@@ -487,7 +580,8 @@ export const buildDashboardExportRows = (
             grand_total_opname_final: grandTotalOpname,
             tanggal_opname_final: toIsoDate(opname?.created_at),
             status_opname_final: normalize(opname?.status_opname_final),
-            nilai_toko: grandTotalOpname
+            nilai_toko: grandTotalOpname,
+            _work_items: [...collectProjectWorkItems(project)]
         };
 
         const requiredKeys: Array<keyof DashboardExportRow> = [
@@ -528,39 +622,69 @@ const rowsToAoA = (rows: DashboardExportRow[], columns: DashboardExportColumn[])
     ...rows.map((row) => columns.map((column) => row[column.key]))
 ];
 
-export const buildDashboardExcelBuffer = (rows: DashboardExportRow[], columns: DashboardExportColumn[]): Buffer => {
-    const workbook = XLSX.utils.book_new();
-    const worksheet = XLSX.utils.aoa_to_sheet(rowsToAoA(rows, columns));
-    
-    // Auto fit columns based on header and data length
-    const colWidths = columns.map((column, index) => {
-        const headerLen = column.label.split('\n').reduce((max, line) => Math.max(max, line.length), 0);
+const applyWorksheetFormatting = (
+    worksheet: XLSX.WorkSheet,
+    rows: DashboardExportRow[],
+    columns: DashboardExportColumn[]
+) => {
+    const colWidths = columns.map((column) => {
+        const headerLen = column.label.split("\n").reduce((max, line) => Math.max(max, line.length), 0);
         let maxDataLen = headerLen;
         for (const row of rows) {
             const val = String(row[column.key] || "");
             maxDataLen = Math.max(maxDataLen, val.length);
         }
-        return { wch: Math.min(Math.max(maxDataLen + 2, 12), 40) }; // Cap at 40
+        return { wch: Math.min(Math.max(maxDataLen + 2, 12), 40) };
     });
     worksheet["!cols"] = colWidths;
 
-    // Apply number formatting for numeric cells
     const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1");
-    for (let R = range.s.r + 1; R <= range.e.r; ++R) { // skip header row
+    for (let R = range.s.r + 1; R <= range.e.r; ++R) {
         for (let C = range.s.c; C <= range.e.c; ++C) {
             const cellRef = XLSX.utils.encode_cell({ c: C, r: R });
             const cell = worksheet[cellRef];
-            if (!cell || cell.t !== 'n') continue;
-            
-            // Check if this column is likely a currency/money field based on key
+            if (!cell || cell.t !== "n") continue;
+
             const colKey = columns[C]?.key;
-            if (colKey && (colKey.includes('nominal') || colKey.includes('penawaran') || colKey.includes('denda') || colKey.includes('kerja_') || colKey.includes('total_') || colKey.includes('nilai_') || colKey.includes('pekerjaan_'))) {
-                cell.z = '#,##0'; // Accounting format without decimals
+            if (colKey && (colKey.includes("nominal") || colKey.includes("penawaran") || colKey.includes("denda") || colKey.includes("kerja_") || colKey.includes("total_") || colKey.includes("nilai_") || colKey.includes("pekerjaan_"))) {
+                cell.z = "#,##0";
             }
         }
     }
+};
 
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Dashboard Export");
+const appendDashboardWorksheet = (
+    workbook: XLSX.WorkBook,
+    sheetName: string,
+    rows: DashboardExportRow[],
+    columns: DashboardExportColumn[]
+) => {
+    const worksheet = XLSX.utils.aoa_to_sheet(rowsToAoA(rows, columns));
+    applyWorksheetFormatting(worksheet, rows, columns);
+    XLSX.utils.book_append_sheet(workbook, worksheet, normalizeSheetName(sheetName, "Export"));
+};
+
+export const buildDashboardExcelBuffer = (rows: DashboardExportRow[], columns: DashboardExportColumn[]): Buffer => {
+    const workbook = XLSX.utils.book_new();
+    appendDashboardWorksheet(workbook, "Dashboard Export", rows, columns);
+    return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
+};
+
+export const buildDashboardExcelMultiSheetBuffer = (sections: DashboardExportSection[]): Buffer => {
+    const workbook = XLSX.utils.book_new();
+    const usedNames = new Set<string>();
+    sections.forEach((section, index) => {
+        const baseName = normalizeSheetName(section.title || `Sheet ${index + 1}`, "Export");
+        let sheetName = baseName;
+        let duplicate = 2;
+        while (usedNames.has(sheetName)) {
+            const suffix = ` ${duplicate}`;
+            sheetName = `${baseName.slice(0, 31 - suffix.length)}${suffix}`;
+            duplicate += 1;
+        }
+        usedNames.add(sheetName);
+        appendDashboardWorksheet(workbook, sheetName, section.rows, section.columns);
+    });
     return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
 };
 
@@ -568,6 +692,101 @@ export const buildDashboardCsvBuffer = (rows: DashboardExportRow[], columns: Das
     const worksheet = XLSX.utils.aoa_to_sheet(rowsToAoA(rows, columns));
     const csv = XLSX.utils.sheet_to_csv(worksheet);
     return Buffer.from(csv, "utf8");
+};
+
+const crcTable = (() => {
+    const table = new Uint32Array(256);
+    for (let n = 0; n < 256; n += 1) {
+        let c = n;
+        for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+        table[n] = c >>> 0;
+    }
+    return table;
+})();
+
+const crc32 = (buffer: Buffer): number => {
+    let crc = 0xffffffff;
+    for (const byte of buffer) crc = crcTable[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+    return (crc ^ 0xffffffff) >>> 0;
+};
+
+const writeZipDateTime = (target: Buffer, offset: number) => {
+    const now = new Date();
+    const dosTime = (now.getHours() << 11) | (now.getMinutes() << 5) | Math.floor(now.getSeconds() / 2);
+    const dosDate = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+    target.writeUInt16LE(dosTime, offset);
+    target.writeUInt16LE(dosDate, offset + 2);
+};
+
+const buildZipBuffer = (files: Array<{ name: string; content: Buffer }>): Buffer => {
+    const localParts: Buffer[] = [];
+    const centralParts: Buffer[] = [];
+    let offset = 0;
+
+    files.forEach((file) => {
+        const name = Buffer.from(file.name, "utf8");
+        const crc = crc32(file.content);
+
+        const local = Buffer.alloc(30 + name.length);
+        local.writeUInt32LE(0x04034b50, 0);
+        local.writeUInt16LE(20, 4);
+        local.writeUInt16LE(0x0800, 6);
+        local.writeUInt16LE(0, 8);
+        writeZipDateTime(local, 10);
+        local.writeUInt32LE(crc, 14);
+        local.writeUInt32LE(file.content.length, 18);
+        local.writeUInt32LE(file.content.length, 22);
+        local.writeUInt16LE(name.length, 26);
+        name.copy(local, 30);
+        localParts.push(local, file.content);
+
+        const central = Buffer.alloc(46 + name.length);
+        central.writeUInt32LE(0x02014b50, 0);
+        central.writeUInt16LE(20, 4);
+        central.writeUInt16LE(20, 6);
+        central.writeUInt16LE(0x0800, 8);
+        central.writeUInt16LE(0, 10);
+        writeZipDateTime(central, 12);
+        central.writeUInt32LE(crc, 16);
+        central.writeUInt32LE(file.content.length, 20);
+        central.writeUInt32LE(file.content.length, 24);
+        central.writeUInt16LE(name.length, 28);
+        central.writeUInt32LE(offset, 42);
+        name.copy(central, 46);
+        centralParts.push(central);
+
+        offset += local.length + file.content.length;
+    });
+
+    const centralOffset = offset;
+    const centralSize = centralParts.reduce((total, part) => total + part.length, 0);
+    const end = Buffer.alloc(22);
+    end.writeUInt32LE(0x06054b50, 0);
+    end.writeUInt16LE(files.length, 8);
+    end.writeUInt16LE(files.length, 10);
+    end.writeUInt32LE(centralSize, 12);
+    end.writeUInt32LE(centralOffset, 16);
+
+    return Buffer.concat([...localParts, ...centralParts, end]);
+};
+
+export const buildDashboardCsvZipBuffer = (sections: DashboardExportSection[]): Buffer => {
+    const usedNames = new Set<string>();
+    const files = sections.map((section, index) => {
+        const base = normalizeFilePart(section.filenamePart, `SHEET_${index + 1}`).toLowerCase();
+        let name = `${base}.csv`;
+        let duplicate = 2;
+        while (usedNames.has(name)) {
+            name = `${base}_${duplicate}.csv`;
+            duplicate += 1;
+        }
+        usedNames.add(name);
+        return {
+            name,
+            content: buildDashboardCsvBuffer(section.rows, section.columns)
+        };
+    });
+    return buildZipBuffer(files);
 };
 
 export const buildDashboardPdfBuffer = async (
@@ -658,17 +877,20 @@ export const buildDashboardExportFile = async (
     format: DashboardExportQueryInput["format"],
     rows: DashboardExportRow[],
     meta: { cabang: string; generatedBy: string },
-    dataTypes?: string
+    dataTypes?: string,
+    jobTypes?: string
 ): Promise<{ buffer: Buffer; filename: string; contentType: string }> => {
-    const columns = resolveDashboardExportColumns(dataTypes);
+    const columns = resolveDashboardExportColumns(dataTypes, jobTypes);
+    const sections = buildDashboardExportSections(rows, dataTypes, jobTypes);
+    const hasSegmentedSelection = parseCsvSet(dataTypes).size > 0 || parseCsvSet(jobTypes).size > 0;
     const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     const cabang = normalizeUpper(meta.cabang || "ALL").replace(/[^A-Z0-9]+/g, "_") || "ALL";
 
     if (format === "csv") {
         return {
-            buffer: buildDashboardCsvBuffer(rows, columns),
-            filename: `SPARTA_DASHBOARD_EXPORT_${cabang}_${stamp}.csv`,
-            contentType: "text/csv; charset=utf-8"
+            buffer: buildDashboardCsvZipBuffer(sections),
+            filename: `SPARTA_DASHBOARD_EXPORT_${cabang}_${stamp}.zip`,
+            contentType: "application/zip"
         };
     }
 
@@ -681,7 +903,7 @@ export const buildDashboardExportFile = async (
     }
 
     return {
-        buffer: buildDashboardExcelBuffer(rows, columns),
+        buffer: hasSegmentedSelection ? buildDashboardExcelMultiSheetBuffer(sections) : buildDashboardExcelBuffer(rows, columns),
         filename: `SPARTA_DASHBOARD_EXPORT_${cabang}_${stamp}.xlsx`,
         contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     };

@@ -121,7 +121,7 @@ export const dashboardService = {
         return buildDashboardExportFile(query.format, rows, {
             cabang: cabangLabel,
             generatedBy: query.actor_role
-        }, query.data_types);
+        }, query.data_types, query.job_types);
     }
 };
 
