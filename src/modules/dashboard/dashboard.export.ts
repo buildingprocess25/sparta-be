@@ -341,18 +341,9 @@ const collectProjectWorkItems = (project: DashboardData): Set<string> => {
         values.push(normalizeUpper(item.kategori_pekerjaan || item.jenis_pekerjaan));
     }));
 
-    project.opname_final.forEach((opname) => opname.items.forEach((item) => {
-        values.push(normalizeUpper(item.kategori_pekerjaan || item.jenis_pekerjaan));
-    }));
-
     project.instruksi_lapangan.forEach((instruksi) => instruksi.items.forEach((item) => {
         values.push(normalizeUpper(item.kategori_pekerjaan || item.jenis_pekerjaan));
     }));
-
-    project.gantt.forEach((gantt) => {
-        gantt.kategori_pekerjaan.forEach((item) => values.push(normalizeUpper(item.kategori_pekerjaan)));
-        gantt.pengawasan.forEach((item) => values.push(normalizeUpper(item.kategori_pekerjaan || item.jenis_pekerjaan)));
-    });
 
     return new Set(values.filter(Boolean));
 };
@@ -404,62 +395,6 @@ const collectProjectJobItems = (project: DashboardData): DashboardJobItemExportR
             tanggal: toIsoDate(instruksi.created_at)
         });
     }));
-
-    project.opname_final.forEach((opname) => opname.items.forEach((item) => {
-        rows.push({
-            ...buildJobItemBase(project, "Opname Final"),
-            kategori_pekerjaan: normalize(item.kategori_pekerjaan),
-            jenis_pekerjaan: normalize(item.jenis_pekerjaan),
-            satuan: normalize(item.satuan),
-            volume: item.volume_akhir ?? "",
-            harga_material: 0,
-            harga_upah: 0,
-            total_material: 0,
-            total_upah: 0,
-            total_harga: toNumber(item.total_harga_opname),
-            status: normalize(item.status || opname.status_opname_final),
-            catatan: normalize(item.catatan),
-            tanggal: toIsoDate(item.created_at ?? opname.created_at)
-        });
-    }));
-
-    project.gantt.forEach((gantt) => {
-        gantt.kategori_pekerjaan.forEach((item) => {
-            rows.push({
-                ...buildJobItemBase(project, "Gantt"),
-                kategori_pekerjaan: normalize(item.kategori_pekerjaan),
-                jenis_pekerjaan: "",
-                satuan: "",
-                volume: "",
-                harga_material: 0,
-                harga_upah: 0,
-                total_material: 0,
-                total_upah: 0,
-                total_harga: 0,
-                status: normalize(gantt.status),
-                catatan: "",
-                tanggal: toIsoDate(gantt.timestamp)
-            });
-        });
-
-        gantt.pengawasan.forEach((item) => {
-            rows.push({
-                ...buildJobItemBase(project, "Pengawasan"),
-                kategori_pekerjaan: normalize(item.kategori_pekerjaan),
-                jenis_pekerjaan: normalize(item.jenis_pekerjaan),
-                satuan: "",
-                volume: "",
-                harga_material: 0,
-                harga_upah: 0,
-                total_material: 0,
-                total_upah: 0,
-                total_harga: 0,
-                status: normalize(item.status),
-                catatan: normalize(item.catatan),
-                tanggal: toIsoDate(item.created_at)
-            });
-        });
-    });
 
     return rows.filter((row) => normalize(row.kategori_pekerjaan || row.jenis_pekerjaan));
 };
@@ -565,54 +500,6 @@ const jobItemMatchesJobType = (row: DashboardJobItemExportRow, jobType: string):
     return normalizeUpper(row.kategori_pekerjaan || row.jenis_pekerjaan) === type;
 };
 
-const uniqueJoined = (values: unknown[], separator = "\n"): string => {
-    const unique = Array.from(new Set(values.map((value) => normalize(value)).filter(Boolean)));
-    return unique.length > 0 ? unique.join(separator) : "";
-};
-
-const sumValues = (values: unknown[]): number => values.reduce<number>((total, value) => total + toNumber(value), 0);
-
-const aggregateJobItemsByUlok = (items: DashboardJobItemExportRow[]): DashboardJobItemExportRow[] => {
-    const groups = new Map<string, DashboardJobItemExportRow[]>();
-    items.forEach((item) => {
-        const key = [
-            normalizeUpper(item.cabang),
-            normalizeUpper(item.nomor_ulok),
-            normalizeUpper(item.nama_toko),
-            normalizeUpper(item.kode_toko),
-            normalizeUpper(item.lingkup_pekerjaan),
-            normalizeUpper(item.kategori_pekerjaan)
-        ].join("|");
-        const rows = groups.get(key) ?? [];
-        rows.push(item);
-        groups.set(key, rows);
-    });
-
-    return [...groups.values()].map((rows) => {
-        const first = rows[0];
-        return {
-            sumber: uniqueJoined(rows.map((row) => row.sumber), ", "),
-            cabang: first.cabang,
-            nomor_ulok: first.nomor_ulok,
-            nama_toko: first.nama_toko,
-            kode_toko: first.kode_toko,
-            lingkup_pekerjaan: first.lingkup_pekerjaan,
-            kategori_pekerjaan: first.kategori_pekerjaan,
-            jenis_pekerjaan: uniqueJoined(rows.map((row) => row.jenis_pekerjaan)),
-            satuan: uniqueJoined(rows.map((row) => row.satuan)),
-            volume: uniqueJoined(rows.map((row) => row.volume)),
-            harga_material: sumValues(rows.map((row) => row.harga_material)),
-            harga_upah: sumValues(rows.map((row) => row.harga_upah)),
-            total_material: sumValues(rows.map((row) => row.total_material)),
-            total_upah: sumValues(rows.map((row) => row.total_upah)),
-            total_harga: sumValues(rows.map((row) => row.total_harga)),
-            status: uniqueJoined(rows.map((row) => row.status), ", "),
-            catatan: uniqueJoined(rows.map((row) => row.catatan)),
-            tanggal: uniqueJoined(rows.map((row) => row.tanggal), ", ")
-        };
-    });
-};
-
 const buildDashboardExportSections = (
     rows: DashboardExportRow[],
     dataTypes?: string,
@@ -639,7 +526,7 @@ const buildDashboardExportSections = (
         sections.push({
             title: jobType,
             filenamePart: `pekerjaan_${normalizeFilePart(jobType, "ITEM")}`,
-            rows: aggregateJobItemsByUlok(jobRows),
+            rows: jobRows,
             columns: jobItemExportColumns
         });
     });
