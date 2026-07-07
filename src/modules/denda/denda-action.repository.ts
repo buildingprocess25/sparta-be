@@ -1,5 +1,7 @@
 import { pool } from "../../db/pool";
 import type { DendaActionStatus, DendaActionType, ListDendaActionsQuery, SpReason } from "./denda-action.schema";
+import { getEffectiveBranchesForUser } from "../../common/branch-scope";
+import type { AuthenticatedUser } from "../auth/auth-session.service";
 
 export type DendaActionCandidateRow = {
     opname_final_id: number | null;
@@ -327,8 +329,7 @@ export const dendaActionRepository = {
                 ORDER BY action.created_at DESC, action.id DESC
                 LIMIT 1
             ) latest_action ON TRUE
-            WHERE UPPER(TRIM(COALESCE(t.cabang, ''))) <> 'HEAD OFFICE'
-              AND st.id IS NULL
+            WHERE st.id IS NULL
               AND NULLIF(TRIM(COALESCE(spk.nama_kontraktor, t.nama_kontraktor, '')), '') IS NOT NULL
             ORDER BY GREATEST(COALESCE(ofn.hari_denda, 0), COALESCE(delay.hari_terlambat, 0)) DESC, ofn.created_at DESC NULLS LAST, t.id DESC
         `);
@@ -708,17 +709,50 @@ export const dendaActionRepository = {
         return updated;
     },
 
-    async listKontraktor(): Promise<string[]> {
+    async listKontraktor(user?: AuthenticatedUser): Promise<string[]> {
+        let branchFilter = "";
+        let values: any[] = [];
+
+        if (user) {
+            const scope = await getEffectiveBranchesForUser({
+                emailSat: user.email_sat,
+                cabang: user.cabang,
+                roles: user.roles
+            });
+
+            let branches = scope.branches;
+            if (scope.source === "global" && user.cabang.toUpperCase() === "HEAD OFFICE") {
+                // HO users should only see their own branch's contractors for Surat Peringatan
+                branches = ["HEAD OFFICE"];
+            }
+
+            if (scope.source !== "global" || user.cabang.toUpperCase() === "HEAD OFFICE") {
+                if (branches.length === 0) {
+                    return [];
+                }
+                const placeholders = branches.map((_, i) => `$${i + 1}`).join(", ");
+                branchFilter = `AND UPPER(TRIM(COALESCE(t.cabang, ''))) IN (${placeholders})`;
+                values = branches;
+            }
+        }
+
         const result = await pool.query<{ nama_kontraktor: string }>(`
             SELECT DISTINCT nama_kontraktor
             FROM (
-                SELECT TRIM(nama_kontraktor) AS nama_kontraktor FROM pengajuan_spk WHERE NULLIF(TRIM(nama_kontraktor), '') IS NOT NULL
+                SELECT TRIM(ps.nama_kontraktor) AS nama_kontraktor 
+                FROM pengajuan_spk ps 
+                LEFT JOIN toko t ON t.id = ps.id_toko
+                WHERE NULLIF(TRIM(ps.nama_kontraktor), '') IS NOT NULL ${branchFilter}
+                
                 UNION
-                SELECT TRIM(nama_kontraktor) AS nama_kontraktor FROM toko WHERE NULLIF(TRIM(nama_kontraktor), '') IS NOT NULL
+                
+                SELECT TRIM(t.nama_kontraktor) AS nama_kontraktor 
+                FROM toko t 
+                WHERE NULLIF(TRIM(t.nama_kontraktor), '') IS NOT NULL ${branchFilter}
             ) AS combined
             WHERE UPPER(TRIM(nama_kontraktor)) <> 'HEAD OFFICE'
             ORDER BY nama_kontraktor ASC
-        `);
+        `, values);
         return result.rows.map(row => row.nama_kontraktor);
     },
 };

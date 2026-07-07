@@ -78,9 +78,9 @@ export const canApproveDendaAction = (user?: AuthenticatedUser | null): boolean 
 export const dendaActionService = {
     ensureSchema: () => dendaActionRepository.ensureSchema(),
 
-    async listKontraktor() {
+    async listKontraktor(user?: AuthenticatedUser) {
         await dendaActionRepository.ensureSchema();
-        return dendaActionRepository.listKontraktor();
+        return dendaActionRepository.listKontraktor(user);
     },
 
     async listCandidates() {

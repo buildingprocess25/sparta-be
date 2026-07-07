@@ -8,8 +8,8 @@ import {
 } from "./denda-action.schema";
 import { dendaActionService } from "./denda-action.service";
 
-export const listDendaActionKontraktor = asyncHandler(async (_req: Request, res: Response) => {
-    const data = await dendaActionService.listKontraktor();
+export const listDendaActionKontraktor = asyncHandler(async (req: Request, res: Response) => {
+    const data = await dendaActionService.listKontraktor(req.user);
 
     res.json({
         status: "success",
