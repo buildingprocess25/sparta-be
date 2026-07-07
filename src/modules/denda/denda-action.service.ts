@@ -110,13 +110,13 @@ export const dendaActionService = {
         if (tokoId) {
             target = await dendaActionRepository.findTargetByTokoId(tokoId);
             if (!target) {
-                throw new AppError("Data target SP tidak ditemukan, sudah selesai, belum memiliki kontraktor, atau termasuk HEAD OFFICE.", 404);
+                throw new AppError("Data target SP tidak ditemukan, sudah selesai, atau belum memiliki kontraktor.", 404);
             }
             effectiveKontraktor = target.nama_kontraktor;
         } else if (input.action_type === "TAKEOVER" && input.id_opname_final) {
             target = await dendaActionRepository.findTargetByOpnameFinalId(input.id_opname_final);
              if (!target) {
-                throw new AppError("Data target Takeover tidak ditemukan, sudah selesai, belum memiliki kontraktor, atau termasuk HEAD OFFICE.", 404);
+                throw new AppError("Data target Takeover tidak ditemukan, sudah selesai, atau belum memiliki kontraktor.", 404);
             }
         }
 

@@ -413,7 +413,6 @@ export const dendaActionRepository = {
                 LIMIT 1
             ) spk ON TRUE
             WHERE ofn.id = $1
-              AND UPPER(TRIM(COALESCE(t.cabang, ''))) <> 'HEAD OFFICE'
             LIMIT 1
             `,
             [idOpnameFinal]
@@ -511,7 +510,6 @@ export const dendaActionRepository = {
                 LIMIT 1
             ) st ON TRUE
             WHERE t.id = $1
-              AND UPPER(TRIM(COALESCE(t.cabang, ''))) <> 'HEAD OFFICE'
               AND st.id IS NULL
               AND NULLIF(TRIM(COALESCE(spk.nama_kontraktor, t.nama_kontraktor, '')), '') IS NOT NULL
             LIMIT 1
