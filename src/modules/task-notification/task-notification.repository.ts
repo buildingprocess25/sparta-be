@@ -448,6 +448,70 @@ const findProjectPlanningApproval = async (user: AuthenticatedUser): Promise<Not
     `, values);
 };
 
+const findDendaActionApproval = async (user: AuthenticatedUser): Promise<NotificationRow[]> => {
+    // Only Manager can approve SP
+    if (!hasActiveRole(user, "BRANCH BUILDING & MAINTENANCE MANAGER") && !isSuperHuman(user)) return [];
+
+    const values: SqlValue[] = [];
+    const branchWhere = addBranchScope(user, values, "d.cabang");
+    values.push(ITEM_LIMIT);
+
+    return queryNotificationRows(`
+        SELECT
+            'SURAT_PERINGATAN' AS entity_type,
+            d.id AS entity_id,
+            d.id_toko,
+            COALESCE(t.nama_toko, d.nomor_ulok, 'Surat Peringatan') AS title,
+            d.nomor_ulok,
+            NULL AS lingkup_pekerjaan,
+            d.cabang,
+            d.status,
+            'Surat Peringatan menunggu approval Manager.' AS description,
+            'Buka Approval SP' AS action_label,
+            '/approval?type=SURAT_PERINGATAN&id=' || d.id AS action_url,
+            COUNT(*) OVER() AS total_count
+        FROM denda_action d
+        LEFT JOIN toko t ON t.id = d.id_toko
+        WHERE d.action_type = 'SP'
+          AND d.status = 'WAITING_MANAGER'
+          ${branchWhere}
+        ORDER BY d.created_at DESC, d.id DESC
+        LIMIT $${values.length}
+    `, values);
+};
+
+const findDendaActionToAcknowledge = async (user: AuthenticatedUser): Promise<NotificationRow[]> => {
+    // Only Contractor sees the approved SP for acknowledgement
+    if (!hasActiveRole(user, "KONTRAKTOR") && !isSuperHuman(user)) return [];
+
+    const values: SqlValue[] = [];
+    const companyWhere = addCompanyScope(user, values, "d.nama_kontraktor");
+    values.push(ITEM_LIMIT);
+
+    return queryNotificationRows(`
+        SELECT
+            'SURAT_PERINGATAN_KONTRAKTOR' AS entity_type,
+            d.id AS entity_id,
+            d.id_toko,
+            COALESCE(t.nama_toko, d.nomor_ulok, 'Surat Peringatan') AS title,
+            d.nomor_ulok,
+            NULL AS lingkup_pekerjaan,
+            d.cabang,
+            d.status,
+            'Surat Peringatan baru diterbitkan. Harap segera disetujui.' AS description,
+            'Lihat SP' AS action_label,
+            '/surat-peringatan' AS action_url,
+            COUNT(*) OVER() AS total_count
+        FROM denda_action d
+        LEFT JOIN toko t ON t.id = d.id_toko
+        WHERE d.action_type = 'SP'
+          AND d.status IN ('SENT_TO_CONTRACTOR', 'VIEWED_BY_CONTRACTOR')
+          ${companyWhere}
+        ORDER BY d.created_at DESC, d.id DESC
+        LIMIT $${values.length}
+    `, values);
+};
+
 const findSupportKtkReady = async (user: AuthenticatedUser): Promise<NotificationRow[]> => {
     if (!isSuperHuman(user) && !hasActiveRole(user, "BRANCH BUILDING SUPPORT")) return [];
 
@@ -605,6 +669,34 @@ const findRevisionRequired = async (user: AuthenticatedUser): Promise<Notificati
             WHERE p.status = 'SPK_REJECTED'
               ${branchWhere}
             ORDER BY p.created_at DESC, p.id DESC
+            LIMIT $${values.length}
+        `, values));
+    }
+
+    if (isSuperHuman(user) || hasActiveRole(user, "BRANCH BUILDING COORDINATOR")) {
+        const values: SqlValue[] = [];
+        const branchWhere = addBranchScope(user, values, "t.cabang");
+        values.push(ITEM_LIMIT);
+        rows.push(await queryNotificationRows(`
+            SELECT
+                'SURAT_PERINGATAN_REJECTED' AS entity_type,
+                d.id AS entity_id,
+                d.id_toko,
+                COALESCE(t.nama_toko, d.nomor_ulok, 'Surat Peringatan') AS title,
+                d.nomor_ulok,
+                NULL AS lingkup_pekerjaan,
+                d.cabang,
+                d.status,
+                COALESCE('Alasan Penolakan: ' || NULLIF(d.manager_rejected_reason, ''), 'Surat Peringatan ditolak Manager.') AS description,
+                'Lihat SP Ditolak' AS action_label,
+                '/surat-peringatan' AS action_url,
+                COUNT(*) OVER() AS total_count
+            FROM denda_action d
+            LEFT JOIN toko t ON t.id = d.id_toko
+            WHERE d.action_type = 'SP'
+              AND d.status = 'REJECTED_BY_MANAGER'
+              ${branchWhere}
+            ORDER BY d.created_at DESC, d.id DESC
             LIMIT $${values.length}
         `, values));
     }
@@ -800,6 +892,8 @@ export const taskNotificationRepository = {
             opnameApproval,
             instruksiLapanganApproval,
             projectPlanningApproval,
+            dendaActionApproval,
+            dendaActionToAcknowledge,
             supportKtkReady,
             revisionRequired,
             picAssignmentRequired,
@@ -811,6 +905,8 @@ export const taskNotificationRepository = {
             findOpnameApproval(user),
             findInstruksiLapanganApproval(user),
             findProjectPlanningApproval(user),
+            findDendaActionApproval(user),
+            findDendaActionToAcknowledge(user),
             findSupportKtkReady(user),
             findRevisionRequired(user),
             findPicAssignmentRequired(user),
@@ -861,6 +957,20 @@ export const taskNotificationRepository = {
                 projectPlanningApproval
             ),
             makeGroup(
+                "approval_surat_peringatan",
+                "approval",
+                "Approval Surat Peringatan",
+                "Surat Peringatan yang menunggu approval Manager.",
+                dendaActionApproval
+            ),
+            makeGroup(
+                "input_surat_peringatan",
+                "input",
+                "Surat Peringatan Baru",
+                "Surat Peringatan yang baru diterbitkan dan perlu disetujui.",
+                dendaActionToAcknowledge
+            ),
+            makeGroup(
                 "support_ktk_ready",
                 "process",
                 "KTK Siap Diproses",
@@ -894,6 +1004,13 @@ export const taskNotificationRepository = {
                 "Revisi Instruksi Lapangan",
                 "Instruksi Lapangan yang ditolak dan perlu diperbaiki.",
                 revisionRequired.filter(row => row.entity_type === "INSTRUKSI_LAPANGAN_REJECTED")
+            ),
+            makeGroup(
+                "revision_surat_peringatan",
+                "revision",
+                "Surat Peringatan Ditolak",
+                "Surat Peringatan yang ditolak Manager dan perlu diperbaiki.",
+                revisionRequired.filter(row => row.entity_type === "SURAT_PERINGATAN_REJECTED")
             ),
             makeGroup(
                 "revision_ktk",

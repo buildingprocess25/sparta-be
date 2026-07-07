@@ -1,8 +1,9 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import multer from "multer";
 import {
     approveDendaAction,
     createDendaAction,
+    listDendaActionKontraktor,
     listDendaActionCandidates,
     listDendaActions,
     rejectDendaAction,
@@ -17,6 +18,7 @@ const dendaActionUpload = multer({
     },
 });
 
+dendaRouter.get("/actions/kontraktor", listDendaActionKontraktor);
 dendaRouter.get("/actions/candidates", listDendaActionCandidates);
 dendaRouter.get("/actions", listDendaActions);
 dendaRouter.post("/actions", dendaActionUpload.single("lampiran"), createDendaAction);

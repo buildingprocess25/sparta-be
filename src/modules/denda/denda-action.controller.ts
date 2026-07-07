@@ -1,4 +1,4 @@
-﻿import type { Request, Response } from "express";
+import type { Request, Response } from "express";
 import { asyncHandler } from "../../common/async-handler";
 import {
     createDendaActionSchema,
@@ -7,6 +7,15 @@ import {
     rejectDendaActionSchema,
 } from "./denda-action.schema";
 import { dendaActionService } from "./denda-action.service";
+
+export const listDendaActionKontraktor = asyncHandler(async (_req: Request, res: Response) => {
+    const data = await dendaActionService.listKontraktor();
+
+    res.json({
+        status: "success",
+        data,
+    });
+});
 
 export const listDendaActionCandidates = asyncHandler(async (_req: Request, res: Response) => {
     const data = await dendaActionService.listCandidates();

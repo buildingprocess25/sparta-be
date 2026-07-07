@@ -5,6 +5,7 @@ import { env } from "../../config/env";
 import { rabRepository } from "../rab/rab.repository";
 import { spkRepository } from "../spk/spk.repository";
 import { userCabangRepository } from "../user-cabang/user-cabang.repository";
+import { dendaActionRepository } from "../denda/denda-action.repository";
 import type { SendEmailNotificationInput } from "./email-notification.schema";
 
 type EmailTemplateConfig = {
@@ -35,6 +36,11 @@ const TEMPLATE_MAP: Record<string, EmailTemplateConfig> = {
     "notification-spk-has-reject": {
         template: "send-notification-spk-has-reject.njk",
         subject: "SPARTA Building - SPK Ditolak",
+        targetJabatan: "KONTRAKTOR"
+    },
+    "notification-sp-has-approve": {
+        template: "send-notification-sp-has-approve.njk",
+        subject: "SPARTA Building - Surat Peringatan Disetujui",
         targetJabatan: "KONTRAKTOR"
     }
 };
@@ -128,8 +134,11 @@ export const emailNotificationService = {
         const shouldUseSpkContractorEmails =
             Boolean(payload.id_spk) &&
             (payload.flag === "notification-spk-has-approve" || payload.flag === "notification-spk-has-reject");
+        const shouldUseSpContractorEmails =
+            Boolean(payload.id_denda_action) && payload.flag === "notification-sp-has-approve";
         const shouldUseRabEmails =
             !shouldUseSpkContractorEmails &&
+            !shouldUseSpContractorEmails &&
             Boolean(payload.id_toko) &&
             (payload.flag === "notification-spk-has-approve" || payload.flag === "notification-spk-has-reject");
         const spkData = shouldUseSpkContractorEmails
@@ -138,6 +147,12 @@ export const emailNotificationService = {
         if (shouldUseSpkContractorEmails && !spkData) {
             throw new AppError(`SPK dengan id ${payload.id_spk} tidak ditemukan`, 404);
         }
+        const spData = shouldUseSpContractorEmails
+            ? await dendaActionRepository.findActionById(Number(payload.id_denda_action))
+            : null;
+        if (shouldUseSpContractorEmails && !spData) {
+            throw new AppError(`SP dengan id ${payload.id_denda_action} tidak ditemukan`, 404);
+        }
         const rabData = shouldUseRabEmails
             ? await rabRepository.findLatestByTokoId(payload.id_toko as number)
             : null;
@@ -145,18 +160,22 @@ export const emailNotificationService = {
             throw new AppError(`RAB untuk id_toko ${payload.id_toko} tidak ditemukan`, 404);
         }
 
-        const targetUsers = !shouldUseRabEmails && !shouldUseSpkContractorEmails && isKontraktorTarget
+        const targetUsers = !shouldUseRabEmails && !shouldUseSpkContractorEmails && !shouldUseSpContractorEmails && isKontraktorTarget
             ? await userCabangRepository.findAll({ cabang: payload.cabang, jabatan: templateConfig.targetJabatan })
             : [];
         const spkContractorUsers = shouldUseSpkContractorEmails && isKontraktorTarget
             ? (await userCabangRepository.findAll({ cabang: payload.cabang, jabatan: templateConfig.targetJabatan }))
                 .filter((user) => normalizeCompanyName(user.nama_pt) === normalizeCompanyName(spkData?.pengajuan.nama_kontraktor))
             : [];
-        const targetUser = !shouldUseRabEmails && !shouldUseSpkContractorEmails && !isKontraktorTarget
+        const spContractorUsers = shouldUseSpContractorEmails && isKontraktorTarget
+            ? (await userCabangRepository.findAll({ cabang: payload.cabang, jabatan: templateConfig.targetJabatan }))
+                .filter((user) => normalizeCompanyName(user.nama_pt) === normalizeCompanyName(spData?.nama_kontraktor))
+            : [];
+        const targetUser = !shouldUseRabEmails && !shouldUseSpkContractorEmails && !shouldUseSpContractorEmails && !isKontraktorTarget
             ? await userCabangRepository.findByCabangAndJabatan(payload.cabang, templateConfig.targetJabatan)
             : null;
 
-        if (!shouldUseRabEmails && !shouldUseSpkContractorEmails && !targetUser && targetUsers.length === 0) {
+        if (!shouldUseRabEmails && !shouldUseSpkContractorEmails && !shouldUseSpContractorEmails && !targetUser && targetUsers.length === 0) {
             throw new AppError(
                 `User dengan jabatan "${templateConfig.targetJabatan}" untuk cabang tersebut tidak ditemukan`,
                 404
@@ -168,8 +187,14 @@ export const emailNotificationService = {
                 404
             );
         }
+        if (shouldUseSpContractorEmails && spContractorUsers.length === 0) {
+            throw new AppError(
+                `User kontraktor untuk ${spData?.nama_kontraktor ?? "-"} di cabang ${payload.cabang} tidak ditemukan`,
+                404
+            );
+        }
 
-        const ccUser = !shouldUseRabEmails && !shouldUseSpkContractorEmails && templateConfig.ccJabatan
+        const ccUser = !shouldUseRabEmails && !shouldUseSpkContractorEmails && !shouldUseSpContractorEmails && templateConfig.ccJabatan
             ? await userCabangRepository.findByCabangAndJabatan(payload.cabang, templateConfig.ccJabatan)
             : null;
 
@@ -198,6 +223,8 @@ export const emailNotificationService = {
             ? normalizeEmailList([rabData?.email_pembuat])
             : shouldUseSpkContractorEmails
                 ? normalizeEmailList(spkContractorUsers.map((user) => user.email_sat))
+            : shouldUseSpContractorEmails
+                ? normalizeEmailList(spContractorUsers.map((user) => user.email_sat))
             : normalizeEmailList(
                   isKontraktorTarget
                       ? targetUsers.map((user) => user.email_sat)
@@ -210,6 +237,8 @@ export const emailNotificationService = {
                     ? `Email pembuat RAB untuk id_toko ${payload.id_toko} tidak ditemukan`
                     : shouldUseSpkContractorEmails
                         ? `Email kontraktor SPK id ${payload.id_spk} tidak ditemukan`
+                    : shouldUseSpContractorEmails
+                        ? `Email kontraktor SP id ${payload.id_denda_action} tidak ditemukan`
                     : `User dengan jabatan "${templateConfig.targetJabatan}" untuk cabang tersebut tidak ditemukan`,
                 404
             );

@@ -1,4 +1,4 @@
-﻿import { z } from "zod";
+import { z } from "zod";
 
 export const dendaActionTypeSchema = z.enum(["SP", "TAKEOVER"]);
 export const spReasonSchema = z.enum(["KETERLAMBATAN", "MENOLAK_SPK", "MANIPULASI"]);
@@ -15,15 +15,17 @@ export const listDendaActionsQuerySchema = z.object({
     id_toko: z.coerce.number().positive().optional(),
     id_opname_final: z.coerce.number().positive().optional(),
     nomor_ulok: z.string().trim().min(1).optional(),
+    action_type: z.enum(["SP", "TAKEOVER"]).optional(),
 });
 
 const requiredText = (max = 2000) => z.string().trim().min(1).max(max);
 
 export const createDendaActionSchema = z.discriminatedUnion("action_type", [
     z.object({
-        id_toko: z.coerce.number().positive(),
-        id_opname_final: z.coerce.number().positive().optional().nullable(),
         action_type: z.literal("SP"),
+        id_toko: z.coerce.number().positive().optional().nullable(),
+        nama_kontraktor: z.string().trim().min(1).optional(),
+        id_opname_final: z.coerce.number().positive().optional().nullable(),
         sp_level: z.coerce.number().int().min(1).max(3),
         alasan_sp: spReasonSchema,
         catatan: requiredText(),
@@ -36,8 +38,21 @@ export const createDendaActionSchema = z.discriminatedUnion("action_type", [
         catatan: requiredText(),
         lampiran_1_url: z.string().trim().max(1000).optional().nullable(),
         lampiran_2_url: z.string().trim().max(1000).optional().nullable(),
-    }),
-]);
+    })
+]).refine(data => {
+    if (data.action_type === 'SP') {
+        if (data.alasan_sp !== 'MANIPULASI' && !data.id_toko) {
+            return false;
+        }
+        if (data.alasan_sp === 'MANIPULASI' && !data.nama_kontraktor && !data.id_toko) {
+            return false;
+        }
+    }
+    return true;
+}, {
+    message: "ULOK wajib dipilih kecuali untuk alasan Manipulasi (di mana nama_kontraktor harus ada).",
+    path: ["id_toko"]
+});
 
 export const dendaActionIdParamsSchema = z.object({
     id: z.coerce.number().positive(),

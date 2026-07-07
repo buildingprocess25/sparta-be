@@ -1,4 +1,4 @@
-﻿import { AppError } from "../../common/app-error";
+import { AppError } from "../../common/app-error";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
 import type { AuthenticatedUser } from "../auth/auth-session.service";
@@ -65,28 +65,23 @@ const uploadSpAttachmentToDrive = async (
 
 export const canSubmitDendaAction = (user?: AuthenticatedUser | null): boolean => {
     if (!user) return false;
-    if (normalizeText(user.cabang) === "HEAD OFFICE") return true;
-
     const roles = userRolesText(user);
-    return roles.includes("SUPER HUMAN")
-        || roles.includes("KOORDINATOR")
-        || roles.includes("COORDINATOR");
+    return roles.includes("SUPER HUMAN") || roles.includes("BRANCH BUILDING COORDINATOR") || roles.includes("COORDINATOR");
 };
 
 export const canApproveDendaAction = (user?: AuthenticatedUser | null): boolean => {
     if (!user) return false;
-    if (normalizeText(user.cabang) === "HEAD OFFICE") return true;
-
     const roles = userRolesText(user);
-    return roles.includes("SUPER HUMAN")
-        || roles.includes("REGIONAL MANAGER")
-        || roles.includes("GENERAL MANAGER")
-        || roles.includes("SYSTEM MANAGER")
-        || roles.includes("MANAGER");
+    return roles.includes("SUPER HUMAN") || roles.includes("BRANCH BUILDING & MAINTENANCE MANAGER") || roles.includes("MANAGER");
 };
 
 export const dendaActionService = {
     ensureSchema: () => dendaActionRepository.ensureSchema(),
+
+    async listKontraktor() {
+        await dendaActionRepository.ensureSchema();
+        return dendaActionRepository.listKontraktor();
+    },
 
     async listCandidates() {
         await dendaActionRepository.ensureSchema();
@@ -107,39 +102,53 @@ export const dendaActionService = {
         }
 
         await dendaActionRepository.ensureSchema();
-        const target = input.action_type === "SP"
-            ? await dendaActionRepository.findTargetByTokoId(input.id_toko)
-            : await dendaActionRepository.findTargetByOpnameFinalId(input.id_opname_final);
-        if (!target) {
-            throw new AppError("Data target SP/Takeover tidak ditemukan, sudah selesai, belum memiliki kontraktor, atau termasuk HEAD OFFICE.", 404);
+        
+        let target = undefined;
+        let effectiveKontraktor = input.action_type === "SP" && input.alasan_sp === "MANIPULASI" ? input.nama_kontraktor : null;
+        let tokoId = (input as any).id_toko;
+        
+        if (tokoId) {
+            target = await dendaActionRepository.findTargetByTokoId(tokoId);
+            if (!target) {
+                throw new AppError("Data target SP tidak ditemukan, sudah selesai, belum memiliki kontraktor, atau termasuk HEAD OFFICE.", 404);
+            }
+            effectiveKontraktor = target.nama_kontraktor;
+        } else if (input.action_type === "TAKEOVER" && input.id_opname_final) {
+            target = await dendaActionRepository.findTargetByOpnameFinalId(input.id_opname_final);
+             if (!target) {
+                throw new AppError("Data target Takeover tidak ditemukan, sudah selesai, belum memiliki kontraktor, atau termasuk HEAD OFFICE.", 404);
+            }
         }
 
-        if (input.action_type === "TAKEOVER" && target.hari_denda < DENDA_ACTION_THRESHOLD_DAYS) {
+        if (input.action_type === "TAKEOVER" && target && target.hari_denda < DENDA_ACTION_THRESHOLD_DAYS) {
             throw new AppError(
                 `Takeover hanya dapat diajukan mulai ${DENDA_ACTION_THRESHOLD_DAYS} hari denda.`,
                 409
             );
         }
 
-        const stats = await dendaActionRepository.getActionStatsByTokoId(target.id_toko);
+        const stats = tokoId ? await dendaActionRepository.getActionStatsByTokoId(tokoId) : { active_sp_count: 0, pending_approval_count: 0 };
+        
+        // If it's manipulasi without toko, we might want to check contractor level stats in the future, 
+        // but for now, we just rely on the toko stats if id_toko is provided.
         if (stats.pending_approval_count > 0) {
             throw new AppError("Masih ada pengajuan SP/Takeover yang menunggu approval manager.", 409);
         }
 
         if (input.action_type === "SP") {
-            if (stats.active_sp_count >= 3) {
+            if (stats.active_sp_count >= 3 && tokoId) {
                 throw new AppError("SP aktif sudah mencapai maksimal 3. Tunggu masa aktif SP berakhir atau gunakan opsi lain.", 409);
             }
 
-            const expectedLevel = stats.active_sp_count + 1;
-            if (input.sp_level !== expectedLevel) {
+            const expectedLevel = input.id_toko ? stats.active_sp_count + 1 : 1;
+            if (input.id_toko && input.sp_level !== expectedLevel) {
                 throw new AppError(`SP berikutnya harus SP ke-${expectedLevel}.`, 409);
             }
 
             const uploadedUrl = input.attachment
                 ? await uploadSpAttachmentToDrive(input.attachment, {
-                    nomor_ulok: target.nomor_ulok,
-                    nama_kontraktor: target.nama_kontraktor,
+                    nomor_ulok: target?.nomor_ulok ?? "MANIPULASI",
+                    nama_kontraktor: effectiveKontraktor,
                     sp_level: input.sp_level,
                 })
                 : null;
@@ -149,7 +158,9 @@ export const dendaActionService = {
             }
 
             return dendaActionRepository.createAction({
-                target,
+                target: target || undefined,
+                id_toko: input.id_toko ?? undefined,
+                nama_kontraktor: effectiveKontraktor ?? undefined,
                 action_type: input.action_type,
                 sp_level: input.sp_level,
                 alasan_sp: input.alasan_sp,
@@ -162,7 +173,8 @@ export const dendaActionService = {
         }
 
         return dendaActionRepository.createAction({
-            target,
+            target: target || undefined,
+            id_toko: (input as any).id_toko ?? undefined,
             action_type: input.action_type,
             catatan: input.catatan,
             lampiran_1_url: input.lampiran_1_url,
@@ -184,10 +196,57 @@ export const dendaActionService = {
             throw new AppError("Pengajuan ini sudah diproses manager.", 409);
         }
 
+        let linkPdf: string | null = null;
+        let nomorSurat: string | null = null;
+
+        if (current.action_type === "SP") {
+            nomorSurat = `SP-${current.sp_level}/${current.cabang || 'HO'}/${new Date().getFullYear()}/${current.id}`;
+            
+            // Build PDF buffer
+            const { buildSuratPeringatanPdfBuffer } = await import("./denda-action.pdf");
+            
+            // Find toko name if id_toko exists
+            let tokoNama = "-";
+            if (current.id_toko) {
+                const target = await dendaActionRepository.findTargetByTokoId(current.id_toko);
+                tokoNama = target ? "Toko" : "-"; // actually target doesn't return nama_toko. That's fine, we will just use nomor_ulok
+            }
+
+            const approvedAt = new Date().toISOString();
+            const pdfBuffer = await buildSuratPeringatanPdfBuffer({
+                action: { ...current, nomor_surat: nomorSurat, manager_approved_at: approvedAt },
+                tokoNama: tokoNama,
+                approvedBy: input.actor?.nama_lengkap ?? actorEmail(input.actor) ?? "-",
+                approvedRole: actorRole(input.actor) ?? "MANAGER",
+                approvedAt: approvedAt,
+                submittedBy: current.submitted_by_email ?? "-",
+            });
+
+            const safeUlok = sanitizeFilenamePart(current.nomor_ulok, "ULOK");
+            const safeKontraktor = sanitizeFilenamePart(current.nama_kontraktor, "KONTRAKTOR");
+            const filename = `SURAT_PERINGATAN_SP${current.sp_level}_${safeUlok}_${safeKontraktor}_${Date.now()}.pdf`;
+
+            const gp = GoogleProvider.instance;
+            const drive = gp.spartaDrive;
+            if (drive) {
+                const result = await gp.uploadFile(
+                    env.PDF_STORAGE_FOLDER_ID,
+                    filename,
+                    "application/pdf",
+                    pdfBuffer,
+                    2,
+                    drive
+                );
+                linkPdf = result.webViewLink ?? `https://drive.google.com/file/d/${result.id}/view`;
+            }
+        }
+
         const updated = await dendaActionRepository.approveAction({
             id: input.id,
             actor_email: actorEmail(input.actor),
             actor_role: actorRole(input.actor),
+            nomor_surat: nomorSurat,
+            link_pdf: linkPdf,
         });
         if (!updated) throw new AppError("Pengajuan ini sudah diproses manager.", 409);
         return updated;

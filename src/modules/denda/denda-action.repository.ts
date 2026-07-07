@@ -1,4 +1,4 @@
-﻿import { pool } from "../../db/pool";
+import { pool } from "../../db/pool";
 import type { DendaActionStatus, DendaActionType, ListDendaActionsQuery, SpReason } from "./denda-action.schema";
 
 export type DendaActionCandidateRow = {
@@ -103,7 +103,7 @@ export const dendaActionRepository = {
         await pool.query(`
             CREATE TABLE IF NOT EXISTS denda_keterlambatan_action (
                 id BIGSERIAL PRIMARY KEY,
-                id_toko INTEGER NOT NULL REFERENCES toko(id) ON DELETE CASCADE,
+                id_toko INTEGER REFERENCES toko(id) ON DELETE CASCADE,
                 id_opname_final INTEGER REFERENCES opname_final(id) ON DELETE CASCADE,
                 nomor_ulok TEXT,
                 lingkup_pekerjaan TEXT,
@@ -147,6 +147,7 @@ export const dendaActionRepository = {
         await pool.query(`
             ALTER TABLE denda_keterlambatan_action
                 ALTER COLUMN status SET DEFAULT 'WAITING_MANAGER',
+                ALTER COLUMN id_toko DROP NOT NULL,
                 ALTER COLUMN id_opname_final DROP NOT NULL,
                 ADD COLUMN IF NOT EXISTS sp_level INTEGER,
                 ADD COLUMN IF NOT EXISTS nama_kontraktor TEXT,
@@ -157,6 +158,7 @@ export const dendaActionRepository = {
                 ADD COLUMN IF NOT EXISTS lampiran_1_url TEXT,
                 ADD COLUMN IF NOT EXISTS lampiran_2_url TEXT,
                 ADD COLUMN IF NOT EXISTS nomor_surat TEXT,
+                ADD COLUMN IF NOT EXISTS link_pdf TEXT,
                 ADD COLUMN IF NOT EXISTS submitted_by_email TEXT,
                 ADD COLUMN IF NOT EXISTS submitted_by_role TEXT,
                 ADD COLUMN IF NOT EXISTS submitted_at TIMESTAMP,
@@ -351,6 +353,11 @@ export const dendaActionRepository = {
         if (query.nomor_ulok) {
             values.push(query.nomor_ulok);
             filters.push(`UPPER(TRIM(COALESCE(nomor_ulok, ''))) = UPPER(TRIM($${values.length}::text))`);
+        }
+
+        if (query.action_type) {
+            values.push(query.action_type);
+            filters.push(`action_type = $${values.length}`);
         }
 
         const whereClause = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
@@ -565,7 +572,9 @@ export const dendaActionRepository = {
     },
 
     async createAction(input: {
-        target: DendaActionTargetRow;
+        target?: DendaActionTargetRow;
+        id_toko?: number;
+        nama_kontraktor?: string;
         action_type: DendaActionType;
         sp_level?: number | null;
         alasan_sp?: SpReason | null;
@@ -605,22 +614,22 @@ export const dendaActionRepository = {
                 actor_role
             )
             VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, 'WAITING_MANAGER', $9, $10, $11, $12, $13, $14, $15::date, $16, $17, $18, $19, timezone('Asia/Jakarta', now()), $18, $19
+                $1, $2, $3, $4, $5, $6, $7, $8, 'WAITING_MANAGER', $9, $10, $11, $12, $13, $14::date, $15, $16, $17, $18, timezone('Asia/Jakarta', now()), $17, $18
             )
             RETURNING id
             `,
             [
-                input.target.id_toko,
-                input.target.id_opname_final,
-                input.target.nomor_ulok,
-                input.target.lingkup_pekerjaan,
-                input.target.cabang,
-                input.target.nama_kontraktor,
-                input.target.nomor_spk,
+                input.id_toko ?? input.target?.id_toko ?? null,
+                input.target?.id_opname_final ?? null,
+                input.target?.nomor_ulok ?? null,
+                input.target?.lingkup_pekerjaan ?? null,
+                input.target?.cabang ?? null,
+                input.nama_kontraktor ?? input.target?.nama_kontraktor ?? null,
+                input.target?.nomor_spk ?? null,
                 input.action_type,
                 input.sp_level ?? null,
-                input.target.hari_denda,
-                input.target.nilai_denda,
+                input.target?.hari_denda ?? 0,
+                input.target?.nilai_denda ?? '0',
                 input.alasan_sp ?? null,
                 input.catatan,
                 input.instruksi_tindak_lanjut ?? null,
@@ -641,6 +650,8 @@ export const dendaActionRepository = {
         id: number;
         actor_email?: string | null;
         actor_role?: string | null;
+        nomor_surat?: string | null;
+        link_pdf?: string | null;
     }): Promise<DendaActionRow> {
         const result = await pool.query<{ id: string }>(
             `
@@ -653,12 +664,14 @@ export const dendaActionRepository = {
                     WHEN action_type = 'SP' THEN timezone('Asia/Jakarta', now()) + INTERVAL '6 months'
                     ELSE expires_at
                 END,
+                nomor_surat = COALESCE($4, nomor_surat),
+                link_pdf = COALESCE($5, link_pdf),
                 updated_at = timezone('Asia/Jakarta', now())
             WHERE id = $1
               AND status = 'WAITING_MANAGER'
             RETURNING id
             `,
-            [input.id, input.actor_email ?? null, input.actor_role ?? null]
+            [input.id, input.actor_email ?? null, input.actor_role ?? null, input.nomor_surat ?? null, input.link_pdf ?? null]
         );
 
         if (result.rowCount === 0) return null as never;
@@ -693,6 +706,20 @@ export const dendaActionRepository = {
         const updated = await this.findActionById(Number(result.rows[0].id));
         if (!updated) throw new Error("Denda action was rejected but could not be loaded.");
         return updated;
+    },
+
+    async listKontraktor(): Promise<string[]> {
+        const result = await pool.query<{ nama_kontraktor: string }>(`
+            SELECT DISTINCT nama_kontraktor
+            FROM (
+                SELECT TRIM(nama_kontraktor) AS nama_kontraktor FROM pengajuan_spk WHERE NULLIF(TRIM(nama_kontraktor), '') IS NOT NULL
+                UNION
+                SELECT TRIM(nama_kontraktor) AS nama_kontraktor FROM toko WHERE NULLIF(TRIM(nama_kontraktor), '') IS NOT NULL
+            ) AS combined
+            WHERE UPPER(TRIM(nama_kontraktor)) <> 'HEAD OFFICE'
+            ORDER BY nama_kontraktor ASC
+        `);
+        return result.rows.map(row => row.nama_kontraktor);
     },
 };
 

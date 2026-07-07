@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    @page {
+      size: A4;
+      margin: 24mm 20mm;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      color: #1f1f1f;
+      font-size: 13px;
+      line-height: 1.45;
+      margin: 0;
+      position: relative;
+    }
+
+    .watermark {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 58%;
+      opacity: 0.08;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .title-block {
+      text-align: center;
+      margin: 20px 0 18px;
+    }
+
+    .title-block h2 {
+      font-size: 16px;
+      font-weight: 700;
+      text-decoration: underline;
+      text-transform: uppercase;
+      margin: 0 0 4px;
+    }
+
+    .title-block .nomor {
+      font-size: 13px;
+    }
+
+    table.info-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 14px;
+    }
+
+    table.info-table td {
+      border: 1px solid #b0b8c1;
+      padding: 6px 10px;
+      vertical-align: top;
+    }
+
+    table.info-table td.label {
+      width: 38%;
+      background: #f4f6f8;
+      font-weight: 600;
+      color: #4a5568;
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #dc2626;
+      border-bottom: 1.6px solid #dc2626;
+      padding-bottom: 4px;
+      margin: 16px 0 10px;
+      text-transform: uppercase;
+    }
+
+    .content-body p {
+      text-align: justify;
+      margin: 0 0 10px;
+    }
+
+    .highlight-box {
+      background: #fff8f8;
+      border-left: 4px solid #dc2626;
+      padding: 10px 14px;
+      margin: 10px 0 14px;
+      border-radius: 0 4px 4px 0;
+    }
+
+    .highlight-box strong {
+      color: #991b1b;
+    }
+
+    .approval-table {
+      width: 100%;
+      margin-top: 36px;
+      border-collapse: separate;
+      border-spacing: 10px 0;
+      page-break-inside: avoid;
+    }
+
+    .approval-table td {
+      border: none;
+      width: 50%;
+      vertical-align: top;
+    }
+
+    .approval-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #ffffff;
+      background: #dc2626;
+      padding: 6px 8px;
+      border-radius: 4px 4px 0 0;
+      text-transform: uppercase;
+      text-align: center;
+    }
+
+    .approval-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-top: 0;
+      border-radius: 0 0 4px 4px;
+      padding: 8px 10px;
+      min-height: 90px;
+      text-align: center;
+    }
+
+    .approval-date {
+      font-size: 10px;
+      color: #6b7280;
+      font-style: italic;
+      margin-bottom: 6px;
+    }
+
+    .approval-name {
+      font-weight: 700;
+      font-size: 11px;
+      margin-top: 32px;
+      text-decoration: underline;
+    }
+
+    .approval-role {
+      font-size: 10px;
+      color: #4b5563;
+      margin-top: 4px;
+      border-top: 1px solid #e5e7eb;
+      padding-top: 4px;
+    }
+
+    .footer {
+      margin-top: 20px;
+      font-size: 9px;
+      color: #9ca3af;
+      text-align: center;
+      border-top: 1px solid #eeeeee;
+      padding-top: 6px;
+    }
+
+    {{ sparta_pdf_css() | safe }}
+  </style>
+</head>
+<body>
+  {% if logo_watermark %}
+  <img class="watermark" src="{{ logo_watermark }}" alt="Watermark" />
+  {% endif %}
+
+  <div class="content">
+  {{ sparta_header("SURAT PERINGATAN " ~ spLevelRomawi, targetCabang) | safe }}
+
+  <div class="title-block">
+    <h2>Surat Peringatan {{ spLevelRomawi }}</h2>
+    <div class="nomor">Nomor: {{ nomorSurat }}</div>
+  </div>
+
+  <div class="section-title">Identitas Pihak yang Diperingatkan</div>
+  <table class="info-table">
+    <tr>
+      <td class="label">Kepada Yth.</td>
+      <td><strong>{{ namaKontraktor }}</strong></td>
+    </tr>
+    {% if idToko %}
+    <tr>
+      <td class="label">Proyek / ULOK</td>
+      <td>{{ nomorUlok }} - {{ namaToko }}</td>
+    </tr>
+    <tr>
+      <td class="label">Lingkup Pekerjaan</td>
+      <td>{{ lingkupPekerjaan }}</td>
+    </tr>
+    <tr>
+      <td class="label">Nomor SPK</td>
+      <td>{{ nomorSpk }}</td>
+    </tr>
+    {% endif %}
+    <tr>
+      <td class="label">Tanggal Surat</td>
+      <td>{{ tanggalSurat }}</td>
+    </tr>
+    <tr>
+      <td class="label">Cabang</td>
+      <td>{{ targetCabang }}</td>
+    </tr>
+  </table>
+
+  <div class="section-title">Isi Peringatan</div>
+  <div class="content-body">
+    <p>Dengan hormat,</p>
+    <p>
+      Melalui surat ini, kami atas nama PT. Sumber Alfaria Trijaya, Tbk. (Branch {{ targetCabang }}) bermaksud
+      menyampaikan Surat Peringatan <strong>{{ spLevelRomawi }}</strong> kepada pihak <strong>{{ namaKontraktor }}</strong>
+      terkait pelaksanaan pekerjaan proyek yang sedang berlangsung.
+    </p>
+    <p>
+      Berdasarkan hasil evaluasi dan pengawasan di lapangan, kami menemukan adanya pelanggaran / ketidaksesuaian
+      dengan Surat Perintah Kerja (SPK) dan kesepakatan awal yang telah disepakati bersama, yaitu:
+    </p>
+
+    <div class="highlight-box">
+      <p style="margin:0 0 6px;"><strong>Alasan Peringatan:</strong> {{ alasanSpText }}</p>
+      <p style="margin:0;"><strong>Catatan / Penjelasan:</strong><br>
+        {{ catatan | replace("\n", "<br>") | safe }}
+      </p>
+    </div>
+
+    {% if instruksiTindakLanjut %}
+    <p>Oleh karena itu, kami menginstruksikan kepada pihak Saudara untuk segera melakukan tindakan perbaikan sebagai berikut:</p>
+    <div class="highlight-box">
+      {{ instruksiTindakLanjut | replace("\n", "<br>") | safe }}
+      {% if deadlineTindakLanjut %}
+      <br><br><strong>Batas Waktu Penyelesaian:</strong> {{ deadlineTindakLanjut }}
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <p>
+      Kami sangat mengharapkan kerja sama dan komitmen dari pihak Saudara untuk segera menindaklanjuti peringatan ini.
+      Apabila peringatan ini tidak diindahkan dan perbaikan tidak dilakukan sesuai batas waktu yang ditentukan,
+      maka kami akan mengambil tindakan lebih lanjut sesuai dengan ketentuan kontrak yang berlaku,
+      termasuk kemungkinan pemutusan kerja sama secara sepihak.
+    </p>
+    <p>
+      Demikian Surat Peringatan {{ spLevelRomawi }} ini kami sampaikan. Atas perhatian dan kerja samanya kami ucapkan terima kasih.
+    </p>
+  </div>
+
+  <table class="approval-table">
+    <tr>
+      <td>
+        <div class="approval-title">DIBUAT OLEH</div>
+        <div class="approval-box">
+          <div class="approval-date">Dibuat pada: {{ tanggalSurat }}</div>
+          <div class="approval-name">{{ submittedBy }}</div>
+          <div class="approval-role">Branch Building Coordinator</div>
+        </div>
+      </td>
+      <td>
+        <div class="approval-title">DISETUJUI OLEH</div>
+        <div class="approval-box">
+          <div class="approval-date">Disetujui pada: {{ approvedAt }}</div>
+          <div class="approval-name">{{ approvedBy }}</div>
+          <div class="approval-role">{{ approvedRole }}</div>
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <div class="footer">Dokumen ini di-generate otomatis oleh sistem SPARTA Building pada {{ tanggalSurat }}</div>
+  </div>
+</body>
+</html>
