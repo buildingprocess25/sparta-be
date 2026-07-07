@@ -613,7 +613,7 @@ export const dendaActionRepository = {
                 actor_role
             )
             VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, 'WAITING_MANAGER', $9, $10, $11, $12, $13, $14::date, $15, $16, $17, $18, timezone('Asia/Jakarta', now()), $17, $18
+                $1, $2, $3, $4, $5, $6, $7, $8, 'WAITING_MANAGER', $9, $10, $11, $12, $13, $14, $15::date, $16, $17, $18, $19, timezone('Asia/Jakarta', now()), $18, $19
             )
             RETURNING id
             `,
