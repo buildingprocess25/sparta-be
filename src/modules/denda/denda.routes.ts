@@ -7,6 +7,7 @@ import {
     listDendaActionCandidates,
     listDendaActions,
     rejectDendaAction,
+    proxyFile,
 } from "./denda-action.controller";
 import { getDendaByTokoId } from "./denda.controller";
 
@@ -24,6 +25,7 @@ dendaRouter.get("/actions", listDendaActions);
 dendaRouter.post("/actions", dendaActionUpload.single("lampiran"), createDendaAction);
 dendaRouter.post("/actions/:id/approve", approveDendaAction);
 dendaRouter.post("/actions/:id/reject", rejectDendaAction);
+dendaRouter.get("/actions/proxy-file", proxyFile);
 dendaRouter.get("/:id_toko", getDendaByTokoId);
 
 export { dendaRouter };
