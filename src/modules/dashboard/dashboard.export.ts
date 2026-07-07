@@ -568,13 +568,24 @@ export const filterDashboardExportAccess = (projects: DashboardData[], query: Da
     const selectedCabangs = parseCsvSet(query.cabangs);
     const selectedJobTypes = parseCsvSet(query.job_types);
     const selectedTokoIds = parseSelectedTokoIds(query.toko_ids);
+
+    // Safety: jika cabangs kosong dan actor bukan HEAD OFFICE,
+    // isSameBranchScope (baris di bawah) sudah menjadi defense layer —
+    // hanya project dalam branch group actor yang akan lolos.
+    // FE seharusnya selalu mengirim cabangs=allowedBranches agar filter lebih ketat.
+    const strictCabangs = selectedCabangs.size > 0
+        ? selectedCabangs
+        : null; // null = andalkan isSameBranchScope sebagai safety net
+
     return projects.filter((project) => {
         const projectCabang = normalizeUpper(project.toko.cabang);
         const projectWorkItems = collectProjectWorkItems(project);
         if (isHeadOfficeCabang(projectCabang)) return false;
+        // Guard utama: project harus dalam branch scope actor (sudah handle branch groups)
         if (actorCabang !== "HEAD OFFICE" && !isSameBranchScope(projectCabang, actorCabang)) return false;
         if (cabangFilter && cabangFilter !== "ALL" && projectCabang !== cabangFilter) return false;
-        if (selectedCabangs.size > 0 && !selectedCabangs.has(projectCabang)) return false;
+        // Jika FE mengirim cabangs, filter lebih ketat per cabang spesifik
+        if (strictCabangs !== null && !strictCabangs.has(projectCabang)) return false;
         if (selectedJobTypes.size > 0 && ![...selectedJobTypes].some((item) => projectWorkItems.has(item))) return false;
         if (selectedTokoIds.size > 0 && !selectedTokoIds.has(Number(project.toko.id))) return false;
         if (query.spk_status === "with_spk" && !hasSpk(project)) return false;
