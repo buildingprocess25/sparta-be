@@ -360,23 +360,28 @@ const buildJobItemBase = (project: DashboardData, source: string) => ({
 const collectProjectJobItems = (project: DashboardData): DashboardJobItemExportRow[] => {
     const rows: DashboardJobItemExportRow[] = [];
 
-    project.rab.forEach((rab) => rab.items.forEach((item) => {
-        rows.push({
-            ...buildJobItemBase(project, "RAB"),
-            kategori_pekerjaan: normalize(item.kategori_pekerjaan),
-            jenis_pekerjaan: normalize(item.jenis_pekerjaan),
-            satuan: normalize(item.satuan),
-            volume: normalize(item.volume),
-            harga_material: toNumber(item.harga_material),
-            harga_upah: toNumber(item.harga_upah),
-            total_material: toNumber(item.total_material),
-            total_upah: toNumber(item.total_upah),
-            total_harga: toNumber(item.total_harga),
-            status: normalize(rab.status),
-            catatan: normalize(item.catatan),
-            tanggal: toIsoDate(rab.created_at)
+    // removed debug log
+
+    const latestRab = latestByDate(project.rab, (item) => item.created_at);
+    if (latestRab && latestRab.items) {
+        latestRab.items.forEach((item) => {
+            rows.push({
+                ...buildJobItemBase(project, "RAB"),
+                kategori_pekerjaan: normalize(item.kategori_pekerjaan),
+                jenis_pekerjaan: normalize(item.jenis_pekerjaan),
+                satuan: normalize(item.satuan),
+                volume: normalize(item.volume),
+                harga_material: toNumber(item.harga_material),
+                harga_upah: toNumber(item.harga_upah),
+                total_material: toNumber(item.total_material),
+                total_upah: toNumber(item.total_upah),
+                total_harga: toNumber(item.total_harga),
+                status: normalize(latestRab.status),
+                catatan: normalize(item.catatan),
+                tanggal: toIsoDate(latestRab.created_at)
+            });
         });
-    }));
+    }
 
     project.instruksi_lapangan.forEach((instruksi) => instruksi.items.forEach((item) => {
         rows.push({
@@ -396,7 +401,8 @@ const collectProjectJobItems = (project: DashboardData): DashboardJobItemExportR
         });
     }));
 
-    return rows.filter((row) => normalize(row.kategori_pekerjaan || row.jenis_pekerjaan));
+    const result = rows.filter((row) => normalize(row.kategori_pekerjaan || row.jenis_pekerjaan));
+    return result;
 };
 
 const dataTypeColumns: Record<string, Array<keyof DashboardExportRow>> = {
