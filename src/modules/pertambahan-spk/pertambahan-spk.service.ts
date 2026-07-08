@@ -1,4 +1,5 @@
 import { AppError } from "../../common/app-error";
+import { isSameBranchScope } from "../../common/branch-scope";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
 import { ganttRepository } from "../gantt/gantt.repository";
@@ -49,7 +50,7 @@ const assertApproverCanProcessPertambahanSpk = async (
 
     const hasAccessToBranch = approverRows.some(row => {
         const approverBranch = normalizeBranchName(row.cabang);
-        return approverBranch === "HEAD OFFICE" || approverBranch === targetBranch;
+        return approverBranch === "HEAD OFFICE" || isSameBranchScope(approverBranch, targetBranch);
     });
 
     if (!hasAccessToBranch) {
