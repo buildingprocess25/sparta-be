@@ -517,11 +517,21 @@ const buildDashboardExportSections = (
     const selectedJobTypes = [...parseCsvSet(jobTypes)];
     const sections: DashboardExportSection[] = [];
 
+    // Rows yang hanya muncul di sheet SPK dan Opname:
+    // hanya lokasi yang sudah punya SPK (sudah berjalan).
+    const rowsWithSpk = rows.filter((row) => Boolean(normalize(row.timestamp_spk)));
+
+    const rowsByDataType: Record<string, DashboardExportRow[]> = {
+        RAB: rows,
+        SPK: rowsWithSpk,
+        OPNAME: rowsWithSpk
+    };
+
     selectedDataTypes.forEach((type) => {
         sections.push({
             title: dataTypeLabels[type] ?? type,
             filenamePart: `jenis_data_${normalizeFilePart(dataTypeLabels[type] ?? type, type)}`,
-            rows,
+            rows: rowsByDataType[type] ?? rows,
             columns: resolveDataTypeColumns(type)
         });
     });
