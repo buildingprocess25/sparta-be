@@ -4,54 +4,75 @@
   <meta charset="UTF-8" />
   <style>
     @page { size: A4; margin: 15mm; }
-    body { font-family: Arial, sans-serif; font-size: 11px; color: #1f2937; margin: 0; }
-    .cover-title { margin-top: 30px; border: 2px solid #dc2626; border-radius: 8px; padding: 22px; }
-    .eyebrow { color: #dc2626; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.6px; }
-    h1 { margin: 8px 0 8px; font-size: 24px; color: #111827; }
-    .subtitle { color: #475569; font-size: 12px; line-height: 1.5; }
-    .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 18px 0; }
-    .summary-card { background: #f8fafc; border: 1px solid #d8dee6; border-radius: 6px; padding: 11px; }
-    .summary-label { color: #64748b; font-size: 9px; font-weight: 800; text-transform: uppercase; }
-    .summary-value { margin-top: 5px; color: #111827; font-size: 17px; font-weight: 800; }
-    table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-    th, td { border: 1px solid #cbd5e1; padding: 7px 8px; vertical-align: top; }
-    th { background: #eef6ff; font-weight: 800; text-align: center; }
+    body { font-family: 'Times New Roman', Times, serif; font-size: 12px; color: #000; margin: 0; line-height: 1.5; }
+    .document-title { text-align: center; margin-top: 30px; margin-bottom: 30px; }
+    h1 { font-size: 16px; font-weight: bold; text-transform: uppercase; text-decoration: underline; margin: 0; padding: 0; }
+    .subtitle { font-size: 12px; margin-top: 4px; }
+    .info-table { width: 100%; border: none; margin-bottom: 20px; }
+    .info-table td { border: none; padding: 4px 0; vertical-align: top; }
+    .info-table td:first-child { width: 150px; font-weight: bold; }
+    .info-table td:nth-child(2) { width: 10px; }
+    .content-table { width: 100%; border-collapse: collapse; margin-top: 16px; margin-bottom: 20px; }
+    .content-table th, .content-table td { border: 1px solid #000; padding: 6px 8px; vertical-align: middle; }
+    .content-table th { background-color: #f2f2f2; font-weight: bold; text-align: center; }
     .center { text-align: center; }
     .num { text-align: right; white-space: nowrap; }
-    .scope-name { font-weight: 800; color: #dc2626; }
-    .note { margin-top: 18px; padding: 12px; background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412; border-radius: 6px; line-height: 1.45; }
+    .paragraph { text-align: justify; margin-bottom: 15px; }
+    .note { margin-top: 20px; font-style: italic; font-size: 11px; }
     {{ sparta_pdf_css() | safe }}
   </style>
 </head>
 <body>
   {{ sparta_header("Berita Acara Serah Terima Gabungan", nomor_ulok ~ " - " ~ (nama_toko or '-')) | safe }}
-  <div class="cover-title">
-    <div class="eyebrow">Dokumen Serah Terima Terpadu</div>
-    <h1>Berita Acara Gabungan ULOK {{ nomor_ulok }}</h1>
-    <div class="subtitle">Dokumen ini merangkum seluruh lingkup pekerjaan dalam satu berkas terpadu. Rincian opname untuk masing-masing pekerjaan dilampirkan pada halaman berikutnya untuk mempermudah proses pemeriksaan.</div>
+  
+  <div class="document-title">
+    <h1>BERITA ACARA SERAH TERIMA GABUNGAN</h1>
+    <div class="subtitle">NOMOR ULOK: {{ nomor_ulok }}</div>
   </div>
-  <div class="summary-grid">
-    <div class="summary-card"><div class="summary-label">Tanggal ST</div><div class="summary-value">{{ created_at_formatted }}</div></div>
-    <div class="summary-card"><div class="summary-label">Total Lingkup</div><div class="summary-value">{{ scope_count }}</div></div>
-    <div class="summary-card"><div class="summary-label">Total Item</div><div class="summary-value">{{ total_items }}</div></div>
+
+  <div class="paragraph">
+    Pada hari ini, bersama dengan diterbitkannya dokumen ini, diserahkan hasil pekerjaan secara gabungan dengan rincian sebagai berikut:
   </div>
-  <table>
+
+  <table class="info-table">
+    <tr>
+      <td>Tanggal Serah Terima</td>
+      <td>:</td>
+      <td>{{ created_at_formatted }}</td>
+    </tr>
+    <tr>
+      <td>Nama Toko</td>
+      <td>:</td>
+      <td>{{ nama_toko or '-' }}</td>
+    </tr>
+    <tr>
+      <td>Total Lingkup Pekerjaan</td>
+      <td>:</td>
+      <td>{{ scope_count }} Lingkup ({{ scope_order }})</td>
+    </tr>
+  </table>
+
+  <div class="paragraph">
+    Adapun rincian rekapitulasi nilai opname dari masing-masing lingkup pekerjaan adalah sebagai berikut:
+  </div>
+
+  <table class="content-table">
     <thead>
       <tr>
-        <th style="width:32px">No</th>
-        <th>Lingkup</th>
+        <th style="width: 40px;">No</th>
+        <th>Lingkup Pekerjaan</th>
         <th>Kode Toko</th>
         <th>Kontraktor</th>
-        <th style="width:70px">Item</th>
-        <th style="width:110px">Nilai Opname</th>
+        <th style="width: 80px;">Total Item</th>
+        <th style="width: 120px;">Nilai Opname</th>
       </tr>
     </thead>
     <tbody>
       {% for scope in scopes %}
       <tr>
         <td class="center">{{ loop.index }}</td>
-        <td class="scope-name">{{ scope.lingkup_pekerjaan or '-' }}</td>
-        <td>{{ scope.kode_toko or '-' }}</td>
+        <td class="center" style="font-weight: bold;">{{ scope.lingkup_pekerjaan or '-' }}</td>
+        <td class="center">{{ scope.kode_toko or '-' }}</td>
         <td>{{ scope.nama_kontraktor or '-' }}</td>
         <td class="center">{{ scope.item_count }}</td>
         <td class="num">{{ scope.nilai_opname_formatted }}</td>
@@ -60,12 +81,19 @@
     </tbody>
     <tfoot>
       <tr>
-        <td colspan="4" class="num"><strong>Total</strong></td>
-        <td class="center"><strong>{{ total_items }}</strong></td>
-        <td class="num"><strong>{{ total_nilai_formatted }}</strong></td>
+        <td colspan="4" class="num" style="font-weight: bold; padding-right: 15px;">TOTAL KESELURUHAN</td>
+        <td class="center" style="font-weight: bold;">{{ total_items }}</td>
+        <td class="num" style="font-weight: bold;">{{ total_nilai_formatted }}</td>
       </tr>
     </tfoot>
   </table>
-  <div class="note"><strong>Petunjuk Lampiran:</strong> Rincian pekerjaan disusun secara berurutan mulai dari lingkup {{ scope_order }}. Setiap lampiran memiliki halamannya tersendiri.</div>
+
+  <div class="paragraph">
+    Demikian Berita Acara Serah Terima Gabungan ini dibuat untuk dipergunakan sebagaimana mestinya. Rincian opname untuk masing-masing pekerjaan dilampirkan pada halaman berikutnya untuk mempermudah proses pemeriksaan.
+  </div>
+
+  <div class="note">
+    * Catatan: Rincian pekerjaan disusun secara berurutan mulai dari lingkup {{ scope_order }}. Setiap lampiran memiliki halamannya tersendiri.
+  </div>
 </body>
 </html>
