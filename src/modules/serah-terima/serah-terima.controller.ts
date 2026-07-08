@@ -1,10 +1,14 @@
 import type { Request, Response } from "express";
+import { AppError } from "../../common/app-error";
 import { asyncHandler } from "../../common/async-handler";
 import { correctSerahTerimaDateSchema, createSerahTerimaPdfSchema, createUnifiedSerahTerimaPdfSchema, listBerkasSerahTerimaQuerySchema, listSerahTerimaDateCorrectionHistoryQuerySchema } from "./serah-terima.schema";
 import { injectBranchFilter } from "../../common/branch-filter-helper";
 import { serahTerimaService } from "./serah-terima.service";
 
 export const listBerkasSerahTerima = asyncHandler(async (req: Request, res: Response) => {
+    if (!req.user) {
+        throw new AppError("User tidak terautentikasi", 401);
+    }
     let query = listBerkasSerahTerimaQuerySchema.parse(req.query);
     query = await injectBranchFilter(req.user, query);
     const data = await serahTerimaService.list({ 

@@ -21,7 +21,10 @@ export const listDendaActionKontraktor = asyncHandler(async (req: Request, res: 
 });
 
 export const listDendaActionCandidates = asyncHandler(async (req: Request, res: Response) => {
-    const query = await injectBranchFilter(req.user, {});
+    if (!req.user) {
+        throw new AppError("User tidak terautentikasi", 401);
+    }
+    const query = await injectBranchFilter(req.user, {} as { cabang_array?: string[] });
     const data = await dendaActionService.listCandidates(query.cabang_array);
 
     res.json({
@@ -31,6 +34,9 @@ export const listDendaActionCandidates = asyncHandler(async (req: Request, res: 
 });
 
 export const listDendaActions = asyncHandler(async (req: Request, res: Response) => {
+    if (!req.user) {
+        throw new AppError("User tidak terautentikasi", 401);
+    }
     let query = listDendaActionsQuerySchema.parse(req.query);
     query = await injectBranchFilter(req.user, query);
     const data = await dendaActionService.listActions(query);

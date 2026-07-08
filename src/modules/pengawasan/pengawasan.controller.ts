@@ -113,6 +113,9 @@ export const createBulkPengawasan = asyncHandler(async (req: Request, res: Respo
 });
 
 export const listPengawasan = asyncHandler(async (req: Request, res: Response) => {
+    if (!req.user) {
+        throw new AppError("User tidak terautentikasi", 401);
+    }
     let query = listPengawasanQuerySchema.parse(req.query);
     query = await injectBranchFilter(req.user, query);
     const data = await pengawasanService.list(query);
