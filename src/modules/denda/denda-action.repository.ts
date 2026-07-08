@@ -203,7 +203,21 @@ export const dendaActionRepository = {
         `);
     },
 
-    async listCandidates(): Promise<DendaActionCandidateRow[]> {
+    async listCandidates(cabang_array?: string[]): Promise<DendaActionCandidateRow[]> {
+        const conditions = [
+            `st.id IS NULL`,
+            `NULLIF(TRIM(COALESCE(spk.nama_kontraktor, t.nama_kontraktor, '')), '') IS NOT NULL`
+        ];
+        const values: any[] = [];
+        
+        if (cabang_array && cabang_array.length > 0) {
+            const normalizedBranches = cabang_array.map(b => b.trim().toUpperCase());
+            values.push(normalizedBranches);
+            conditions.push(`UPPER(t.cabang) = ANY($${values.length})`);
+        }
+        
+        const whereClause = `WHERE ${conditions.join(" AND ")}`;
+
         const result = await pool.query<DendaActionCandidateRow>(`
             WITH latest_opname AS (
                 SELECT DISTINCT ON (ofn.id_toko)
@@ -329,10 +343,9 @@ export const dendaActionRepository = {
                 ORDER BY action.created_at DESC, action.id DESC
                 LIMIT 1
             ) latest_action ON TRUE
-            WHERE st.id IS NULL
-              AND NULLIF(TRIM(COALESCE(spk.nama_kontraktor, t.nama_kontraktor, '')), '') IS NOT NULL
+            ${whereClause}
             ORDER BY GREATEST(COALESCE(ofn.hari_denda, 0), COALESCE(delay.hari_terlambat, 0)) DESC, ofn.created_at DESC NULLS LAST, t.id DESC
-        `);
+        \`, values);
 
         return result.rows;
     },
@@ -359,6 +372,12 @@ export const dendaActionRepository = {
         if (query.action_type) {
             values.push(query.action_type);
             filters.push(`action_type = $${values.length}`);
+        }
+
+        if (query.cabang_array && query.cabang_array.length > 0) {
+            const normalizedBranches = query.cabang_array.map(b => b.trim().toUpperCase());
+            values.push(normalizedBranches as any);
+            filters.push(`UPPER(cabang) = ANY($${values.length})`);
         }
 
         const whereClause = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";

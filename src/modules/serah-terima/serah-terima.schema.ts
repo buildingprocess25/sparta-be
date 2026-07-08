@@ -18,6 +18,7 @@ export type CreateUnifiedSerahTerimaPdfInput = z.infer<typeof createUnifiedSerah
 export const listBerkasSerahTerimaQuerySchema = z.object({
     id_toko: z.coerce.number().int().positive().optional(),
     nomor_ulok: z.string().trim().min(1).optional(),
+    cabang_array: z.array(z.string()).optional(),
 });
 
 export type ListBerkasSerahTerimaQueryInput = z.infer<typeof listBerkasSerahTerimaQuerySchema>;

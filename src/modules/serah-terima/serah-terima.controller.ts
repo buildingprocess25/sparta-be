@@ -1,11 +1,17 @@
 import type { Request, Response } from "express";
 import { asyncHandler } from "../../common/async-handler";
 import { correctSerahTerimaDateSchema, createSerahTerimaPdfSchema, createUnifiedSerahTerimaPdfSchema, listBerkasSerahTerimaQuerySchema, listSerahTerimaDateCorrectionHistoryQuerySchema } from "./serah-terima.schema";
+import { injectBranchFilter } from "../../common/branch-filter-helper";
 import { serahTerimaService } from "./serah-terima.service";
 
 export const listBerkasSerahTerima = asyncHandler(async (req: Request, res: Response) => {
-    const query = listBerkasSerahTerimaQuerySchema.parse(req.query);
-    const data = await serahTerimaService.list({ id_toko: query.id_toko, nomor_ulok: query.nomor_ulok });
+    let query = listBerkasSerahTerimaQuerySchema.parse(req.query);
+    query = await injectBranchFilter(req.user, query);
+    const data = await serahTerimaService.list({ 
+        id_toko: query.id_toko, 
+        nomor_ulok: query.nomor_ulok,
+        cabang_array: query.cabang_array 
+    });
 
     res.json({
         status: "success",

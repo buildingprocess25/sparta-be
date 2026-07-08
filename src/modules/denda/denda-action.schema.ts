@@ -16,6 +16,7 @@ export const listDendaActionsQuerySchema = z.object({
     id_opname_final: z.coerce.number().positive().optional(),
     nomor_ulok: z.string().trim().min(1).optional(),
     action_type: z.enum(["SP", "TAKEOVER"]).optional(),
+    cabang_array: z.array(z.string()).optional(),
 });
 
 const requiredText = (max = 2000) => z.string().trim().min(1).max(max);

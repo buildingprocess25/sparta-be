@@ -8,6 +8,7 @@ import {
     listDendaActionsQuerySchema,
     rejectDendaActionSchema,
 } from "./denda-action.schema";
+import { injectBranchFilter } from "../../common/branch-filter-helper";
 import { dendaActionService } from "./denda-action.service";
 
 export const listDendaActionKontraktor = asyncHandler(async (req: Request, res: Response) => {
@@ -19,8 +20,9 @@ export const listDendaActionKontraktor = asyncHandler(async (req: Request, res: 
     });
 });
 
-export const listDendaActionCandidates = asyncHandler(async (_req: Request, res: Response) => {
-    const data = await dendaActionService.listCandidates();
+export const listDendaActionCandidates = asyncHandler(async (req: Request, res: Response) => {
+    const query = await injectBranchFilter(req.user, {});
+    const data = await dendaActionService.listCandidates(query.cabang_array);
 
     res.json({
         status: "success",
@@ -29,7 +31,8 @@ export const listDendaActionCandidates = asyncHandler(async (_req: Request, res:
 });
 
 export const listDendaActions = asyncHandler(async (req: Request, res: Response) => {
-    const query = listDendaActionsQuerySchema.parse(req.query);
+    let query = listDendaActionsQuerySchema.parse(req.query);
+    query = await injectBranchFilter(req.user, query);
     const data = await dendaActionService.listActions(query);
 
     res.json({

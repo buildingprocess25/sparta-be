@@ -241,10 +241,11 @@ export const scheduleAutomaticSerahTerimaIfReady = async (idToko: number): Promi
 export const serahTerimaService = {
     ensureDateCorrectionAuditSchema: () => serahTerimaRepository.ensureDateCorrectionAuditSchema(),
 
-    async list(filter: { id_toko?: number; nomor_ulok?: string } = {}) {
+    async list(filter: { id_toko?: number; nomor_ulok?: string; cabang_array?: string[] } = {}) {
         const rows = await serahTerimaRepository.listBerkasSerahTerima({
             id_toko: filter.id_toko,
             nomor_ulok: filter.nomor_ulok,
+            cabang_array: filter.cabang_array,
         });
 
         // For rows that have no opname_final (hari_denda is null),

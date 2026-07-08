@@ -83,9 +83,9 @@ export const dendaActionService = {
         return dendaActionRepository.listKontraktor(user);
     },
 
-    async listCandidates() {
+    async listCandidates(cabang_array?: string[]) {
         await dendaActionRepository.ensureSchema();
-        return dendaActionRepository.listCandidates();
+        return dendaActionRepository.listCandidates(cabang_array);
     },
 
     async listActions(query: ListDendaActionsQuery) {
