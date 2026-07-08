@@ -1599,8 +1599,23 @@ export const rabService = {
                 throw new AppError("Item revisi RAB tidak boleh duplikat", 400);
             }
 
+            // Validasi: hanya item yang benar-benar ada di RAB ini yang boleh masuk revisi.
+            // Item yang tidak valid (stale frontend cache / FK mismatch) di-skip agar
+            // tidak menyebabkan FK violation yang memblokir seluruh transaksi penolakan.
+            const validRabItemIds = new Set(data.items.map((item: RabItemRow) => item.id));
+            const validRevisionItemIds = revisionItemIds.filter(itemId => validRabItemIds.has(itemId));
+
+            if (revisionItemIds.length > 0 && validRevisionItemIds.length !== revisionItemIds.length) {
+                const invalidIds = revisionItemIds.filter(id => !validRabItemIds.has(id));
+                logRab("APPROVAL", "Beberapa revisi_item_ids tidak valid untuk RAB ini, di-skip", {
+                    rabId: id,
+                    invalidIds,
+                    validIds: validRevisionItemIds,
+                });
+            }
+
             const revisionItemNotes = action.revisi_item_notes ?? {};
-            const revisionItems: Array<{ id_rab_item: number | null; catatan_item: string | null }> = revisionItemIds.map((itemId) => ({
+            const revisionItems: Array<{ id_rab_item: number | null; catatan_item: string | null }> = validRevisionItemIds.map((itemId) => ({
                 id_rab_item: itemId,
                 catatan_item: revisionItemNotes[String(itemId)] ?? null
             }));
