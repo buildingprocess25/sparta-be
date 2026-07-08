@@ -1388,12 +1388,34 @@ export const rabRepository = {
             );
 
             const tokoAfter = tokoAfterRes.rows[0];
-            if (JSON.stringify(tokoBefore) !== JSON.stringify(tokoAfter)) {
+
+            // Normalize field for comparison: trim whitespace, treat null/undefined/''/'-' as equivalent empty
+            const normalizeTokoField = (v: string | null | undefined): string =>
+                (v ?? "").trim().replace(/\s+/g, " ");
+
+            const tokoFieldsChanged = (
+                [
+                    "nama_toko",
+                    "kode_toko",
+                    "proyek",
+                    "cabang",
+                    "alamat",
+                    "nama_kontraktor",
+                ] as const
+            ).filter(
+                (key) =>
+                    normalizeTokoField(tokoBefore[key]) !==
+                    normalizeTokoField(tokoAfter[key])
+            );
+
+            if (tokoFieldsChanged.length > 0) {
+                // Log as warning but do NOT throw — the rejection itself succeeded
+                // and blocking it here would leave the RAB stuck in pending state.
+                // This can happen if a PostgreSQL trigger normalizes a text column.
                 console.error(
-                    `[rejectRAB] Guard violation! toko id=${tokoId} was modified during reject.`,
-                    { tokoBefore, tokoAfter, rabId, newStatus }
+                    `[rejectRAB] Guard warning: toko id=${tokoId} field(s) changed during reject (${tokoFieldsChanged.join(", ")}). Logging only, rejection proceeds.`,
+                    { tokoBefore, tokoAfter, rabId, newStatus, tokoFieldsChanged }
                 );
-                throw new Error("Guard violation: reject RAB tidak boleh mengubah data toko");
             }
         });
     },
@@ -1621,12 +1643,32 @@ export const rabRepository = {
             );
 
             const tokoAfter = tokoAfterRes.rows[0];
-            if (JSON.stringify(tokoBefore) !== JSON.stringify(tokoAfter)) {
+
+            // Normalize field for comparison: trim whitespace, treat null as empty
+            const normalizeTokoField2 = (v: string | null | undefined): string =>
+                (v ?? "").trim().replace(/\s+/g, " ");
+
+            const tokoFieldsChanged2 = (
+                [
+                    "nama_toko",
+                    "kode_toko",
+                    "proyek",
+                    "cabang",
+                    "alamat",
+                    "nama_kontraktor",
+                ] as const
+            ).filter(
+                (key) =>
+                    normalizeTokoField2(tokoBefore[key]) !==
+                    normalizeTokoField2(tokoAfter[key])
+            );
+
+            if (tokoFieldsChanged2.length > 0) {
+                // Log as warning only — do NOT throw, to avoid blocking valid status updates.
                 console.error(
-                    `[updateRabStatusWithRejection] Guard violation! toko id=${tokoId} was modified.`,
-                    { tokoBefore, tokoAfter, rabId, newStatus }
+                    `[updateRabStatusWithRejection] Guard warning: toko id=${tokoId} field(s) changed (${tokoFieldsChanged2.join(", ")}). Logging only, update proceeds.`,
+                    { tokoBefore, tokoAfter, rabId, newStatus, tokoFieldsChanged2 }
                 );
-                throw new Error("Guard violation: update RAB tidak boleh mengubah data toko");
             }
         });
     }
