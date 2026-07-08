@@ -129,7 +129,13 @@ export const getEffectiveBranchesForUser = async (input: {
     // 1. Global access
     if (hasGlobalAccess(cabang, roles)) {
         const allBranches = Array.from(
-            new Set(Object.values(BRANCH_GROUPS).flat())
+            new Set([
+                ...Object.values(BRANCH_GROUPS).flat(),
+                "LUWU", "REMBANG", "BANJARMASIN", "TEGAL", "GORONTALO", "PONTIANAK",
+                "CIANJUR", "JEMBER", "BALI", "KLATEN", "MAKASSAR", "PLUMBON",
+                "PEKANBARU", "JAMBI", "HEAD OFFICE", "BANDUNG RAYA", "CILACAP",
+                "SEMARANG", "MALANG", "MANADO", "BATAM", "MADIUN"
+            ])
         ).sort();
         return { branches: allBranches, source: "global" };
     }
