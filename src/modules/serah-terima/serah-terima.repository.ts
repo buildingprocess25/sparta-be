@@ -717,6 +717,34 @@ export const serahTerimaRepository = {
         return inserted.rows[0];
     },
 
+    async ensureBerkasSerahTerimaWithTimestamp(idToko: number, createdAt: string): Promise<BerkasSerahTerimaRow> {
+        const existing = await pool.query<BerkasSerahTerimaRow>(
+            `
+            SELECT id, id_toko, link_pdf, created_at
+            FROM berkas_serah_terima
+            WHERE id_toko = $1
+            ORDER BY id DESC
+            LIMIT 1
+            `,
+            [idToko]
+        );
+
+        if ((existing.rowCount ?? 0) > 0) {
+            return existing.rows[0];
+        }
+
+        const inserted = await pool.query<BerkasSerahTerimaRow>(
+            `
+            INSERT INTO berkas_serah_terima (id_toko, created_at)
+            VALUES ($1, $2::timestamptz)
+            RETURNING id, id_toko, link_pdf, created_at
+            `,
+            [idToko, createdAt]
+        );
+
+        return inserted.rows[0];
+    },
+
     async updateBerkasSerahTerimaLink(id: number, linkPdf: string): Promise<BerkasSerahTerimaRow> {
         const updated = await pool.query<BerkasSerahTerimaRow>(
             `

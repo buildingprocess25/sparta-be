@@ -210,7 +210,7 @@ const scheduleAutomaticUnifiedSerahTerimaIfReady = async (nomorUlok?: string | n
     });
 };
 
-export const scheduleAutomaticSerahTerimaIfReady = async (idToko: number): Promise<void> => {
+export const scheduleAutomaticSerahTerimaIfReady = async (idToko: number, referenceTimestamp?: string): Promise<void> => {
     if (automaticSerahTerimaInProgress.has(idToko)) return;
 
     const existing = await serahTerimaRepository.findBerkasSerahTerimaByIdToko(idToko);
@@ -222,7 +222,7 @@ export const scheduleAutomaticSerahTerimaIfReady = async (idToko: number): Promi
     automaticSerahTerimaInProgress.add(idToko);
     setImmediate(() => {
         serahTerimaService
-            .createPdfSerahTerima(idToko)
+            .createPdfSerahTerima(idToko, referenceTimestamp)
             .then((result) => {
                 console.log(`[ST][AUTO] Berhasil generate otomatis id_toko=${idToko}, berkas=${result.id}`);
             })
@@ -400,13 +400,15 @@ export const serahTerimaService = {
     },
 
 
-    async createPdfSerahTerima(idToko: number) {
+    async createPdfSerahTerima(idToko: number, referenceTimestamp?: string) {
         // Validate the required opname data before writing a serah-terima placeholder.
         // Previously, a failed generation could leave a row with link_pdf = NULL.
         await assertSerahTerimaReady(idToko);
         await buildDetailByTokoId(idToko);
 
-        const placeholder = await serahTerimaRepository.ensureBerkasSerahTerima(idToko);
+        const placeholder = referenceTimestamp
+            ? await serahTerimaRepository.ensureBerkasSerahTerimaWithTimestamp(idToko, referenceTimestamp)
+            : await serahTerimaRepository.ensureBerkasSerahTerima(idToko);
 
         // 1. Refresh denda dengan timestamp resmi ST yang ditentukan server.
         await opnameFinalService.refreshDendaByTokoId(idToko);

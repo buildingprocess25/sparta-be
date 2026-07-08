@@ -205,7 +205,7 @@ const finalizeBulkCreate = async (
 ) => {
     await refreshOpnameFinalDenda(created.opnameFinal.id, created.opnameFinal.id_toko);
     await opnameFinalRepository.updateTotals(String(created.opnameFinal.id));
-    await scheduleAutomaticSerahTerimaIfReady(created.opnameFinal.id_toko);
+    await scheduleAutomaticSerahTerimaIfReady(created.opnameFinal.id_toko, created.opnameFinal.created_at);
     return mapBulkCreateResponse(created);
 };
 
