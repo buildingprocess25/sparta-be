@@ -3,7 +3,7 @@ import { pool } from "../db/pool";
 export const BRANCH_GROUPS: Record<string, string[]> = {
     LOMBOK: ["LOMBOK", "SUMBAWA"],
     CILEUNGSI: ["CILEUNGSI", "BOGOR", "BEKASI", "KARAWANG"],
-    CIKOKOL: ["CIKOKOL", "PARUNG", "BALARAJA", "SERANG"],
+    CIKOKOL: ["CIKOKOL", "PARUNG", "BALARAJA", "SERANG", "BINTAN"], // Added BINTAN to CIKOKOL group
     MEDAN: ["MEDAN", "ACEH"],
     LAMPUNG: ["LAMPUNG", "KOTABUMI"],
     PALEMBANG: ["PALEMBANG", "BENGKULU", "BANGKA", "BELITUNG"],

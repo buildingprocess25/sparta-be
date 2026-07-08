@@ -345,7 +345,7 @@ export const dendaActionRepository = {
             ) latest_action ON TRUE
             ${whereClause}
             ORDER BY GREATEST(COALESCE(ofn.hari_denda, 0), COALESCE(delay.hari_terlambat, 0)) DESC, ofn.created_at DESC NULLS LAST, t.id DESC
-        \`, values);
+        `, values);
 
         return result.rows;
     },
