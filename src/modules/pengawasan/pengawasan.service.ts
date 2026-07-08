@@ -418,8 +418,8 @@ const hasAnyUpdateField = (input: UpdatePengawasanInput): boolean =>
     || typeof input.status !== "undefined";
 
 export const pengawasanService = {
-    async listPendingMigrationPdfs(nomorUlok?: string) {
-        return pengawasanRepository.findPendingMigrationPdfs(nomorUlok);
+    async listPendingMigrationPdfs(nomorUlok?: string, cabangArray?: string[]) {
+        return pengawasanRepository.findPendingMigrationPdfs(nomorUlok, cabangArray);
     },
 
     async create(

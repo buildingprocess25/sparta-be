@@ -55,22 +55,29 @@ export type PengawasanRowWithBerkas = PengawasanRow & {
 };
 
 export const pengawasanRepository = {
-    async findPendingMigrationPdfs(nomorUlok?: string): Promise<PengawasanPdfMigrationPendingRow[]> {
-        const values: string[] = [];
-        const conditions = [`status = 'PENDING'`];
+    async findPendingMigrationPdfs(nomorUlok?: string, cabangArray?: string[]): Promise<PengawasanPdfMigrationPendingRow[]> {
+        const values: any[] = [];
+        const conditions = [`p.status = 'PENDING'`];
         if (nomorUlok?.trim()) {
             values.push(nomorUlok.trim());
-            conditions.push(`UPPER(nomor_ulok) = UPPER($${values.length})`);
+            conditions.push(`UPPER(p.nomor_ulok) = UPPER($${values.length})`);
+        }
+
+        if (cabangArray && cabangArray.length > 0) {
+            const normalizedBranches = cabangArray.map(b => b.trim().toUpperCase());
+            values.push(normalizedBranches);
+            conditions.push(`UPPER(t.cabang) = ANY($${values.length})`);
         }
 
         const result = await pool.query<PengawasanPdfMigrationPendingRow>(
             `
-            SELECT id, nomor_ulok, lingkup_pekerjaan, h_day, tanggal_pengawasan,
-                   link_pdf_pengawasan, source_sheet, source_row, status,
-                   id_pengawasan_gantt, created_at, updated_at
-            FROM pengawasan_pdf_migration_pending
+            SELECT p.id, p.nomor_ulok, p.lingkup_pekerjaan, p.h_day, p.tanggal_pengawasan,
+                   p.link_pdf_pengawasan, p.source_sheet, p.source_row, p.status,
+                   p.id_pengawasan_gantt, p.created_at, p.updated_at
+            FROM pengawasan_pdf_migration_pending p
+            LEFT JOIN toko t ON p.nomor_ulok = t.nomor_ulok
             WHERE ${conditions.join(" AND ")}
-            ORDER BY created_at DESC, id DESC
+            ORDER BY p.created_at DESC, p.id DESC
             `,
             values
         );
