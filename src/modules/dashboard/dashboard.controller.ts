@@ -9,6 +9,7 @@ import {
     dashboardSummaryQuerySchema
 } from "./dashboard.schema";
 import { dashboardService } from "./dashboard.service";
+import { injectBranchFilter } from "../../common/branch-filter-helper";
 
 export const getDashboardView = asyncHandler(async (req: Request, res: Response) => {
     const query = dashboardQuerySchema.parse(req.query);
@@ -23,7 +24,8 @@ export const getDashboardAll = asyncHandler(async (req: Request, res: Response) 
 });
 
 export const exportDashboard = asyncHandler(async (req: Request, res: Response) => {
-    const query = dashboardExportQuerySchema.parse(req.query);
+    let query = dashboardExportQuerySchema.parse(req.query);
+    query = await injectBranchFilter(req.user!, query);
     const result = await dashboardService.exportDashboard(query);
 
     res.setHeader("Content-Type", result.contentType);
@@ -32,13 +34,15 @@ export const exportDashboard = asyncHandler(async (req: Request, res: Response) 
 });
 
 export const getDashboardSummary = asyncHandler(async (req: Request, res: Response) => {
-    const query = dashboardSummaryQuerySchema.parse(req.query);
+    let query = dashboardSummaryQuerySchema.parse(req.query);
+    query = await injectBranchFilter(req.user!, query);
     const data = await dashboardService.getDashboardSummary(query);
     res.json({ status: "success", data });
 });
 
 export const getDashboardProjects = asyncHandler(async (req: Request, res: Response) => {
-    const query = dashboardProjectsQuerySchema.parse(req.query);
+    let query = dashboardProjectsQuerySchema.parse(req.query);
+    query = await injectBranchFilter(req.user!, query);
     const result = await dashboardService.getDashboardProjects(query);
     res.json({ status: "success", ...result });
 });

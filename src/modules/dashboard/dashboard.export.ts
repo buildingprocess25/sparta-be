@@ -1093,8 +1093,12 @@ export const filterDashboardExportAccess = (projects: DashboardData[], query: Da
         const projectCabang = normalizeUpper(project.toko.cabang);
         const projectWorkItems = collectProjectWorkItems(project);
         if (isHeadOfficeCabang(projectCabang)) return false;
-        // Guard utama: project harus dalam branch scope actor (sudah handle branch groups)
-        if (actorCabang !== "HEAD OFFICE" && !isSameBranchScope(projectCabang, actorCabang)) return false;
+        // Guard utama: project harus dalam branch scope actor (menggunakan injected cabang_array jika ada)
+        if (query.cabang_array) {
+            if (!query.cabang_array.includes(projectCabang)) return false;
+        } else if (actorCabang !== "HEAD OFFICE" && !isSameBranchScope(projectCabang, actorCabang)) {
+            return false;
+        }
         if (cabangFilter && cabangFilter !== "ALL" && projectCabang !== cabangFilter) return false;
         // Jika FE mengirim cabangs, filter lebih ketat per cabang spesifik
         if (strictCabangs !== null && !strictCabangs.has(projectCabang)) return false;

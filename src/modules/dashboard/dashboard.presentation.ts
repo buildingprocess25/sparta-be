@@ -189,7 +189,11 @@ export const scopeDashboardProjects = (
     return projects.filter((project) => {
         const branch = normalize(project.toko.cabang);
         if (isHeadOfficeCabang(branch)) return false;
-        if (!canViewAllBranches(query) && !isSameBranchScope(branch, actorBranch)) return false;
+        if (query.cabang_array) {
+            if (!query.cabang_array.includes(branch)) return false;
+        } else if (!canViewAllBranches(query) && !isSameBranchScope(branch, actorBranch)) {
+            return false;
+        }
         if (selectedBranch && selectedBranch !== "ALL" && branch !== selectedBranch) return false;
         if (!matchesCompany(project, query.actor_company)) return false;
         if (search && ![

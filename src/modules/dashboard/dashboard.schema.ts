@@ -1,4 +1,4 @@
-﻿import { z } from "zod";
+import { z } from "zod";
 
 export const dashboardQuerySchema = z.object({
     search: z.string().trim().min(1).optional(),
@@ -29,7 +29,8 @@ export const dashboardExportQuerySchema = z.object({
     cabangs: z.string().trim().optional(),
     spk_status: z.enum(["all", "with_spk", "without_spk"]).default("all"),
     actor_role: z.string().trim().min(1),
-    actor_cabang: z.string().trim().min(1)
+    actor_cabang: z.string().trim().min(1),
+    cabang_array: z.array(z.string()).optional()
 });
 
 export type DashboardExportQueryInput = z.infer<typeof dashboardExportQuerySchema>;
@@ -40,6 +41,7 @@ const dashboardScopeSchema = {
     actor_company: z.string().trim().optional(),
     cabang: z.string().trim().optional(),
     search: z.string().trim().optional(),
+    cabang_array: z.array(z.string()).optional(),
 };
 
 export const dashboardSummaryQuerySchema = z.object({
