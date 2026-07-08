@@ -33,7 +33,7 @@ export type DashboardExportRow = {
     kategori: string;
     timestamp_acc_manager: string;
     pic: string;
-    status: string;
+    status_spk: string;
     timestamp_spk: string;
     durasi_spk: string | number;
     nominal_spk: number;
@@ -99,7 +99,7 @@ export const dashboardExportColumns: DashboardExportColumn[] = [
     { key: "kategori", label: "Kategori" },
     { key: "timestamp_acc_manager", label: "TIMESTAMP ACC MANAGER" },
     { key: "pic", label: "PIC" },
-    { key: "status", label: "Status" },
+    { key: "status_spk", label: "Status SPK" },
     { key: "timestamp_spk", label: "TimeSTAMP SPK" },
     { key: "durasi_spk", label: "Durasi SPK" },
     { key: "nominal_spk", label: "Nominal SPK" },
@@ -405,12 +405,12 @@ const collectProjectJobItems = (project: DashboardData): DashboardJobItemExportR
     return result;
 };
 
-const identitasCols: Array<keyof DashboardExportRow> = ["timestamp", "cabang", "nomor_ulok", "proyek", "lingkup_pekerjaan", "kontraktor", "nama_toko", "kode_toko", "kategori", "pic", "status"];
+const identitasCols: Array<keyof DashboardExportRow> = ["timestamp", "cabang", "nomor_ulok", "proyek", "lingkup_pekerjaan", "kontraktor", "nama_toko", "kode_toko", "kategori", "pic"];
 
 const dataTypeColumns: Record<string, Array<keyof DashboardExportRow>> = {
     IDENTITAS: [...identitasCols],
     RAB: [...identitasCols, "status_rab", "luas_bangunan", "luas_terbangunan", "luas_area_terbuka", "luas_area_parkir", "luas_area_sales", "luas_gudang", "pekerjaan_area_terbuka", "pekerjaan_beanspot", "total_penawaran_final", "timestamp_acc_manager", "tanggal_grand_opening"],
-    SPK: [...identitasCols, "timestamp_spk", "durasi_spk", "nominal_spk", "awal_spk", "akhir_spk", "tambah_spk", "akhir_spk_setelah", "real_spk"],
+    SPK: [...identitasCols, "status_spk", "timestamp_spk", "durasi_spk", "nominal_spk", "awal_spk", "akhir_spk", "tambah_spk", "akhir_spk_setelah", "real_spk"],
     OPNAME: [...identitasCols, "tanggal_serah_terima", "keterlambatan", "denda", "kerja_tambah", "kerja_kurang", "grand_total_opname_final", "tanggal_opname_final", "status_opname_final", "nilai_toko"]
 };
 
@@ -691,7 +691,7 @@ export const buildDashboardExportRows = (
             kategori: normalize(rab?.kategori_lokasi ?? project.pic_pengawasan?.kategori_lokasi),
             timestamp_acc_manager: formatDateTime(rab?.waktu_persetujuan_manager),
             pic: normalize(project.pic_pengawasan?.plc_building_support),
-            status: "",
+            status_spk: normalize(spk?.status),
             timestamp_spk: formatDateTime(spk?.created_at),
             durasi_spk: spk?.durasi ?? "",
             nominal_spk: toNumber(spk?.grand_total),
@@ -713,35 +713,6 @@ export const buildDashboardExportRows = (
             _work_items: [...collectProjectWorkItems(project)],
             _job_items: collectProjectJobItems(project)
         };
-
-        const requiredKeys: Array<keyof DashboardExportRow> = [
-            "timestamp",
-            "cabang",
-            "nomor_ulok",
-            "status_rab",
-            "proyek",
-            "lingkup_pekerjaan",
-            "kontraktor",
-            "nama_toko",
-            "kode_toko",
-            "total_penawaran_final",
-            "nominal_spk",
-            "awal_spk",
-            "akhir_spk",
-            "tanggal_serah_terima",
-            "grand_total_opname_final",
-            "status_opname_final"
-        ];
-        const numericRequiredKeys = new Set<keyof DashboardExportRow>([
-            "total_penawaran_final",
-            "nominal_spk",
-            "grand_total_opname_final"
-        ]);
-        row.status = requiredKeys.every((key) => {
-            const value = row[key];
-            if (numericRequiredKeys.has(key)) return toNumber(value) !== 0;
-            return normalize(value) !== "";
-        }) ? "done" : "progress";
 
         return row;
     });
