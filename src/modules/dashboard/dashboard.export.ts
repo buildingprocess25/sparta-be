@@ -14,7 +14,6 @@ export type DashboardExportColumn = {
 export type DashboardExportRow = {
     timestamp: string;
     cabang: string;
-    cabang_aktual: string;
     nomor_ulok: string;
     status_rab: string;
     proyek: string;
@@ -60,7 +59,6 @@ export type DashboardExportRow = {
 export type DashboardJobItemExportRow = {
     sumber: string;
     cabang: string;
-    cabang_aktual: string;
     nomor_ulok: string;
     nama_toko: string;
     kode_toko: string;
@@ -81,8 +79,7 @@ export type DashboardJobItemExportRow = {
 
 export const dashboardExportColumns: DashboardExportColumn[] = [
     { key: "timestamp", label: "Timestamp" },
-    { key: "cabang", label: "Branch Group" },
-    { key: "cabang_aktual", label: "Cabang" },
+    { key: "cabang", label: "Cabang" },
     { key: "nomor_ulok", label: "Nomor Ulok" },
     { key: "status_rab", label: "Status_Rab" },
     { key: "proyek", label: "Proyek" },
@@ -354,7 +351,6 @@ const collectProjectWorkItems = (project: DashboardData): Set<string> => {
 const buildJobItemBase = (project: DashboardData, source: string) => ({
     sumber: source,
     cabang: normalize(project.toko.cabang),
-    cabang_aktual: normalize(project.toko.cabang_aktual),
     nomor_ulok: normalize(project.toko.nomor_ulok),
     nama_toko: normalize(project.toko.nama_toko),
     kode_toko: normalize(project.toko.kode_toko),
@@ -409,7 +405,7 @@ const collectProjectJobItems = (project: DashboardData): DashboardJobItemExportR
     return result;
 };
 
-const identitasCols: Array<keyof DashboardExportRow> = ["timestamp", "cabang", "cabang_aktual", "nomor_ulok", "proyek", "lingkup_pekerjaan", "kontraktor", "nama_toko", "kode_toko", "kategori", "pic", "status"];
+const identitasCols: Array<keyof DashboardExportRow> = ["timestamp", "cabang", "nomor_ulok", "proyek", "lingkup_pekerjaan", "kontraktor", "nama_toko", "kode_toko", "kategori", "pic", "status"];
 
 const dataTypeColumns: Record<string, Array<keyof DashboardExportRow>> = {
     IDENTITAS: [...identitasCols],
@@ -420,8 +416,7 @@ const dataTypeColumns: Record<string, Array<keyof DashboardExportRow>> = {
 
 const jobItemExportColumns: DashboardExportColumn[] = [
     { key: "sumber", label: "Sumber" },
-    { key: "cabang", label: "Branch Group" },
-    { key: "cabang_aktual", label: "Cabang" },
+    { key: "cabang", label: "Cabang" },
     { key: "nomor_ulok", label: "Nomor ULOK" },
     { key: "nama_toko", label: "Nama Toko" },
     { key: "kode_toko", label: "Kode Toko" },
@@ -667,7 +662,6 @@ export const buildDashboardExportRows = (
         const row: DashboardExportRow = {
             timestamp: formatDateTime(rab?.created_at),
             cabang: normalize(project.toko.cabang),
-            cabang_aktual: normalize(project.toko.cabang_aktual),
             nomor_ulok: normalize(project.toko.nomor_ulok),
             status_rab: normalize(rab?.status),
             proyek: normalize(project.toko.proyek ?? spk?.proyek),

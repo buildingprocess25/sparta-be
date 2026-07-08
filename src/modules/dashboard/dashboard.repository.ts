@@ -9,7 +9,6 @@ export type DashboardTokoRow = {
     kode_toko: string | null;
     proyek: string | null;
     cabang: string | null;
-    cabang_aktual?: string | null;
     alamat: string | null;
     nama_kontraktor: string | null;
 };
@@ -373,16 +372,7 @@ export const dashboardRepository = {
     async findDashboardByTokoId(tokoId: number): Promise<DashboardData> {
         const tokoResult = await pool.query<DashboardTokoRow>(
             `
-            SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor,
-                   (
-                       SELECT uc.cabang
-                       FROM projek_planning pp
-                       JOIN user_cabang uc ON LOWER(TRIM(uc.email_sat)) = LOWER(TRIM(pp.email_pembuat))
-                       WHERE pp.nomor_ulok = toko.nomor_ulok
-                         AND (LOWER(COALESCE(pp.lingkup_pekerjaan, '')) = LOWER(COALESCE(toko.lingkup_pekerjaan, '')) OR toko.lingkup_pekerjaan IS NULL OR pp.lingkup_pekerjaan IS NULL)
-                       ORDER BY pp.id DESC
-                       LIMIT 1
-                   ) AS cabang_aktual
+            SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor
             FROM toko
             WHERE id = $1
             LIMIT 1
@@ -771,16 +761,7 @@ export const dashboardRepository = {
         const whereClause = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
         const tokoResult = await client.query<DashboardTokoRow>(
             `
-            SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor,
-                   (
-                       SELECT uc.cabang
-                       FROM projek_planning pp
-                       JOIN user_cabang uc ON LOWER(TRIM(uc.email_sat)) = LOWER(TRIM(pp.email_pembuat))
-                       WHERE pp.nomor_ulok = toko.nomor_ulok
-                         AND (LOWER(COALESCE(pp.lingkup_pekerjaan, '')) = LOWER(COALESCE(toko.lingkup_pekerjaan, '')) OR toko.lingkup_pekerjaan IS NULL OR pp.lingkup_pekerjaan IS NULL)
-                       ORDER BY pp.id DESC
-                       LIMIT 1
-                   ) AS cabang_aktual
+            SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor
             FROM toko
             ${whereClause}
             ORDER BY id DESC
