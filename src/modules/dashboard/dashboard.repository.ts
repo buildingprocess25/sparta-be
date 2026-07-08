@@ -289,6 +289,31 @@ export type DashboardBerkasSerahTerimaRow = {
     created_at: string | null;
 };
 
+export type DashboardProjectPlanningRow = {
+    id: number;
+    id_toko: number | null;
+    nomor_ulok: string | null;
+    nama_toko: string | null;
+    kode_toko: string | null;
+    cabang: string | null;
+    proyek: string | null;
+    lingkup_pekerjaan: string | null;
+    jenis_proyek: string | null;
+    estimasi_biaya: string | null;
+    nama_pengaju: string | null;
+    nama_lokasi: string | null;
+    jenis_pengajuan: string | null;
+    status: string | null;
+    luas_bangunan: string | null;
+    luas_area_terbuka: string | null;
+    luas_area_terbangun: string | null;
+    luas_gudang: string | null;
+    luas_area_parkir: string | null;
+    luas_area_sales: string | null;
+    bm_waktu_persetujuan: string | null;
+    created_at: string | null;
+};
+
 export type DashboardDokumentasiBangunanRow = {
     nomor_ulok: string | null;
     nama_toko: string | null;
@@ -318,6 +343,7 @@ export type DashboardData = {
     instruksi_lapangan: Array<DashboardInstruksiLapanganRow & { items: DashboardInstruksiLapanganItemRow[] }>;
     opname_final: Array<DashboardOpnameFinalRow & { items: DashboardOpnameItemRow[] }>;
     berkas_serah_terima: DashboardBerkasSerahTerimaRow[];
+    project_planning: DashboardProjectPlanningRow[];
 };
 
 const toArrayParam = (values: number[]) => values.length > 0 ? values : [0];
@@ -609,6 +635,19 @@ export const dashboardRepository = {
             [tokoId]
         );
 
+        const projectPlanningResult = await pool.query<DashboardProjectPlanningRow>(
+            `
+            SELECT id, id_toko, nomor_ulok, nama_toko, kode_toko, cabang, proyek, lingkup_pekerjaan,
+                   jenis_proyek, estimasi_biaya, nama_pengaju, nama_lokasi, jenis_pengajuan,
+                   status, luas_bangunan, luas_area_terbuka, luas_area_terbangun, luas_gudang,
+                   luas_area_parkir, luas_area_sales, bm_waktu_persetujuan, created_at
+            FROM projek_planning
+            WHERE id_toko = $1
+            ORDER BY created_at DESC, id DESC
+            `,
+            [tokoId]
+        );
+
         const pengawasanPdfPendingResult = await pool.query<DashboardPengawasanPdfPendingRow>(
             `
             SELECT id, nomor_ulok, lingkup_pekerjaan, h_day, tanggal_pengawasan,
@@ -739,7 +778,8 @@ export const dashboardRepository = {
             pengawasan_pdf_pending: pengawasanPdfPendingResult.rows,
             instruksi_lapangan,
             opname_final,
-            berkas_serah_terima: berkasSerahTerimaResult.rows
+            berkas_serah_terima: berkasSerahTerimaResult.rows,
+            project_planning: projectPlanningResult.rows
         };
     },
 
@@ -1040,6 +1080,19 @@ export const dashboardRepository = {
             [toArrayParam(tokoIds)]
         );
 
+        const projectPlanningResult = await client.query<DashboardProjectPlanningRow>(
+            `
+            SELECT id, id_toko, nomor_ulok, nama_toko, kode_toko, cabang, proyek, lingkup_pekerjaan,
+                   jenis_proyek, estimasi_biaya, nama_pengaju, nama_lokasi, jenis_pengajuan,
+                   status, luas_bangunan, luas_area_terbuka, luas_area_terbangun, luas_gudang,
+                   luas_area_parkir, luas_area_sales, bm_waktu_persetujuan, created_at
+            FROM projek_planning
+            WHERE id_toko = ANY($1::int[])
+            ORDER BY created_at DESC, id DESC
+            `,
+            [toArrayParam(tokoIds)]
+        );
+
         const pengawasanPdfPendingResult = await client.query<DashboardPengawasanPdfPendingRow>(
             `
             SELECT id, nomor_ulok, lingkup_pekerjaan, h_day, tanggal_pengawasan,
@@ -1187,6 +1240,11 @@ export const dashboardRepository = {
             pushMapArray(berkasSerahByTokoId, row.id_toko, row);
         }
 
+        const ppByTokoId = new Map<number, DashboardProjectPlanningRow[]>();
+        for (const row of projectPlanningResult.rows) {
+            if (row.id_toko != null) pushMapArray(ppByTokoId, row.id_toko, row);
+        }
+
         const pendingPdfByUlok = new Map<string, DashboardPengawasanPdfPendingRow[]>();
         for (const row of pengawasanPdfPendingResult.rows) {
             const key = normalizeDashboardUlok(row.nomor_ulok);
@@ -1204,7 +1262,8 @@ export const dashboardRepository = {
             pengawasan_pdf_pending: pendingPdfByUlok.get(normalizeDashboardUlok(toko.nomor_ulok)) ?? [],
             instruksi_lapangan: instruksiByTokoId.get(toko.id) ?? [],
             opname_final: opnameFinalByTokoId.get(toko.id) ?? [],
-            berkas_serah_terima: berkasSerahByTokoId.get(toko.id) ?? []
+            berkas_serah_terima: berkasSerahByTokoId.get(toko.id) ?? [],
+            project_planning: ppByTokoId.get(toko.id) ?? []
         }));
         } finally {
             client.release();

@@ -3,7 +3,8 @@ import { AppError } from "../../common/app-error";
 import { isSameBranchScope } from "../../common/branch-scope";
 import { renderPdfFromHtml } from "../../common/html-pdf";
 import { calculateDendaNominal, isHeadOfficeCabang } from "../denda/denda-keterlambatan";
-import type { DashboardData } from "./dashboard.repository";
+import { PP_STATUS_LABEL } from "../project-planning/project-planning.constants";
+import type { DashboardData, DashboardProjectPlanningRow } from "./dashboard.repository";
 import type { DashboardExportQueryInput } from "./dashboard.schema";
 
 export type DashboardExportColumn = {
@@ -75,6 +76,109 @@ export type DashboardJobItemExportRow = {
     status: string;
     catatan: string;
     tanggal: string;
+};
+
+export type DashboardPengawasanExportRow = {
+    cabang: string;
+    nomor_ulok: string;
+    nama_toko: string;
+    kode_toko: string;
+    lingkup_pekerjaan: string;
+    kontraktor: string;
+    tanggal_pengawasan: string;
+    kategori_pekerjaan: string;
+    jenis_pekerjaan: string;
+    status: string;
+    catatan: string;
+};
+
+export type DashboardOpnameParsialExportRow = {
+    cabang: string;
+    nomor_ulok: string;
+    nama_toko: string;
+    kode_toko: string;
+    lingkup_pekerjaan: string;
+    kontraktor: string;
+    tipe_opname: string;
+    tanggal_serah_terima: string;
+    status_opname: string;
+    keterlambatan: number;
+    denda: number;
+    kerja_tambah: number;
+    kerja_kurang: number;
+    grand_total_opname: number;
+};
+
+export type DashboardInstruksiLapanganExportRow = {
+    cabang: string;
+    nomor_ulok: string;
+    nama_toko: string;
+    kode_toko: string;
+    lingkup_pekerjaan: string;
+    kontraktor: string;
+    kategori_pekerjaan: string;
+    jenis_pekerjaan: string;
+    satuan: string;
+    volume: number | string;
+    harga_material: number;
+    harga_upah: number;
+    total_material: number;
+    total_upah: number;
+    total_harga: number;
+    status_il: string;
+    tanggal: string;
+};
+
+export type DashboardSerahTerimaExportRow = {
+    cabang: string;
+    nomor_ulok: string;
+    nama_toko: string;
+    kode_toko: string;
+    lingkup_pekerjaan: string;
+    kontraktor: string;
+    tanggal_serah_terima: string;
+    link_dokumen: string;
+};
+
+export type DashboardKtkOpnameFinalExportRow = {
+    cabang: string;
+    nomor_ulok: string;
+    nama_toko: string;
+    kode_toko: string;
+    lingkup_pekerjaan: string;
+    kontraktor: string;
+    status_opname_final: string;
+    tanggal_opname_final: string;
+    tanggal_serah_terima: string;
+    keterlambatan: number;
+    denda: number;
+    kerja_tambah: number;
+    kerja_kurang: number;
+    grand_total_opname: number;
+    nilai_toko: number;
+};
+
+export type DashboardProjectPlanningExportRow = {
+    cabang: string;
+    nomor_ulok: string;
+    nama_toko: string;
+    kode_toko: string;
+    proyek: string;
+    lingkup_pekerjaan: string;
+    nama_pengaju: string;
+    nama_lokasi: string;
+    jenis_proyek: string;
+    jenis_pengajuan: string;
+    estimasi_biaya: string;
+    luas_bangunan: string;
+    luas_area_terbuka: string;
+    luas_area_terbangun: string;
+    luas_gudang: string;
+    luas_area_parkir: string;
+    luas_area_sales: string;
+    status: string;
+    tanggal_pengajuan: string;
+    tanggal_persetujuan_bm: string;
 };
 
 export const dashboardExportColumns: DashboardExportColumn[] = [
@@ -405,6 +509,48 @@ const collectProjectJobItems = (project: DashboardData): DashboardJobItemExportR
     return result;
 };
 
+// ---------------------------------------------------------------------------
+// Status humanizer — mengubah nilai kode DB ke bahasa Indonesia
+// ---------------------------------------------------------------------------
+
+const humanizeSpkStatus = (status: unknown): string => {
+    const raw = normalizeUpper(status);
+    const map: Record<string, string> = {
+        WAITING_FOR_BM_APPROVAL: "Menunggu Persetujuan BM",
+        SPK_APPROVED: "SPK Disetujui",
+        SPK_REJECTED: "SPK Ditolak",
+        APPROVED: "Disetujui",
+        ACTIVE: "Aktif",
+        AKTIF: "Aktif",
+        SELESAI: "Selesai",
+        DISETUJUI: "Disetujui"
+    };
+    return map[raw] ?? normalize(status);
+};
+
+const humanizeOpnameStatus = (status: unknown): string => {
+    const raw = normalizeUpper(status);
+    const map: Record<string, string> = {
+        WAITING_FOR_COORDINATOR_APPROVAL: "Menunggu Persetujuan Koordinator",
+        WAITING_FOR_MANAGER_APPROVAL: "Menunggu Persetujuan Manager",
+        WAITING_FOR_DIRECTOR_APPROVAL: "Menunggu Persetujuan Direktur",
+        APPROVED: "Disetujui",
+        REJECTED: "Ditolak",
+        SELESAI: "Selesai",
+        DRAFT: "Draft"
+    };
+    return map[raw] ?? normalize(status);
+};
+
+const humanizePpStatus = (status: unknown): string => {
+    const raw = normalizeUpper(status);
+    return (PP_STATUS_LABEL as Record<string, string>)[raw] ?? normalize(status);
+};
+
+// ---------------------------------------------------------------------------
+// Column definitions
+// ---------------------------------------------------------------------------
+
 const identitasCols: Array<keyof DashboardExportRow> = ["timestamp", "cabang", "nomor_ulok", "proyek", "lingkup_pekerjaan", "kontraktor", "nama_toko", "kode_toko", "kategori", "pic"];
 
 const dataTypeColumns: Record<string, Array<keyof DashboardExportRow>> = {
@@ -435,11 +581,120 @@ const jobItemExportColumns: DashboardExportColumn[] = [
     { key: "tanggal", label: "Tanggal" }
 ];
 
+const pengawasanExportColumns: DashboardExportColumn[] = [
+    { key: "cabang", label: "Cabang" },
+    { key: "nomor_ulok", label: "Nomor ULOK" },
+    { key: "nama_toko", label: "Nama Toko" },
+    { key: "kode_toko", label: "Kode Toko" },
+    { key: "lingkup_pekerjaan", label: "Lingkup Pekerjaan" },
+    { key: "kontraktor", label: "Kontraktor" },
+    { key: "tanggal_pengawasan", label: "Tanggal Pengawasan" },
+    { key: "kategori_pekerjaan", label: "Kategori Pekerjaan" },
+    { key: "jenis_pekerjaan", label: "Jenis Pekerjaan" },
+    { key: "status", label: "Status" },
+    { key: "catatan", label: "Catatan" }
+];
+
+const opnameParsialExportColumns: DashboardExportColumn[] = [
+    { key: "cabang", label: "Cabang" },
+    { key: "nomor_ulok", label: "Nomor ULOK" },
+    { key: "nama_toko", label: "Nama Toko" },
+    { key: "kode_toko", label: "Kode Toko" },
+    { key: "lingkup_pekerjaan", label: "Lingkup Pekerjaan" },
+    { key: "kontraktor", label: "Kontraktor" },
+    { key: "tipe_opname", label: "Tipe Opname" },
+    { key: "tanggal_serah_terima", label: "Tanggal Serah Terima" },
+    { key: "status_opname", label: "Status Opname" },
+    { key: "keterlambatan", label: "Keterlambatan (hari)" },
+    { key: "denda", label: "Denda" },
+    { key: "kerja_tambah", label: "Kerja Tambah" },
+    { key: "kerja_kurang", label: "Kerja Kurang" },
+    { key: "grand_total_opname", label: "Grand Total Opname" }
+];
+
+const instruksiLapanganExportColumns: DashboardExportColumn[] = [
+    { key: "cabang", label: "Cabang" },
+    { key: "nomor_ulok", label: "Nomor ULOK" },
+    { key: "nama_toko", label: "Nama Toko" },
+    { key: "kode_toko", label: "Kode Toko" },
+    { key: "lingkup_pekerjaan", label: "Lingkup Pekerjaan" },
+    { key: "kontraktor", label: "Kontraktor" },
+    { key: "kategori_pekerjaan", label: "Kategori Pekerjaan" },
+    { key: "jenis_pekerjaan", label: "Jenis Pekerjaan" },
+    { key: "satuan", label: "Satuan" },
+    { key: "volume", label: "Volume" },
+    { key: "harga_material", label: "Harga Material" },
+    { key: "harga_upah", label: "Harga Upah" },
+    { key: "total_material", label: "Total Material" },
+    { key: "total_upah", label: "Total Upah" },
+    { key: "total_harga", label: "Total Harga" },
+    { key: "status_il", label: "Status IL" },
+    { key: "tanggal", label: "Tanggal" }
+];
+
+const serahTerimaExportColumns: DashboardExportColumn[] = [
+    { key: "cabang", label: "Cabang" },
+    { key: "nomor_ulok", label: "Nomor ULOK" },
+    { key: "nama_toko", label: "Nama Toko" },
+    { key: "kode_toko", label: "Kode Toko" },
+    { key: "lingkup_pekerjaan", label: "Lingkup Pekerjaan" },
+    { key: "kontraktor", label: "Kontraktor" },
+    { key: "tanggal_serah_terima", label: "Tanggal Serah Terima" },
+    { key: "link_dokumen", label: "Link Dokumen" }
+];
+
+const ktkOpnameFinalExportColumns: DashboardExportColumn[] = [
+    { key: "cabang", label: "Cabang" },
+    { key: "nomor_ulok", label: "Nomor ULOK" },
+    { key: "nama_toko", label: "Nama Toko" },
+    { key: "kode_toko", label: "Kode Toko" },
+    { key: "lingkup_pekerjaan", label: "Lingkup Pekerjaan" },
+    { key: "kontraktor", label: "Kontraktor" },
+    { key: "status_opname_final", label: "Status Opname Final" },
+    { key: "tanggal_opname_final", label: "Tanggal Opname Final" },
+    { key: "tanggal_serah_terima", label: "Tanggal Serah Terima" },
+    { key: "keterlambatan", label: "Keterlambatan (hari)" },
+    { key: "denda", label: "Denda" },
+    { key: "kerja_tambah", label: "Kerja Tambah" },
+    { key: "kerja_kurang", label: "Kerja Kurang" },
+    { key: "grand_total_opname", label: "Grand Total Opname" },
+    { key: "nilai_toko", label: "Nilai Toko" }
+];
+
+const projectPlanningExportColumns: DashboardExportColumn[] = [
+    { key: "cabang", label: "Cabang" },
+    { key: "nomor_ulok", label: "Nomor ULOK" },
+    { key: "nama_toko", label: "Nama Toko" },
+    { key: "kode_toko", label: "Kode Toko" },
+    { key: "proyek", label: "Proyek" },
+    { key: "lingkup_pekerjaan", label: "Lingkup Pekerjaan" },
+    { key: "nama_pengaju", label: "Nama Pengaju" },
+    { key: "nama_lokasi", label: "Nama Lokasi" },
+    { key: "jenis_proyek", label: "Jenis Proyek" },
+    { key: "jenis_pengajuan", label: "Jenis Pengajuan Desain" },
+    { key: "estimasi_biaya", label: "Estimasi Biaya" },
+    { key: "luas_bangunan", label: "Luas Bangunan" },
+    { key: "luas_area_terbuka", label: "Luas Area Terbuka" },
+    { key: "luas_area_terbangun", label: "Luas Terbangun" },
+    { key: "luas_gudang", label: "Luas Gudang" },
+    { key: "luas_area_parkir", label: "Luas Area Parkir" },
+    { key: "luas_area_sales", label: "Luas Area Sales" },
+    { key: "status", label: "Status" },
+    { key: "tanggal_pengajuan", label: "Tanggal Pengajuan" },
+    { key: "tanggal_persetujuan_bm", label: "Tanggal Persetujuan BM" }
+];
+
 const dataTypeLabels: Record<string, string> = {
     IDENTITAS: "Identitas Toko",
     RAB: "RAB & Luasan",
     SPK: "SPK",
-    OPNAME: "Opname & Denda"
+    OPNAME: "Opname & Denda",
+    PENGAWASAN: "Pengawasan",
+    OPNAME_PARSIAL: "Opname (Parsial)",
+    INSTRUKSI_LAPANGAN: "Instruksi Lapangan",
+    SERAH_TERIMA: "Serah Terima",
+    KTK_OPNAME_FINAL: "KTK (Opname Final)",
+    PROJECT_PLANNING: "Project Planning"
 };
 
 const addJobTypeColumns = (keys: Set<keyof DashboardExportRow>, jobTypes?: string) => {
@@ -508,16 +763,222 @@ const jobItemMatchesJobType = (row: DashboardJobItemExportRow, jobType: string):
     return normalizeUpper(row.kategori_pekerjaan || row.jenis_pekerjaan) === type;
 };
 
+// ---------------------------------------------------------------------------
+// Row builders untuk jenis data baru
+// ---------------------------------------------------------------------------
+
+const buildIdentitasToko = (project: DashboardData, spk?: DashboardData["spk"][0] | null) => ({
+    cabang: normalize(project.toko.cabang),
+    nomor_ulok: normalize(project.toko.nomor_ulok),
+    nama_toko: normalize(project.toko.nama_toko),
+    kode_toko: normalize(project.toko.kode_toko),
+    lingkup_pekerjaan: normalize(project.toko.lingkup_pekerjaan),
+    kontraktor: normalize(spk?.nama_kontraktor ?? project.toko.nama_kontraktor)
+});
+
+const buildPengawasanRows = (projects: DashboardData[]): Array<Record<string, unknown>> => {
+    const rows: Array<Record<string, unknown>> = [];
+    for (const project of projects) {
+        const approvedSpks = project.spk.filter((s) => isApprovedSpk(s.status));
+        const spk = latestByDate(approvedSpks.length > 0 ? approvedSpks : project.spk, (s) => s.created_at);
+        const base = buildIdentitasToko(project, spk);
+        for (const gantt of project.gantt) {
+            for (const pengawasanGantt of gantt.pengawasan_gantt) {
+                const details = gantt.pengawasan.filter(
+                    (p) => p.id_pengawasan_gantt === pengawasanGantt.id
+                );
+                if (details.length === 0) {
+                    rows.push({
+                        ...base,
+                        tanggal_pengawasan: normalize(pengawasanGantt.tanggal_pengawasan),
+                        kategori_pekerjaan: "",
+                        jenis_pekerjaan: "",
+                        status: "",
+                        catatan: ""
+                    });
+                } else {
+                    for (const d of details) {
+                        rows.push({
+                            ...base,
+                            tanggal_pengawasan: normalize(pengawasanGantt.tanggal_pengawasan),
+                            kategori_pekerjaan: normalize(d.kategori_pekerjaan),
+                            jenis_pekerjaan: normalize(d.jenis_pekerjaan),
+                            status: normalize(d.status),
+                            catatan: normalize(d.catatan)
+                        });
+                    }
+                }
+            }
+        }
+        if (project.gantt.length === 0 || project.gantt.every((g) => g.pengawasan_gantt.length === 0)) {
+            // Jika tidak ada gantt/pengawasan, tetap sertakan baris kosong agar toko terlihat
+        }
+    }
+    return rows;
+};
+
+const buildOpnameParsialRows = (projects: DashboardData[]): Array<Record<string, unknown>> => {
+    const rows: Array<Record<string, unknown>> = [];
+    for (const project of projects) {
+        const approvedSpks = project.spk.filter((s) => isApprovedSpk(s.status));
+        const spk = latestByDate(approvedSpks.length > 0 ? approvedSpks : project.spk, (s) => s.created_at);
+        const base = buildIdentitasToko(project, spk);
+        const parsialOpnames = project.opname_final.filter(
+            (o) => normalizeUpper(o.tipe_opname) !== "OPNAME_FINAL"
+        );
+        for (const opname of parsialOpnames) {
+            const noPpn = isNoPpnArea(project);
+            const items = opname.items ?? [];
+            const kerjaTambahRaw = sumBy(items, (item) => toNumber(item.total_selisih) > 0, (item) => item.total_selisih);
+            const kerjaKurangRaw = sumBy(items, (item) => toNumber(item.total_selisih) < 0, (item) => item.total_selisih);
+            const kerjaTambah = buildFinancialGrandTotal(kerjaTambahRaw, "up", noPpn);
+            const kerjaKurang = Math.abs(buildFinancialGrandTotal(kerjaKurangRaw, "up", noPpn));
+            const lateDays = Math.max(0, Number(opname.hari_denda ?? 0));
+            const penalty = toNumber(opname.nilai_denda) || calculatePenalty(lateDays);
+            rows.push({
+                ...base,
+                tipe_opname: normalize(opname.tipe_opname) || "Parsial",
+                tanggal_serah_terima: toIsoDate(opname.tanggal_serah_terima_denda),
+                status_opname: humanizeOpnameStatus(opname.status_opname_final),
+                keterlambatan: lateDays,
+                denda: penalty,
+                kerja_tambah: kerjaTambah,
+                kerja_kurang: kerjaKurang,
+                grand_total_opname: toNumber(opname.grand_total_opname)
+            });
+        }
+    }
+    return rows;
+};
+
+const buildInstruksiLapanganRows = (projects: DashboardData[]): Array<Record<string, unknown>> => {
+    const rows: Array<Record<string, unknown>> = [];
+    for (const project of projects) {
+        const approvedSpks = project.spk.filter((s) => isApprovedSpk(s.status));
+        const spk = latestByDate(approvedSpks.length > 0 ? approvedSpks : project.spk, (s) => s.created_at);
+        const base = buildIdentitasToko(project, spk);
+        for (const il of project.instruksi_lapangan) {
+            for (const item of il.items) {
+                rows.push({
+                    ...base,
+                    kategori_pekerjaan: normalize(item.kategori_pekerjaan),
+                    jenis_pekerjaan: normalize(item.jenis_pekerjaan),
+                    satuan: normalize(item.satuan),
+                    volume: item.volume ?? "",
+                    harga_material: toNumber(item.harga_material),
+                    harga_upah: toNumber(item.harga_upah),
+                    total_material: toNumber(item.total_material),
+                    total_upah: toNumber(item.total_upah),
+                    total_harga: toNumber(item.total_harga),
+                    status_il: normalize(il.status),
+                    tanggal: toIsoDate(il.created_at)
+                });
+            }
+        }
+    }
+    return rows;
+};
+
+const buildSerahTerimaRows = (projects: DashboardData[]): Array<Record<string, unknown>> => {
+    const rows: Array<Record<string, unknown>> = [];
+    for (const project of projects) {
+        const approvedSpks = project.spk.filter((s) => isApprovedSpk(s.status));
+        const spk = latestByDate(approvedSpks.length > 0 ? approvedSpks : project.spk, (s) => s.created_at);
+        const base = buildIdentitasToko(project, spk);
+        for (const st of project.berkas_serah_terima) {
+            rows.push({
+                ...base,
+                tanggal_serah_terima: toIsoDate(st.created_at),
+                link_dokumen: normalize(st.link_pdf)
+            });
+        }
+    }
+    return rows;
+};
+
+const buildKtkOpnameFinalRows = (projects: DashboardData[]): Array<Record<string, unknown>> => {
+    const rows: Array<Record<string, unknown>> = [];
+    for (const project of projects) {
+        const approvedSpks = project.spk.filter((s) => isApprovedSpk(s.status));
+        const latestSpk = latestByDate(approvedSpks.length > 0 ? approvedSpks : project.spk, (s) => s.created_at);
+        const base = buildIdentitasToko(project, latestSpk);
+        const noPpn = isNoPpnArea(project);
+        const finalOpnames = project.opname_final.filter(
+            (o) => normalizeUpper(o.tipe_opname) === "OPNAME_FINAL"
+        );
+        for (const opname of finalOpnames) {
+            const items = opname.items ?? [];
+            const kerjaTambahRaw = sumBy(items, (item) => toNumber(item.total_selisih) > 0, (item) => item.total_selisih);
+            const kerjaKurangRaw = sumBy(items, (item) => toNumber(item.total_selisih) < 0, (item) => item.total_selisih);
+            const kerjaTambah = buildFinancialGrandTotal(kerjaTambahRaw, "up", noPpn);
+            const kerjaKurang = Math.abs(buildFinancialGrandTotal(kerjaKurangRaw, "up", noPpn));
+            const lateDays = Math.max(0, Number(opname.hari_denda ?? 0));
+            const penalty = toNumber(opname.nilai_denda) || calculatePenalty(lateDays);
+            const totalPenawaran = toNumber(opname.grand_total_rab);
+            const grandTotalOpname = totalPenawaran + kerjaTambah - kerjaKurang;
+            rows.push({
+                ...base,
+                status_opname_final: humanizeOpnameStatus(opname.status_opname_final),
+                tanggal_opname_final: toIsoDate(opname.created_at),
+                tanggal_serah_terima: toIsoDate(opname.tanggal_serah_terima_denda),
+                keterlambatan: lateDays,
+                denda: penalty,
+                kerja_tambah: kerjaTambah,
+                kerja_kurang: kerjaKurang,
+                grand_total_opname: grandTotalOpname,
+                nilai_toko: grandTotalOpname
+            });
+        }
+    }
+    return rows;
+};
+
+const buildProjectPlanningRows = (projects: DashboardData[]): Array<Record<string, unknown>> => {
+    const rows: Array<Record<string, unknown>> = [];
+    for (const project of projects) {
+        for (const pp of project.project_planning) {
+            rows.push({
+                cabang: normalize(pp.cabang ?? project.toko.cabang),
+                nomor_ulok: normalize(pp.nomor_ulok ?? project.toko.nomor_ulok),
+                nama_toko: normalize(pp.nama_toko ?? project.toko.nama_toko),
+                kode_toko: normalize(pp.kode_toko ?? project.toko.kode_toko),
+                proyek: normalize(pp.proyek),
+                lingkup_pekerjaan: normalize(pp.lingkup_pekerjaan),
+                nama_pengaju: normalize(pp.nama_pengaju),
+                nama_lokasi: normalize(pp.nama_lokasi),
+                jenis_proyek: normalize(pp.jenis_proyek),
+                jenis_pengajuan: normalize(pp.jenis_pengajuan),
+                estimasi_biaya: normalize(pp.estimasi_biaya),
+                luas_bangunan: normalize(pp.luas_bangunan),
+                luas_area_terbuka: normalize(pp.luas_area_terbuka),
+                luas_area_terbangun: normalize(pp.luas_area_terbangun),
+                luas_gudang: normalize(pp.luas_gudang),
+                luas_area_parkir: normalize(pp.luas_area_parkir),
+                luas_area_sales: normalize(pp.luas_area_sales),
+                status: humanizePpStatus(pp.status),
+                tanggal_pengajuan: toIsoDate(pp.created_at),
+                tanggal_persetujuan_bm: toIsoDate(pp.bm_waktu_persetujuan)
+            });
+        }
+    }
+    return rows;
+};
+
+// ---------------------------------------------------------------------------
+// Section builder — menggabungkan semua jenis data menjadi sections
+// ---------------------------------------------------------------------------
+
 const buildDashboardExportSections = (
     rows: DashboardExportRow[],
     dataTypes?: string,
-    jobTypes?: string
+    jobTypes?: string,
+    projects?: DashboardData[]
 ): DashboardExportSection[] => {
     const selectedDataTypes = [...parseCsvSet(dataTypes)];
     const selectedJobTypes = [...parseCsvSet(jobTypes)];
     const sections: DashboardExportSection[] = [];
 
-    // Rows yang hanya muncul di sheet SPK dan Opname:
+    // Rows yang hanya muncul di sheet SPK dan Opname lama:
     // hanya lokasi yang sudah punya SPK (sudah berjalan).
     const rowsWithSpk = rows.filter((row) => Boolean(normalize(row.timestamp_spk)));
 
@@ -528,12 +989,51 @@ const buildDashboardExportSections = (
     };
 
     selectedDataTypes.forEach((type) => {
-        sections.push({
-            title: dataTypeLabels[type] ?? type,
-            filenamePart: `jenis_data_${normalizeFilePart(dataTypeLabels[type] ?? type, type)}`,
-            rows: rowsByDataType[type] ?? rows,
-            columns: resolveDataTypeColumns(type)
-        });
+        // Jenis data lama yang masih menggunakan DashboardExportRow
+        if (["RAB", "SPK", "OPNAME", "IDENTITAS"].includes(type)) {
+            sections.push({
+                title: dataTypeLabels[type] ?? type,
+                filenamePart: `jenis_data_${normalizeFilePart(dataTypeLabels[type] ?? type, type)}`,
+                rows: rowsByDataType[type] ?? rows,
+                columns: resolveDataTypeColumns(type)
+            });
+            return;
+        }
+
+        // Jenis data baru — build dari projects
+        if (!projects) return;
+
+        let sectionRows: Array<Record<string, unknown>> = [];
+        let columns: DashboardExportColumn[] = [];
+
+        if (type === "PENGAWASAN") {
+            sectionRows = buildPengawasanRows(projects);
+            columns = pengawasanExportColumns;
+        } else if (type === "OPNAME_PARSIAL") {
+            sectionRows = buildOpnameParsialRows(projects);
+            columns = opnameParsialExportColumns;
+        } else if (type === "INSTRUKSI_LAPANGAN") {
+            sectionRows = buildInstruksiLapanganRows(projects);
+            columns = instruksiLapanganExportColumns;
+        } else if (type === "SERAH_TERIMA") {
+            sectionRows = buildSerahTerimaRows(projects);
+            columns = serahTerimaExportColumns;
+        } else if (type === "KTK_OPNAME_FINAL") {
+            sectionRows = buildKtkOpnameFinalRows(projects);
+            columns = ktkOpnameFinalExportColumns;
+        } else if (type === "PROJECT_PLANNING") {
+            sectionRows = buildProjectPlanningRows(projects);
+            columns = projectPlanningExportColumns;
+        }
+
+        if (columns.length > 0) {
+            sections.push({
+                title: dataTypeLabels[type] ?? type,
+                filenamePart: `jenis_data_${normalizeFilePart(dataTypeLabels[type] ?? type, type)}`,
+                rows: sectionRows,
+                columns
+            });
+        }
     });
 
     selectedJobTypes.forEach((jobType) => {
@@ -691,7 +1191,7 @@ export const buildDashboardExportRows = (
             kategori: normalize(rab?.kategori_lokasi ?? project.pic_pengawasan?.kategori_lokasi),
             timestamp_acc_manager: formatDateTime(rab?.waktu_persetujuan_manager),
             pic: normalize(project.pic_pengawasan?.plc_building_support),
-            status_spk: normalize(spk?.status),
+            status_spk: humanizeSpkStatus(spk?.status),
             timestamp_spk: formatDateTime(spk?.created_at),
             durasi_spk: spk?.durasi ?? "",
             nominal_spk: toNumber(spk?.grand_total),
@@ -891,9 +1391,8 @@ export const buildDashboardCsvZipBuffer = (sections: DashboardExportSection[]): 
 };
 
 export const buildDashboardPdfBuffer = async (
-    rows: DashboardExportRow[],
-    meta: { cabang: string; generatedBy: string },
-    columns: DashboardExportColumn[]
+    sections: Array<{ title: string; rows: Array<Record<string, unknown>>; columns: DashboardExportColumn[] }>,
+    meta: { cabang: string; generatedBy: string }
 ): Promise<Buffer> => {
     const generatedAt = new Intl.DateTimeFormat("id-ID", {
         day: "2-digit",
@@ -903,6 +1402,30 @@ export const buildDashboardPdfBuffer = async (
         minute: "2-digit",
         timeZone: "Asia/Jakarta"
     }).format(new Date());
+
+    const renderSection = (section: { title: string; rows: Array<Record<string, unknown>>; columns: DashboardExportColumn[] }) => `
+  <div class="section-header">
+    <span class="section-icon">&#9632;</span> ${htmlEscape(section.title)}
+    <span class="section-count">${section.rows.length} data</span>
+  </div>
+  <table class="data">
+    <thead>
+      <tr>
+        <th style="width:24px;">No</th>
+        ${section.columns.map((column) => `<th>${htmlEscape(column.label).replace(/\n/g, "<br/>")}</th>`).join("")}
+      </tr>
+    </thead>
+    <tbody>
+      ${section.rows.map((row, index) => `
+        <tr>
+          <td class="center">${index + 1}</td>
+          ${section.columns.map((column) => `<td>${htmlEscape(displayValue(row[column.key]))}</td>`).join("")}
+        </tr>
+      `).join("")}
+    </tbody>
+  </table>`;
+
+    const totalRows = sections.reduce((sum, s) => sum + s.rows.length, 0);
     const html = `
 <!doctype html>
 <html lang="id">
@@ -923,7 +1446,10 @@ export const buildDashboardPdfBuffer = async (
     .summary-box { border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; min-width: 140px; background: #f8fafc; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
     .summary-box .k { color: #64748b; font-size: 8px; text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px; }
     .summary-box .v { font-size: 14px; font-weight: 800; margin-top: 4px; color: #0f172a; }
-    table.data { width: 100%; border-collapse: collapse; table-layout: fixed; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .section-header { background: #1e3a5f; color: #fff; padding: 8px 12px; border-radius: 5px 5px 0 0; font-size: 11px; font-weight: 800; margin-top: 20px; display: flex; justify-content: space-between; align-items: center; }
+    .section-icon { color: #f97316; margin-right: 6px; }
+    .section-count { font-size: 9px; background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 10px; }
+    table.data { width: 100%; border-collapse: collapse; table-layout: fixed; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 10px; }
     table.data th, table.data td { border: 1px solid #cbd5e1; padding: 6px 5px; vertical-align: top; overflow-wrap: break-word; word-break: break-all; }
     table.data th { background: #f1f5f9; color: #334155; font-weight: 800; text-align: center; border-bottom: 2px solid #94a3b8; }
     table.data tr:nth-child(even) td { background: #f8fafc; }
@@ -939,33 +1465,17 @@ export const buildDashboardPdfBuffer = async (
       <div class="brand">SPARTA</div>
       <div class="subtitle">Building Dashboard Export</div>
     </div>
-    <div class="title">Laporan Monitoring<br/>RAB, SPK, Opname, Serah Terima</div>
+    <div class="title">Laporan Monitoring<br/>RAB, SPK, Opname, Pengawasan &amp; lainnya</div>
   </div>
   <table class="meta">
     <tr><td class="label">Cabang</td><td>${meta.cabang || "Semua Cabang"}</td><td class="label">Dibuat Oleh</td><td>${meta.generatedBy || "-"}</td></tr>
-    <tr><td class="label">Tanggal Export</td><td>${generatedAt}</td><td class="label">Jumlah Data</td><td>${rows.length}</td></tr>
+    <tr><td class="label">Tanggal Export</td><td>${generatedAt}</td><td class="label">Total Data</td><td>${totalRows}</td></tr>
   </table>
   <div class="summary">
-    <div class="summary-box"><div class="k">Total Proyek</div><div class="v">${rows.length}</div></div>
-
-    <div class="summary-box"><div class="k">Total SPK</div><div class="v">${formatMoney(rows.reduce((total, row) => total + row.nominal_spk, 0))}</div></div>
+    <div class="summary-box"><div class="k">Jumlah Jenis Data</div><div class="v">${sections.length}</div></div>
+    <div class="summary-box"><div class="k">Total Baris</div><div class="v">${totalRows}</div></div>
   </div>
-  <table class="data">
-    <thead>
-      <tr>
-        <th style="width:24px;">No</th>
-        ${columns.map((column) => `<th>${htmlEscape(column.label).replace(/\n/g, "<br/>")}</th>`).join("")}
-      </tr>
-    </thead>
-    <tbody>
-      ${rows.map((row, index) => `
-        <tr>
-          <td class="center">${index + 1}</td>
-          ${columns.map((column) => `<td>${htmlEscape(displayValue((row as unknown as Record<string, unknown>)[column.key]))}</td>`).join("")}
-        </tr>
-      `).join("")}
-    </tbody>
-  </table>
+  ${sections.map(renderSection).join("")}
   <div class="footer">Dokumen ini di-generate otomatis oleh sistem SPARTA Building pada ${generatedAt}</div>
 </body>
 </html>`;
@@ -978,10 +1488,11 @@ export const buildDashboardExportFile = async (
     rows: DashboardExportRow[],
     meta: { cabang: string; generatedBy: string },
     dataTypes?: string,
-    jobTypes?: string
+    jobTypes?: string,
+    projects?: DashboardData[]
 ): Promise<{ buffer: Buffer; filename: string; contentType: string }> => {
     const columns = resolveDashboardExportColumns(dataTypes, jobTypes);
-    const sections = buildDashboardExportSections(rows, dataTypes, jobTypes);
+    const sections = buildDashboardExportSections(rows, dataTypes, jobTypes, projects);
     const hasSegmentedSelection = parseCsvSet(dataTypes).size > 0 || parseCsvSet(jobTypes).size > 0;
     const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     const cabang = normalizeUpper(meta.cabang || "ALL").replace(/[^A-Z0-9]+/g, "_") || "ALL";
@@ -995,8 +1506,14 @@ export const buildDashboardExportFile = async (
     }
 
     if (format === "pdf") {
+        // PDF selalu multi-section menggunakan semua sections yang dibangun
+        const pdfSections = sections.length > 0 ? sections : [{
+            title: "Dashboard Export",
+            rows: rows as unknown as Array<Record<string, unknown>>,
+            columns
+        }];
         return {
-            buffer: await buildDashboardPdfBuffer(rows, meta, columns),
+            buffer: await buildDashboardPdfBuffer(pdfSections, meta),
             filename: `SPARTA_DASHBOARD_EXPORT_${cabang}_${stamp}.pdf`,
             contentType: "application/pdf"
         };
