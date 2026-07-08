@@ -461,20 +461,19 @@ export const pertambahanSpkService = {
         }
 
         const spk = await ensureSpkExists(Number(updated.id_spk));
+        const linkPdf = await buildAndUploadPdfForDetail(updated);
+        const withUpdatedPdf = await pertambahanSpkRepository.updateById(id, { link_pdf: linkPdf });
+        if (!withUpdatedPdf) {
+            throw new AppError("PDF pertambahan SPK berhasil dibuat tetapi data gagal diperbarui", 500);
+        }
+
         if (targetStatus === PERTAMBAHAN_SPK_STATUS.APPROVED_BY_BM) {
-            const linkPdf = await buildAndUploadPdfForDetail(updated);
-            const withUpdatedPdf = await pertambahanSpkRepository.updateById(id, { link_pdf: linkPdf });
-            if (!withUpdatedPdf) {
-                throw new AppError("PDF pertambahan SPK berhasil dibuat tetapi data gagal diperbarui", 500);
-            }
             await ganttRepository.ensureLastPengawasanMatchesEffectiveSpkEnd(spk.pengajuan.nomor_ulok);
-            await opnameFinalService.refreshDendaByTokoId(spk.pengajuan.id_toko);
-            return withUpdatedPdf;
         }
 
         await opnameFinalService.refreshDendaByTokoId(spk.pengajuan.id_toko);
 
-        return updated;
+        return withUpdatedPdf;
     },
 
     async getDownloadPayload(
