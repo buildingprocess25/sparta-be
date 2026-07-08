@@ -26,9 +26,9 @@
 <body>
   {{ sparta_header("Berita Acara Serah Terima Gabungan", nomor_ulok ~ " - " ~ (nama_toko or '-')) | safe }}
   <div class="cover-title">
-    <div class="eyebrow">Dokumen Unified SIPIL + ME</div>
-    <h1>Serah Terima Gabungan ULOK {{ nomor_ulok }}</h1>
-    <div class="subtitle">Dokumen ini menggabungkan lingkup pekerjaan yang tersedia dalam satu PDF. Bagian detail setelah halaman ini dipisahkan per lingkup supaya pemeriksaan SIPIL dan ME tetap mudah dibaca.</div>
+    <div class="eyebrow">Dokumen Serah Terima Terpadu</div>
+    <h1>Berita Acara Gabungan ULOK {{ nomor_ulok }}</h1>
+    <div class="subtitle">Dokumen ini merangkum seluruh lingkup pekerjaan dalam satu berkas terpadu. Rincian opname untuk masing-masing pekerjaan dilampirkan pada halaman berikutnya untuk mempermudah proses pemeriksaan.</div>
   </div>
   <div class="summary-grid">
     <div class="summary-card"><div class="summary-label">Tanggal ST</div><div class="summary-value">{{ created_at_formatted }}</div></div>
@@ -66,6 +66,6 @@
       </tr>
     </tfoot>
   </table>
-  <div class="note">Urutan lampiran: {{ scope_order }}. Setiap lampiran memiliki header lingkup sendiri.</div>
+  <div class="note"><strong>Petunjuk Lampiran:</strong> Rincian pekerjaan disusun secara berurutan mulai dari lingkup {{ scope_order }}. Setiap lampiran memiliki halamannya tersendiri.</div>
 </body>
 </html>
