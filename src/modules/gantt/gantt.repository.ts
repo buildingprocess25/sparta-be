@@ -749,6 +749,7 @@ export const ganttRepository = {
         status?: string;
         nomor_ulok?: string;
         email_pembuat?: string;
+        cabang_array?: string[];
     }): Promise<
         (GanttRow & {
             nomor_ulok: string;
