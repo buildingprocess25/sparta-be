@@ -447,6 +447,33 @@ export const resolveTemplatePath = async (templateFilename: string): Promise<str
     throw new Error(`Template not found: ${templateFilename}. Checked: ${candidates.join(", ")}`);
 };
 
+const findPuppeteerChromePath = (): string | undefined => {
+    const cacheDir = env.PUPPETEER_CACHE_DIR?.trim() || "/opt/render/project/.cache/puppeteer";
+    const chromeCacheDir = path.join(cacheDir, "chrome");
+    if (!fsSync.existsSync(chromeCacheDir)) return undefined;
+
+    try {
+        // Search for chrome binary in versioned subdirectories
+        const versionDirs = fsSync.readdirSync(chromeCacheDir);
+        for (const versionDir of versionDirs.sort().reverse()) {
+            const candidates = [
+                path.join(chromeCacheDir, versionDir, "chrome-linux64", "chrome"),
+                path.join(chromeCacheDir, versionDir, "chrome-linux", "chrome"),
+                path.join(chromeCacheDir, versionDir, "chrome"),
+            ];
+            for (const candidate of candidates) {
+                if (fsSync.existsSync(candidate)) {
+                    console.log(`[PDF] Auto-detected Puppeteer Chrome at: ${candidate}`);
+                    return candidate;
+                }
+            }
+        }
+    } catch {
+        // ignore read errors
+    }
+    return undefined;
+};
+
 export const renderPdfFromHtml = async (html: string): Promise<Buffer> => {
     const localChromeCandidates = [
         "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
@@ -455,6 +482,7 @@ export const renderPdfFromHtml = async (html: string): Promise<Buffer> => {
     ];
     const executablePath = env.PUPPETEER_EXECUTABLE_PATH?.trim()
         || localChromeCandidates.find((candidate) => fsSync.existsSync(candidate))
+        || findPuppeteerChromePath()
         || undefined;
     const navigationTimeoutMs = env.PUPPETEER_NAVIGATION_TIMEOUT_MS ?? 120000;
     const browser = await puppeteer.launch({
