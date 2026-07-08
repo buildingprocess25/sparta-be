@@ -12,7 +12,6 @@ async function fixData() {
     await client.query("DELETE FROM dependency_gantt WHERE id_gantt IN (SELECT id FROM gantt_chart WHERE id_toko = $1)", [garbageId]);
     await client.query("DELETE FROM pengawasan_gantt WHERE id_gantt IN (SELECT id FROM gantt_chart WHERE id_toko = $1)", [garbageId]);
     await client.query("DELETE FROM gantt_chart_note WHERE id_gantt IN (SELECT id FROM gantt_chart WHERE id_toko = $1)", [garbageId]);
-    await client.query("DELETE FROM gantt_intervention WHERE id_gantt IN (SELECT id FROM gantt_chart WHERE id_toko = $1)", [garbageId]);
     await client.query("DELETE FROM gantt_chart WHERE id_toko = $1", [garbageId]);
     await client.query("DELETE FROM toko WHERE id = $1", [garbageId]);
 
