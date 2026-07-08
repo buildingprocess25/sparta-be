@@ -116,15 +116,28 @@ export const listPengawasan = asyncHandler(async (req: Request, res: Response) =
     if (!req.user) {
         throw new AppError("User tidak terautentikasi", 401);
     }
+    
+    console.log('[PENGAWASAN LIST] Original request query:', JSON.stringify(req.query));
+    console.log('[PENGAWASAN LIST] User info:', {
+        email: req.user.email_sat,
+        cabang: req.user.cabang,
+        roles: req.user.roles
+    });
+    
     let query = listPengawasanQuerySchema.parse(req.query);
+    console.log('[PENGAWASAN LIST] After schema parse:', JSON.stringify(query));
+    
     query = await injectBranchFilter(req.user, query);
+    console.log('[PENGAWASAN LIST] After inject filter:', JSON.stringify(query));
     
     // Security: Pastikan cabang_array tidak kosong untuk user non-global
     if (!query.cabang_array || query.cabang_array.length === 0) {
+        console.error('[PENGAWASAN LIST] REJECT: No branch access');
         throw new AppError("User tidak memiliki akses ke cabang manapun. Hubungi administrator.", 403);
     }
     
     const data = await pengawasanService.list(query);
+    console.log('[PENGAWASAN LIST] Result count:', data.length);
 
     res.json({ status: "success", data });
 });

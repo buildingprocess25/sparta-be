@@ -587,6 +587,8 @@ export const pengawasanService = {
     },
 
     async list(query: ListPengawasanQueryInput) {
+        console.log('[PENGAWASAN SERVICE] list() called with query:', JSON.stringify(query));
+        
         if (query.tanggal) {
             if (typeof query.id_gantt === "undefined") {
                 throw new AppError("Query id_gantt wajib diisi jika menggunakan query tanggal", 400);
@@ -598,12 +600,15 @@ export const pengawasanService = {
             );
 
             if (!idPengawasanGantt) {
+                console.log('[PENGAWASAN SERVICE] No pengawasan_gantt found for tanggal:', query.tanggal);
                 return [];
             }
 
+            console.log('[PENGAWASAN SERVICE] Calling repository.findAll with idPengawasanGantt:', idPengawasanGantt);
             return pengawasanRepository.findAll(query, idPengawasanGantt);
         }
 
+        console.log('[PENGAWASAN SERVICE] Calling repository.findAll without idPengawasanGantt');
         return pengawasanRepository.findAll(query);
     },
 
