@@ -199,10 +199,15 @@ export const pengawasanRepository = {
             conditions.push(`p.status = $${values.length}`);
         }
 
+        // SECURITY: Branch filtering - wajib ada untuk user non-global
         if (query.cabang_array && query.cabang_array.length > 0) {
             const normalizedBranches = query.cabang_array.map(b => b.trim().toUpperCase());
             values.push(normalizedBranches as any);
             conditions.push(`UPPER(t.cabang) = ANY($${values.length})`);
+            console.log('[PENGAWASAN FILTER] Branch filter applied:', normalizedBranches);
+        } else {
+            // Jika sampai sini tanpa cabang_array, berarti ada bug di controller/filter logic
+            console.warn('[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users');
         }
 
         if (typeof idPengawasanGantt !== "undefined") {

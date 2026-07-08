@@ -56,8 +56,31 @@ export const injectBranchFilter = async <T extends QueryWithBranchArray>(
         cabang: user.cabang,
         roles: user.roles
     });
+    
+    // Log untuk debugging
+    console.log('[BRANCH FILTER] User:', user.email_sat, 'Cabang:', user.cabang, 'Source:', scope.source, 'Branches:', scope.branches);
+    
     if (scope.source === "global") {
-        return query;
+        // Global user: return semua branches (akan di-handle di controller)
+        return {
+            ...query,
+            cabang_array: scope.branches
+        };
+    }
+
+    // Non-global user: wajib punya minimal 1 branch
+    if (scope.branches.length === 0) {
+        console.error('[BRANCH FILTER] ERROR: Non-global user has no accessible branches!', {
+            email: user.email_sat,
+            cabang: user.cabang,
+            roles: user.roles,
+            source: scope.source
+        });
+        // Return array dengan cabang yang impossible agar query tidak return semua data
+        return {
+            ...query,
+            cabang_array: ['__NO_ACCESS__']
+        };
     }
 
     return {

@@ -118,6 +118,12 @@ export const listPengawasan = asyncHandler(async (req: Request, res: Response) =
     }
     let query = listPengawasanQuerySchema.parse(req.query);
     query = await injectBranchFilter(req.user, query);
+    
+    // Security: Pastikan cabang_array tidak kosong untuk user non-global
+    if (!query.cabang_array || query.cabang_array.length === 0) {
+        throw new AppError("User tidak memiliki akses ke cabang manapun. Hubungi administrator.", 403);
+    }
+    
     const data = await pengawasanService.list(query);
 
     res.json({ status: "success", data });
