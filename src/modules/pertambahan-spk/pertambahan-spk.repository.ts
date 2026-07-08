@@ -1,4 +1,5 @@
 import { pool, withTransaction } from "../../db/pool";
+import { getBranchScopeCandidates } from "../../common/branch-scope";
 import type {
     CreatePertambahanSpkInput,
     PertambahanSpkApprovalInput,
@@ -195,7 +196,7 @@ export const pertambahanSpkRepository = {
 
     async list(query: PertambahanSpkListQuery): Promise<PertambahanSpkDetailRow[]> {
         const conditions: string[] = [];
-        const values: Array<string | number> = [];
+        const values: Array<string | number | string[]> = [];
 
         if (query.id_spk) {
             values.push(query.id_spk);
@@ -205,6 +206,17 @@ export const pertambahanSpkRepository = {
         if (query.status_persetujuan) {
             values.push(query.status_persetujuan);
             conditions.push(`p.status_persetujuan = $${values.length}`);
+        }
+
+        // NEW: Prioritize cabang_array over cabang
+        if (query.cabang_array && query.cabang_array.length > 0) {
+            const normalizedBranches = query.cabang_array.map(b => b.trim().replace(/_+/g, " ").replace(/\s+/g, " ").toUpperCase());
+            values.push(normalizedBranches);
+            conditions.push(`REPLACE(UPPER(TRIM(t.cabang)), '_', ' ') = ANY($${values.length}::text[])`);
+        } else if (query.cabang) {
+            const branchCandidates = getBranchScopeCandidates(query.cabang);
+            values.push(branchCandidates as any);
+            conditions.push(`REPLACE(UPPER(TRIM(t.cabang)), '_', ' ') = ANY($${values.length}::text[])`);
         }
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";

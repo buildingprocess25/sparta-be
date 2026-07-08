@@ -1,5 +1,7 @@
 import type { Request, Response } from "express";
+import { AppError } from "../../common/app-error";
 import { asyncHandler } from "../../common/async-handler";
+import { injectBranchFilter } from "../../common/branch-filter-helper";
 import {
     createPertambahanSpkSchema,
     pertambahanSpkApprovalSchema,
@@ -29,7 +31,16 @@ export const createPertambahanSpk = asyncHandler(async (req: Request, res: Respo
 });
 
 export const listPertambahanSpk = asyncHandler(async (req: Request, res: Response) => {
-    const query = pertambahanSpkListQuerySchema.parse(req.query);
+    let query = pertambahanSpkListQuerySchema.parse(req.query);
+    
+    const user = req.user;
+    if (!user) {
+        throw new AppError("User tidak terautentikasi", 401);
+    }
+
+    // Enforce branch filtering di backend
+    query = await injectBranchFilter(user, query);
+    
     const data = await pertambahanSpkService.list(query);
 
     res.json({ status: "success", data });
