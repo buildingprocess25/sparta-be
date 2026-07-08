@@ -1149,7 +1149,7 @@ export const ganttRepository = {
         const insertResult = await pool.query(
             `
             INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan)
-            SELECT g.id, $2
+            SELECT g.id, $2::text
             FROM gantt_chart g
             JOIN toko t ON t.id = g.id_toko
             WHERE t.nomor_ulok = $1
@@ -1157,7 +1157,7 @@ export const ganttRepository = {
                   SELECT 1
                   FROM pengawasan_gantt pg
                   WHERE pg.id_gantt = g.id
-                    AND pg.tanggal_pengawasan = $2
+                    AND pg.tanggal_pengawasan = $2::text
               )
             `,
             [nomorUlok, tanggalPengawasan]
