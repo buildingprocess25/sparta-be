@@ -947,8 +947,7 @@ export const buildDashboardPdfBuffer = async (
   </table>
   <div class="summary">
     <div class="summary-box"><div class="k">Total Proyek</div><div class="v">${rows.length}</div></div>
-    <div class="summary-box"><div class="k">Done</div><div class="v">${rows.filter((row) => row.status === "done").length}</div></div>
-    <div class="summary-box"><div class="k">Progress</div><div class="v">${rows.filter((row) => row.status !== "done").length}</div></div>
+
     <div class="summary-box"><div class="k">Total SPK</div><div class="v">${formatMoney(rows.reduce((total, row) => total + row.nominal_spk, 0))}</div></div>
   </div>
   <table class="data">
