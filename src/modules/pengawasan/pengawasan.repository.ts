@@ -234,7 +234,8 @@ export const pengawasanRepository = {
                 bp.created_at AS bp_created_at
             FROM pengawasan p
             LEFT JOIN berkas_pengawasan bp ON bp.id_pengawasan_gantt = p.id_pengawasan_gantt
-            ${query.cabang_array && query.cabang_array.length > 0 ? "JOIN gantt_chart g ON g.id = p.id_gantt JOIN toko t ON t.id = g.id_toko" : ""}
+            JOIN gantt_chart g ON g.id = p.id_gantt
+            JOIN toko t ON t.id = g.id_toko
             ${whereClause}
             ORDER BY p.id DESC
             `,
