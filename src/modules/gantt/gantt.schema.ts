@@ -190,7 +190,8 @@ export const ganttInterventionSchema = z.object({
 export const ganttListQuerySchema = z.object({
     status: z.string().optional(),
     nomor_ulok: z.string().optional(),
-    email_pembuat: z.string().optional()
+    email_pembuat: z.string().optional(),
+    cabang_array: z.array(z.string()).optional()
 });
 
 export const ganttDetailQuerySchema = z.object({

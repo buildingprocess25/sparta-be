@@ -40,7 +40,8 @@ export const penyimpananDokumenListQuerySchema = z.object({
     nama_dokumen: z.string().trim().min(1).optional(),
     kode_toko: z.string().trim().min(1).optional(),
     nama_toko: z.string().trim().min(1).optional(),
-    cabang: z.string().trim().min(1).optional()
+    cabang: z.string().trim().min(1).optional(),
+    cabang_array: z.array(z.string()).optional()
 });
 
 export const penyimpananDokumenMigrationSchema = z.object({

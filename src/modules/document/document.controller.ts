@@ -1,5 +1,7 @@
 import type { Request, Response } from "express";
 import { asyncHandler } from "../../common/async-handler";
+import { injectBranchFilter } from "../../common/branch-filter-helper";
+import { AppError } from "../../common/app-error";
 import {
     penyimpananDokumenCreateSchema,
     penyimpananDokumenArchiveStoreCreateSchema,
@@ -29,8 +31,28 @@ export const createPenyimpananDokumen = asyncHandler(async (req: Request, res: R
 });
 
 export const listPenyimpananDokumen = asyncHandler(async (req: Request, res: Response) => {
-    const query = penyimpananDokumenListQuerySchema.parse(req.query);
+    console.log('[DOCUMENT LIST] Original request query:', JSON.stringify(req.query));
+    console.log('[DOCUMENT LIST] User info:', {
+        email: req.user?.email_sat,
+        cabang: req.user?.cabang,
+        roles: req.user?.roles
+    });
+    
+    let query = penyimpananDokumenListQuerySchema.parse(req.query);
+    console.log('[DOCUMENT LIST] After schema parse:', JSON.stringify(query));
+    
+    // Inject branch filter untuk user non-global
+    query = await injectBranchFilter(req.user!, query);
+    console.log('[DOCUMENT LIST] After inject filter:', JSON.stringify(query));
+    
+    // Security: Pastikan cabang_array tidak kosong untuk user non-global
+    if (!query.cabang_array || query.cabang_array.length === 0) {
+        console.error('[DOCUMENT LIST] REJECT: No branch access');
+        throw new AppError("User tidak memiliki akses ke cabang manapun. Hubungi administrator.", 403);
+    }
+    
     const data = await penyimpananDokumenService.list(query);
+    console.log('[DOCUMENT LIST] Result count:', data.length);
 
     res.json({
         status: "success",

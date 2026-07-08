@@ -1,5 +1,7 @@
 import type { Request, Response } from "express";
 import { asyncHandler } from "../../common/async-handler";
+import { injectBranchFilter } from "../../common/branch-filter-helper";
+import { AppError } from "../../common/app-error";
 import {
     dokumentasiBangunanCreateSchema,
     dokumentasiBangunanIdParamSchema,
@@ -29,8 +31,28 @@ export const createDokumentasiBangunan = asyncHandler(async (req: Request, res: 
 });
 
 export const listDokumentasiBangunan = asyncHandler(async (req: Request, res: Response) => {
-    const query = dokumentasiBangunanListQuerySchema.parse(req.query);
+    console.log('[DOKUMENTASI LIST] Original request query:', JSON.stringify(req.query));
+    console.log('[DOKUMENTASI LIST] User info:', {
+        email: req.user?.email_sat,
+        cabang: req.user?.cabang,
+        roles: req.user?.roles
+    });
+    
+    let query = dokumentasiBangunanListQuerySchema.parse(req.query);
+    console.log('[DOKUMENTASI LIST] After schema parse:', JSON.stringify(query));
+    
+    // Inject branch filter untuk user non-global
+    query = await injectBranchFilter(req.user!, query);
+    console.log('[DOKUMENTASI LIST] After inject filter:', JSON.stringify(query));
+    
+    // Security: Pastikan cabang_array tidak kosong untuk user non-global
+    if (!query.cabang_array || query.cabang_array.length === 0) {
+        console.error('[DOKUMENTASI LIST] REJECT: No branch access');
+        throw new AppError("User tidak memiliki akses ke cabang manapun. Hubungi administrator.", 403);
+    }
+    
     const data = await dokumentasiBangunanService.list(query);
+    console.log('[DOKUMENTASI LIST] Result count:', data.length);
 
     res.json({
         status: "success",

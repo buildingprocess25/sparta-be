@@ -210,8 +210,19 @@ export const penyimpananDokumenRepository = {
 
     async list(query: PenyimpananDokumenListQueryInput): Promise<PenyimpananDokumenRow[]> {
         const conditions: string[] = [];
-        const values: Array<number | string> = [];
+        const values: Array<number | string | string[]> = [];
         const tokoIdentity: string[] = [];
+
+        // SECURITY: Branch filtering - wajib ada untuk user non-global
+        if (query.cabang_array && query.cabang_array.length > 0) {
+            const normalizedBranches = query.cabang_array.map(b => b.trim().toUpperCase());
+            values.push(normalizedBranches as any);
+            conditions.push(`UPPER(TRIM(cabang)) = ANY($${values.length})`);
+            console.log('[DOCUMENT FILTER] Branch filter applied:', normalizedBranches);
+        } else {
+            // Jika sampai sini tanpa cabang_array, berarti ada bug di controller/filter logic
+            console.warn('[DOCUMENT FILTER] NO BRANCH FILTER! This should not happen for non-global users');
+        }
 
         if (typeof query.id_toko === "number") {
             values.push(query.id_toko);

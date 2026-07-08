@@ -68,6 +68,7 @@ export const dokumentasiBangunanUpdateSchema = z.object({
 
 export const dokumentasiBangunanListQuerySchema = z.object({
     cabang: z.string().trim().optional(),
+    cabang_array: z.array(z.string()).optional(),
     kode_toko: z.string().trim().optional(),
     nomor_ulok: z.string().trim().optional()
 });

@@ -37,7 +37,9 @@ export const getBranchScopeCandidates = (branch?: string | null): string[] => {
         }
     }
 
-    return Array.from(candidates);
+    const result = Array.from(candidates);
+    console.log(`[BRANCH SCOPE] getBranchScopeCandidates('${branch}') → normalized:'${normalized}' → result:`, result);
+    return result;
 };
 
 export const isSameBranchScope = (left?: string | null, right?: string | null): boolean => {

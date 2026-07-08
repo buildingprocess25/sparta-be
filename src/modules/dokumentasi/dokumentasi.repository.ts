@@ -234,9 +234,15 @@ export const dokumentasiBangunanRepository = {
         const conditions: string[] = [];
         const values: Array<string | string[]> = [];
 
-        if (query.cabang) {
-            values.push(getBranchScopeCandidates(query.cabang));
-            conditions.push(`UPPER(TRIM(cabang)) = ANY($${values.length}::text[])`);
+        // SECURITY: Branch filtering - wajib ada untuk user non-global
+        if (query.cabang_array && query.cabang_array.length > 0) {
+            const normalizedBranches = query.cabang_array.map(b => b.trim().toUpperCase());
+            values.push(normalizedBranches as any);
+            conditions.push(`UPPER(TRIM(cabang)) = ANY($${values.length})`);
+            console.log('[DOKUMENTASI FILTER] Branch filter applied:', normalizedBranches);
+        } else {
+            // Jika sampai sini tanpa cabang_array, berarti ada bug di controller/filter logic
+            console.warn('[DOKUMENTASI FILTER] NO BRANCH FILTER! This should not happen for non-global users');
         }
 
         if (query.kode_toko) {

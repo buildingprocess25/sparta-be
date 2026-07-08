@@ -761,6 +761,17 @@ export const ganttRepository = {
         const conditions: string[] = [];
         const values: unknown[] = [];
 
+        // SECURITY: Branch filtering - wajib ada untuk user non-global
+        if (filter.cabang_array && filter.cabang_array.length > 0) {
+            const normalizedBranches = filter.cabang_array.map((b: string) => b.trim().toUpperCase());
+            values.push(normalizedBranches as any);
+            conditions.push(`UPPER(TRIM(t.cabang)) = ANY($${values.length})`);
+            console.log('[GANTT FILTER] Branch filter applied:', normalizedBranches);
+        } else {
+            // Jika sampai sini tanpa cabang_array, berarti ada bug di controller/filter logic
+            console.warn('[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users');
+        }
+
         if (filter.status) {
             values.push(filter.status);
             conditions.push(`g.status = $${values.length}`);
