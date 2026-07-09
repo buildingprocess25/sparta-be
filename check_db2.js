@@ -1,25 +1,21 @@
-require('dotenv').config();
 const { Pool } = require('pg');
-const pool = new Pool({
-    user: process.env.DB_USER,
-    host: process.env.DB_HOST,
-    database: process.env.DB_NAME,
-    password: String(process.env.DB_PASSWORD),
-    port: process.env.DB_PORT,
-});
+require('dotenv').config();
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 
 async function main() {
-    try {
-        const result = await pool.query(`
-            SELECT id, email_pembuat, volume_akhir, jenis_pekerjaan, approval_status 
-            FROM opname_final 
-            WHERE volume_akhir > 1000
-        `);
-        console.log('Result:', result.rows);
-    } catch(e) {
-        console.error(e);
-    } finally {
-        pool.end();
-    }
+  try {
+    const deps = await pool.query("SELECT * FROM dependency_gantt WHERE id_gantt = 584");
+    console.log('Dependencies 584:', deps.rows);
+
+    const picCols = await pool.query("SELECT column_name FROM information_schema.columns WHERE table_name = 'pic_pengawasan'");
+    console.log('PIC Cols:', picCols.rows.map(r=>r.column_name).join(', '));
+    const pic = await pool.query("SELECT id, id_toko, nomor_ulok FROM pic_pengawasan WHERE id_toko = 1867");
+    console.log('PIC 1867:', pic.rows);
+  } catch (err) {
+    console.error(err);
+  } finally {
+    await pool.end();
+  }
 }
 main();
