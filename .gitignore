@@ -7,6 +7,9 @@ token_doc.json
 
 # Debug/fix scripts (jangan di-commit)
 check-*.js
+check_*.js
 fix-*.js
+fix_*.js
+scratch*.js
 
 .env
