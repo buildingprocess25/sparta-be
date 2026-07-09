@@ -369,12 +369,12 @@ export const instruksiLapanganRepository = {
         
         // NEW: Prioritize cabang_array over cabang
         if (query.cabang_array && query.cabang_array.length > 0) {
-            conditions.push(`UPPER(TRIM(t.cabang)) = ANY($${index++}::text[])`);
-            const normalizedBranches = query.cabang_array.map(b => b.trim().toUpperCase());
+            conditions.push(`REPLACE(UPPER(TRIM(t.cabang)), '_', ' ') = ANY($${index++}::text[])`);
+            const normalizedBranches = query.cabang_array.map(b => b.trim().replace(/_+/g, ' ').replace(/\s+/g, ' ').toUpperCase());
             params.push(normalizedBranches);
         } else if (query.cabang) {
-            conditions.push(`UPPER(TRIM(t.cabang)) = ANY($${index++}::text[])`);
-            params.push(getBranchScopeCandidates(query.cabang));
+            conditions.push(`REPLACE(UPPER(TRIM(t.cabang)), '_', ' ') = ANY($${index++}::text[])`);
+            params.push(getBranchScopeCandidates(query.cabang).map(b => b.replace(/_+/g, ' ').replace(/\s+/g, ' ').toUpperCase()));
         }
         
         if (query.email_pembuat) {

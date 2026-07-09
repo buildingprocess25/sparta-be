@@ -211,12 +211,12 @@ export const opnameFinalRepository = {
 
         // NEW: Prioritize cabang_array over cabang
         if (filter.cabang_array && filter.cabang_array.length > 0) {
-            const normalizedBranches = filter.cabang_array.map(b => b.trim().toUpperCase());
+            const normalizedBranches = filter.cabang_array.map(b => b.trim().replace(/_+/g, ' ').replace(/\s+/g, ' ').toUpperCase());
             values.push(normalizedBranches);
-            conditions.push(`UPPER(TRIM(t.cabang)) = ANY($${values.length}::text[])`);
+            conditions.push(`REPLACE(UPPER(TRIM(t.cabang)), '_', ' ') = ANY($${values.length}::text[])`);
         } else if (filter.cabang) {
-            values.push(getBranchScopeCandidates(filter.cabang));
-            conditions.push(`UPPER(TRIM(t.cabang)) = ANY($${values.length}::text[])`);
+            values.push(getBranchScopeCandidates(filter.cabang).map(b => b.replace(/_+/g, ' ').replace(/\s+/g, ' ').toUpperCase()));
+            conditions.push(`REPLACE(UPPER(TRIM(t.cabang)), '_', ' ') = ANY($${values.length}::text[])`);
         }
 
         if (filter.nama_kontraktor) {

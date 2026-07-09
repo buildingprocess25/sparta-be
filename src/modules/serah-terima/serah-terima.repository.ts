@@ -466,9 +466,9 @@ export const serahTerimaRepository = {
         }
 
         if (filter.cabang_array && filter.cabang_array.length > 0) {
-            const normalizedBranches = filter.cabang_array.map(b => b.trim().toUpperCase());
+            const normalizedBranches = filter.cabang_array.map(b => b.trim().replace(/_+/g, ' ').replace(/\s+/g, ' ').toUpperCase());
             values.push(normalizedBranches as any);
-            conditions.push(`UPPER(t.cabang) = ANY($${values.length})`);
+            conditions.push(`REPLACE(UPPER(TRIM(t.cabang)), '_', ' ') = ANY($${values.length})`);
         }
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";

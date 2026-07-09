@@ -296,8 +296,8 @@ export const dokumentasiBangunanRepository = {
         const values: Array<string | string[]> = [];
 
         if (query.cabang) {
-            values.push(getBranchScopeCandidates(query.cabang));
-            conditions.push(`UPPER(TRIM(t.cabang)) = ANY($${values.length}::text[])`);
+            values.push(getBranchScopeCandidates(query.cabang).map(b => b.replace(/_+/g, ' ').replace(/\s+/g, ' ').toUpperCase()));
+            conditions.push(`REPLACE(UPPER(TRIM(t.cabang)), '_', ' ') = ANY($${values.length}::text[])`);
         }
 
         if (!query.include_submitted) {
