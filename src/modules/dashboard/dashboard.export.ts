@@ -442,11 +442,11 @@ const collectProjectWorkItems = (project: DashboardData): Set<string> => {
     const values: string[] = [];
 
     project.rab.forEach((rab) => rab.items.forEach((item) => {
-        values.push(normalizeUpper(item.kategori_pekerjaan || item.jenis_pekerjaan));
+        if (item.kategori_pekerjaan) values.push(normalizeUpper(item.kategori_pekerjaan));
     }));
 
     project.instruksi_lapangan.forEach((instruksi) => instruksi.items.forEach((item) => {
-        values.push(normalizeUpper(item.kategori_pekerjaan || item.jenis_pekerjaan));
+        if (item.kategori_pekerjaan) values.push(normalizeUpper(item.kategori_pekerjaan));
     }));
 
     return new Set(values.filter(Boolean));

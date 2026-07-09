@@ -23,10 +23,10 @@
   </style>
 </head>
 <body>
-  {{ sparta_header("Berita Acara Serah Terima Gabungan", nomor_ulok ~ " - " ~ (nama_toko or '-')) | safe }}
+  {{ sparta_header("Berita Acara Serah Terima", nomor_ulok ~ " - " ~ (nama_toko or '-')) | safe }}
   
   <div class="document-title">
-    <h1>BERITA ACARA SERAH TERIMA GABUNGAN</h1>
+    <h1>BERITA ACARA SERAH TERIMA</h1>
     <div class="subtitle">NOMOR ULOK: {{ nomor_ulok }}</div>
   </div>
 
@@ -53,7 +53,7 @@
   </table>
 
   <div class="paragraph">
-    Adapun rincian rekapitulasi nilai opname dari masing-masing lingkup pekerjaan adalah sebagai berikut:
+    Adapun rincian rekapitulasi dari masing-masing lingkup pekerjaan adalah sebagai berikut:
   </div>
 
   <table class="content-table">
@@ -64,7 +64,6 @@
         <th>Kode Toko</th>
         <th>Kontraktor</th>
         <th style="width: 80px;">Total Item</th>
-        <th style="width: 120px;">Nilai Opname</th>
       </tr>
     </thead>
     <tbody>
@@ -75,7 +74,6 @@
         <td class="center">{{ scope.kode_toko or '-' }}</td>
         <td>{{ scope.nama_kontraktor or '-' }}</td>
         <td class="center">{{ scope.item_count }}</td>
-        <td class="num">{{ scope.nilai_opname_formatted }}</td>
       </tr>
       {% endfor %}
     </tbody>
@@ -83,13 +81,12 @@
       <tr>
         <td colspan="4" class="num" style="font-weight: bold; padding-right: 15px;">TOTAL KESELURUHAN</td>
         <td class="center" style="font-weight: bold;">{{ total_items }}</td>
-        <td class="num" style="font-weight: bold;">{{ total_nilai_formatted }}</td>
       </tr>
     </tfoot>
   </table>
 
   <div class="paragraph">
-    Demikian Berita Acara Serah Terima Gabungan ini dibuat untuk dipergunakan sebagaimana mestinya. Rincian opname untuk masing-masing pekerjaan dilampirkan pada halaman berikutnya untuk mempermudah proses pemeriksaan.
+    Demikian Berita Acara Serah Terima ini dibuat untuk dipergunakan sebagaimana mestinya. Rincian pekerjaan dilampirkan pada halaman berikutnya untuk mempermudah proses pemeriksaan.
   </div>
 
   <div class="note">
