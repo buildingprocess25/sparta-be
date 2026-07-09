@@ -11,10 +11,21 @@ export const listBerkasSerahTerima = asyncHandler(async (req: Request, res: Resp
     }
     let query = listBerkasSerahTerimaQuerySchema.parse(req.query);
     query = await injectBranchFilter(req.user, query);
+    
+    // Security IDOR: Cegah Kontraktor melihat data PT lain
+    const isKontraktor = req.user.roles.some((r: string) => r.toUpperCase().includes('KONTRAKTOR') || r.toUpperCase().includes('DIREKTUR'));
+    if (isKontraktor) {
+        if (!req.user.nama_pt) {
+            throw new AppError("Akses ditolak: Data PT tidak ditemukan untuk akun kontraktor ini.", 403);
+        }
+        (query as any).nama_kontraktor = req.user.nama_pt;
+    }
+    
     const data = await serahTerimaService.list({ 
         id_toko: query.id_toko, 
         nomor_ulok: query.nomor_ulok,
-        cabang_array: query.cabang_array 
+        cabang_array: query.cabang_array,
+        nama_kontraktor: (query as any).nama_kontraktor,
     });
 
     res.json({

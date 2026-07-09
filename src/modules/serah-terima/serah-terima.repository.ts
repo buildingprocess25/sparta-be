@@ -451,7 +451,7 @@ export const serahTerimaRepository = {
         return result.rows[0] ?? null;
     },
 
-    async listBerkasSerahTerima(filter: { id_toko?: number; nomor_ulok?: string; cabang_array?: string[] } = {}): Promise<BerkasSerahTerimaWithTokoRow[]> {
+    async listBerkasSerahTerima(filter: { id_toko?: number; nomor_ulok?: string; cabang_array?: string[]; nama_kontraktor?: string } = {}): Promise<BerkasSerahTerimaWithTokoRow[]> {
         const values: Array<number | string> = [];
         const conditions: string[] = [];
 
@@ -469,6 +469,11 @@ export const serahTerimaRepository = {
             const normalizedBranches = filter.cabang_array.map(b => b.trim().replace(/_+/g, ' ').replace(/\s+/g, ' ').toUpperCase());
             values.push(normalizedBranches as any);
             conditions.push(`REPLACE(UPPER(TRIM(t.cabang)), '_', ' ') = ANY($${values.length})`);
+        }
+
+        if (filter.nama_kontraktor) {
+            values.push(filter.nama_kontraktor.trim());
+            conditions.push(`LOWER(TRIM(t.nama_kontraktor)) = LOWER($${values.length})`);
         }
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";

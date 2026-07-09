@@ -72,6 +72,15 @@ export const listInstruksiLapangan = asyncHandler(async (req: Request, res: Resp
     // Enforce branch filtering di backend
     query = await injectBranchFilter(user, query);
     
+    // Security IDOR: Cegah Kontraktor melihat data PT lain
+    const isKontraktor = user.roles.some((r: string) => r.toUpperCase().includes('KONTRAKTOR') || r.toUpperCase().includes('DIREKTUR'));
+    if (isKontraktor) {
+        if (!user.nama_pt) {
+            throw new AppError("Akses ditolak: Data PT tidak ditemukan untuk akun kontraktor ini.", 403);
+        }
+        (query as any).nama_kontraktor = user.nama_pt;
+    }
+    
     const data = await instruksiLapanganService.list(query);
 
     res.json({ status: "success", data });
