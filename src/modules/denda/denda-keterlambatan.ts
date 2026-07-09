@@ -97,40 +97,21 @@ const nextBusinessDayAfter = (date: Date): Date => {
 };
 
 /**
- * Jika hari bebas (freeDate) langsung diikuti oleh hari weekend,
- * perpanjang masa bebas melewati seluruh blok weekend tersebut
- * hingga hari kerja pertama setelahnya.
+ * Hitung jumlah hari KALENDER (termasuk Sabtu & Minggu) antara
+ * freeDate dan stDate (eksklusif freeDate, inklusif stDate).
+ *
+ * Aturan bisnis Alfamart: denda dihitung per hari kalender,
+ * bukan per hari kerja. Sabtu & Minggu tetap terhitung denda.
  *
  * Contoh: SPK berakhir Kamis 2 Jul → freeDate = Jumat 3 Jul.
- * Karena Sabtu & Minggu adalah libur, kontraktor tidak bisa ST di
- * akhir pekan. Senin 6 Jul (hari kerja pertama setelah weekend)
- * dianggap masih masuk masa bebas, sehingga tidak terkena denda.
+ * ST tgl 6 Jul (Senin) → denda = Sabtu (1) + Minggu (2) + Senin (3) = 3 hari = Rp 3 jt.
  */
-const extendFreeDateOverWeekend = (freeDate: Date): Date => {
-    const next = addDays(freeDate, 1);
-    if (!isWeekend(next)) return freeDate;
-
-    // Lompati seluruh blok weekend
-    let current = next;
-    while (isWeekend(current)) {
-        current = addDays(current, 1);
-    }
-    // `current` = hari kerja pertama setelah weekend → jadikan batas akhir masa bebas
-    return current;
-};
-
-const countWeekdaysAfterFreeDate = (freeDate: Date, stDate: Date): number => {
+const countCalendarDaysAfterFreeDate = (freeDate: Date, stDate: Date): number => {
     const normalizedFreeDate = startOfLocalDay(freeDate);
     const normalizedStDate = startOfLocalDay(stDate);
     if (normalizedStDate <= normalizedFreeDate) return 0;
 
-    let current = addDays(normalizedFreeDate, 1);
-    let count = 0;
-    while (current <= normalizedStDate) {
-        if (!isWeekend(current)) count += 1;
-        current = addDays(current, 1);
-    }
-    return count;
+    return Math.round((normalizedStDate.getTime() - normalizedFreeDate.getTime()) / MS_PER_DAY);
 };
 
 export const calculateDendaNominal = (hariDenda: number): number => {
@@ -193,12 +174,10 @@ export const calculateDendaFromDates = (
         };
     }
 
-    // Hari kerja pertama setelah akhir SPK = hari bebas
+    // Hari kerja pertama setelah akhir SPK = 1 hari bebas (grace period)
     const freeDate = nextBusinessDayAfter(tanggalAkhirSpk);
-    // Jika hari bebas langsung diikuti weekend, absorb weekend:
-    // hari kerja pertama pasca-weekend juga masuk masa bebas
-    const extendedFreeDate = extendFreeDateOverWeekend(freeDate);
-    const hariDenda = countWeekdaysAfterFreeDate(extendedFreeDate, tanggalSerahTerima);
+    // Denda dihitung per hari KALENDER (termasuk Sabtu & Minggu) setelah freeDate
+    const hariDenda = countCalendarDaysAfterFreeDate(freeDate, tanggalSerahTerima);
 
     return {
         hari_denda: hariDenda,
