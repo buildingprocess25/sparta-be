@@ -131,7 +131,9 @@ export const listPengawasan = asyncHandler(async (req: Request, res: Response) =
     console.log('[PENGAWASAN LIST] After inject filter:', JSON.stringify(query));
     
     // Security: Pastikan cabang_array tidak kosong untuk user non-global
-    if (!query.cabang_array || query.cabang_array.length === 0) {
+    // Global user (super human) akan punya cabang_array undefined = bypass, tidak perlu dicek
+    const isGlobal = !query.cabang_array; // undefined = global bypass
+    if (!isGlobal && query.cabang_array!.length === 0) {
         console.error('[PENGAWASAN LIST] REJECT: No branch access');
         throw new AppError("User tidak memiliki akses ke cabang manapun. Hubungi administrator.", 403);
     }
@@ -155,13 +157,15 @@ export const listPendingPengawasanMigrationPdfs = asyncHandler(async (req: Reque
     let query: any = {};
     query = await injectBranchFilter(req.user!, query);
     
-    // Security: Pastikan cabang_array tidak kosong untuk user non-global
-    if (!query.cabang_array || query.cabang_array.length === 0) {
+    // Security: Global user (super human) punya cabang_array undefined = bypass
+    const isGlobal = !query.cabang_array;
+    if (!isGlobal && query.cabang_array.length === 0) {
         throw new AppError("User tidak memiliki akses ke cabang manapun. Hubungi administrator.", 403);
     }
     
     const nomorUlok = typeof req.query.nomor_ulok === "string" ? req.query.nomor_ulok : undefined;
-    const data = await pengawasanService.listPendingMigrationPdfs(nomorUlok, query.cabang_array);
+    // Global user: pass undefined agar service tidak filter cabang
+    const data = await pengawasanService.listPendingMigrationPdfs(nomorUlok, isGlobal ? undefined : query.cabang_array);
     res.json({ status: "success", data });
 });
 

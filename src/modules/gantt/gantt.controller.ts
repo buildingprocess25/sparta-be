@@ -48,7 +48,9 @@ export const listGantt = asyncHandler(async (req: Request, res: Response) => {
     console.log('[GANTT LIST] After inject filter:', JSON.stringify(query));
     
     // Security: Pastikan cabang_array tidak kosong untuk user non-global
-    if (!query.cabang_array || query.cabang_array.length === 0) {
+    // Global user (super human) akan punya cabang_array undefined = bypass, tidak perlu dicek
+    const isGlobal = !query.cabang_array; // undefined = global bypass
+    if (!isGlobal && query.cabang_array!.length === 0) {
         console.error('[GANTT LIST] REJECT: No branch access');
         throw new AppError("User tidak memiliki akses ke cabang manapun. Hubungi administrator.", 403);
     }
