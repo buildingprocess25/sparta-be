@@ -30,6 +30,20 @@ test("denda remains zero when the first serah terima is within the free period",
     assert.equal(result.nilai_denda, 0);
 });
 
+test("denda calculation with weekend (Kamis/Jumat SPK)", () => {
+    // SPK berakhir Kamis (11 Juni 2026) -> ST Senin (15 Juni 2026) = 0 denda
+    const kamisToSenin = calculateDendaFromDates(new Date(2026, 5, 11), new Date(2026, 5, 15));
+    assert.equal(kamisToSenin.hari_denda, 0);
+
+    // SPK berakhir Kamis (11 Juni 2026) -> ST Selasa (16 Juni 2026) = 1 hari denda
+    const kamisToSelasa = calculateDendaFromDates(new Date(2026, 5, 11), new Date(2026, 5, 16));
+    assert.equal(kamisToSelasa.hari_denda, 1);
+
+    // SPK berakhir Jumat (12 Juni 2026) -> ST Senin (15 Juni 2026) = 0 denda
+    const jumatToSenin = calculateDendaFromDates(new Date(2026, 5, 12), new Date(2026, 5, 15));
+    assert.equal(jumatToSenin.hari_denda, 0);
+});
+
 test("denda nominal is capped at 7.5 million before SP or takeover decision", () => {
     assert.equal(calculateDendaNominal(0), 0);
     assert.equal(calculateDendaNominal(5), 5_000_000);

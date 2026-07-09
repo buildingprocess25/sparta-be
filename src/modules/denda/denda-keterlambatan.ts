@@ -96,6 +96,29 @@ const nextBusinessDayAfter = (date: Date): Date => {
     return current;
 };
 
+/**
+ * Jika hari bebas (freeDate) langsung diikuti oleh hari weekend,
+ * perpanjang masa bebas melewati seluruh blok weekend tersebut
+ * hingga hari kerja pertama setelahnya.
+ *
+ * Contoh: SPK berakhir Kamis 2 Jul → freeDate = Jumat 3 Jul.
+ * Karena Sabtu & Minggu adalah libur, kontraktor tidak bisa ST di
+ * akhir pekan. Senin 6 Jul (hari kerja pertama setelah weekend)
+ * dianggap masih masuk masa bebas, sehingga tidak terkena denda.
+ */
+const extendFreeDateOverWeekend = (freeDate: Date): Date => {
+    const next = addDays(freeDate, 1);
+    if (!isWeekend(next)) return freeDate;
+
+    // Lompati seluruh blok weekend
+    let current = next;
+    while (isWeekend(current)) {
+        current = addDays(current, 1);
+    }
+    // `current` = hari kerja pertama setelah weekend → jadikan batas akhir masa bebas
+    return current;
+};
+
 const countWeekdaysAfterFreeDate = (freeDate: Date, stDate: Date): number => {
     const normalizedFreeDate = startOfLocalDay(freeDate);
     const normalizedStDate = startOfLocalDay(stDate);
@@ -170,8 +193,12 @@ export const calculateDendaFromDates = (
         };
     }
 
+    // Hari kerja pertama setelah akhir SPK = hari bebas
     const freeDate = nextBusinessDayAfter(tanggalAkhirSpk);
-    const hariDenda = countWeekdaysAfterFreeDate(freeDate, tanggalSerahTerima);
+    // Jika hari bebas langsung diikuti weekend, absorb weekend:
+    // hari kerja pertama pasca-weekend juga masuk masa bebas
+    const extendedFreeDate = extendFreeDateOverWeekend(freeDate);
+    const hariDenda = countWeekdaysAfterFreeDate(extendedFreeDate, tanggalSerahTerima);
 
     return {
         hari_denda: hariDenda,
