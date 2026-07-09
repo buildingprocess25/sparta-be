@@ -220,22 +220,16 @@ export const opnameFinalRepository = {
         }
 
         if (filter.nama_kontraktor) {
-            values.push(filter.nama_kontraktor);
-            conditions.push(`LOWER(t.nama_kontraktor) = LOWER($${values.length})`);
+            // Normalize: hilangkan PT, CV, titik, koma, spasi ganda
+            const normalizedKontraktor = filter.nama_kontraktor.toLowerCase().replace(/\b(pt|cv)\b/gi, '').replace(/[.,]/g, '').replace(/\s+/g, ' ').trim();
+            values.push(normalizedKontraktor);
+            conditions.push(`LOWER(TRIM(REGEXP_REPLACE(REGEXP_REPLACE(t.nama_kontraktor, '\\y(pt|cv)\\y|[\\.,]', ' ', 'gi'), '\\s+', ' ', 'g'))) = $${values.length}`);
         }
 
         if (filter.tipe_opname) {
             values.push(filter.tipe_opname);
             conditions.push(`ofn.tipe_opname = $${values.length}`);
         }
-
-        conditions.push(`
-            EXISTS (
-                SELECT 1
-                FROM opname_item oi
-                WHERE oi.id_opname_final = ofn.id
-            )
-        `);
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 

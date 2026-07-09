@@ -776,8 +776,9 @@ export const ganttRepository = {
 
         // SECURITY: Contractor filter - pastikan kontraktor hanya lihat proyek mereka sendiri
         if (filter.nama_kontraktor) {
-            values.push(filter.nama_kontraktor.trim());
-            conditions.push(`LOWER(TRIM(t.nama_kontraktor)) = LOWER($${values.length})`);
+            const normalizedKontraktor = filter.nama_kontraktor.toLowerCase().replace(/\b(pt|cv)\b/gi, '').replace(/[.,]/g, '').replace(/\s+/g, ' ').trim();
+            values.push(normalizedKontraktor);
+            conditions.push(`LOWER(TRIM(REGEXP_REPLACE(REGEXP_REPLACE(t.nama_kontraktor, '\\y(pt|cv)\\y|[\\.,]', ' ', 'gi'), '\\s+', ' ', 'g'))) = $${values.length}`);
             console.log('[GANTT FILTER] Contractor filter applied:', filter.nama_kontraktor);
         }
 
