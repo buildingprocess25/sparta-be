@@ -41,7 +41,8 @@ export const pertambahanSpkListQuerySchema = z.object({
     id_spk: z.coerce.number().int().positive().optional(),
     status_persetujuan: z.string().optional(),
     cabang: z.string().trim().min(1).optional(),
-    cabang_array: z.array(z.string()).optional()
+    cabang_array: z.array(z.string()).optional(),
+    nama_kontraktor: z.string().trim().min(1).optional()
 });
 
 export const pertambahanSpkApprovalSchema = z

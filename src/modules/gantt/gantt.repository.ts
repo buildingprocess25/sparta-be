@@ -750,6 +750,7 @@ export const ganttRepository = {
         nomor_ulok?: string;
         email_pembuat?: string;
         cabang_array?: string[];
+        nama_kontraktor?: string;
     }): Promise<
         (GanttRow & {
             nomor_ulok: string;
@@ -771,6 +772,13 @@ export const ganttRepository = {
         } else {
             // Jika sampai sini tanpa cabang_array, berarti ada bug di controller/filter logic
             console.warn('[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users');
+        }
+
+        // SECURITY: Contractor filter - pastikan kontraktor hanya lihat proyek mereka sendiri
+        if (filter.nama_kontraktor) {
+            values.push(filter.nama_kontraktor.trim());
+            conditions.push(`LOWER(TRIM(t.nama_kontraktor)) = LOWER($${values.length})`);
+            console.log('[GANTT FILTER] Contractor filter applied:', filter.nama_kontraktor);
         }
 
         if (filter.status) {

@@ -217,6 +217,13 @@ export const pengawasanRepository = {
             console.warn('[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users');
         }
 
+        // SECURITY: Contractor filter - pastikan kontraktor hanya lihat proyek mereka sendiri
+        if (query.nama_kontraktor) {
+            values.push(query.nama_kontraktor.trim());
+            conditions.push(`LOWER(TRIM(t.nama_kontraktor)) = LOWER($${values.length})`);
+            console.log('[PENGAWASAN FILTER] Contractor filter applied:', query.nama_kontraktor);
+        }
+
         if (typeof idPengawasanGantt !== "undefined") {
             values.push(idPengawasanGantt);
             conditions.push(`p.id_pengawasan_gantt = $${values.length}`);

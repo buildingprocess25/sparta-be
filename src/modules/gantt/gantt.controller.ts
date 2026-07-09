@@ -53,6 +53,15 @@ export const listGantt = asyncHandler(async (req: Request, res: Response) => {
         throw new AppError("User tidak memiliki akses ke cabang manapun. Hubungi administrator.", 403);
     }
     
+    // Security IDOR: Cegah Kontraktor melihat data PT lain dengan memanipulasi query parameter
+    const isKontraktor = req.user!.roles.some((r: string) => r.toUpperCase().includes('KONTRAKTOR') || r.toUpperCase().includes('DIREKTUR'));
+    if (isKontraktor) {
+        if (!req.user!.nama_pt) {
+            throw new AppError("Akses ditolak: Data PT tidak ditemukan untuk akun kontraktor ini.", 403);
+        }
+        query.nama_kontraktor = req.user!.nama_pt;
+    }
+    
     const data = await ganttService.list(query);
     console.log('[GANTT LIST] Result count:', data.length);
 

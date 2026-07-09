@@ -40,7 +40,8 @@ export const listPengawasanQuerySchema = z.object({
     kategori_pekerjaan: z.string().trim().min(1).optional(),
     jenis_pekerjaan: z.string().trim().min(1).optional(),
     status: pengawasanStatusSchema.optional(),
-    cabang_array: z.array(z.string()).optional()
+    cabang_array: z.array(z.string()).optional(),
+    nama_kontraktor: z.string().trim().min(1).optional()
 });
 
 export type PengawasanStatusInput = z.infer<typeof pengawasanStatusSchema>;

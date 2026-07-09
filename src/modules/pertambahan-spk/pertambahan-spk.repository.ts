@@ -219,6 +219,13 @@ export const pertambahanSpkRepository = {
             conditions.push(`REPLACE(UPPER(TRIM(t.cabang)), '_', ' ') = ANY($${values.length}::text[])`);
         }
 
+        // SECURITY: Contractor filter - pastikan kontraktor hanya lihat proyek mereka sendiri
+        if (query.nama_kontraktor) {
+            values.push(query.nama_kontraktor.trim());
+            conditions.push(`LOWER(TRIM(t.nama_kontraktor)) = LOWER($${values.length})`);
+            console.log('[KTK FILTER] Contractor filter applied:', query.nama_kontraktor);
+        }
+
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
         const result = await pool.query<PertambahanSpkDetailRow>(

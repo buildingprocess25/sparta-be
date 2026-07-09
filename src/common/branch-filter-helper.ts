@@ -61,10 +61,11 @@ export const injectBranchFilter = async <T extends QueryWithBranchArray>(
     console.log('[BRANCH FILTER] User:', user.email_sat, 'Cabang:', user.cabang, 'Source:', scope.source, 'Branches:', scope.branches);
     
     if (scope.source === "global") {
-        // Global user: return semua branches (akan di-handle di controller)
+        // Global user: bypass branch filtering entirely.
+        // Return object without cabang_array so repositories skip the ANY($X) filter.
         return {
             ...query,
-            cabang_array: scope.branches
+            cabang_array: undefined
         };
     }
 

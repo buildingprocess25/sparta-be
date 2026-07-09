@@ -191,7 +191,8 @@ export const ganttListQuerySchema = z.object({
     status: z.string().optional(),
     nomor_ulok: z.string().optional(),
     email_pembuat: z.string().optional(),
-    cabang_array: z.array(z.string()).optional()
+    cabang_array: z.array(z.string()).optional(),
+    nama_kontraktor: z.string().optional()
 });
 
 export const ganttDetailQuerySchema = z.object({
