@@ -11,6 +11,12 @@ export const ACTIVE_SPK_STATUSES: SpkStatus[] = [
     SPK_STATUS.SPK_APPROVED
 ];
 
+// Status yang mengizinkan akses Gantt / Pengawasan
+// Hanya SPK yang sudah benar-benar Approved yang boleh mengisi jadwal
+export const SPK_APPROVED_STATUSES: SpkStatus[] = [
+    SPK_STATUS.SPK_APPROVED
+];
+
 export const BRANCH_TO_CODE_MAP: Record<string, string> = {
     "WHC IMAM BONJOL": "7AZ1", "LUWU": "2VZ1", "KARAWANG": "1JZ1", "REMBANG": "2AZ1",
     "BANJARMASIN": "1GZ1", "PARUNG": "1MZ1", "TEGAL": "2PZ1", "GORONTALO": "2SZ1",

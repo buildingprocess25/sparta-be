@@ -6,6 +6,8 @@ import { rabRepository } from "../rab/rab.repository";
 import { activityLogRepository } from "../activity-log/activity-log.repository";
 import { GANTT_STATUS } from "./gantt.constants";
 import { ganttRepository } from "./gantt.repository";
+import { spkRepository } from "../spk/spk.repository";
+import { SPK_APPROVED_STATUSES } from "../spk/spk.constants";
 import type {
     AddDayItemsInput,
     CreateGanttNoteInput,
@@ -282,10 +284,12 @@ export const ganttService = {
         includeDependencyCategories(kategoriPekerjaan, payload.dependencies);
 
         // 1. Jika sudah ada gantt aktif untuk ULOK ini, lakukan replace data (bukan create baru)
+
         const existingToko = await tokoRepository.findByNomorUlokAndLingkup(
             payload.nomor_ulok,
             payload.lingkup_pekerjaan
         );
+
         if (existingToko) {
             const activeGantt = await ganttRepository.findLatestActiveByTokoId(existingToko.id);
             if (activeGantt) {
@@ -603,6 +607,17 @@ export const ganttService = {
         const status = await ganttRepository.findStatusById(id);
         if (status === null) {
             throw new AppError("Gantt Chart tidak ditemukan", 404);
+        }
+
+        const gantt = await ganttRepository.findById(id);
+        if (gantt) {
+            const isSpkApproved = await spkRepository.existsApprovedByUlokAndLingkup(
+                gantt.toko.nomor_ulok,
+                gantt.toko.lingkup_pekerjaan ?? ""
+            );
+            if (!isSpkApproved) {
+                throw new AppError("SPK untuk lingkup ini belum disetujui (Approved). Tidak dapat mengisi pengawasan.", 403);
+            }
         }
 
         if (payload.tanggal_pengawasan) {

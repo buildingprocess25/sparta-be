@@ -1,7 +1,7 @@
 import { pool, withTransaction } from "../../db/pool";
 import { getBranchScopeCandidates } from "../../common/branch-scope";
 import { activityLogRepository } from "../activity-log/activity-log.repository";
-import { ACTIVE_SPK_STATUSES, type SpkStatus } from "./spk.constants";
+import { ACTIVE_SPK_STATUSES, SPK_APPROVED_STATUSES, type SpkStatus } from "./spk.constants";
 import type { SpkApprovalInput, SpkInterventionInput } from "./spk.schema";
 
 export type PengajuanSpkRow = {
@@ -109,6 +109,25 @@ export const spkRepository = {
       )
       `,
             [nomorUlok, lingkupPekerjaan, ACTIVE_SPK_STATUSES]
+        );
+
+        return result.rows[0]?.exists ?? false;
+    },
+
+    // Cek apakah ada SPK yang benar-benar Approved (bukan sekedar aktif/pending)
+    // Digunakan untuk memblokir Gantt/Pengawasan jika SPK belum benar-benar disetujui
+    async existsApprovedByUlokAndLingkup(nomorUlok: string, lingkupPekerjaan: string): Promise<boolean> {
+        const result = await pool.query<{ exists: boolean }>(
+            `
+      SELECT EXISTS(
+        SELECT 1
+        FROM pengajuan_spk
+        WHERE UPPER(nomor_ulok) = UPPER($1)
+          AND UPPER(lingkup_pekerjaan) = UPPER($2)
+          AND status = ANY($3::text[])
+      )
+      `,
+            [nomorUlok, lingkupPekerjaan, SPK_APPROVED_STATUSES]
         );
 
         return result.rows[0]?.exists ?? false;
