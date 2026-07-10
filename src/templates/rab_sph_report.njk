@@ -244,23 +244,7 @@
                     <td>:</td>
                     <td>{{ alamat_toko }}</td>
                 </tr>
-                {% if coordinator_info and coordinator_info.show %}
-                <tr>
-                    <td class="label">Beanspot</td>
-                    <td>:</td>
-                    <td>{{ coordinator_info.beanspot }}</td>
-                </tr>
-                <tr>
-                    <td class="label">HTH</td>
-                    <td>:</td>
-                    <td>{{ coordinator_info.hth }}</td>
-                </tr>
-                <tr>
-                    <td class="label">Fasade</td>
-                    <td>:</td>
-                    <td>{{ coordinator_info.fasade }}</td>
-                </tr>
-                {% endif %}
+                {# Informasi beanspot, HTH, fasade dihilangkan agar tidak terlihat oleh direktur kontraktor #}
                 <tr>
                     <td class="label">Dan ditenderkan pada hari</td>
                     <td>:</td>
