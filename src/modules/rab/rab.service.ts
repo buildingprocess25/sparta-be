@@ -1547,9 +1547,20 @@ export const rabService = {
         }
 
         // Check apakah user adalah kontraktor atau direktur kontraktor
-        const userRoles = (user?.role || '').toUpperCase();
-        const isContractorRole = userRoles.includes('KONTRAKTOR') || userRoles.includes('DIREKTUR');
+        const userRoles = Array.isArray(user?.roles) 
+            ? user.roles.map((r: string) => r.toUpperCase()) 
+            : [];
+        const isContractorRole = userRoles.some((role: string) => 
+            role.includes('KONTRAKTOR') || role.includes('DIREKTUR')
+        );
         const hideCoordinatorInfo = isContractorRole;
+        
+        logRab("REGENERATE", "Role detection", { 
+            rabId: id, 
+            userRoles, 
+            isContractorRole, 
+            hideCoordinatorInfo 
+        });
 
         const links = await this.regeneratePdf(id, hideCoordinatorInfo);
         const downloaded = await fetchFileBufferByLink(links.link_pdf_gabungan);
@@ -1695,16 +1706,27 @@ export const rabService = {
     },
 
     async getPdfDownloadPayload(id: string, user?: any) {
-        logRab("DOWNLOAD", "Request PDF gabungan", { rabId: id, userRole: user?.role });
+        logRab("DOWNLOAD", "Request PDF gabungan", { rabId: id, userRoles: user?.roles });
         const data = await rabRepository.findById(id);
         if (!data) {
             throw new AppError("Pengajuan RAB tidak ditemukan", 404);
         }
 
         // Check apakah user adalah kontraktor atau direktur kontraktor
-        const userRoles = (user?.role || '').toUpperCase();
-        const isContractorRole = userRoles.includes('KONTRAKTOR') || userRoles.includes('DIREKTUR');
+        const userRoles = Array.isArray(user?.roles) 
+            ? user.roles.map((r: string) => r.toUpperCase()) 
+            : [];
+        const isContractorRole = userRoles.some((role: string) => 
+            role.includes('KONTRAKTOR') || role.includes('DIREKTUR')
+        );
         const hideCoordinatorInfo = isContractorRole;
+        
+        logRab("DOWNLOAD", "Role detection", { 
+            rabId: id, 
+            userRoles, 
+            isContractorRole, 
+            hideCoordinatorInfo 
+        });
 
         let rawLink = data.rab.link_pdf_gabungan?.trim();
         try {
