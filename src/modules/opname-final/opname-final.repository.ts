@@ -135,6 +135,7 @@ export type OpnameFinalDetail = {
 export type OpnameFinalIdRow = {
     id: number;
     id_toko: number;
+    lingkup_pekerjaan: string | null;
 };
 
 export type RukoConversionContext = {
@@ -478,7 +479,7 @@ export const opnameFinalRepository = {
     async listIdsByPenaltyScope(idToko: number): Promise<OpnameFinalIdRow[]> {
         const result = await pool.query<OpnameFinalIdRow>(
             `
-            SELECT ofn.id, ofn.id_toko
+            SELECT ofn.id, ofn.id_toko, peer_toko.lingkup_pekerjaan
             FROM opname_final ofn
             JOIN toko peer_toko ON peer_toko.id = ofn.id_toko
             JOIN toko target_toko ON target_toko.id = $1
@@ -490,7 +491,14 @@ export const opnameFinalRepository = {
                   OR peer_toko.cabang IS NULL
                   OR UPPER(peer_toko.cabang) = UPPER(target_toko.cabang)
               )
-            ORDER BY ofn.created_at DESC, ofn.id DESC
+            ORDER BY
+              CASE
+                WHEN UPPER(TRIM(COALESCE(peer_toko.lingkup_pekerjaan, ''))) = 'SIPIL' THEN 0
+                WHEN UPPER(TRIM(COALESCE(peer_toko.lingkup_pekerjaan, ''))) = 'ME' THEN 1
+                ELSE 2
+              END,
+              ofn.created_at DESC,
+              ofn.id DESC
             `,
             [idToko]
         );

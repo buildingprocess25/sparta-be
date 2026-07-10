@@ -9,7 +9,7 @@ import { buildOpnameFinalPdfBuffer } from "./opname-final.pdf";
 import { calculateOpnameFinalFinancials, isNoPpnArea } from "./opname-final.financial";
 import { OPNAME_FINAL_STATUS, type OpnameFinalStatus } from "./opname-final.constants";
 import { opnameFinalRepository } from "./opname-final.repository";
-import type { OpnameFinalDetail } from "./opname-final.repository";
+import type { OpnameFinalDetail, OpnameFinalIdRow } from "./opname-final.repository";
 import type { LockOpnameFinalInput, OpnameFinalListQueryInput } from "./opname-final.schema";
 
 type PgError = {
@@ -232,11 +232,37 @@ const applyRukoConversionIfNeeded = async (
     };
 };
 
+type DendaPayload = {
+    hari_denda: number;
+    nilai_denda: number;
+    tanggal_akhir_spk: string | null;
+    tanggal_serah_terima: string | null;
+};
+
+const zeroAllocatedDenda = (): DendaPayload => ({
+    hari_denda: 0,
+    nilai_denda: 0,
+    tanggal_akhir_spk: null,
+    tanggal_serah_terima: null,
+});
+
+const isSipilScope = (row: OpnameFinalIdRow): boolean =>
+    String(row.lingkup_pekerjaan ?? "").trim().toUpperCase() === "SIPIL";
+
+const resolvePenaltyOwner = (rows: OpnameFinalIdRow[]): OpnameFinalIdRow | null => {
+    if (rows.length === 0) return null;
+    return rows.find(isSipilScope) ?? rows[0];
+};
+
 const refreshDenda = async (opnameFinalId: string, idToko: number) => {
     const denda = await calculateDendaByTokoId(idToko);
+    const scopedRows = await opnameFinalRepository.listIdsByPenaltyScope(idToko);
+    const owner = resolvePenaltyOwner(scopedRows);
+    const isCurrentOwner = !owner || String(owner.id) === String(opnameFinalId);
+    const allocatedDenda = isCurrentOwner ? denda : zeroAllocatedDenda();
 
     // Safety guard: jangan overwrite denda valid jika perhitungan baru gagal (return 0)
-    if (denda.hari_denda === 0 && denda.tanggal_akhir_spk === null) {
+    if (isCurrentOwner && denda.hari_denda === 0 && denda.tanggal_akhir_spk === null) {
         const existing = await opnameFinalRepository.findById(opnameFinalId);
         const existingHari = Number(existing?.opname_final.hari_denda ?? 0);
         if (existingHari > 0) {
@@ -250,15 +276,34 @@ const refreshDenda = async (opnameFinalId: string, idToko: number) => {
         }
     }
 
-    await opnameFinalRepository.updateDenda(opnameFinalId, denda);
-    return denda;
+    await opnameFinalRepository.updateDenda(opnameFinalId, allocatedDenda);
+    return allocatedDenda;
 };
 
 
 const refreshDendaByTokoScope = async (idToko: number) => {
     const rows = await opnameFinalRepository.listIdsByPenaltyScope(idToko);
-    await Promise.all(rows.map((row) => refreshDenda(String(row.id), row.id_toko)));
+    if (rows.length === 0) {
+        return 0;
+    }
+
+    const denda = await calculateDendaByTokoId(idToko);
+    const owner = resolvePenaltyOwner(rows);
+
+    await Promise.all(rows.map(async (row) => {
+        const allocatedDenda = owner && row.id === owner.id ? denda : zeroAllocatedDenda();
+        await opnameFinalRepository.updateDenda(String(row.id), allocatedDenda);
+        await opnameFinalRepository.updateTotals(String(row.id));
+    }));
     return rows.length;
+};
+
+const refreshDendaAllocation = async (opnameFinalId: string, idToko: number) => {
+    const updatedCount = await refreshDendaByTokoScope(idToko);
+    if (updatedCount === 0) {
+        await refreshDenda(opnameFinalId, idToko);
+    }
+    return updatedCount;
 };
 
 const regeneratePdfAndUpload = async (opnameFinalId: string): Promise<string> => {
@@ -308,7 +353,7 @@ export const opnameFinalService = {
         const newStatus = resolveStatusTransition(currentStatus, action);
 
         await opnameFinalRepository.updateApproval(id, newStatus, action);
-        await refreshDenda(id, detail.toko.id);
+        await refreshDendaAllocation(id, detail.toko.id);
         await opnameFinalRepository.updateTotals(id);
 
         const linkPdf = await regeneratePdfAndUpload(id);
@@ -328,7 +373,7 @@ export const opnameFinalService = {
             throw new AppError("Data opname_final tidak ditemukan", 404);
         }
 
-        await refreshDenda(id, detail.toko.id);
+        await refreshDendaAllocation(id, detail.toko.id);
         await opnameFinalRepository.updateTotals(id);
         const refreshedDetail = await opnameFinalRepository.findById(id);
         if (!refreshedDetail) {
@@ -356,7 +401,7 @@ export const opnameFinalService = {
                 throw new AppError("Data opname_final tidak ditemukan", 404);
             }
 
-            await refreshDenda(id, payload.id_toko);
+            await refreshDendaAllocation(id, payload.id_toko);
             await opnameFinalRepository.updateTotals(id);
             const linkPdf = await regeneratePdfAndUpload(id);
             await opnameFinalRepository.updatePdfLink(id, linkPdf);
@@ -384,7 +429,7 @@ export const opnameFinalService = {
             throw new AppError("Data opname_final tidak ditemukan", 404);
         }
 
-        await refreshDenda(id, detail.toko.id);
+        await refreshDendaAllocation(id, detail.toko.id);
         await opnameFinalRepository.updateTotals(id);
         const linkPdf = await regeneratePdfAndUpload(id);
         await opnameFinalRepository.updatePdfLink(id, linkPdf);

@@ -25,6 +25,7 @@
         "regenerate:il-pdfs": "tsx src/scripts/regenerate-instruksi-lapangan-pdfs.ts",
         "correct:serah-terima-date": "tsx src/scripts/correct-serah-terima-date.ts",
         "backfill:migrated-st": "tsx src/scripts/backfill-migrated-serah-terima-from-mapping.ts",
+        "delete:ulok-1GZ1-2606-0016": "tsx src/scripts/delete-ulok-1GZ1-2606-0016.ts",
         "typecheck": "tsc --noEmit -p tsconfig.json"
     },
     "dependencies": {
