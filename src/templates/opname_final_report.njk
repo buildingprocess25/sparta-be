@@ -629,6 +629,12 @@
       <td class="label">Denda Keterlambatan</td>
       <td class="num">{{ nilai_denda_formatted }}{% if hari_denda > 0 %} ({{ hari_denda }} hari){% endif %}</td>
     </tr>
+    {% if denda_allocation_note %}
+    <tr>
+      <td class="label">Keterangan Denda</td>
+      <td>{{ denda_allocation_note }}</td>
+    </tr>
+    {% endif %}
     <tr>
       <td class="label">Periode Denda</td>
       <td class="num">Akhir SPK: {{ tanggal_akhir_spk_denda_formatted }} | ST: {{ tanggal_serah_terima_denda_formatted }}</td>

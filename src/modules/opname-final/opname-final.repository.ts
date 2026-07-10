@@ -34,6 +34,7 @@ export type OpnameFinalRow = {
     nilai_denda: string | null;
     tanggal_akhir_spk_denda: string | null;
     tanggal_serah_terima_denda: string | null;
+    denda_allocation_note: string | null;
     created_at: string;
     grand_total_final: string | null;
 };
@@ -179,6 +180,7 @@ const OPNAME_FINAL_COLUMNS = `
     ofn.nilai_denda,
     ofn.tanggal_akhir_spk_denda,
     ofn.tanggal_serah_terima_denda,
+    NULL::text AS denda_allocation_note,
     ofn.created_at,
     ofn.grand_total_final
 `;
@@ -347,6 +349,39 @@ export const opnameFinalRepository = {
         }
 
         const header = headerResult.rows[0];
+        const allocationResult = await pool.query<{
+            owner_opname_id: number;
+            owner_lingkup_pekerjaan: string | null;
+            nilai_denda: string | null;
+            hari_denda: number | null;
+        }>(
+            `
+            SELECT
+                peer_ofn.id AS owner_opname_id,
+                peer_toko.lingkup_pekerjaan AS owner_lingkup_pekerjaan,
+                peer_ofn.nilai_denda,
+                peer_ofn.hari_denda
+            FROM opname_final peer_ofn
+            JOIN toko peer_toko ON peer_toko.id = peer_ofn.id_toko
+            WHERE peer_toko.nomor_ulok = $1
+              AND UPPER(TRIM(COALESCE(peer_toko.cabang, ''))) = UPPER(TRIM(COALESCE($2::text, '')))
+              AND COALESCE(peer_ofn.nilai_denda, 0)::numeric > 0
+            ORDER BY
+              CASE
+                WHEN UPPER(TRIM(COALESCE(peer_toko.lingkup_pekerjaan, ''))) = 'SIPIL' THEN 0
+                WHEN UPPER(TRIM(COALESCE(peer_toko.lingkup_pekerjaan, ''))) = 'ME' THEN 1
+                ELSE 2
+              END,
+              peer_ofn.created_at DESC,
+              peer_ofn.id DESC
+            LIMIT 1
+            `,
+            [header.nomor_ulok, header.cabang]
+        );
+        const allocationOwner = allocationResult.rows[0] ?? null;
+        const dendaAllocationNote = allocationOwner && allocationOwner.owner_opname_id !== header.id
+            ? `Denda keterlambatan lokasi ini dialokasikan pada lingkup ${String(allocationOwner.owner_lingkup_pekerjaan ?? "-").trim() || "-"} sebesar Rp ${new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(Number(allocationOwner.nilai_denda ?? 0))}${Number(allocationOwner.hari_denda ?? 0) > 0 ? ` untuk ${Number(allocationOwner.hari_denda ?? 0)} hari` : ""}.`
+            : null;
 
         const itemsResult = await pool.query<OpnameFinalItemQueryRow>(
             `
@@ -460,6 +495,7 @@ export const opnameFinalRepository = {
                 nilai_denda: header.nilai_denda,
                 tanggal_akhir_spk_denda: header.tanggal_akhir_spk_denda,
                 tanggal_serah_terima_denda: header.tanggal_serah_terima_denda,
+                denda_allocation_note: dendaAllocationNote,
                 created_at: header.created_at,
                 grand_total_final: header.grand_total_final
             },

@@ -375,6 +375,7 @@ export const buildOpnameFinalPdfBuffer = async (
         selisih_kerja_tambah_kurang_formatted: rupiah(selisihKerjaTambahKurang),
         hari_denda: hariDenda,
         nilai_denda_formatted: rupiah(nilaiDenda),
+        denda_allocation_note: detail.opname_final.denda_allocation_note,
         tanggal_akhir_spk_denda_formatted: formatDateIndonesia(detail.opname_final.tanggal_akhir_spk_denda),
         tanggal_serah_terima_denda_formatted: formatDateIndonesia(detail.opname_final.tanggal_serah_terima_denda),
         total_opname_final_formatted: rupiah(totalOpnameFinal),
