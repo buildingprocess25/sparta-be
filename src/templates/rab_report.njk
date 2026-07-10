@@ -52,7 +52,64 @@
             padding: 2px 0;
         }
 
-        {# Style coordinator-info dihapus karena tidak digunakan lagi di halaman 1 #}
+        .info-tambahan {
+            margin-top: 14px;
+            margin-bottom: 14px;
+            border: 2px solid #2563eb;
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            border-radius: 8px;
+            padding: 12px 14px;
+            page-break-inside: avoid;
+            box-shadow: 0 2px 4px rgba(37, 99, 235, 0.1);
+        }
+
+        .info-tambahan-title {
+            font-weight: bold;
+            font-size: 11px;
+            color: #1e40af;
+            margin-bottom: 10px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            border-bottom: 2px solid #3b82f6;
+            padding-bottom: 4px;
+        }
+
+        .info-tambahan table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 9.5px;
+        }
+
+        .info-tambahan td {
+            border: 1px solid #93c5fd;
+            padding: 6px 8px;
+            background: #ffffff;
+            vertical-align: middle;
+        }
+
+        .info-tambahan td:first-child {
+            border-top-left-radius: 4px;
+            border-bottom-left-radius: 4px;
+        }
+
+        .info-tambahan td:last-child {
+            border-top-right-radius: 4px;
+            border-bottom-right-radius: 4px;
+        }
+
+        .info-tambahan .label {
+            width: 28%;
+            font-weight: bold;
+            color: #1e3a8a;
+            background: #eff6ff;
+            border-right: 2px solid #3b82f6;
+        }
+
+        .info-tambahan .value {
+            color: #1f2937;
+            font-weight: 600;
+        }
 
         .price-table {
             width: 100%;
@@ -200,7 +257,25 @@
         </table>
     </div>
 
-    {# Informasi koordinator (beanspot, HTH, fasade) dihilangkan dari halaman 1 #}
+    {% if coordinator_info and coordinator_info.show %}
+    <div class="info-tambahan">
+        <div class="info-tambahan-title">INFORMASI TAMBAHAN</div>
+        <table>
+            <tr>
+                <td class="label">Beanspot</td>
+                <td class="value">{{ coordinator_info.beanspot }}</td>
+            </tr>
+            <tr>
+                <td class="label">HTH (Head to Head)</td>
+                <td class="value">{{ coordinator_info.hth }}</td>
+            </tr>
+            <tr>
+                <td class="label">Fasade</td>
+                <td class="value">{{ coordinator_info.fasade }}</td>
+            </tr>
+        </table>
+    </div>
+    {% endif %}
 
     {% for group in grouped_items_list %}
     <div>

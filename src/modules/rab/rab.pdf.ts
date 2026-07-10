@@ -10,6 +10,7 @@ type BuildRabPdfInput = {
     items: RabItemRow[];
     toko: TokoJoinRow;
     alamat_cabang?: string | null;
+    hideCoordinatorInfo?: boolean; // true = untuk kontraktor/direktur kontraktor
 };
 
 const rupiah = (value: number | string | null | undefined): string => {
@@ -300,6 +301,9 @@ export const buildRabPdfBuffer = async (input: BuildRabPdfInput): Promise<Buffer
     const isBatam = isBatamBranch(input.toko.cabang);
     const isBogor = isBogorBranch(input.toko.cabang);
     const coordinatorInfo = buildCoordinatorInfo(input.rab);
+    
+    // Hide coordinator info jika untuk kontraktor/direktur kontraktor
+    const shouldShowCoordinatorInfo = !input.hideCoordinatorInfo && coordinatorInfo.show;
 
     const html = await renderHtmlTemplate(templatePath, {
         data: {
@@ -325,7 +329,7 @@ export const buildRabPdfBuffer = async (input: BuildRabPdfInput): Promise<Buffer
         final_grand_total: rupiah(recap.finalTotal),
         watermark_logo_path: staticAssetPath("Building-Logo.png"),
         tanggal_pengajuan: formatDateIndonesia(input.rab.created_at),
-        coordinator_info: coordinatorInfo,
+        coordinator_info: shouldShowCoordinatorInfo ? coordinatorInfo : { show: false },
         nama_pt: input.rab.nama_pt || "NAMA PT. KONTRAKTOR TIDAK ADA",
         is_batam_branch: isBatam,
         is_bogor_branch: isBogor,

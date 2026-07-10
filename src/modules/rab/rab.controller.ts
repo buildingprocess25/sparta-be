@@ -177,7 +177,8 @@ export const getRabById = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const downloadRabPdf = asyncHandler(async (req: Request, res: Response) => {
-    const result = await rabService.getPdfDownloadPayload(req.params.id);
+    const user = (req as any).user;
+    const result = await rabService.getPdfDownloadPayload(req.params.id, user);
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);
@@ -197,7 +198,8 @@ export const regenerateRabPdf = asyncHandler(async (req: Request, res: Response)
 });
 
 export const regenerateAndDownloadRabPdf = asyncHandler(async (req: Request, res: Response) => {
-    const result = await rabService.getRegeneratedPdfDownloadPayload(req.params.id);
+    const user = (req as any).user;
+    const result = await rabService.getRegeneratedPdfDownloadPayload(req.params.id, user);
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);

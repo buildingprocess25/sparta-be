@@ -1046,19 +1046,20 @@ async function resolveMateraiCoverPageForMerge(input: {
 async function regenerateRabPdfs(
     rabId: string,
     filenameParts: { proyek?: string | null; nomorUlok?: string | null },
-    alamatCabangOverride?: string | null,
     approvalNameOverrides?: {
         koordinator?: string;
         manager?: string;
         direktur?: string;
-    } | null
+    } | null,
+    hideCoordinatorInfo?: boolean,
+    alamatCabangOverride?: string | null
 ): Promise<{
     link_pdf_gabungan: string;
     link_pdf_non_sbo: string;
     link_pdf_rekapitulasi: string;
     link_pdf_sph?: string;
 } | null> {
-    logRab("PDF", "Mulai regenerate PDF", { rabId });
+    logRab("PDF", `Mulai regenerate PDF${hideCoordinatorInfo ? ' (hide coordinator info)' : ''}`, { rabId });
     // Pastikan nomor SPH tersedia sejak awal submit dan tetap konsisten untuk regenerate berikutnya.
     const noSph = await rabRepository.ensureSphNumber(rabId);
 
@@ -1102,7 +1103,8 @@ async function regenerateRabPdfs(
     const pdfNonSbo = await buildRabPdfBuffer({
         rab: rabForPdf,
         items: fullData.items,
-        toko: fullData.toko
+        toko: fullData.toko,
+        hideCoordinatorInfo
     });
     logRab("PDF", "PDF non SBO selesai dibuat", { rabId });
 
@@ -1505,7 +1507,7 @@ export const rabService = {
         };
     },
 
-    async regeneratePdf(id: string) {
+    async regeneratePdf(id: string, hideCoordinatorInfo?: boolean) {
         const data = await rabRepository.findById(id);
         if (!data) {
             throw new AppError("Pengajuan RAB tidak ditemukan", 404);
@@ -1517,7 +1519,7 @@ export const rabService = {
         const links = await regenerateRabPdfs(id, {
             proyek: data.toko.proyek,
             nomorUlok: data.toko.nomor_ulok
-        });
+        }, undefined, hideCoordinatorInfo);
 
         if (!links) {
             throw new AppError("Gagal generate PDF RAB", 500);
@@ -1538,13 +1540,18 @@ export const rabService = {
         };
     },
 
-    async getRegeneratedPdfDownloadPayload(id: string) {
+    async getRegeneratedPdfDownloadPayload(id: string, user?: any) {
         const data = await rabRepository.findById(id);
         if (!data) {
             throw new AppError("Pengajuan RAB tidak ditemukan", 404);
         }
 
-        const links = await this.regeneratePdf(id);
+        // Check apakah user adalah kontraktor atau direktur kontraktor
+        const userRoles = (user?.role || '').toUpperCase();
+        const isContractorRole = userRoles.includes('KONTRAKTOR') || userRoles.includes('DIREKTUR');
+        const hideCoordinatorInfo = isContractorRole;
+
+        const links = await this.regeneratePdf(id, hideCoordinatorInfo);
         const downloaded = await fetchFileBufferByLink(links.link_pdf_gabungan);
         if (!downloaded?.buffer?.length) {
             throw new AppError("PDF hasil generate tidak bisa diambil dari Drive", 502);
@@ -1687,12 +1694,17 @@ export const rabService = {
         };
     },
 
-    async getPdfDownloadPayload(id: string) {
-        logRab("DOWNLOAD", "Request PDF gabungan", { rabId: id });
+    async getPdfDownloadPayload(id: string, user?: any) {
+        logRab("DOWNLOAD", "Request PDF gabungan", { rabId: id, userRole: user?.role });
         const data = await rabRepository.findById(id);
         if (!data) {
             throw new AppError("Pengajuan RAB tidak ditemukan", 404);
         }
+
+        // Check apakah user adalah kontraktor atau direktur kontraktor
+        const userRoles = (user?.role || '').toUpperCase();
+        const isContractorRole = userRoles.includes('KONTRAKTOR') || userRoles.includes('DIREKTUR');
+        const hideCoordinatorInfo = isContractorRole;
 
         let rawLink = data.rab.link_pdf_gabungan?.trim();
         try {
@@ -1704,7 +1716,7 @@ export const rabService = {
             const links = await regenerateRabPdfs(id, {
                 proyek: data.toko.proyek,
                 nomorUlok: data.toko.nomor_ulok
-            });
+            }, undefined, hideCoordinatorInfo);
 
             if (links) {
                 await rabRepository.updatePdfLinks(id, {
@@ -1718,7 +1730,7 @@ export const rabService = {
                 }
 
                 rawLink = links.link_pdf_gabungan.trim();
-                logRab("DOWNLOAD", "PDF gabungan diregenerate sebelum download", { rabId: id });
+                logRab("DOWNLOAD", `PDF gabungan diregenerate sebelum download${hideCoordinatorInfo ? ' (tanpa info koordinator)' : ''}`, { rabId: id });
             }
         } catch (err) {
             console.error("Warning: Gagal regenerate PDF RAB sebelum download, memakai link lama:", err);
