@@ -35,6 +35,8 @@ export type OpnameFinalRow = {
     tanggal_akhir_spk_denda: string | null;
     tanggal_serah_terima_denda: string | null;
     denda_allocation_note: string | null;
+    denda_allocation_tanggal_akhir_spk: string | null;
+    denda_allocation_tanggal_serah_terima: string | null;
     created_at: string;
     grand_total_final: string | null;
 };
@@ -181,6 +183,8 @@ const OPNAME_FINAL_COLUMNS = `
     ofn.tanggal_akhir_spk_denda,
     ofn.tanggal_serah_terima_denda,
     NULL::text AS denda_allocation_note,
+    NULL::date AS denda_allocation_tanggal_akhir_spk,
+    NULL::date AS denda_allocation_tanggal_serah_terima,
     ofn.created_at,
     ofn.grand_total_final
 `;
@@ -354,13 +358,17 @@ export const opnameFinalRepository = {
             owner_lingkup_pekerjaan: string | null;
             nilai_denda: string | null;
             hari_denda: number | null;
+            tanggal_akhir_spk_denda: string | null;
+            tanggal_serah_terima_denda: string | null;
         }>(
             `
             SELECT
                 peer_ofn.id AS owner_opname_id,
                 peer_toko.lingkup_pekerjaan AS owner_lingkup_pekerjaan,
                 peer_ofn.nilai_denda,
-                peer_ofn.hari_denda
+                peer_ofn.hari_denda,
+                peer_ofn.tanggal_akhir_spk_denda,
+                peer_ofn.tanggal_serah_terima_denda
             FROM opname_final peer_ofn
             JOIN toko peer_toko ON peer_toko.id = peer_ofn.id_toko
             WHERE peer_toko.nomor_ulok = $1
@@ -496,6 +504,8 @@ export const opnameFinalRepository = {
                 tanggal_akhir_spk_denda: header.tanggal_akhir_spk_denda,
                 tanggal_serah_terima_denda: header.tanggal_serah_terima_denda,
                 denda_allocation_note: dendaAllocationNote,
+                denda_allocation_tanggal_akhir_spk: dendaAllocationNote ? allocationOwner?.tanggal_akhir_spk_denda ?? null : null,
+                denda_allocation_tanggal_serah_terima: dendaAllocationNote ? allocationOwner?.tanggal_serah_terima_denda ?? null : null,
                 created_at: header.created_at,
                 grand_total_final: header.grand_total_final
             },
