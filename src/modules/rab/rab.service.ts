@@ -1463,7 +1463,7 @@ export const rabService = {
             const links = await regenerateRabPdfs(String(rab.id), {
                 proyek: payload.proyek,
                 nomorUlok: payload.nomor_ulok
-            }, payload.alamat_cabang ?? null);
+            }, null, false, payload.alamat_cabang ?? null);
 
             if (links) {
                 await rabRepository.updatePdfLinks(String(rab.id), links);
@@ -1519,7 +1519,7 @@ export const rabService = {
         const links = await regenerateRabPdfs(id, {
             proyek: data.toko.proyek,
             nomorUlok: data.toko.nomor_ulok
-        }, undefined, hideCoordinatorInfo);
+        }, null, hideCoordinatorInfo || false, null);
 
         if (!links) {
             throw new AppError("Gagal generate PDF RAB", 500);
@@ -1660,7 +1660,7 @@ export const rabService = {
                 const links = await regenerateRabPdfs(id, {
                     proyek: data.toko.proyek,
                     nomorUlok: data.toko.nomor_ulok
-                }, undefined, approvalOverrides);
+                }, approvalOverrides, false, null);
 
                 if (links) {
                     await rabRepository.updatePdfLinks(id, {
@@ -1716,7 +1716,7 @@ export const rabService = {
             const links = await regenerateRabPdfs(id, {
                 proyek: data.toko.proyek,
                 nomorUlok: data.toko.nomor_ulok
-            }, undefined, hideCoordinatorInfo);
+            }, null, hideCoordinatorInfo, null);
 
             if (links) {
                 await rabRepository.updatePdfLinks(id, {
@@ -2046,7 +2046,7 @@ export const rabService = {
             const links = await regenerateRabPdfs(String(rabIdNumber), {
                 proyek: rabData.toko.proyek,
                 nomorUlok: rabData.toko.nomor_ulok
-            });
+            }, null, false, null);
 
             if (links) {
                 await rabRepository.updatePdfLinks(String(rabIdNumber), {
@@ -2102,7 +2102,7 @@ export const rabService = {
             const links = await regenerateRabPdfs(String(rabIdNumber), {
                 proyek: rabData.toko.proyek,
                 nomorUlok: rabData.toko.nomor_ulok
-            });
+            }, null, false, null);
 
             if (links) {
                 await rabRepository.updatePdfLinks(String(rabIdNumber), {
@@ -2178,7 +2178,7 @@ export const rabService = {
             const links = await regenerateRabPdfs(String(rabIdNumber), {
                 proyek: rabData.toko.proyek,
                 nomorUlok: rabData.toko.nomor_ulok
-            });
+            }, null, false, null);
 
             if (links) {
                 await rabRepository.updatePdfLinks(String(rabIdNumber), {
