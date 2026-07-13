@@ -1,4 +1,9 @@
 import { pool } from "../../db/pool";
+import { 
+    nextBusinessDayAfter, 
+    countCalendarDaysAfterFreeDate,
+    toIsoDateString 
+} from "../../common/national-holidays";
 
 export type DendaKeterlambatanResult = {
     hari_denda: number;
@@ -71,47 +76,7 @@ const parseDateValue = (value?: string | null): Date | null => {
 
 const toIsoDate = (date: Date | null): string | null => {
     if (!date) return null;
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-};
-
-const isWeekend = (date: Date): boolean => {
-    const day = date.getDay();
-    return day === 0 || day === 6;
-};
-
-const addDays = (date: Date, days: number): Date => {
-    const next = new Date(date);
-    next.setDate(next.getDate() + days);
-    return next;
-};
-
-const nextBusinessDayAfter = (date: Date): Date => {
-    let current = addDays(startOfLocalDay(date), 1);
-    while (isWeekend(current)) {
-        current = addDays(current, 1);
-    }
-    return current;
-};
-
-/**
- * Hitung jumlah hari KALENDER (termasuk Sabtu & Minggu) antara
- * freeDate dan stDate (eksklusif freeDate, inklusif stDate).
- *
- * Aturan bisnis Alfamart: denda dihitung per hari kalender,
- * bukan per hari kerja. Sabtu & Minggu tetap terhitung denda.
- *
- * Contoh: SPK berakhir Kamis 2 Jul → freeDate = Jumat 3 Jul.
- * ST tgl 6 Jul (Senin) → denda = Sabtu (1) + Minggu (2) + Senin (3) = 3 hari = Rp 3 jt.
- */
-const countCalendarDaysAfterFreeDate = (freeDate: Date, stDate: Date): number => {
-    const normalizedFreeDate = startOfLocalDay(freeDate);
-    const normalizedStDate = startOfLocalDay(stDate);
-    if (normalizedStDate <= normalizedFreeDate) return 0;
-
-    return Math.round((normalizedStDate.getTime() - normalizedFreeDate.getTime()) / MS_PER_DAY);
+    return toIsoDateString(date);
 };
 
 export const calculateDendaNominal = (hariDenda: number): number => {
@@ -161,6 +126,22 @@ const resolvePenaltyScopeByTokoId = async (idToko: number): Promise<{ tokoIds: n
     return { tokoIds: tokoIds.length > 0 ? tokoIds : [idToko], nomorUlok: target.nomor_ulok };
 };
 
+/**
+ * BUSINESS LOGIC: Hitung denda dari tanggal akhir SPK dan tanggal serah terima
+ * 
+ * Logika baru (dengan libur nasional 2026):
+ * 1. Hari kerja pertama setelah akhir SPK = grace period (bebas denda)
+ * 2. Grace period skip weekend DAN libur nasional yang jatuh di hari kerja
+ * 3. Denda dihitung per hari KALENDER setelah grace period
+ * 
+ * Contoh:
+ * - SPK berakhir Jumat 29 Mei 2026
+ * - Skip Sabtu 30 Mei, Minggu 31 Mei
+ * - Senin 1 Jun 2026 adalah LIBUR NASIONAL (Hari Lahir Pancasila) → skip juga
+ * - Grace period = Selasa 2 Jun 2026
+ * - ST di Rabu 3 Jun = 1 hari denda
+ * - ST di Kamis 4 Jun = 2 hari denda
+ */
 export const calculateDendaFromDates = (
     tanggalAkhirSpk: Date | null,
     tanggalSerahTerima: Date | null
@@ -175,9 +156,13 @@ export const calculateDendaFromDates = (
     }
 
     // Hari kerja pertama setelah akhir SPK = 1 hari bebas (grace period)
+    // Sekarang dengan logic libur nasional: skip weekend + libur nasional hari kerja
     const freeDate = nextBusinessDayAfter(tanggalAkhirSpk);
-    // Denda dihitung per hari KALENDER (termasuk Sabtu & Minggu) setelah freeDate
+    
+    // Denda dihitung per hari KALENDER (termasuk Sabtu & Minggu & libur nasional) setelah freeDate
     const hariDenda = countCalendarDaysAfterFreeDate(freeDate, tanggalSerahTerima);
+
+    console.log(`[DENDA] SPK End: ${toIsoDate(tanggalAkhirSpk)}, Free Date: ${toIsoDate(freeDate)}, ST: ${toIsoDate(tanggalSerahTerima)}, Denda: ${hariDenda} hari`);
 
     return {
         hari_denda: hariDenda,
