@@ -1,0 +1,176 @@
+TZ01-2511-0003 (BALARAJA) - 1 tokos:
+  - Toko 2170: DS PERTIGAAN JAHA (Opname 289)
+
+TZ01-2601-0001 (BALARAJA) - 1 tokos:
+  - Toko 848: Bumi Indah 5 (Opname 239)
+
+BZ01-2601-0004 (BANDUNG RAYA) - 1 tokos:
+  - Toko 979: CIGANTANG (Opname 226)
+
+BZ01-2602-0004 (BANDUNG RAYA) - 1 tokos:
+  - Toko 937: BUKIT RAYA (Opname 230)
+
+1GZ1-2601-0001 (BANJARMASIN) - 2 tokos:
+  - Toko 925: MUARA TAPUS (Opname 210)
+  - Toko 939: MUARA TAPUS (Opname 211)
+
+2DZ1-2601-0002 (BATAM) - 1 tokos:
+  - Toko 990: RUKO SP PLAZA (Opname 266)
+
+2DZ1-2601-0003-R (BATAM) - 1 tokos:
+  - Toko 1005: Central Barelang (Opname 268)
+
+CZ01-2603-0001 (BEKASI) - 1 tokos:
+  - Toko 1630: APARTEMEN STANDFORD MEIKARTA (Opname 135)
+
+CZ01-2603-0002 (BEKASI) - 1 tokos:
+  - Toko 1860: DS PULO GEBANG (Opname 370)
+
+CZ01-2603-0003 (BEKASI) - 1 tokos:
+  - Toko 1365: RUKO LAVANYA (Opname 352)
+
+CZ01-2604-0002 (BEKASI) - 1 tokos:
+  - Toko 1828: TAMAN NAROGONG (Opname 190)
+
+PZ01-2601-0005-R (BENGKULU) - 1 tokos:
+  - Toko 1271: A. YANI2 (Opname 356)
+
+PZ01-2602-PC22-R (BENGKULU) - 1 tokos:
+  - Toko 980: JL. SAM RATULANGI (Opname 287)
+
+PZ01-2603-0033 (BENGKULU) - 1 tokos:
+  - Toko 1160: Kemas Jamaluddin (Opname 288)
+
+XZ01-2026-X956-R (BOGOR) - 1 tokos:
+  - Toko 808: RAYA SOLEH ISKANDAR (Opname 244)
+
+XZ01-2512-0002 (BOGOR) - 1 tokos:
+  - Toko 777: JL. MESJID RAWA GENI (Opname 14)
+
+XZ01-2602-0004 (BOGOR) - 2 tokos:
+  - Toko 950: DS grand depok city (Opname 245)
+  - Toko 951: DS grand depok city (Opname 246)
+
+XZ01-2602-XB72-R (BOGOR) - 1 tokos:
+  - Toko 875: PARUNG BANTENG (Opname 298)
+
+2JZ1-2601-0005 (CIANJUR) - 1 tokos:
+  - Toko 832: HOTEL CORDELA CIANJUR (Opname 272)
+
+2JZ1-2603-0002 (CIANJUR) - 1 tokos:
+  - Toko 1164: REST AREA ASSALAM (Opname 274)
+
+JZ01-2601-0005 (CILEUNGSI) - 1 tokos:
+  - Toko 1280: WIJAYA KUSUMA TERATAI (Opname 235)
+
+JZ01-2602-0001 (CILEUNGSI) - 1 tokos:
+  - Toko 1043: DARK STORE CEMPAKA PUTIH ( PANGKALAN ASEM ) (Opname 236)
+
+JZ01-2603-0002 (CILEUNGSI) - 1 tokos:
+  - Toko 1195: PAHLAWAN REVOLUSI (Opname 237)
+
+2SZ1-2603-0001-R (GORONTALO) - 1 tokos:
+  - Toko 1311: DALAPULI BOLMUT (Opname 122)
+
+2SZ1-2603-0002 (GORONTALO) - 1 tokos:
+  - Toko 1325: DUINI BOLMUT (Opname 336)
+
+Z001-2512-D4D4-R (HEAD OFFICE) - 1 tokos:
+  - Toko 2144: DADA (Opname 248)
+
+Z001-2601-5252 (HEAD OFFICE) - 1 tokos:
+  - Toko 1976: Duration (Opname 303)
+
+Z001-2601-6464 (HEAD OFFICE) - 1 tokos:
+  - Toko 2161: GanttRAB (Opname 249)
+
+Z001-2601-6565 (HEAD OFFICE) - 1 tokos:
+  - Toko 1979: RejectStore (Opname 304)
+
+Z001-2602-0909 (HEAD OFFICE) - 1 tokos:
+  - Toko 2000: NilaiToko (Opname 306)
+
+Z001-2602-8989 (HEAD OFFICE) - 1 tokos:
+  - Toko 1997: NewStore (Opname 250)
+
+Z001-2603-0003 (HEAD OFFICE) - 1 tokos:
+  - Toko 1850: Lantai 20 (Opname 52)
+
+1DZ1-2601-0001-R (JAMBI) - 1 tokos:
+  - Toko 1107: PANCURAN GADING (Opname 199)
+
+1JZ1-2602-0001 (KARAWANG) - 1 tokos:
+  - Toko 1011: CISAMPIH (Opname 134)
+
+1JZ1-2604-0001 (KARAWANG) - 1 tokos:
+  - Toko 1565: RAYA DEWI AIR_KARAWANG (Opname 73)
+
+1JZ1-2605-1J3U-R (KARAWANG) - 1 tokos:
+  - Toko 1652: PESONA KALANGSURIA (Opname 206)
+
+1JZ1-2605-CC78-R (KARAWANG) - 1 tokos:
+  - Toko 1517: SIRNABAYA (Opname 75)
+
+2VZ1-2603-0004 (LUWU) - 1 tokos:
+  - Toko 1371: TAMUKU LUWU UTARA (Opname 222)
+
+2VZ1-2603-0006 (LUWU) - 1 tokos:
+  - Toko 1341: LARA LUWU UTARA (Opname 224)
+
+2VZ1-2604-0001-R (LUWU) - 1 tokos:
+  - Toko 1494: KH. MUH. KASIM (Opname 194)
+
+2VZ1-2604-0008 (LUWU) - 1 tokos:
+  - Toko 1897: BERINGIN SENGKANG (Opname 136)
+
+2VZ1-2605-0001 (LUWU) - 1 tokos:
+  - Toko 1907: ANDI MAKKASAU 2 SIDRAP (Opname 205)
+
+2VZ1-2605-0008 (LUWU) - 1 tokos:
+  - Toko 2045: SAKTI BUA (Opname 197)
+
+2MZ1-2602-0002 (MADIUN) - 1 tokos:
+  - Toko 1375: PURWOREJO NGAWI (Opname 329)
+
+RZ01-2604-0004 (MAKASSAR) - 1 tokos:
+  - Toko 1416: TAMALAYYANG GOWA (Opname 347)
+
+1YZ1-2604-0001 (MANADO) - 1 tokos:
+  - Toko 1447: WENANG MANADO (Opname 63)
+
+WZ01-2602-0010 (MEDAN) - 1 tokos:
+  - Toko 1462: GRIGIT (Opname 325)
+
+WZ01-2602-0026 (MEDAN) - 1 tokos:
+  - Toko 1275: RINGROAD SUNGGAL (Opname 243)
+
+KODE-2605-0006 (PALEMBANG) - 1 tokos:
+  - Toko 1502: KOTA BANI - BENGKULU UTARA (Opname 360)
+
+1MZ1-2601-0001 (PARUNG) - 1 tokos:
+  - Toko 929: Jl H Jian (Opname 213)
+
+1MZ1-2604-1M4P-R (PARUNG) - 1 tokos:
+  - Toko 1381: JL MOCH KAHFI (Opname 342)
+
+1AZ1-2604-0003 (PEKANBARU) - 2 tokos:
+  - Toko 1407: SOREK RAYA (Opname 358)
+  - Toko 1406: SOREK RAYA (Opname 359)
+
+2AZ1-2602-0001 (REMBANG) - 1 tokos:
+  - Toko 1210: ALFAMART KUDU (Opname 215)
+
+2AZ1-2603-0001 (REMBANG) - 1 tokos:
+  - Toko 1331: SAT BUMIMULYO PATI (Opname 216)
+
+UZ01-2605-M719-R (SIDOARJO) - 1 tokos:
+  - Toko 1730: CANGKIR GRESIK (Opname 391)
+
+UZ01-2603-0021 (SIDOARJO BPN_SMD) - 1 tokos:
+  - Toko 1552: DI PANJAITAN BPN (Opname 384)
+
+2PZ1-2508-0007 (TEGAL) - 1 tokos:
+  - Toko 1367: MT Haryono Baru (Opname 277)
+
+2PZ1-I034-0526 (TEGAL) - 1 tokos:
+  - Toko 1810: AW SUMARMO (Opname 256)
