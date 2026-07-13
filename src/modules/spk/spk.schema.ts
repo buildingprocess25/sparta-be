@@ -3,7 +3,10 @@ import { z } from "zod";
 export const submitSpkSchema = z.object({
     id_toko: z.coerce.number().int().positive(),
     nomor_ulok: z.string().min(1),
-    kode_toko: z.string().min(1),
+    kode_toko: z.string()
+        .min(2, "Kode toko minimal 2 karakter")
+        .regex(/^[A-Z0-9]+$/i, "Kode toko hanya boleh berisi huruf dan angka")
+        .refine(val => val !== "-" && val.trim() !== "", "Kode toko tidak boleh kosong atau hanya berisi karakter '-'"),
     email_pembuat: z.string().email(),
     lingkup_pekerjaan: z.string().min(1),
     nama_kontraktor: z.string().min(1),

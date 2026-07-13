@@ -91,6 +91,15 @@ async function regenerateSpkPdfAndUpload(
 
 export const spkService = {
     async submit(payload: SubmitSpkInput) {
+        // Validasi tambahan untuk kode toko
+        const kodeToko = payload.kode_toko?.trim().toUpperCase();
+        if (!kodeToko || kodeToko.length < 2) {
+            throw new AppError("Kode toko wajib diisi minimal 2 karakter alfanumerik", 400);
+        }
+        if (kodeToko === "-" || !/^[A-Z0-9]+$/.test(kodeToko)) {
+            throw new AppError("Kode toko hanya boleh berisi huruf dan angka, tidak boleh karakter khusus seperti '-'", 400);
+        }
+
         const existingToko = await tokoRepository.findById(payload.id_toko);
         if (!existingToko) {
             throw new AppError("id_toko tidak ditemukan di master toko", 404);
@@ -103,7 +112,7 @@ export const spkService = {
         const toko = await tokoRepository.updateKodeTokoByUlokAndLingkup(
             payload.nomor_ulok,
             payload.lingkup_pekerjaan,
-            payload.kode_toko
+            kodeToko
         );
 
         if (!toko || toko.id !== payload.id_toko) {
