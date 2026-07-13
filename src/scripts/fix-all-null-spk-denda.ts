@@ -79,7 +79,7 @@ async function fixAllNullSpkDenda() {
         console.log(`  ✅ Updated - Hari: ${denda.hari_denda}, Denda: Rp ${denda.nilai_denda.toLocaleString('id-ID')}`);
       } catch (error) {
         errorCount++;
-        console.log(`  ❌ Error: ${error.message}`);
+        console.log(`  ❌ Error: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
 
