@@ -231,7 +231,7 @@ export const handleRabApproval = asyncHandler(async (req: Request, res: Response
     const action = approvalActionSchema.parse(req.body);
     if (
         action.approver_email
-        && normalizeBranchScopeName(action.approver_email) !== normalizeBranchScopeName(user.email_sat)
+        && action.approver_email.toLowerCase().trim() !== user.email_sat.toLowerCase().trim()
     ) {
         throw new AppError("Identitas approver tidak sesuai dengan sesi login.", 403);
     }
