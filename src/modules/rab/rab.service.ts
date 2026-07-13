@@ -353,7 +353,11 @@ const canInternalUserAccessBranch = (user: { cabang?: string | null; jabatan?: s
 
     const coverage = (user.coverage ?? []).map(normalizeCabangForPrice).filter(Boolean);
     if (coverage.length > 0) return coverage.includes(normalizedTarget);
-    return normalizeCabangForPrice(user.cabang) === normalizedTarget;
+    
+    // FIX: Use branch group scope instead of exact match
+    // User with cabang "SIDOARJO" should be able to approve "SIDOARJO BPN SMD"
+    const userBranchScope = getBranchScopeCandidates(user.cabang);
+    return userBranchScope.map(normalizeCabangForPrice).includes(normalizedTarget);
 };
 
 const validateInternalApprovalBranchAccess = async (
@@ -368,9 +372,20 @@ const validateInternalApprovalBranchAccess = async (
         throw new AppError("Data cabang atau email approver tidak valid untuk approval.", 422);
     }
 
+    console.log('[RAB APPROVAL] Internal branch access validation:', {
+        approverEmail,
+        actionJabatan: action.jabatan,
+        documentCabang: cabang
+    });
+
     const approverRows = await userCabangRepository.findAll({ email_sat: approverEmail });
+    console.log('[RAB APPROVAL] Found approver rows:', approverRows.length);
+    
     const matchingRoleRows = approverRows.filter(user => matchesInternalApprovalRole(user.jabatan, action.jabatan));
+    console.log('[RAB APPROVAL] Matching role rows:', matchingRoleRows.length, matchingRoleRows.map(r => ({ cabang: r.cabang, jabatan: r.jabatan })));
+    
     const canAccess = matchingRoleRows.some(user => canInternalUserAccessBranch(user, cabang));
+    console.log('[RAB APPROVAL] Internal access result:', { canAccess });
 
     if (!canAccess) {
         throw new AppError(`Approver ${approverEmail} tidak memiliki akses approval untuk cabang ${cabang}.`, 403);

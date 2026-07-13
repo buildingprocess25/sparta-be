@@ -30,7 +30,18 @@ const userCanAccessBranch = async (user: AuthenticatedUser, cabang?: string | nu
 };
 
 const assertCurrentUserCanAccessRab = async (user: AuthenticatedUser, data: Awaited<ReturnType<typeof rabService.getById>>) => {
+    console.log('[RAB APPROVAL] Checking branch access:', {
+        userEmail: user.email_sat,
+        userCabang: user.cabang,
+        userRoles: user.roles,
+        documentCabang: data.toko.cabang,
+        documentUlok: data.toko.nomor_ulok
+    });
+    
     const canAccess = await userCanAccessBranch(user, data.toko.cabang);
+    
+    console.log('[RAB APPROVAL] Branch access result:', { canAccess });
+    
     if (!canAccess) {
         throw new AppError("Anda tidak memiliki akses ke cabang dokumen ini.", 403);
     }
