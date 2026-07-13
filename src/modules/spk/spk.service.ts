@@ -93,11 +93,11 @@ export const spkService = {
     async submit(payload: SubmitSpkInput) {
         // Validasi tambahan untuk kode toko
         const kodeToko = payload.kode_toko?.trim().toUpperCase();
-        if (!kodeToko || kodeToko.length < 2) {
-            throw new AppError("Kode toko wajib diisi minimal 2 karakter alfanumerik", 400);
+        if (!kodeToko || kodeToko.length !== 4) {
+            throw new AppError("Kode toko wajib diisi tepat 4 karakter alfanumerik", 400);
         }
-        if (kodeToko === "-" || !/^[A-Z0-9]+$/.test(kodeToko)) {
-            throw new AppError("Kode toko hanya boleh berisi huruf dan angka, tidak boleh karakter khusus seperti '-'", 400);
+        if (!/^[A-Z0-9]{4}$/.test(kodeToko)) {
+            throw new AppError("Kode toko harus 4 karakter alfanumerik (huruf dan angka), contoh: T123, AB12, 1A2B", 400);
         }
 
         const existingToko = await tokoRepository.findById(payload.id_toko);
