@@ -32,11 +32,13 @@ export type DashboardExportRow = {
     pekerjaan_beanspot: number;
     total_penawaran_final: number;
     kategori: string;
+    timestamp_acc_koordinator: string;
     timestamp_acc_manager: string;
     pic: string;
     status_spk: string;
     timestamp_spk: string;
     durasi_spk: string | number;
+    waktu_persetujuan_bm: string;
     nominal_spk: number;
     awal_spk: string;
     akhir_spk: string;
@@ -201,11 +203,13 @@ export const dashboardExportColumns: DashboardExportColumn[] = [
     { key: "pekerjaan_beanspot", label: "Pekerjaan Beanspot" },
     { key: "total_penawaran_final", label: "Total Penawaran Final" },
     { key: "kategori", label: "Kategori" },
-    { key: "timestamp_acc_manager", label: "TIMESTAMP ACC MANAGER" },
+    { key: "timestamp_acc_koordinator", label: "Tanggal Approved Koordinator" },
+    { key: "timestamp_acc_manager", label: "Tanggal Approved Manager" },
     { key: "pic", label: "PIC" },
     { key: "status_spk", label: "Status SPK" },
     { key: "timestamp_spk", label: "TimeSTAMP SPK" },
     { key: "durasi_spk", label: "Durasi SPK" },
+    { key: "waktu_persetujuan_bm", label: "Waktu Persetujuan BM" },
     { key: "nominal_spk", label: "Nominal SPK" },
     { key: "awal_spk", label: "Awal_SPK" },
     { key: "akhir_spk", label: "Akhir_SPK" },
@@ -555,8 +559,8 @@ const identitasCols: Array<keyof DashboardExportRow> = ["timestamp", "cabang", "
 
 const dataTypeColumns: Record<string, Array<keyof DashboardExportRow>> = {
     IDENTITAS: [...identitasCols],
-    RAB: [...identitasCols, "status_rab", "luas_bangunan", "luas_terbangunan", "luas_area_terbuka", "luas_area_parkir", "luas_area_sales", "luas_gudang", "pekerjaan_area_terbuka", "pekerjaan_beanspot", "total_penawaran_final", "timestamp_acc_manager", "tanggal_grand_opening"],
-    SPK: [...identitasCols, "status_spk", "timestamp_spk", "durasi_spk", "nominal_spk", "awal_spk", "akhir_spk", "tambah_spk", "akhir_spk_setelah", "real_spk"],
+    RAB: [...identitasCols, "status_rab", "luas_bangunan", "luas_terbangunan", "luas_area_terbuka", "luas_area_parkir", "luas_area_sales", "luas_gudang", "pekerjaan_area_terbuka", "pekerjaan_beanspot", "total_penawaran_final", "timestamp_acc_koordinator", "timestamp_acc_manager", "tanggal_grand_opening"],
+    SPK: [...identitasCols, "status_spk", "timestamp_spk", "durasi_spk", "waktu_persetujuan_bm", "nominal_spk", "awal_spk", "akhir_spk", "tambah_spk", "akhir_spk_setelah", "real_spk"],
     OPNAME: [...identitasCols, "tanggal_serah_terima", "keterlambatan", "denda", "kerja_tambah", "kerja_kurang", "grand_total_opname_final", "tanggal_opname_final", "status_opname_final", "nilai_toko"]
 };
 
@@ -1193,11 +1197,13 @@ export const buildDashboardExportRows = (
             pekerjaan_beanspot: beanspot,
             total_penawaran_final: totalPenawaran,
             kategori: normalize(rab?.kategori_lokasi ?? project.pic_pengawasan?.kategori_lokasi),
+            timestamp_acc_koordinator: formatDateTime(rab?.waktu_persetujuan_koordinator),
             timestamp_acc_manager: formatDateTime(rab?.waktu_persetujuan_manager),
             pic: normalize(project.pic_pengawasan?.plc_building_support),
             status_spk: humanizeSpkStatus(spk?.status),
             timestamp_spk: formatDateTime(spk?.created_at),
             durasi_spk: spk?.durasi ?? "",
+            waktu_persetujuan_bm: formatDateTime(spk?.waktu_persetujuan),
             nominal_spk: toNumber(spk?.grand_total),
             awal_spk: toIsoDate(spk?.waktu_mulai),
             akhir_spk: toIsoDate(spk?.waktu_selesai),

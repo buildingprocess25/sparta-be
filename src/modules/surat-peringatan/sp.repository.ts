@@ -763,6 +763,7 @@ export const spRepository = {
         const result = await pool.query<{ nama_kontraktor: string }>(`
             SELECT DISTINCT nama_kontraktor
             FROM (
+                -- From pengajuan_spk
                 SELECT TRIM(ps.nama_kontraktor) AS nama_kontraktor 
                 FROM pengajuan_spk ps 
                 LEFT JOIN toko t ON t.id = ps.id_toko
@@ -770,9 +771,19 @@ export const spRepository = {
                 
                 UNION
                 
+                -- From toko
                 SELECT TRIM(t.nama_kontraktor) AS nama_kontraktor 
                 FROM toko t 
                 WHERE NULLIF(TRIM(t.nama_kontraktor), '') IS NOT NULL ${branchFilter}
+                
+                UNION
+                
+                -- From user_cabang (kontraktor users)
+                SELECT TRIM(uc.jabatan) AS nama_kontraktor
+                FROM user_cabang uc
+                WHERE UPPER(TRIM(uc.role)) = 'KONTRAKTOR'
+                  AND NULLIF(TRIM(uc.jabatan), '') IS NOT NULL
+                  ${branchFilter.replace('t.cabang', 'uc.cabang')}
             ) AS combined
             WHERE UPPER(TRIM(nama_kontraktor)) <> 'HEAD OFFICE'
             ORDER BY nama_kontraktor ASC
