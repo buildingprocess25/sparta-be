@@ -9,6 +9,7 @@ export const dendaActionStatusSchema = z.enum([
     "SENT_TO_CONTRACTOR",
     "VIEWED_BY_CONTRACTOR",
     "ACKNOWLEDGED_BY_CONTRACTOR",
+    "EXPIRED",
 ]);
 
 export const listDendaActionsQuerySchema = z.object({
@@ -64,8 +65,13 @@ export const rejectDendaActionSchema = z.object({
 });
 
 export type DendaActionType = z.infer<typeof dendaActionTypeSchema>;
+export const acknowledgeNoteSchema = z.object({
+    catatan_acknowledge: z.string().trim().max(500).optional(),
+});
+
 export type DendaActionStatus = z.infer<typeof dendaActionStatusSchema>;
 export type SpReason = z.infer<typeof spReasonSchema>;
 export type ListDendaActionsQuery = z.infer<typeof listDendaActionsQuerySchema>;
 export type CreateDendaActionInput = z.infer<typeof createDendaActionSchema>;
 export type RejectDendaActionInput = z.infer<typeof rejectDendaActionSchema>;
+export type AcknowledgeNoteInput = z.infer<typeof acknowledgeNoteSchema>;

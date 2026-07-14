@@ -5,7 +5,7 @@ import { env } from "../../config/env";
 import { rabRepository } from "../rab/rab.repository";
 import { spkRepository } from "../spk/spk.repository";
 import { userCabangRepository } from "../user-cabang/user-cabang.repository";
-import { dendaActionRepository } from "../denda/denda-action.repository";
+import { spRepository } from "../surat-peringatan/sp.repository";
 import type { SendEmailNotificationInput } from "./email-notification.schema";
 
 type EmailTemplateConfig = {
@@ -148,7 +148,7 @@ export const emailNotificationService = {
             throw new AppError(`SPK dengan id ${payload.id_spk} tidak ditemukan`, 404);
         }
         const spData = shouldUseSpContractorEmails
-            ? await dendaActionRepository.findActionById(Number(payload.id_denda_action))
+            ? await spRepository.findActionById(Number(payload.id_denda_action))
             : null;
         if (shouldUseSpContractorEmails && !spData) {
             throw new AppError(`SP dengan id ${payload.id_denda_action} tidak ditemukan`, 404);

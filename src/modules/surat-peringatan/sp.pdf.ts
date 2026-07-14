@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { renderHtmlTemplate, renderPdfFromHtml, resolveTemplatePath } from "../../common/html-pdf";
-import type { DendaActionRow } from "./denda-action.repository";
+import type { DendaActionRow } from "./sp.repository";
 
 
 type BuildSpPdfInput = {

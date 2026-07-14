@@ -1,31 +1,13 @@
 import { Router } from "express";
-import multer from "multer";
-import {
-    approveDendaAction,
-    createDendaAction,
-    listDendaActionKontraktor,
-    listDendaActionCandidates,
-    listDendaActions,
-    rejectDendaAction,
-    proxyFile,
-} from "./denda-action.controller";
 import { getDendaByTokoId } from "./denda.controller";
+import { spRouter } from "../surat-peringatan/sp.routes";
 
 const dendaRouter = Router();
-const dendaActionUpload = multer({
-    storage: multer.memoryStorage(),
-    limits: {
-        fileSize: 10 * 1024 * 1024,
-    },
-});
 
-dendaRouter.get("/actions/kontraktor", listDendaActionKontraktor);
-dendaRouter.get("/actions/candidates", listDendaActionCandidates);
-dendaRouter.get("/actions", listDendaActions);
-dendaRouter.post("/actions", dendaActionUpload.single("lampiran"), createDendaAction);
-dendaRouter.post("/actions/:id/approve", approveDendaAction);
-dendaRouter.post("/actions/:id/reject", rejectDendaAction);
-dendaRouter.get("/actions/proxy-file", proxyFile);
+// Mount Surat Peringatan routes
+dendaRouter.use("/actions", spRouter);
+
+// Legacy denda calculation route
 dendaRouter.get("/:id_toko", getDendaByTokoId);
 
 export { dendaRouter };
