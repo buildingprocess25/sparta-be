@@ -3,7 +3,7 @@
  * dengan logic cross-lingkup pertambahan SPK
  */
 
-import { db } from '../config/database';
+import { pool } from '../db/pool';
 
 interface DataAlignmentResult {
     total_uloks_with_multiple_lingkup: number;
@@ -22,7 +22,7 @@ async function verifyAllDataAlignment(): Promise<void> {
 
     try {
         // 1. Check total ULOKs dengan multiple lingkup
-        const totalUloksQuery = await db.query(`
+        const totalUloksQuery = await pool.query(`
             SELECT COUNT(DISTINCT nomor_ulok) as count
             FROM toko
             WHERE nomor_ulok IN (
@@ -37,7 +37,7 @@ async function verifyAllDataAlignment(): Promise<void> {
         console.log(`✅ Total ULOKs dengan multiple lingkup: ${totalUloks}`);
 
         // 2. Check ULOKs yang punya pertambahan SPK approved
-        const uloksWithPertambahanQuery = await db.query(`
+        const uloksWithPertambahanQuery = await pool.query(`
             SELECT COUNT(DISTINCT t.nomor_ulok) as count
             FROM pertambahan_spk pt
             JOIN pengajuan_spk ps ON ps.id = pt.id_spk
@@ -55,7 +55,7 @@ async function verifyAllDataAlignment(): Promise<void> {
         console.log(`✅ ULOKs dengan pertambahan approved: ${uloksWithPertambahan}\n`);
 
         // 3. Check alignment: Semua lingkup dalam ULOK yang sama harus punya effective_end yang sama
-        const alignmentCheckQuery = await db.query(`
+        const alignmentCheckQuery = await pool.query(`
             WITH ulok_with_pertambahan AS (
                 SELECT DISTINCT t.nomor_ulok
                 FROM pertambahan_spk pt
@@ -101,10 +101,10 @@ async function verifyAllDataAlignment(): Promise<void> {
         `);
 
         const correctlyAligned = alignmentCheckQuery.rows.filter(
-            row => parseInt(row.unique_effective_dates) === 1
+            (row: any) => parseInt(row.unique_effective_dates) === 1
         );
         const misaligned = alignmentCheckQuery.rows.filter(
-            row => parseInt(row.unique_effective_dates) > 1
+            (row: any) => parseInt(row.unique_effective_dates) > 1
         );
 
         console.log('========================================');
@@ -180,7 +180,7 @@ async function verifyAllDataAlignment(): Promise<void> {
         console.log('TEST CASE: ULOK 2VZ1-2604-0007');
         console.log('========================================\n');
 
-        const testCaseQuery = await db.query(`
+        const testCaseQuery = await pool.query(`
             SELECT 
                 t.nomor_ulok,
                 t.id as toko_id,

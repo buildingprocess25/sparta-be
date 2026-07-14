@@ -3,7 +3,7 @@
  * setelah backend fix di-deploy
  */
 
-import { db } from '../config/database';
+import { pool } from '../db/pool';
 import { opnameFinalService } from '../modules/opname-final/opname-final.service';
 
 interface MisalignedUlok {
@@ -22,7 +22,7 @@ async function refreshMisalignedDenda(): Promise<void> {
         // 1. Find misaligned ULOKs
         console.log('🔍 Mencari ULOKs yang misaligned...\n');
 
-        const misalignedQuery = await db.query(`
+        const misalignedQuery = await pool.query(`
             WITH ulok_with_pertambahan AS (
                 SELECT DISTINCT t.nomor_ulok
                 FROM pertambahan_spk pt
@@ -129,7 +129,7 @@ async function refreshMisalignedDenda(): Promise<void> {
         console.log('VERIFIKASI SETELAH REFRESH');
         console.log('========================================\n');
 
-        const verifyQuery = await db.query(`
+        const verifyQuery = await pool.query(`
             WITH ulok_with_pertambahan AS (
                 SELECT DISTINCT t.nomor_ulok
                 FROM pertambahan_spk pt
