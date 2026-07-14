@@ -735,6 +735,7 @@ export const spRepository = {
 
     async listKontraktor(user?: AuthenticatedUser): Promise<string[]> {
         let branchFilter = "";
+        let branchFilterUserCabang = "";
         let values: any[] = [];
 
         if (user) {
@@ -756,6 +757,7 @@ export const spRepository = {
                 }
                 const placeholders = branches.map((_, i) => `$${i + 1}`).join(", ");
                 branchFilter = `AND UPPER(TRIM(COALESCE(t.cabang, ''))) IN (${placeholders})`;
+                branchFilterUserCabang = `AND UPPER(TRIM(COALESCE(uc.cabang, ''))) IN (${placeholders})`;
                 values = branches;
             }
         }
@@ -783,7 +785,7 @@ export const spRepository = {
                 FROM user_cabang uc
                 WHERE UPPER(TRIM(uc.role)) = 'KONTRAKTOR'
                   AND NULLIF(TRIM(uc.jabatan), '') IS NOT NULL
-                  ${branchFilter.replace('t.cabang', 'uc.cabang')}
+                  ${branchFilterUserCabang}
             ) AS combined
             WHERE UPPER(TRIM(nama_kontraktor)) <> 'HEAD OFFICE'
             ORDER BY nama_kontraktor ASC
