@@ -734,8 +734,7 @@ export const spRepository = {
     },
 
     async listKontraktor(user?: AuthenticatedUser): Promise<string[]> {
-        let branchFilter = "";
-        let branchFilterUserCabang = "";
+        let whereClauses: string[] = [];
         let values: any[] = [];
 
         if (user) {
@@ -755,39 +754,46 @@ export const spRepository = {
                 if (branches.length === 0) {
                     return [];
                 }
-                const placeholders = branches.map((_, i) => `$${i + 1}`).join(", ");
-                branchFilter = `AND UPPER(TRIM(COALESCE(t.cabang, ''))) IN (${placeholders})`;
-                branchFilterUserCabang = `AND UPPER(TRIM(COALESCE(uc.cabang, ''))) IN (${placeholders})`;
                 values = branches;
+                const placeholders = branches.map((_, i) => `$${i + 1}`).join(", ");
+                whereClauses.push(`cabang IN (${placeholders})`);
             }
         }
+
+        const additionalWhere = whereClauses.length > 0 ? `AND ${whereClauses.join(' AND ')}` : '';
 
         const result = await pool.query<{ nama_kontraktor: string }>(`
             SELECT DISTINCT nama_kontraktor
             FROM (
                 -- From pengajuan_spk
-                SELECT TRIM(ps.nama_kontraktor) AS nama_kontraktor 
+                SELECT 
+                    TRIM(ps.nama_kontraktor) AS nama_kontraktor,
+                    UPPER(TRIM(COALESCE(t.cabang, ''))) AS cabang
                 FROM pengajuan_spk ps 
                 LEFT JOIN toko t ON t.id = ps.id_toko
-                WHERE NULLIF(TRIM(ps.nama_kontraktor), '') IS NOT NULL ${branchFilter}
+                WHERE NULLIF(TRIM(ps.nama_kontraktor), '') IS NOT NULL
                 
                 UNION
                 
                 -- From toko
-                SELECT TRIM(t.nama_kontraktor) AS nama_kontraktor 
+                SELECT 
+                    TRIM(t.nama_kontraktor) AS nama_kontraktor,
+                    UPPER(TRIM(COALESCE(t.cabang, ''))) AS cabang
                 FROM toko t 
-                WHERE NULLIF(TRIM(t.nama_kontraktor), '') IS NOT NULL ${branchFilter}
+                WHERE NULLIF(TRIM(t.nama_kontraktor), '') IS NOT NULL
                 
                 UNION
                 
                 -- From user_cabang (kontraktor users)
-                SELECT TRIM(uc.jabatan) AS nama_kontraktor
+                SELECT 
+                    TRIM(uc.jabatan) AS nama_kontraktor,
+                    UPPER(TRIM(COALESCE(uc.cabang, ''))) AS cabang
                 FROM user_cabang uc
                 WHERE UPPER(TRIM(uc.role)) = 'KONTRAKTOR'
                   AND NULLIF(TRIM(uc.jabatan), '') IS NOT NULL
-                  ${branchFilterUserCabang}
             ) AS combined
             WHERE UPPER(TRIM(nama_kontraktor)) <> 'HEAD OFFICE'
+              ${additionalWhere}
             ORDER BY nama_kontraktor ASC
         `, values);
         return result.rows.map(row => row.nama_kontraktor);
