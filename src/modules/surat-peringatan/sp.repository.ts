@@ -276,7 +276,9 @@ export const spRepository = {
                                 ELSE NULL::date
                             END AS parsed_extension_date
                         FROM pertambahan_spk pt
-                        WHERE pt.id_spk = ps.id
+                        JOIN pengajuan_spk ps_source ON ps_source.id = pt.id_spk
+                        JOIN toko t_source ON t_source.id = ps_source.id_toko
+                        WHERE t_source.nomor_ulok = t.nomor_ulok
                           AND UPPER(TRIM(COALESCE(pt.status_persetujuan, ''))) IN ('APPROVED_BY_BM', 'DISETUJUI BM', 'DISETUJUI', 'APPROVED')
                     ) parsed
                 ) extension ON TRUE
@@ -479,7 +481,9 @@ export const spRepository = {
                                 ELSE NULL::date
                             END AS parsed_extension_date
                         FROM pertambahan_spk pt
-                        WHERE pt.id_spk = ps.id
+                        JOIN pengajuan_spk ps_source ON ps_source.id = pt.id_spk
+                        JOIN toko t_source ON t_source.id = ps_source.id_toko
+                        WHERE t_source.nomor_ulok = t.nomor_ulok
                           AND UPPER(TRIM(COALESCE(pt.status_persetujuan, ''))) IN ('APPROVED_BY_BM', 'DISETUJUI BM', 'DISETUJUI', 'APPROVED')
                     ) parsed
                 ) extension ON TRUE
