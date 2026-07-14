@@ -53,6 +53,7 @@ export const dashboardService = {
         let penawaran = 0;
         let nilaiSpk = 0;
         let totalDenda = 0;
+        let totalDendaEstimasi = 0; // Track estimasi terpisah untuk debugging
 
         for (const project of projects) {
             const stage = getDashboardStage(project);
@@ -61,7 +62,13 @@ export const dashboardService = {
             if (stage !== "Done" && isDashboardPastSla(project, stage)) attention += 1;
             penawaran += Number(project.rab[0]?.grand_total_final || 0);
             nilaiSpk += project.spk.reduce((sum, spk) => sum + Number(spk.grand_total || 0), 0);
-            totalDenda += penalty.amount;
+            
+            // ✅ FIX: Hanya hitung denda resmi untuk total
+            if (penalty.source === "Resmi") {
+                totalDenda += penalty.amount;
+            } else if (penalty.source === "Estimasi") {
+                totalDendaEstimasi += penalty.amount;
+            }
         }
 
         return {
@@ -70,7 +77,8 @@ export const dashboardService = {
             attention,
             penawaran,
             nilai_spk: nilaiSpk,
-            total_denda: totalDenda,
+            total_denda: totalDenda, // Hanya denda resmi
+            total_denda_estimasi: totalDendaEstimasi, // Optional: untuk debugging
             stages,
         };
     },
