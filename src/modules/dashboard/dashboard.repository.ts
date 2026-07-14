@@ -412,7 +412,7 @@ export const dashboardRepository = {
 
         const rabResult = await pool.query<DashboardRabRow>(
             `
-            SELECT r.id, r.id_toko, r.no_sph, r.status, r.proyek, 
+            SELECT r.id, r.id_toko, r.no_sph, r.status, t.proyek, 
                    t.lingkup_pekerjaan, r.nama_pt, r.link_pdf_gabungan, r.link_pdf_non_sbo, r.link_pdf_rekapitulasi,
                    r.link_pdf_sph, r.logo, r.email_pembuat, r.pemberi_persetujuan_direktur, r.waktu_persetujuan_direktur,
                    r.pemberi_persetujuan_koordinator, r.waktu_persetujuan_koordinator, r.pemberi_persetujuan_manager,
@@ -836,7 +836,7 @@ export const dashboardRepository = {
 
         const rabResult = await client.query<DashboardRabRow>(
             `
-            SELECT r.id, r.id_toko, r.no_sph, r.status, r.proyek, 
+            SELECT r.id, r.id_toko, r.no_sph, r.status, t.proyek, 
                    t.lingkup_pekerjaan, r.nama_pt, r.link_pdf_gabungan, r.link_pdf_non_sbo, r.link_pdf_rekapitulasi,
                    r.link_pdf_sph, r.logo, r.email_pembuat, r.pemberi_persetujuan_direktur, r.waktu_persetujuan_direktur,
                    r.pemberi_persetujuan_koordinator, r.waktu_persetujuan_koordinator, r.pemberi_persetujuan_manager,
