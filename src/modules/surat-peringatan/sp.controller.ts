@@ -20,6 +20,15 @@ export const listDendaActionKontraktor = asyncHandler(async (req: Request, res: 
     });
 });
 
+export const listDendaActionKontraktorDebug = asyncHandler(async (req: Request, res: Response) => {
+    const data = await spService.listKontraktorDebug(req.user);
+
+    res.json({
+        status: "success",
+        data,
+    });
+});
+
 export const listDendaActionCandidates = asyncHandler(async (req: Request, res: Response) => {
     if (!req.user) {
         throw new AppError("User tidak terautentikasi", 401);

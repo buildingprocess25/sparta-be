@@ -4,6 +4,7 @@ import {
     approveDendaAction,
     createDendaAction,
     listDendaActionKontraktor,
+    listDendaActionKontraktorDebug,
     listDendaActionCandidates,
     listDendaActions,
     rejectDendaAction,
@@ -26,6 +27,7 @@ const spUpload = multer({
 
 // Surat Peringatan (SP) routes
 spRouter.get("/kontraktor", listDendaActionKontraktor);
+spRouter.get("/kontraktor-debug", listDendaActionKontraktorDebug); // DEBUG endpoint
 spRouter.get("/candidates", listDendaActionCandidates);
 spRouter.get("/proxy-file", proxyFile);
 

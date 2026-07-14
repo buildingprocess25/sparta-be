@@ -84,6 +84,26 @@ export const spService = {
         return spRepository.listKontraktor(user);
     },
 
+    async listKontraktorDebug(user?: AuthenticatedUser) {
+        await spRepository.ensureSchema();
+        const fromProjects = await spRepository.listKontraktor(user);
+        const fromUsers = await spRepository.listKontraktorFromUserCabang(user);
+        
+        // Merge and deduplicate
+        const allKontraktor = Array.from(new Set([...fromProjects, ...fromUsers])).sort();
+        
+        return {
+            fromProjects,
+            fromUsers,
+            merged: allKontraktor,
+            total: {
+                fromProjects: fromProjects.length,
+                fromUsers: fromUsers.length,
+                merged: allKontraktor.length,
+            }
+        };
+    },
+
     async listCandidates(cabang_array?: string[]) {
         await spRepository.ensureSchema();
         return spRepository.listCandidates(cabang_array);
