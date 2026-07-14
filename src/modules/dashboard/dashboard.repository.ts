@@ -412,16 +412,18 @@ export const dashboardRepository = {
 
         const rabResult = await pool.query<DashboardRabRow>(
             `
-            SELECT id, id_toko, no_sph, status, nama_pt, link_pdf_gabungan, link_pdf_non_sbo, link_pdf_rekapitulasi,
-                   link_pdf_sph, logo, email_pembuat, pemberi_persetujuan_direktur, waktu_persetujuan_direktur,
-                   pemberi_persetujuan_koordinator, waktu_persetujuan_koordinator, pemberi_persetujuan_manager,
-                   waktu_persetujuan_manager, alasan_penolakan, waktu_penolakan, ditolak_oleh, durasi_pekerjaan,
-                   kategori_lokasi, no_polis, berlaku_polis, file_asuransi, luas_bangunan, luas_terbangun,
-                   luas_area_terbuka, luas_area_parkir, luas_area_sales, luas_gudang, grand_total,
-                   grand_total_non_sbo, grand_total_final, created_at
-            FROM rab
-            WHERE id_toko = $1
-            ORDER BY created_at DESC, id DESC
+            SELECT r.id, r.id_toko, r.no_sph, r.status, r.proyek, 
+                   t.lingkup_pekerjaan, r.nama_pt, r.link_pdf_gabungan, r.link_pdf_non_sbo, r.link_pdf_rekapitulasi,
+                   r.link_pdf_sph, r.logo, r.email_pembuat, r.pemberi_persetujuan_direktur, r.waktu_persetujuan_direktur,
+                   r.pemberi_persetujuan_koordinator, r.waktu_persetujuan_koordinator, r.pemberi_persetujuan_manager,
+                   r.waktu_persetujuan_manager, r.alasan_penolakan, r.waktu_penolakan, r.ditolak_oleh, r.durasi_pekerjaan,
+                   r.kategori_lokasi, r.no_polis, r.berlaku_polis, r.file_asuransi, r.luas_bangunan, r.luas_terbangun,
+                   r.luas_area_terbuka, r.luas_area_parkir, r.luas_area_sales, r.luas_gudang, r.grand_total,
+                   r.grand_total_non_sbo, r.grand_total_final, r.created_at
+            FROM rab r
+            LEFT JOIN toko t ON t.id = r.id_toko
+            WHERE r.id_toko = $1
+            ORDER BY r.created_at DESC, r.id DESC
             `,
             [tokoId]
         );
@@ -834,16 +836,18 @@ export const dashboardRepository = {
 
         const rabResult = await client.query<DashboardRabRow>(
             `
-            SELECT id, id_toko, no_sph, status, nama_pt, link_pdf_gabungan, link_pdf_non_sbo, link_pdf_rekapitulasi,
-                   link_pdf_sph, logo, email_pembuat, pemberi_persetujuan_direktur, waktu_persetujuan_direktur,
-                   pemberi_persetujuan_koordinator, waktu_persetujuan_koordinator, pemberi_persetujuan_manager,
-                   waktu_persetujuan_manager, alasan_penolakan, waktu_penolakan, ditolak_oleh, durasi_pekerjaan,
-                   kategori_lokasi, no_polis, berlaku_polis, file_asuransi, luas_bangunan, luas_terbangun,
-                   luas_area_terbuka, luas_area_parkir, luas_area_sales, luas_gudang, grand_total,
-                   grand_total_non_sbo, grand_total_final, created_at
-            FROM rab
-            WHERE id_toko = ANY($1::int[])
-            ORDER BY created_at DESC, id DESC
+            SELECT r.id, r.id_toko, r.no_sph, r.status, r.proyek, 
+                   t.lingkup_pekerjaan, r.nama_pt, r.link_pdf_gabungan, r.link_pdf_non_sbo, r.link_pdf_rekapitulasi,
+                   r.link_pdf_sph, r.logo, r.email_pembuat, r.pemberi_persetujuan_direktur, r.waktu_persetujuan_direktur,
+                   r.pemberi_persetujuan_koordinator, r.waktu_persetujuan_koordinator, r.pemberi_persetujuan_manager,
+                   r.waktu_persetujuan_manager, r.alasan_penolakan, r.waktu_penolakan, r.ditolak_oleh, r.durasi_pekerjaan,
+                   r.kategori_lokasi, r.no_polis, r.berlaku_polis, r.file_asuransi, r.luas_bangunan, r.luas_terbangun,
+                   r.luas_area_terbuka, r.luas_area_parkir, r.luas_area_sales, r.luas_gudang, r.grand_total,
+                   r.grand_total_non_sbo, r.grand_total_final, r.created_at
+            FROM rab r
+            LEFT JOIN toko t ON t.id = r.id_toko
+            WHERE r.id_toko = ANY($1::int[])
+            ORDER BY r.created_at DESC, r.id DESC
             `,
             [toArrayParam(tokoIds)]
         );
