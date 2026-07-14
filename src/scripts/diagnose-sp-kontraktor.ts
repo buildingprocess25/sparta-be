@@ -23,8 +23,8 @@ async function diagnose() {
                 COUNT(*) AS total,
                 COUNT(DISTINCT cabang) AS total_cabang
             FROM user_cabang
-            WHERE UPPER(TRIM(role)) = 'KONTRAKTOR'
-              AND NULLIF(TRIM(jabatan), '') IS NOT NULL
+            WHERE UPPER(TRIM(jabatan)) = 'KONTRAKTOR'
+              AND NULLIF(TRIM(nama_pt), '') IS NOT NULL
         `);
         
         console.log(`  Total kontraktor users: ${totalQuery.rows[0].total}`);
@@ -37,13 +37,13 @@ async function diagnose() {
             SELECT 
                 id,
                 email_sat,
-                nama,
-                TRIM(jabatan) AS nama_kontraktor,
+                nama_lengkap,
+                TRIM(nama_pt) AS nama_kontraktor,
                 UPPER(TRIM(cabang)) AS cabang,
-                UPPER(TRIM(role)) AS role
+                UPPER(TRIM(jabatan)) AS jabatan
             FROM user_cabang
-            WHERE UPPER(TRIM(role)) = 'KONTRAKTOR'
-              AND NULLIF(TRIM(jabatan), '') IS NOT NULL
+            WHERE UPPER(TRIM(jabatan)) = 'KONTRAKTOR'
+              AND NULLIF(TRIM(nama_pt), '') IS NOT NULL
             ORDER BY cabang, nama_kontraktor
         `);
         
@@ -64,15 +64,15 @@ async function diagnose() {
             SELECT 
                 id,
                 email_sat,
-                nama,
-                TRIM(jabatan) AS nama_kontraktor,
+                nama_lengkap,
+                TRIM(nama_pt) AS nama_kontraktor,
                 cabang AS cabang_raw,
                 UPPER(TRIM(cabang)) AS cabang_normalized,
-                role AS role_raw,
-                UPPER(TRIM(role)) AS role_normalized
+                jabatan AS jabatan_raw,
+                UPPER(TRIM(jabatan)) AS jabatan_normalized
             FROM user_cabang
             WHERE UPPER(TRIM(cabang)) = 'BALI'
-            ORDER BY role, nama
+            ORDER BY jabatan, nama_lengkap
         `);
         
         console.log(`  Total users in BALI: ${baliKontraktor.rows.length}`);
@@ -81,11 +81,11 @@ async function diagnose() {
             console.log('  ❌ NO USERS FOUND FOR BALI BRANCH!');
         } else {
             baliKontraktor.rows.forEach((row, idx) => {
-                const isKontraktor = row.role_normalized === 'KONTRAKTOR';
-                const hasJabatan = row.nama_kontraktor && row.nama_kontraktor.trim() !== '';
-                console.log(`    ${idx + 1}. ${row.nama} (${row.email_sat})`);
-                console.log(`       Role: "${row.role_raw}" → normalized: "${row.role_normalized}" ${isKontraktor ? '✅' : '❌'}`);
-                console.log(`       Jabatan: "${row.nama_kontraktor}" ${hasJabatan ? '✅' : '❌'}`);
+                const isKontraktor = row.jabatan_normalized === 'KONTRAKTOR';
+                const hasNamaPt = row.nama_kontraktor && row.nama_kontraktor.trim() !== '';
+                console.log(`    ${idx + 1}. ${row.nama_lengkap} (${row.email_sat})`);
+                console.log(`       Jabatan: "${row.jabatan_raw}" → normalized: "${row.jabatan_normalized}" ${isKontraktor ? '✅' : '❌'}`);
+                console.log(`       Nama PT (Kontraktor): "${row.nama_kontraktor}" ${hasNamaPt ? '✅' : '❌'}`);
                 console.log(`       Cabang: "${row.cabang_raw}" → normalized: "${row.cabang_normalized}"`);
             });
         }
@@ -95,17 +95,17 @@ async function diagnose() {
         
         const roles = await pool.query(`
             SELECT DISTINCT 
-                role AS role_raw,
-                UPPER(TRIM(role)) AS role_normalized,
+                jabatan AS jabatan_raw,
+                UPPER(TRIM(jabatan)) AS jabatan_normalized,
                 COUNT(*) AS jumlah
             FROM user_cabang
-            GROUP BY role
-            ORDER BY role
+            GROUP BY jabatan
+            ORDER BY jabatan
         `);
         
-        console.log(`  Found ${roles.rows.length} distinct roles:`);
+        console.log(`  Found ${roles.rows.length} distinct jabatan (roles):`);
         roles.rows.forEach((row, idx) => {
-            console.log(`    ${idx + 1}. "${row.role_raw}" → "${row.role_normalized}" (${row.jumlah} users)`);
+            console.log(`    ${idx + 1}. "${row.jabatan_raw}" → "${row.jabatan_normalized}" (${row.jumlah} users)`);
         });
 
         // 5. Test repository method
@@ -155,10 +155,10 @@ async function diagnose() {
             SELECT 
                 id,
                 email_sat,
-                nama,
+                nama_lengkap,
                 jabatan,
                 cabang,
-                role
+                nama_pt
             FROM user_cabang
             ORDER BY id
             LIMIT 5
@@ -170,10 +170,10 @@ async function diagnose() {
             sample.rows.forEach((row, idx) => {
                 console.log(`    ${idx + 1}. ID: ${row.id}`);
                 console.log(`       Email: ${row.email_sat}`);
-                console.log(`       Nama: ${row.nama}`);
+                console.log(`       Nama Lengkap: ${row.nama_lengkap}`);
                 console.log(`       Jabatan: "${row.jabatan}"`);
                 console.log(`       Cabang: "${row.cabang}"`);
-                console.log(`       Role: "${row.role}"`);
+                console.log(`       Nama PT: "${row.nama_pt}"`);
                 console.log('');
             });
         }
@@ -185,8 +185,8 @@ async function diagnose() {
         if (totalQuery.rows[0].total === '0') {
             console.log('  ❌ PROBLEM: No kontraktor users in user_cabang table');
             console.log('  ✅ SOLUTION: Add kontraktor users to user_cabang with:');
-            console.log('     - role = "KONTRAKTOR" (exact match, case-insensitive)');
-            console.log('     - jabatan = contractor company name');
+            console.log('     - jabatan = "KONTRAKTOR" (user role/jabatan)');
+            console.log('     - nama_pt = contractor company name');
             console.log('     - cabang = branch name (e.g., "BALI")');
         } else if (baliKontraktor.rows.length === 0) {
             console.log('  ❌ PROBLEM: No users found for BALI branch');

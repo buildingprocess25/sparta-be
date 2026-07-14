@@ -848,7 +848,8 @@ export const spRepository = {
     async listKontraktorFromUserCabang(user?: AuthenticatedUser): Promise<string[]> {
         try {
             let values: any[] = [];
-            let whereClause = "WHERE UPPER(TRIM(uc.role)) = 'KONTRAKTOR' AND NULLIF(TRIM(uc.jabatan), '') IS NOT NULL";
+            // FIX: Use jabatan (not role) to identify kontraktor, and nama_pt for company name
+            let whereClause = "WHERE UPPER(TRIM(uc.jabatan)) = 'KONTRAKTOR' AND NULLIF(TRIM(uc.nama_pt), '') IS NOT NULL";
 
             if (user) {
                 const scope = await getEffectiveBranchesForUser({
@@ -872,7 +873,7 @@ export const spRepository = {
             }
 
             const result = await pool.query<{ nama_kontraktor: string }>(
-                `SELECT DISTINCT TRIM(uc.jabatan) AS nama_kontraktor
+                `SELECT DISTINCT TRIM(uc.nama_pt) AS nama_kontraktor
                  FROM user_cabang uc
                  ${whereClause}
                  ORDER BY nama_kontraktor ASC`,
