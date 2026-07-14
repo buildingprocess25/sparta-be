@@ -177,14 +177,18 @@ export const calculateSingleTokoDenda = async (idToko: number): Promise<DendaKet
         `
         SELECT
             ps.waktu_selesai,
-            MAX(pt.tanggal_spk_akhir_setelah_perpanjangan) FILTER (
-                WHERE UPPER(TRIM(COALESCE(pt.status_persetujuan, ''))) IN ('APPROVED', 'DISETUJUI', 'DISETUJUI BM')
+            (
+                SELECT MAX(pt.tanggal_spk_akhir_setelah_perpanjangan)
+                FROM pertambahan_spk pt
+                JOIN pengajuan_spk ps_source ON ps_source.id = pt.id_spk
+                JOIN toko t_source ON t_source.id = ps_source.id_toko
+                JOIN toko t_target ON t_target.nomor_ulok = t_source.nomor_ulok
+                WHERE t_target.id = ps.id_toko
+                  AND UPPER(TRIM(COALESCE(pt.status_persetujuan, ''))) IN ('APPROVED', 'DISETUJUI', 'DISETUJUI BM')
             ) AS tanggal_spk_akhir_setelah_perpanjangan
         FROM pengajuan_spk ps
-        LEFT JOIN pertambahan_spk pt ON pt.id_spk = ps.id
         WHERE ps.id_toko = $1
           AND UPPER(TRIM(COALESCE(ps.status, ''))) IN ('SPK_APPROVED', 'APPROVED', 'DISETUJUI', 'AKTIF', 'ACTIVE', 'SELESAI')
-        GROUP BY ps.id, ps.waktu_selesai
         `,
         [idToko]
     );
