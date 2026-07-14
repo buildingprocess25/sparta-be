@@ -5,7 +5,7 @@
  * Usage: tsx src/scripts/grant-public-access-sp-files.ts
  */
 
-import { pool } from "../common/db";
+import { pool } from "../db/pool";
 import { GoogleProvider } from "../common/google";
 
 interface SpFile {
