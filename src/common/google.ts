@@ -311,8 +311,10 @@ export class GoogleProvider {
                 fields: "id",
                 supportsAllDrives: true,
             });
-        } catch (_) {
-            // ignore
+            console.log(`✅ Public permission granted to file: ${fileId}`);
+        } catch (err: any) {
+            console.error(`⚠️ Failed to set public permission for ${fileId}:`, err?.message || err);
+            // Don't throw - file is still uploaded, just might need permission later
         }
     }
 

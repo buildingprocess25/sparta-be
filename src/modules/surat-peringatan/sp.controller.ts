@@ -137,6 +137,20 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
 
         console.log(`[proxyFile] File found: ${fileMeta.data.name}, type: ${fileMeta.data.mimeType}, size: ${fileMeta.data.size}`);
 
+        // Try to ensure file has public permission (best effort)
+        try {
+            await gp.spartaDrive.permissions.create({
+                fileId,
+                requestBody: { type: "anyone", role: "reader" },
+                fields: "id",
+                supportsAllDrives: true,
+            });
+            console.log(`[proxyFile] Public permission verified/granted for: ${fileId}`);
+        } catch (permErr: any) {
+            // Permission might already exist or might fail - log but continue
+            console.warn(`[proxyFile] Permission grant warning for ${fileId}:`, permErr?.message);
+        }
+
         // Set headers
         const filename = fileMeta.data.name || "document";
         res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
@@ -197,7 +211,7 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
         if (status === 404) {
             throw new AppError("File tidak ditemukan di Google Drive", 404);
         } else if (status === 403) {
-            throw new AppError("Akses ke file ditolak. Periksa permission file di Google Drive.", 403);
+            throw new AppError("Akses ke file ditolak. File sedang diproses untuk akses publik, coba refresh halaman.", 403);
         } else if (status === 401) {
             throw new AppError("Token Google Drive expired. Silakan refresh token.", 401);
         } else {
