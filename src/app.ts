@@ -126,6 +126,10 @@ app.get("/health", (_req, res) => {
 app.post("/api/auth/login", loginUserCabang);
 app.post("/api/auth/verify-otp", verifyLoginOtp);
 
+// Public file proxy endpoint (no auth required for external users like kontraktor)
+import { proxyFile } from "./modules/surat-peringatan/sp.controller";
+app.get("/api/denda/actions/proxy-file", proxyFile);
+
 app.use(apiAuthMiddleware);
 
 app.use("/api/toko", tokoRouter);
