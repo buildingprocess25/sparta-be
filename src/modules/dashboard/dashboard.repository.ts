@@ -18,6 +18,8 @@ export type DashboardRabRow = {
     id_toko: number;
     no_sph: number | null;
     status: string | null;
+    proyek: string | null;  // ✅ ADD: Missing field
+    lingkup_pekerjaan: string | null;  // ✅ ADD: Missing field
     nama_pt: string | null;
     link_pdf_gabungan: string | null;
     link_pdf_non_sbo: string | null;
