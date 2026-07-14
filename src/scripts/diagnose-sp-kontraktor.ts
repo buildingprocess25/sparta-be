@@ -112,12 +112,15 @@ async function diagnose() {
         console.log('\n🧪 Step 5: Test Repository Method (BALI User)\n');
         
         const mockBaliUser: AuthenticatedUser = {
-            email_sat: '',
-            cabang: 'BALI',alfan.hidayatullah@sat.co.id
+            session_id: 12345,
+            email_sat: 'alfan.hidayatullah@sat.co.id',
+            nama_lengkap: 'Test User',
+            jabatan: 'KOORDINATOR',
+            nama_pt: 'SAT',
+            cabang: 'BALI',
             roles: ['KOORDINATOR'],
-            isHO: false,
-            isManager: false
-        } as AuthenticatedUser;
+            expires_at: new Date(Date.now() + 86400000).toISOString()
+        };
 
         const scope = await getEffectiveBranchesForUser({
             emailSat: mockBaliUser.email_sat,
