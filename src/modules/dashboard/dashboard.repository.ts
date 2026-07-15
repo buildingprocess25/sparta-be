@@ -1150,12 +1150,12 @@ export const dashboardRepository = {
 
         const rabSummaryMap = new Map<number, { cost_terbuka: string; cost_beanspot: string; cost_bangunan: string }>();
         for (const row of rabSummaryResult.rows) {
-            rabSummaryMap.set(row.id_rab, row);
+            rabSummaryMap.set(Number(row.id_rab), row);
         }
 
         const opnameSummaryMap = new Map<number, { cost_terbuka: string; cost_beanspot: string; cost_bangunan: string }>();
         for (const row of opnameSummaryResult.rows) {
-            opnameSummaryMap.set(row.id_opname_final, row);
+            opnameSummaryMap.set(Number(row.id_opname_final), row);
         }
 
         const rabByTokoId = new Map<number, Array<DashboardRabRow & { items: DashboardRabItemRow[] }>>();
