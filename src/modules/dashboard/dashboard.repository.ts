@@ -51,6 +51,9 @@ export type DashboardRabRow = {
     grand_total_non_sbo: string | null;
     grand_total_final: string | null;
     created_at: string | null;
+    cost_terbuka?: string;
+    cost_beanspot?: string;
+    cost_bangunan?: string;
 };
 
 export type DashboardRabItemRow = {
@@ -252,8 +255,12 @@ export type DashboardOpnameFinalRow = {
     waktu_persetujuan_koordinator: string | null;
     pemberi_persetujuan_manager: string | null;
     waktu_persetujuan_manager: string | null;
+    pemberi_persetujuan_kontraktor: string | null;
+    waktu_persetujuan_kontraktor: string | null;
     alasan_penolakan: string | null;
+    catatan_opname_final: string | null;
     grand_total_opname: string | null;
+    grand_total_opname_non_sbo: string | null;
     grand_total_rab: string | null;
     hari_denda: number | null;
     nilai_denda: string | null;
@@ -261,6 +268,9 @@ export type DashboardOpnameFinalRow = {
     tanggal_serah_terima_denda: string | null;
     created_at: string | null;
     grand_total_final: string | null;
+    cost_terbuka?: string;
+    cost_beanspot?: string;
+    cost_bangunan?: string;
 };
 
 export type DashboardOpnameItemRow = {
@@ -439,6 +449,7 @@ export const dashboardRepository = {
         );
 
         const ganttIds = ganttResult.rows.map((row) => row.id);
+        const rabIds = rabResult.rows.map((row) => row.id);
 
         const [
             kategoriResult,
@@ -592,7 +603,9 @@ export const dashboardRepository = {
             SELECT id, id_toko, tipe_opname, aksi, status_opname_final, link_pdf_opname, email_pembuat,
                    pemberi_persetujuan_direktur, waktu_persetujuan_direktur, pemberi_persetujuan_koordinator,
                    waktu_persetujuan_koordinator, pemberi_persetujuan_manager, waktu_persetujuan_manager,
-                   alasan_penolakan, grand_total_opname, grand_total_rab, hari_denda, nilai_denda,
+                   pemberi_persetujuan_kontraktor, waktu_persetujuan_kontraktor,
+                   alasan_penolakan, catatan_opname_final, grand_total_opname, grand_total_opname_non_sbo,
+                   grand_total_rab, hari_denda, nilai_denda,
                    tanggal_akhir_spk_denda, tanggal_serah_terima_denda, created_at, grand_total_final
             FROM opname_final
             WHERE id_toko = $1
@@ -640,6 +653,33 @@ export const dashboardRepository = {
             [tokoId]
         );
 
+        const rabSummaryResult = await pool.query<{ id_rab: number; cost_terbuka: string; cost_beanspot: string; cost_bangunan: string }>(
+            `
+            SELECT id_rab, 
+                   SUM(CASE WHEN UPPER(kategori_pekerjaan) = 'PEKERJAAN AREA TERBUKA' THEN total_harga ELSE 0 END) as cost_terbuka,
+                   SUM(CASE WHEN UPPER(kategori_pekerjaan) = 'PEKERJAAN BEANSPOT' THEN total_harga ELSE 0 END) as cost_beanspot,
+                   SUM(CASE WHEN UPPER(kategori_pekerjaan) NOT IN ('PEKERJAAN AREA TERBUKA', 'PEKERJAAN BEANSPOT') THEN total_harga ELSE 0 END) as cost_bangunan
+            FROM rab_item 
+            WHERE id_rab = ANY($1::int[]) 
+            GROUP BY id_rab
+            `,
+            [toArrayParam(rabIds)]
+        );
+
+        const opnameSummaryResult = await pool.query<{ id_opname_final: number; cost_terbuka: string; cost_beanspot: string; cost_bangunan: string }>(
+            `
+            SELECT oi.id_opname_final,
+                   SUM(CASE WHEN UPPER(ri.kategori_pekerjaan) = 'PEKERJAAN AREA TERBUKA' THEN oi.total_harga_opname ELSE 0 END) as cost_terbuka,
+                   SUM(CASE WHEN UPPER(ri.kategori_pekerjaan) = 'PEKERJAAN BEANSPOT' THEN oi.total_harga_opname ELSE 0 END) as cost_beanspot,
+                   SUM(CASE WHEN UPPER(ri.kategori_pekerjaan) NOT IN ('PEKERJAAN AREA TERBUKA', 'PEKERJAAN BEANSPOT') THEN oi.total_harga_opname ELSE 0 END) as cost_bangunan
+            FROM opname_item oi
+            LEFT JOIN rab_item ri ON ri.id = oi.id_rab_item
+            WHERE oi.id_opname_final = ANY($1::int[])
+            GROUP BY oi.id_opname_final
+            `,
+            [toArrayParam(opnameFinalIds)]
+        );
+
         const pengawasanPdfPendingResult = await pool.query<DashboardPengawasanPdfPendingRow>(
             `
             SELECT id, nomor_ulok, lingkup_pekerjaan, h_day, tanggal_pengawasan,
@@ -652,10 +692,21 @@ export const dashboardRepository = {
             [toko?.nomor_ulok ?? ""]
         );
 
-        const rab = rabResult.rows.map((row) => ({
-            ...row,
-            items: []
-        }));
+        const rabSummaryMap = new Map<number, { cost_terbuka: string; cost_beanspot: string; cost_bangunan: string }>();
+        for (const row of rabSummaryResult.rows) {
+            rabSummaryMap.set(row.id_rab, row);
+        }
+
+        const rab = rabResult.rows.map((row) => {
+            const summary = rabSummaryMap.get(row.id);
+            return {
+                ...row,
+                items: [],
+                cost_terbuka: summary?.cost_terbuka ?? "0",
+                cost_beanspot: summary?.cost_beanspot ?? "0",
+                cost_bangunan: summary?.cost_bangunan ?? "0"
+            };
+        });
 
         const kategoriByGanttId = new Map<number, DashboardKategoriGanttRow[]>();
         for (const row of kategoriResult.rows) {
@@ -749,10 +800,21 @@ export const dashboardRepository = {
             opnameItemsByFinalId.set(row.id_opname_final, items);
         }
 
-        const opname_final = opnameFinalResult.rows.map((row) => ({
-            ...row,
-            items: opnameItemsByFinalId.get(row.id) ?? []
-        }));
+        const opnameSummaryMap = new Map<number, { cost_terbuka: string; cost_beanspot: string; cost_bangunan: string }>();
+        for (const row of opnameSummaryResult.rows) {
+            opnameSummaryMap.set(row.id_opname_final, row);
+        }
+
+        const opname_final = opnameFinalResult.rows.map((row) => {
+            const summary = opnameSummaryMap.get(row.id);
+            return {
+                ...row,
+                items: opnameItemsByFinalId.get(row.id) ?? [],
+                cost_terbuka: summary?.cost_terbuka ?? "0",
+                cost_beanspot: summary?.cost_beanspot ?? "0",
+                cost_bangunan: summary?.cost_bangunan ?? "0"
+            };
+        });
 
         return {
             toko,
@@ -975,7 +1037,9 @@ export const dashboardRepository = {
             pengawasanResult,
             dependencyResult,
             spkLogResult,
-            pertambahanResult
+            pertambahanResult,
+            rabSummaryResult,
+            opnameSummaryResult
         ] = await Promise.all([
             pool.query<DashboardKategoriGanttRow>(
                 `
@@ -1042,6 +1106,31 @@ export const dashboardRepository = {
                 ORDER BY created_at DESC, id DESC
                 `,
                 [toArrayParam(spkResult.rows.map((r) => r.id))]
+            ),
+            pool.query<{ id_rab: number; cost_terbuka: string; cost_beanspot: string; cost_bangunan: string }>(
+                `
+                SELECT id_rab, 
+                       SUM(CASE WHEN UPPER(kategori_pekerjaan) = 'PEKERJAAN AREA TERBUKA' THEN total_harga ELSE 0 END) as cost_terbuka,
+                       SUM(CASE WHEN UPPER(kategori_pekerjaan) = 'PEKERJAAN BEANSPOT' THEN total_harga ELSE 0 END) as cost_beanspot,
+                       SUM(CASE WHEN UPPER(kategori_pekerjaan) NOT IN ('PEKERJAAN AREA TERBUKA', 'PEKERJAAN BEANSPOT') THEN total_harga ELSE 0 END) as cost_bangunan
+                FROM rab_item 
+                WHERE id_rab = ANY($1::int[]) 
+                GROUP BY id_rab
+                `,
+                [toArrayParam(rabIds)]
+            ),
+            pool.query<{ id_opname_final: number; cost_terbuka: string; cost_beanspot: string; cost_bangunan: string }>(
+                `
+                SELECT oi.id_opname_final,
+                       SUM(CASE WHEN UPPER(ri.kategori_pekerjaan) = 'PEKERJAAN AREA TERBUKA' THEN oi.total_harga_opname ELSE 0 END) as cost_terbuka,
+                       SUM(CASE WHEN UPPER(ri.kategori_pekerjaan) = 'PEKERJAAN BEANSPOT' THEN oi.total_harga_opname ELSE 0 END) as cost_beanspot,
+                       SUM(CASE WHEN UPPER(ri.kategori_pekerjaan) NOT IN ('PEKERJAAN AREA TERBUKA', 'PEKERJAAN BEANSPOT') THEN oi.total_harga_opname ELSE 0 END) as cost_bangunan
+                FROM opname_item oi
+                LEFT JOIN rab_item ri ON ri.id = oi.id_rab_item
+                WHERE oi.id_opname_final = ANY($1::int[])
+                GROUP BY oi.id_opname_final
+                `,
+                [toArrayParam(opnameFinalResult.rows.map(r => r.id))]
             )
         ]);
 
