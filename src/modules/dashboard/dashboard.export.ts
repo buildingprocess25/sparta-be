@@ -40,6 +40,8 @@ export type DashboardExportRow = {
     durasi_spk: string | number;
     waktu_persetujuan_bm: string;
     nominal_spk: number;
+    cost_m2_bangunan: number;
+    cost_m2_terbuka: number;
     awal_spk: string;
     akhir_spk: string;
     tambah_spk: string;
@@ -211,6 +213,8 @@ export const dashboardExportColumns: DashboardExportColumn[] = [
     { key: "durasi_spk", label: "Durasi SPK" },
     { key: "waktu_persetujuan_bm", label: "Waktu Persetujuan BM" },
     { key: "nominal_spk", label: "Nominal SPK" },
+    { key: "cost_m2_bangunan", label: "Cost/m2 Bangunan" },
+    { key: "cost_m2_terbuka", label: "Cost/m2 Terbuka" },
     { key: "awal_spk", label: "Awal_SPK" },
     { key: "akhir_spk", label: "Akhir_SPK" },
     { key: "tambah_spk", label: "tambah_spk" },
@@ -560,7 +564,7 @@ const identitasCols: Array<keyof DashboardExportRow> = ["timestamp", "cabang", "
 const dataTypeColumns: Record<string, Array<keyof DashboardExportRow>> = {
     IDENTITAS: [...identitasCols],
     RAB: [...identitasCols, "status_rab", "luas_bangunan", "luas_terbangunan", "luas_area_terbuka", "luas_area_parkir", "luas_area_sales", "luas_gudang", "pekerjaan_area_terbuka", "pekerjaan_beanspot", "total_penawaran_final", "timestamp_acc_koordinator", "timestamp_acc_manager", "tanggal_grand_opening"],
-    SPK: [...identitasCols, "status_spk", "timestamp_spk", "durasi_spk", "waktu_persetujuan_bm", "nominal_spk", "awal_spk", "akhir_spk", "tambah_spk", "akhir_spk_setelah", "real_spk"],
+    SPK: [...identitasCols, "status_spk", "timestamp_spk", "durasi_spk", "waktu_persetujuan_bm", "nominal_spk", "cost_m2_bangunan", "cost_m2_terbuka", "awal_spk", "akhir_spk", "tambah_spk", "akhir_spk_setelah", "real_spk"],
     OPNAME: [...identitasCols, "tanggal_serah_terima", "keterlambatan", "denda", "kerja_tambah", "kerja_kurang", "grand_total_opname_final", "tanggal_opname_final", "status_opname_final", "nilai_toko"]
 };
 
@@ -691,7 +695,7 @@ const projectPlanningExportColumns: DashboardExportColumn[] = [
 const dataTypeLabels: Record<string, string> = {
     IDENTITAS: "Identitas Toko",
     RAB: "RAB & Luasan",
-    SPK: "SPK",
+    SPK: "SPK dan cost/m2",
     OPNAME: "Opname & Denda",
     PENGAWASAN: "Pengawasan",
     OPNAME_PARSIAL: "Opname (Parsial)",
@@ -1177,6 +1181,13 @@ export const buildDashboardExportRows = (
             : (spkEndDate && stDate ? countWeekdaysAfter(nextBusinessDayAfter(spkEndDate), stDate) : 0);
         const penalty = toNumber(opname?.nilai_denda) || calculatePenalty(lateDays);
 
+        const rabAreaTerbuka = sumBy(rab?.items ?? [], isAreaTerbuka, (item: any) => item.total_harga);
+        const activeAreaTerbuka = opname ? areaTerbuka : rabAreaTerbuka;
+        const luasBangunanNum = toNumber(rab?.luas_bangunan) || toNumber(rab?.luas_terbangun);
+        const luasAreaTerbukaNum = toNumber(rab?.luas_area_terbuka);
+        const costM2Bangunan = luasBangunanNum > 0 ? (toNumber(spk?.grand_total) - activeAreaTerbuka) / luasBangunanNum : 0;
+        const costM2Terbuka = luasAreaTerbukaNum > 0 ? activeAreaTerbuka / luasAreaTerbukaNum : 0;
+
         const row: DashboardExportRow = {
             timestamp: formatDateTime(rab?.created_at),
             cabang: normalize(project.toko.cabang),
@@ -1205,6 +1216,8 @@ export const buildDashboardExportRows = (
             durasi_spk: spk?.durasi ?? "",
             waktu_persetujuan_bm: formatDateTime(spk?.waktu_persetujuan),
             nominal_spk: toNumber(spk?.grand_total),
+            cost_m2_bangunan: costM2Bangunan,
+            cost_m2_terbuka: costM2Terbuka,
             awal_spk: toIsoDate(spk?.waktu_mulai),
             akhir_spk: toIsoDate(spk?.waktu_selesai),
             tambah_spk: normalize(latestExtension?.pertambahan_hari),
