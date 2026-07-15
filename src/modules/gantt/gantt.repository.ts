@@ -287,7 +287,9 @@ export const ganttRepository = {
                                             ELSE NULL
                                         END AS parsed_end
                                     FROM pertambahan_spk pt
-                                    WHERE pt.id_spk = p.id
+                                    JOIN pengajuan_spk p2 ON pt.id_spk = p2.id
+                                    JOIN toko t2 ON p2.id_toko = t2.id
+                                    WHERE t2.nomor_ulok = t.nomor_ulok
                                       AND UPPER(TRIM(COALESCE(pt.status_persetujuan,''))) IN ('APPROVED','DISETUJUI','DISETUJUI BM')
                                 ) safe_ext
                                 WHERE parsed_end IS NOT NULL
@@ -308,7 +310,9 @@ export const ganttRepository = {
                                             ELSE NULL
                                         END AS parsed_end
                                     FROM pertambahan_spk pt
-                                    WHERE pt.id_spk = p.id
+                                    JOIN pengajuan_spk p2 ON pt.id_spk = p2.id
+                                    JOIN toko t2 ON p2.id_toko = t2.id
+                                    WHERE t2.nomor_ulok = t.nomor_ulok
                                       AND UPPER(TRIM(COALESCE(pt.status_persetujuan,''))) IN ('APPROVED','DISETUJUI','DISETUJUI BM')
                                 ) safe_ext
                                 WHERE parsed_end IS NOT NULL
