@@ -211,7 +211,27 @@ export const ganttRepository = {
     async findSupervisionWorkspace(nomorUlok: string) {
         const result = await pool.query(
             `
-            WITH scope AS (
+            WITH target_toko AS (
+                SELECT id FROM toko WHERE nomor_ulok = $1
+            ),
+            valid_extensions AS (
+                SELECT
+                    CASE
+                        WHEN TRIM(COALESCE(pt.tanggal_spk_akhir_setelah_perpanjangan,'')) ~ '^\d{4}-\d{2}-\d{2}'
+                            THEN to_date(LEFT(TRIM(pt.tanggal_spk_akhir_setelah_perpanjangan),10),'YYYY-MM-DD')
+                        WHEN TRIM(COALESCE(pt.tanggal_spk_akhir_setelah_perpanjangan,'')) ~ '^\d{1,2}/\d{1,2}/\d{4}$'
+                            THEN to_date(TRIM(pt.tanggal_spk_akhir_setelah_perpanjangan),'DD/MM/YYYY')
+                        ELSE NULL
+                    END AS parsed_end
+                FROM pertambahan_spk pt
+                JOIN pengajuan_spk p2 ON pt.id_spk = p2.id
+                JOIN target_toko t2 ON p2.id_toko = t2.id
+                WHERE UPPER(TRIM(COALESCE(pt.status_persetujuan,''))) IN ('APPROVED','DISETUJUI','DISETUJUI BM')
+            ),
+            max_extension AS (
+                SELECT MAX(parsed_end) as max_date FROM valid_extensions
+            ),
+            scope AS (
                 SELECT
                     t.id AS id_toko,
                     t.nomor_ulok,
@@ -276,47 +296,19 @@ export const ganttRepository = {
                         p.durasi,
                         COALESCE(
                             (
-                                SELECT (MAX(parsed_end) - p.waktu_mulai::date + 1)::int
-                                FROM (
-                                    SELECT
-                                        CASE
-                                            WHEN TRIM(COALESCE(pt.tanggal_spk_akhir_setelah_perpanjangan,'')) ~ '^\d{4}-\d{2}-\d{2}'
-                                                THEN to_date(LEFT(TRIM(pt.tanggal_spk_akhir_setelah_perpanjangan),10),'YYYY-MM-DD')
-                                            WHEN TRIM(COALESCE(pt.tanggal_spk_akhir_setelah_perpanjangan,'')) ~ '^\d{1,2}/\d{1,2}/\d{4}$'
-                                                THEN to_date(TRIM(pt.tanggal_spk_akhir_setelah_perpanjangan),'DD/MM/YYYY')
-                                            ELSE NULL
-                                        END AS parsed_end
-                                    FROM pertambahan_spk pt
-                                    JOIN pengajuan_spk p2 ON pt.id_spk = p2.id
-                                    JOIN toko t2 ON p2.id_toko = t2.id
-                                    WHERE t2.nomor_ulok = t.nomor_ulok
-                                      AND UPPER(TRIM(COALESCE(pt.status_persetujuan,''))) IN ('APPROVED','DISETUJUI','DISETUJUI BM')
-                                ) safe_ext
-                                WHERE parsed_end IS NOT NULL
-                                  AND parsed_end > p.waktu_selesai::date
+                                SELECT (ext.max_date - p.waktu_mulai::date + 1)::int
+                                FROM max_extension ext
+                                WHERE ext.max_date IS NOT NULL
+                                  AND ext.max_date > p.waktu_selesai::date
                             ),
                             p.durasi
                         ) AS durasi_efektif,
                         COALESCE(
                             (
-                                SELECT MAX(parsed_end)::text
-                                FROM (
-                                    SELECT
-                                        CASE
-                                            WHEN TRIM(COALESCE(pt.tanggal_spk_akhir_setelah_perpanjangan,'')) ~ '^\d{4}-\d{2}-\d{2}'
-                                                THEN to_date(LEFT(TRIM(pt.tanggal_spk_akhir_setelah_perpanjangan),10),'YYYY-MM-DD')
-                                            WHEN TRIM(COALESCE(pt.tanggal_spk_akhir_setelah_perpanjangan,'')) ~ '^\d{1,2}/\d{1,2}/\d{4}$'
-                                                THEN to_date(TRIM(pt.tanggal_spk_akhir_setelah_perpanjangan),'DD/MM/YYYY')
-                                            ELSE NULL
-                                        END AS parsed_end
-                                    FROM pertambahan_spk pt
-                                    JOIN pengajuan_spk p2 ON pt.id_spk = p2.id
-                                    JOIN toko t2 ON p2.id_toko = t2.id
-                                    WHERE t2.nomor_ulok = t.nomor_ulok
-                                      AND UPPER(TRIM(COALESCE(pt.status_persetujuan,''))) IN ('APPROVED','DISETUJUI','DISETUJUI BM')
-                                ) safe_ext
-                                WHERE parsed_end IS NOT NULL
-                                  AND parsed_end > p.waktu_selesai::date
+                                SELECT ext.max_date::text
+                                FROM max_extension ext
+                                WHERE ext.max_date IS NOT NULL
+                                  AND ext.max_date > p.waktu_selesai::date
                             ),
                             p.waktu_selesai::text
                         ) AS tanggal_akhir_efektif
