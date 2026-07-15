@@ -451,13 +451,14 @@ const hasSpk = (project: DashboardData): boolean => project.spk.length > 0;
 const collectProjectWorkItems = (project: DashboardData): Set<string> => {
     const values: string[] = [];
 
-    project.rab.forEach((rab) => rab.items.forEach((item) => {
-        if (item.kategori_pekerjaan) values.push(normalizeUpper(item.kategori_pekerjaan));
-    }));
-
-    project.instruksi_lapangan.forEach((instruksi) => instruksi.items.forEach((item) => {
-        if (item.kategori_pekerjaan) values.push(normalizeUpper(item.kategori_pekerjaan));
-    }));
+    project.gantt.forEach((gantt) => {
+        gantt.kategori_pekerjaan.forEach((kat: any) => {
+            if (kat.kategori_pekerjaan) values.push(normalizeUpper(kat.kategori_pekerjaan));
+        });
+        gantt.pengawasan.forEach((p: any) => {
+            if (p.kategori_pekerjaan) values.push(normalizeUpper(p.kategori_pekerjaan));
+        });
+    });
 
     return new Set(values.filter(Boolean));
 };
