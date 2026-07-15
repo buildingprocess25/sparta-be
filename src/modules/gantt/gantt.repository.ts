@@ -230,7 +230,9 @@ export const ganttRepository = {
                     bst.id AS berkas_serah_terima_id,
                     bst.link_pdf AS link_pdf_serah_terima,
                     spk.waktu_mulai AS spk_start_date,
-                    spk.durasi AS spk_duration
+                    spk.durasi AS spk_duration,
+                    spk.durasi_efektif AS spk_effective_duration,
+                    spk.tanggal_akhir_efektif AS spk_effective_end_date
                 FROM toko t
                 LEFT JOIN LATERAL (
                     SELECT g.id, g.status
@@ -269,7 +271,51 @@ export const ganttRepository = {
                     LIMIT 1
                 ) bst ON true
                 LEFT JOIN LATERAL (
-                    SELECT p.waktu_mulai, p.durasi
+                    SELECT
+                        p.waktu_mulai,
+                        p.durasi,
+                        COALESCE(
+                            (
+                                SELECT (MAX(parsed_end) - p.waktu_mulai::date + 1)::int
+                                FROM (
+                                    SELECT
+                                        CASE
+                                            WHEN TRIM(COALESCE(pt.tanggal_spk_akhir_setelah_perpanjangan,'')) ~ '^\d{4}-\d{2}-\d{2}'
+                                                THEN to_date(LEFT(TRIM(pt.tanggal_spk_akhir_setelah_perpanjangan),10),'YYYY-MM-DD')
+                                            WHEN TRIM(COALESCE(pt.tanggal_spk_akhir_setelah_perpanjangan,'')) ~ '^\d{1,2}/\d{1,2}/\d{4}$'
+                                                THEN to_date(TRIM(pt.tanggal_spk_akhir_setelah_perpanjangan),'DD/MM/YYYY')
+                                            ELSE NULL
+                                        END AS parsed_end
+                                    FROM pertambahan_spk pt
+                                    WHERE pt.id_spk = p.id
+                                      AND UPPER(TRIM(COALESCE(pt.status_persetujuan,''))) IN ('APPROVED','DISETUJUI','DISETUJUI BM')
+                                ) safe_ext
+                                WHERE parsed_end IS NOT NULL
+                                  AND parsed_end > p.waktu_selesai::date
+                            ),
+                            p.durasi
+                        ) AS durasi_efektif,
+                        COALESCE(
+                            (
+                                SELECT MAX(parsed_end)::text
+                                FROM (
+                                    SELECT
+                                        CASE
+                                            WHEN TRIM(COALESCE(pt.tanggal_spk_akhir_setelah_perpanjangan,'')) ~ '^\d{4}-\d{2}-\d{2}'
+                                                THEN to_date(LEFT(TRIM(pt.tanggal_spk_akhir_setelah_perpanjangan),10),'YYYY-MM-DD')
+                                            WHEN TRIM(COALESCE(pt.tanggal_spk_akhir_setelah_perpanjangan,'')) ~ '^\d{1,2}/\d{1,2}/\d{4}$'
+                                                THEN to_date(TRIM(pt.tanggal_spk_akhir_setelah_perpanjangan),'DD/MM/YYYY')
+                                            ELSE NULL
+                                        END AS parsed_end
+                                    FROM pertambahan_spk pt
+                                    WHERE pt.id_spk = p.id
+                                      AND UPPER(TRIM(COALESCE(pt.status_persetujuan,''))) IN ('APPROVED','DISETUJUI','DISETUJUI BM')
+                                ) safe_ext
+                                WHERE parsed_end IS NOT NULL
+                                  AND parsed_end > p.waktu_selesai::date
+                            ),
+                            p.waktu_selesai::text
+                        ) AS tanggal_akhir_efektif
                     FROM pengajuan_spk p
                     WHERE p.id_toko = t.id
                     ORDER BY p.id DESC
@@ -395,7 +441,7 @@ export const ganttRepository = {
                 s.kode_toko, s.cabang, s.gantt_id, s.gantt_status, s.pic_id,
                 s.plc_building_support, s.opname_final_id, s.status_opname_final,
                 s.opname_aksi, s.opname_item_count, s.berkas_serah_terima_id, s.link_pdf_serah_terima,
-                s.spk_start_date, s.spk_duration
+                s.spk_start_date, s.spk_duration, s.spk_effective_duration, s.spk_effective_end_date
             ORDER BY
                 CASE
                     WHEN UPPER(s.lingkup_pekerjaan) = 'SIPIL' THEN 0
