@@ -428,18 +428,6 @@ export const dashboardRepository = {
             [tokoId]
         );
 
-        const rabIds = rabResult.rows.map((row) => row.id);
-        const rabItemResult = await pool.query<DashboardRabItemRow>(
-            `
-            SELECT id, id_rab, kategori_pekerjaan, jenis_pekerjaan, satuan, volume, harga_material, harga_upah,
-                   total_material, total_upah, total_harga, catatan
-            FROM rab_item
-            WHERE id_rab = ANY($1::int[])
-            ORDER BY id ASC
-            `,
-            [toArrayParam(rabIds)]
-        );
-
         const ganttResult = await pool.query<DashboardGanttRow>(
             `
             SELECT id, id_toko, status, email_pembuat, timestamp
@@ -664,16 +652,9 @@ export const dashboardRepository = {
             [toko?.nomor_ulok ?? ""]
         );
 
-        const rabItemsByRabId = new Map<number, DashboardRabItemRow[]>();
-        for (const item of rabItemResult.rows) {
-            const items = rabItemsByRabId.get(item.id_rab) ?? [];
-            items.push(item);
-            rabItemsByRabId.set(item.id_rab, items);
-        }
-
         const rab = rabResult.rows.map((row) => ({
             ...row,
-            items: rabItemsByRabId.get(row.id) ?? []
+            items: []
         }));
 
         const kategoriByGanttId = new Map<number, DashboardKategoriGanttRow[]>();
@@ -788,9 +769,6 @@ export const dashboardRepository = {
     },
 
     async findAllDashboard(query: DashboardAllQueryInput): Promise<DashboardData[]> {
-        const client = await pool.connect();
-
-        try {
         const filters: string[] = [];
         const values: Array<string | number> = [];
 
@@ -803,7 +781,7 @@ export const dashboardRepository = {
         }
 
         const whereClause = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
-        const tokoResult = await client.query<DashboardTokoRow>(
+        const tokoResult = await pool.query<DashboardTokoRow>(
             `
             SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor
             FROM toko
@@ -834,56 +812,172 @@ export const dashboardRepository = {
             tokoIdsByScopeKey.set(scopeKey, scopedIds);
         }
 
-        const rabResult = await client.query<DashboardRabRow>(
-            `
-            SELECT r.id, r.id_toko, r.no_sph, r.status, t.proyek, 
-                   t.lingkup_pekerjaan, r.nama_pt, r.link_pdf_gabungan, r.link_pdf_non_sbo, r.link_pdf_rekapitulasi,
-                   r.link_pdf_sph, r.logo, r.email_pembuat, r.pemberi_persetujuan_direktur, r.waktu_persetujuan_direktur,
-                   r.pemberi_persetujuan_koordinator, r.waktu_persetujuan_koordinator, r.pemberi_persetujuan_manager,
-                   r.waktu_persetujuan_manager, r.alasan_penolakan, r.waktu_penolakan, r.ditolak_oleh, r.durasi_pekerjaan,
-                   r.kategori_lokasi, r.no_polis, r.berlaku_polis, r.file_asuransi, r.luas_bangunan, r.luas_terbangun,
-                   r.luas_area_terbuka, r.luas_area_parkir, r.luas_area_sales, r.luas_gudang, r.grand_total,
-                   r.grand_total_non_sbo, r.grand_total_final, r.created_at
-            FROM rab r
-            LEFT JOIN toko t ON t.id = r.id_toko
-            WHERE r.id_toko = ANY($1::int[])
-            ORDER BY r.created_at DESC, r.id DESC
-            `,
-            [toArrayParam(tokoIds)]
-        );
+        // --- Batch 1: all queries depend only on tokoIds, run in parallel ---
+        const ulokKeys = [...new Set(
+            tokoResult.rows.map((row) => normalizeDashboardUlok(row.nomor_ulok)).filter(Boolean)
+        )];
+        const [
+            rabResult,
+            ganttResult,
+            spkResult,
+            picResult,
+            instruksiResult,
+            opnameFinalResult,
+            berkasSerahTerimaResult,
+            projectPlanningResult,
+            pengawasanPdfPendingResult
+        ] = await Promise.all([
+            pool.query<DashboardRabRow>(
+                `
+                SELECT r.id, r.id_toko, r.no_sph, r.status, t.proyek,
+                       t.lingkup_pekerjaan, r.nama_pt, r.link_pdf_gabungan, r.link_pdf_non_sbo, r.link_pdf_rekapitulasi,
+                       r.link_pdf_sph, r.logo, r.email_pembuat, r.pemberi_persetujuan_direktur, r.waktu_persetujuan_direktur,
+                       r.pemberi_persetujuan_koordinator, r.waktu_persetujuan_koordinator, r.pemberi_persetujuan_manager,
+                       r.waktu_persetujuan_manager, r.alasan_penolakan, r.waktu_penolakan, r.ditolak_oleh, r.durasi_pekerjaan,
+                       r.kategori_lokasi, r.no_polis, r.berlaku_polis, r.file_asuransi, r.luas_bangunan, r.luas_terbangun,
+                       r.luas_area_terbuka, r.luas_area_parkir, r.luas_area_sales, r.luas_gudang, r.grand_total,
+                       r.grand_total_non_sbo, r.grand_total_final, r.created_at
+                FROM rab r
+                LEFT JOIN toko t ON t.id = r.id_toko
+                WHERE r.id_toko = ANY($1::int[])
+                ORDER BY r.created_at DESC, r.id DESC
+                `,
+                [toArrayParam(tokoIds)]
+            ),
+            pool.query<DashboardGanttRow>(
+                `
+                SELECT id, id_toko, status, email_pembuat, timestamp
+                FROM gantt_chart
+                WHERE id_toko = ANY($1::int[])
+                ORDER BY id DESC
+                `,
+                [toArrayParam(tokoIds)]
+            ),
+            pool.query<DashboardSpkRow>(
+                `
+                SELECT p.id,
+                       COALESCE(p.id_toko, t.id) AS id_toko,
+                       p.nomor_ulok,
+                       p.email_pembuat,
+                       p.lingkup_pekerjaan,
+                       p.nama_kontraktor,
+                       p.proyek,
+                       p.waktu_mulai,
+                       p.durasi,
+                       p.waktu_selesai,
+                       p.grand_total,
+                       p.terbilang,
+                       p.nomor_spk,
+                       p.par,
+                       p.spk_manual_1,
+                       p.spk_manual_2,
+                       p.status,
+                       p.link_pdf,
+                       p.approver_email,
+                       p.waktu_persetujuan,
+                       p.alasan_penolakan,
+                       p.created_at
+                FROM pengajuan_spk p
+                LEFT JOIN toko t
+                  ON t.nomor_ulok = p.nomor_ulok
+                 AND LOWER(COALESCE(t.lingkup_pekerjaan, '')) = LOWER(COALESCE(p.lingkup_pekerjaan, ''))
+                WHERE COALESCE(p.id_toko, t.id) = ANY($1::int[])
+                ORDER BY p.created_at DESC, p.id DESC
+                `,
+                [toArrayParam(tokoIds)]
+            ),
+            pool.query<DashboardPicPengawasanRow>(
+                `
+                SELECT p.id,
+                       COALESCE(p.id_toko, t.id) AS id_toko,
+                       p.nomor_ulok,
+                       p.id_rab,
+                       p.id_spk,
+                       p.kategori_lokasi,
+                       p.durasi,
+                       p.tanggal_mulai_spk,
+                       p.plc_building_support,
+                       p.created_at
+                FROM pic_pengawasan p
+                LEFT JOIN toko t ON t.nomor_ulok = p.nomor_ulok
+                WHERE COALESCE(p.id_toko, t.id) = ANY($1::int[])
+                `,
+                [toArrayParam(tokoIds)]
+            ),
+            pool.query<DashboardInstruksiLapanganRow>(
+                `
+                SELECT id, id_toko, status, link_pdf_gabungan, link_pdf_non_sbo, link_pdf_rekapitulasi, link_lampiran,
+                       email_pembuat, pemberi_persetujuan_koordinator, waktu_persetujuan_koordinator,
+                       pemberi_persetujuan_manager, waktu_persetujuan_manager, pemberi_persetujuan_kontraktor,
+                       waktu_persetujuan_kontraktor, alasan_penolakan, grand_total, grand_total_non_sbo,
+                       grand_total_final, created_at
+                FROM instruksi_lapangan
+                WHERE id_toko = ANY($1::int[])
+                ORDER BY created_at DESC, id DESC
+                `,
+                [toArrayParam(tokoIds)]
+            ),
+            pool.query<DashboardOpnameFinalRow>(
+                `
+                SELECT id, id_toko, tipe_opname, aksi, status_opname_final, link_pdf_opname, email_pembuat,
+                       pemberi_persetujuan_direktur, waktu_persetujuan_direktur, pemberi_persetujuan_koordinator,
+                       waktu_persetujuan_koordinator, pemberi_persetujuan_manager, waktu_persetujuan_manager,
+                       alasan_penolakan, grand_total_opname, grand_total_rab, hari_denda, nilai_denda,
+                       tanggal_akhir_spk_denda, tanggal_serah_terima_denda, created_at, grand_total_final
+                FROM opname_final
+                WHERE id_toko = ANY($1::int[])
+                ORDER BY created_at DESC, id DESC
+                `,
+                [toArrayParam(tokoIds)]
+            ),
+            pool.query<DashboardBerkasSerahTerimaRow>(
+                `
+                SELECT id, id_toko, link_pdf, created_at
+                FROM berkas_serah_terima
+                WHERE id_toko = ANY($1::int[])
+                ORDER BY created_at DESC, id DESC
+                `,
+                [toArrayParam(tokoIds)]
+            ),
+            pool.query<DashboardProjectPlanningRow>(
+                `
+                SELECT id, id_toko, nomor_ulok, nama_toko, kode_toko, cabang, proyek, lingkup_pekerjaan,
+                       jenis_proyek, estimasi_biaya, nama_pengaju, nama_lokasi, jenis_pengajuan,
+                       status, luas_bangunan, luas_area_terbuka, luas_area_terbangun, luas_gudang,
+                       luas_area_parkir, luas_area_sales, bm_waktu_persetujuan, created_at
+                FROM projek_planning
+                WHERE id_toko = ANY($1::int[])
+                ORDER BY created_at DESC, id DESC
+                `,
+                [toArrayParam(tokoIds)]
+            ),
+            pool.query<DashboardPengawasanPdfPendingRow>(
+                `
+                SELECT id, nomor_ulok, lingkup_pekerjaan, h_day, tanggal_pengawasan,
+                       link_pdf_pengawasan, source_sheet, source_row, status, created_at
+                FROM pengawasan_pdf_migration_pending
+                WHERE status = 'PENDING'
+                  AND UPPER(nomor_ulok) = ANY($1::text[])
+                ORDER BY created_at DESC, id DESC
+                `,
+                [ulokKeys]
+            )
+        ]);
 
         const rabIds = rabResult.rows.map((row) => row.id);
-        const rabItemResult = await client.query<DashboardRabItemRow>(
-            `
-            SELECT id, id_rab, kategori_pekerjaan, jenis_pekerjaan, satuan, volume, harga_material, harga_upah,
-                   total_material, total_upah, total_harga, catatan
-            FROM rab_item
-            WHERE id_rab = ANY($1::int[])
-            ORDER BY id ASC
-            `,
-            [toArrayParam(rabIds)]
-        );
-
-        const ganttResult = await client.query<DashboardGanttRow>(
-            `
-            SELECT id, id_toko, status, email_pembuat, timestamp
-            FROM gantt_chart
-            WHERE id_toko = ANY($1::int[])
-            ORDER BY id DESC
-            `,
-            [toArrayParam(tokoIds)]
-        );
-
         const ganttIds = ganttResult.rows.map((row) => row.id);
 
+        // --- Batch 2: queries depending on ganttIds + rabIds, run in parallel ---
         const [
             kategoriResult,
             dayResult,
             pengawasanGanttResult,
             pengawasanResult,
-            dependencyResult
+            dependencyResult,
+            spkLogResult,
+            pertambahanResult
         ] = await Promise.all([
-            client.query<DashboardKategoriGanttRow>(
+            pool.query<DashboardKategoriGanttRow>(
                 `
                 SELECT id, id_gantt, kategori_pekerjaan
                 FROM kategori_pekerjaan_gantt
@@ -892,7 +986,7 @@ export const dashboardRepository = {
                 `,
                 [toArrayParam(ganttIds)]
             ),
-            client.query<DashboardDayGanttRow>(
+            pool.query<DashboardDayGanttRow>(
                 `
                 SELECT id, id_gantt, id_kategori_pekerjaan_gantt, h_awal, h_akhir, keterlambatan, kecepatan
                 FROM day_gantt_chart
@@ -901,7 +995,7 @@ export const dashboardRepository = {
                 `,
                 [toArrayParam(ganttIds)]
             ),
-            client.query<DashboardPengawasanGanttRow>(
+            pool.query<DashboardPengawasanGanttRow>(
                 `
                 SELECT id, id_gantt, id_pic_pengawasan, tanggal_pengawasan
                 FROM pengawasan_gantt
@@ -910,7 +1004,7 @@ export const dashboardRepository = {
                 `,
                 [toArrayParam(ganttIds)]
             ),
-            client.query<DashboardPengawasanRow>(
+            pool.query<DashboardPengawasanRow>(
                 `
                 SELECT id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan,
                        dokumentasi, status, created_at
@@ -920,7 +1014,7 @@ export const dashboardRepository = {
                 `,
                 [toArrayParam(ganttIds)]
             ),
-            client.query<DashboardDependencyGanttRow>(
+            pool.query<DashboardDependencyGanttRow>(
                 `
                 SELECT id, id_gantt, id_kategori, id_kategori_terikat
                 FROM dependency_gantt
@@ -928,11 +1022,32 @@ export const dashboardRepository = {
                 ORDER BY id ASC
                 `,
                 [toArrayParam(ganttIds)]
+            ),
+            pool.query<DashboardSpkApprovalLogRow>(
+                `
+                SELECT id, pengajuan_spk_id, approver_email, tindakan, alasan_penolakan, waktu_tindakan
+                FROM spk_approval_log
+                WHERE pengajuan_spk_id = ANY($1::int[])
+                ORDER BY waktu_tindakan DESC, id DESC
+                `,
+                [toArrayParam(spkResult.rows.map((r) => r.id))]
+            ),
+            pool.query<DashboardPertambahanSpkRow>(
+                `
+                SELECT id, id_spk, pertambahan_hari, tanggal_spk_akhir, tanggal_spk_akhir_setelah_perpanjangan,
+                       alasan_perpanjangan, dibuat_oleh, status_persetujuan, disetujui_oleh, waktu_persetujuan,
+                       alasan_penolakan, link_pdf, link_lampiran_pendukung, created_at
+                FROM pertambahan_spk
+                WHERE id_spk = ANY($1::int[])
+                ORDER BY created_at DESC, id DESC
+                `,
+                [toArrayParam(spkResult.rows.map((r) => r.id))]
             )
         ]);
 
+        // --- Batch 3: berkas_pengawasan depends on pengawasanGanttIds from batch 2 ---
         const pengawasanGanttIds = pengawasanGanttResult.rows.map((row) => row.id);
-        const berkasPengawasanResult = await client.query<DashboardBerkasPengawasanRow>(
+        const berkasPengawasanResult = await pool.query<DashboardBerkasPengawasanRow>(
             `
             SELECT id, id_pengawasan_gantt, link_pdf_pengawasan, created_at
             FROM berkas_pengawasan
@@ -942,184 +1057,11 @@ export const dashboardRepository = {
             [toArrayParam(pengawasanGanttIds)]
         );
 
-        const spkResult = await client.query<DashboardSpkRow>(
-            `
-            SELECT p.id,
-                   COALESCE(p.id_toko, t.id) AS id_toko,
-                   p.nomor_ulok,
-                   p.email_pembuat,
-                   p.lingkup_pekerjaan,
-                   p.nama_kontraktor,
-                   p.proyek,
-                   p.waktu_mulai,
-                   p.durasi,
-                   p.waktu_selesai,
-                   p.grand_total,
-                   p.terbilang,
-                   p.nomor_spk,
-                   p.par,
-                   p.spk_manual_1,
-                   p.spk_manual_2,
-                   p.status,
-                   p.link_pdf,
-                   p.approver_email,
-                   p.waktu_persetujuan,
-                   p.alasan_penolakan,
-                   p.created_at
-            FROM pengajuan_spk p
-            LEFT JOIN toko t
-              ON t.nomor_ulok = p.nomor_ulok
-             AND LOWER(COALESCE(t.lingkup_pekerjaan, '')) = LOWER(COALESCE(p.lingkup_pekerjaan, ''))
-            WHERE COALESCE(p.id_toko, t.id) = ANY($1::int[])
-            ORDER BY p.created_at DESC, p.id DESC
-            `,
-            [toArrayParam(tokoIds)]
-        );
-
         const spkIds = spkResult.rows.map((row) => row.id);
-
-        const [spkLogResult, pertambahanResult] = await Promise.all([
-            client.query<DashboardSpkApprovalLogRow>(
-                `
-                SELECT id, pengajuan_spk_id, approver_email, tindakan, alasan_penolakan, waktu_tindakan
-                FROM spk_approval_log
-                WHERE pengajuan_spk_id = ANY($1::int[])
-                ORDER BY waktu_tindakan DESC, id DESC
-                `,
-                [toArrayParam(spkIds)]
-            ),
-            client.query<DashboardPertambahanSpkRow>(
-                `
-                SELECT id, id_spk, pertambahan_hari, tanggal_spk_akhir, tanggal_spk_akhir_setelah_perpanjangan,
-                       alasan_perpanjangan, dibuat_oleh, status_persetujuan, disetujui_oleh, waktu_persetujuan,
-                       alasan_penolakan, link_pdf, link_lampiran_pendukung, created_at
-                FROM pertambahan_spk
-                WHERE id_spk = ANY($1::int[])
-                ORDER BY created_at DESC, id DESC
-                `,
-                [toArrayParam(spkIds)]
-            )
-        ]);
-
-        const picResult = await client.query<DashboardPicPengawasanRow>(
-            `
-            SELECT p.id,
-                   COALESCE(p.id_toko, t.id) AS id_toko,
-                   p.nomor_ulok,
-                   p.id_rab,
-                   p.id_spk,
-                   p.kategori_lokasi,
-                   p.durasi,
-                   p.tanggal_mulai_spk,
-                   p.plc_building_support,
-                   p.created_at
-            FROM pic_pengawasan p
-            LEFT JOIN toko t ON t.nomor_ulok = p.nomor_ulok
-            WHERE COALESCE(p.id_toko, t.id) = ANY($1::int[])
-            `,
-            [toArrayParam(tokoIds)]
-        );
-
-        const instruksiResult = await client.query<DashboardInstruksiLapanganRow>(
-            `
-            SELECT id, id_toko, status, link_pdf_gabungan, link_pdf_non_sbo, link_pdf_rekapitulasi, link_lampiran,
-                   email_pembuat, pemberi_persetujuan_koordinator, waktu_persetujuan_koordinator,
-                   pemberi_persetujuan_manager, waktu_persetujuan_manager, pemberi_persetujuan_kontraktor,
-                   waktu_persetujuan_kontraktor, alasan_penolakan, grand_total, grand_total_non_sbo,
-                   grand_total_final, created_at
-            FROM instruksi_lapangan
-            WHERE id_toko = ANY($1::int[])
-            ORDER BY created_at DESC, id DESC
-            `,
-            [toArrayParam(tokoIds)]
-        );
-
-        const instruksiIds = instruksiResult.rows.map((row) => row.id);
-        const instruksiItemResult = await client.query<DashboardInstruksiLapanganItemRow>(
-            `
-            SELECT id, id_instruksi_lapangan, kategori_pekerjaan, jenis_pekerjaan, satuan, volume,
-                   harga_material, harga_upah, total_material, total_upah, total_harga
-            FROM instruksi_lapangan_item
-            WHERE id_instruksi_lapangan = ANY($1::int[])
-            ORDER BY id ASC
-            `,
-            [toArrayParam(instruksiIds)]
-        );
-
-        const opnameFinalResult = await client.query<DashboardOpnameFinalRow>(
-            `
-            SELECT id, id_toko, tipe_opname, aksi, status_opname_final, link_pdf_opname, email_pembuat,
-                   pemberi_persetujuan_direktur, waktu_persetujuan_direktur, pemberi_persetujuan_koordinator,
-                   waktu_persetujuan_koordinator, pemberi_persetujuan_manager, waktu_persetujuan_manager,
-                   alasan_penolakan, grand_total_opname, grand_total_rab, hari_denda, nilai_denda,
-                   tanggal_akhir_spk_denda, tanggal_serah_terima_denda, created_at, grand_total_final
-            FROM opname_final
-            WHERE id_toko = ANY($1::int[])
-            ORDER BY created_at DESC, id DESC
-            `,
-            [toArrayParam(tokoIds)]
-        );
-
-        const opnameFinalIds = opnameFinalResult.rows.map((row) => row.id);
-        const opnameItemResult = await client.query<DashboardOpnameItemRow>(
-            `
-            SELECT oi.id, oi.id_toko, oi.id_opname_final, oi.id_rab_item,
-                   ri.kategori_pekerjaan, ri.jenis_pekerjaan, ri.satuan,
-                   oi.status, oi.volume_akhir, oi.selisih_volume, oi.total_selisih,
-                   oi.total_harga_opname, oi.desain, oi.kualitas, oi.spesifikasi,
-                   oi.foto, oi.catatan, oi.created_at
-            FROM opname_item oi
-            LEFT JOIN rab_item ri ON ri.id = oi.id_rab_item
-            WHERE oi.id_opname_final = ANY($1::int[])
-            ORDER BY oi.id ASC
-            `,
-            [toArrayParam(opnameFinalIds)]
-        );
-
-        const berkasSerahTerimaResult = await client.query<DashboardBerkasSerahTerimaRow>(
-            `
-            SELECT id, id_toko, link_pdf, created_at
-            FROM berkas_serah_terima
-            WHERE id_toko = ANY($1::int[])
-            ORDER BY created_at DESC, id DESC
-            `,
-            [toArrayParam(tokoIds)]
-        );
-
-        const projectPlanningResult = await client.query<DashboardProjectPlanningRow>(
-            `
-            SELECT id, id_toko, nomor_ulok, nama_toko, kode_toko, cabang, proyek, lingkup_pekerjaan,
-                   jenis_proyek, estimasi_biaya, nama_pengaju, nama_lokasi, jenis_pengajuan,
-                   status, luas_bangunan, luas_area_terbuka, luas_area_terbangun, luas_gudang,
-                   luas_area_parkir, luas_area_sales, bm_waktu_persetujuan, created_at
-            FROM projek_planning
-            WHERE id_toko = ANY($1::int[])
-            ORDER BY created_at DESC, id DESC
-            `,
-            [toArrayParam(tokoIds)]
-        );
-
-        const pengawasanPdfPendingResult = await client.query<DashboardPengawasanPdfPendingRow>(
-            `
-            SELECT id, nomor_ulok, lingkup_pekerjaan, h_day, tanggal_pengawasan,
-                   link_pdf_pengawasan, source_sheet, source_row, status, created_at
-            FROM pengawasan_pdf_migration_pending
-            WHERE status = 'PENDING'
-              AND UPPER(nomor_ulok) = ANY($1::text[])
-            ORDER BY created_at DESC, id DESC
-            `,
-            [[...new Set(tokoResult.rows.map((row) => normalizeDashboardUlok(row.nomor_ulok)).filter(Boolean))]]
-        );
-
-        const rabItemsByRabId = new Map<number, DashboardRabItemRow[]>();
-        for (const item of rabItemResult.rows) {
-            pushMapArray(rabItemsByRabId, item.id_rab, item);
-        }
 
         const rabByTokoId = new Map<number, Array<DashboardRabRow & { items: DashboardRabItemRow[] }>>();
         for (const row of rabResult.rows) {
-            const items = rabItemsByRabId.get(row.id) ?? [];
-            pushMapArray(rabByTokoId, row.id_toko, { ...row, items });
+            pushMapArray(rabByTokoId, row.id_toko, { ...row, items: [] });
         }
 
         const kategoriByGanttId = new Map<number, DashboardKategoriGanttRow[]>();
@@ -1213,30 +1155,20 @@ export const dashboardRepository = {
             }
         }
 
-        const instruksiItemsById = new Map<number, DashboardInstruksiLapanganItemRow[]>();
-        for (const row of instruksiItemResult.rows) {
-            pushMapArray(instruksiItemsById, row.id_instruksi_lapangan, row);
-        }
-
         const instruksiByTokoId = new Map<number, Array<DashboardInstruksiLapanganRow & { items: DashboardInstruksiLapanganItemRow[] }>>();
         for (const row of instruksiResult.rows) {
             const mapped = {
                 ...row,
-                items: instruksiItemsById.get(row.id) ?? []
+                items: []
             };
             pushMapArray(instruksiByTokoId, row.id_toko, mapped);
-        }
-
-        const opnameItemsByFinalId = new Map<number, DashboardOpnameItemRow[]>();
-        for (const row of opnameItemResult.rows) {
-            pushMapArray(opnameItemsByFinalId, row.id_opname_final, row);
         }
 
         const opnameFinalByTokoId = new Map<number, Array<DashboardOpnameFinalRow & { items: DashboardOpnameItemRow[] }>>();
         for (const row of opnameFinalResult.rows) {
             const mapped = {
                 ...row,
-                items: opnameItemsByFinalId.get(row.id) ?? []
+                items: []
             };
             pushMapArray(opnameFinalByTokoId, row.id_toko, mapped);
         }
@@ -1271,9 +1203,7 @@ export const dashboardRepository = {
             berkas_serah_terima: berkasSerahByTokoId.get(toko.id) ?? [],
             project_planning: ppByTokoId.get(toko.id) ?? []
         }));
-        } finally {
-            client.release();
-        }
+
     },
 
     async findDokumentasiBangunanForExport(): Promise<DashboardDokumentasiBangunanRow[]> {

@@ -33,7 +33,7 @@ const buildSslConfig = (rawUrl: string): PgSslConfig => {
 export const pool = new Pool({
     connectionString: buildConnectionString(env.DATABASE_URL),
     ssl: buildSslConfig(env.DATABASE_URL),
-    max: Math.min(env.PG_POOL_MAX, 2),
+    max: Math.min(Math.max(env.PG_POOL_MAX, 5), 10),
     keepAlive: env.PG_KEEP_ALIVE,
     connectionTimeoutMillis: env.PG_CONN_TIMEOUT_MS,
     idleTimeoutMillis: env.PG_IDLE_TIMEOUT_MS
