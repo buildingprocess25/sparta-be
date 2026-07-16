@@ -51,6 +51,7 @@ export type DendaActionRow = {
     nomor_surat: string | null;
     link_pdf: string | null;
     submitted_by_email: string | null;
+    submitted_by_name: string | null;
     submitted_by_role: string | null;
     submitted_at: string | null;
     manager_approved_by: string | null;
@@ -91,7 +92,7 @@ const ACTION_SELECT = `
     id, id_toko, id_opname_final, nomor_ulok, lingkup_pekerjaan, cabang, nama_kontraktor, nomor_spk,
     action_type, status, sp_level, hari_denda, nilai_denda, alasan_sp, alasan_lainnya, catatan,
     instruksi_tindak_lanjut, deadline_tindak_lanjut, lampiran_1_url, lampiran_2_url,
-    nomor_surat, link_pdf, submitted_by_email, submitted_by_role, submitted_at,
+    nomor_surat, link_pdf, submitted_by_email, submitted_by_name, submitted_by_role, submitted_at,
     manager_approved_by, manager_approved_role, manager_approved_at,
     manager_rejected_by, manager_rejected_role, manager_rejected_at, manager_rejected_reason,
     sent_to_contractor_at, viewed_by_contractor_at, acknowledged_by_contractor_at,
@@ -186,7 +187,8 @@ export const spRepository = {
                 ADD COLUMN IF NOT EXISTS acknowledged_by_email TEXT,
                 ADD COLUMN IF NOT EXISTS acknowledged_by_role TEXT,
                 ADD COLUMN IF NOT EXISTS catatan_acknowledge TEXT,
-                ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP
+                ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP,
+                ADD COLUMN IF NOT EXISTS submitted_by_name TEXT
         `);
 
         await pool.query(`
@@ -666,6 +668,7 @@ export const spRepository = {
         lampiran_1_url?: string | null;
         lampiran_2_url?: string | null;
         actor_email?: string | null;
+        actor_name?: string | null;
         actor_role?: string | null;
         cabang?: string | null;
     }): Promise<DendaActionRow> {
@@ -692,13 +695,14 @@ export const spRepository = {
                 lampiran_1_url,
                 lampiran_2_url,
                 submitted_by_email,
+                submitted_by_name,
                 submitted_by_role,
                 submitted_at,
                 actor_email,
                 actor_role
             )
             VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, 'WAITING_MANAGER', $9, $10, $11, $12, $13, $14, $15, $16::date, $17, $18, $19, $20, timezone('Asia/Jakarta', now()), $19, $20
+                $1, $2, $3, $4, $5, $6, $7, $8, 'WAITING_MANAGER', $9, $10, $11, $12, $13, $14, $15, $16::date, $17, $18, $19, $20, $21, timezone('Asia/Jakarta', now()), $19, $21
             )
             RETURNING id
             `,
@@ -722,7 +726,8 @@ export const spRepository = {
                 input.lampiran_1_url ?? null,                       // $17 lampiran_1_url
                 input.lampiran_2_url ?? null,                       // $18 lampiran_2_url
                 input.actor_email ?? null,                          // $19 actor_email = submitted_by_email (reused)
-                input.actor_role ?? null,                           // $20 actor_role = submitted_by_role (reused)
+                input.actor_name ?? null,                           // $20 submitted_by_name
+                input.actor_role ?? null,                           // $21 actor_role = submitted_by_role (reused)
             ]
         );
 
@@ -769,6 +774,33 @@ export const spRepository = {
         if (result.rowCount === 0) return null as never;
         const updated = await this.findActionById(Number(result.rows[0].id));
         if (!updated) throw new Error("Denda action was approved but could not be loaded.");
+        return updated;
+    },
+
+    /**
+     * Update link_pdf (dan opsional nomor_surat) tanpa peduli status.
+     * Digunakan untuk regenerate PDF pada SP yang sudah diapprove.
+     */
+    async updatePdfLink(input: {
+        id: number;
+        link_pdf: string;
+        nomor_surat?: string | null;
+    }): Promise<DendaActionRow> {
+        const result = await pool.query<{ id: string }>(
+            `
+            UPDATE denda_keterlambatan_action
+            SET link_pdf = $2,
+                nomor_surat = COALESCE($3, nomor_surat),
+                updated_at = timezone('Asia/Jakarta', now())
+            WHERE id = $1
+            RETURNING id
+            `,
+            [input.id, input.link_pdf, input.nomor_surat ?? null]
+        );
+
+        if (result.rowCount === 0) throw new Error("SP tidak ditemukan saat update link_pdf.");
+        const updated = await this.findActionById(Number(result.rows[0].id));
+        if (!updated) throw new Error("SP ditemukan tapi gagal di-load setelah update link_pdf.");
         return updated;
     },
 

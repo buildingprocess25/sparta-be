@@ -11,6 +11,7 @@ type BuildSpPdfInput = {
     approvedRole: string;
     approvedAt: string;
     submittedBy: string;
+    submittedAt?: string | null;
 };
 
 const JAKARTA_TIME_ZONE = "Asia/Jakarta";
@@ -90,6 +91,7 @@ export async function buildSuratPeringatanPdfBuffer(input: BuildSpPdfInput): Pro
         approvedAt: input.approvedAt,
         approvedRole: input.approvedRole,
         submittedBy: input.submittedBy,
+        submittedAt: input.submittedAt ?? null,
     };
 
     const html = await renderHtmlTemplate(templatePath, data);

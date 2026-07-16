@@ -93,35 +93,44 @@
       line-height: 1.7;
     }
 
-    .ttd-section {
-      margin-top: 10px;
+    .signatures {
+      margin-top: 20px;
+      width: 100%;
       page-break-inside: avoid;
-      display: flex;
-      justify-content: space-between;
     }
 
-    .ttd-block {
-      width: 45%;
-      font-size: 11px;
+    .signatures table {
+      width: 100%;
+      border-collapse: separate;
+      text-align: center;
+      table-layout: fixed;
     }
 
-    .ttd-block p {
-      margin: 0 0 2px 0;
+    .signatures td {
+      padding: 2px 4px;
+      vertical-align: top;
     }
 
-    .ttd-space {
+    .signature-space {
       height: 55px;
+      min-height: 55px;
     }
 
-    .ttd-name {
-      font-weight: bold;
+    .sig-name {
+      font-weight: 700;
       font-size: 11px;
     }
 
-    .ttd-role {
+    .sig-role {
       font-size: 10px;
       color: #4b5563;
       margin-top: 2px;
+    }
+
+    .sig-timestamp {
+      font-size: 10px;
+      color: #555;
+      font-style: italic;
     }
 
     .footer {
@@ -238,19 +247,33 @@
     <strong>PT SUMBER ALFARIA TRIJAYA TBK</strong>
   </p>
 
-  <div class="ttd-section">
-    <div class="ttd-block">
-      <p>Dibuat oleh,</p>
-      <div class="ttd-space"></div>
-      <div class="ttd-name">{{ submittedBy }}</div>
-      <div class="ttd-role">Branch Building Coordinator/Support</div>
-    </div>
-    <div class="ttd-block" style="text-align:right;">
-      <p>Mengetahui,</p>
-      <div class="ttd-space"></div>
-      <div class="ttd-name">{{ approvedBy }}</div>
-      <div class="ttd-role">Branch Building &amp; Maintenance Manager</div>
-    </div>
+  <div class="signatures">
+    <table>
+      <tr>
+        <td>Dibuat oleh,</td>
+        <td>Mengetahui,</td>
+      </tr>
+      <tr>
+        <td class="sig-timestamp">
+          {% if submittedAt %}{{ submittedAt | replace("T", " ") | truncate(16, true, "") }} WIB{% endif %}
+        </td>
+        <td class="sig-timestamp">
+          {% if approvedAt %}{{ approvedAt | replace("T", " ") | truncate(16, true, "") }} WIB{% endif %}
+        </td>
+      </tr>
+      <tr>
+        <td><div class="signature-space"></div></td>
+        <td><div class="signature-space"></div></td>
+      </tr>
+      <tr>
+        <td class="sig-name">{{ submittedBy }}</td>
+        <td class="sig-name">{{ approvedBy }}</td>
+      </tr>
+      <tr>
+        <td class="sig-role">Branch Building Coordinator/Support</td>
+        <td class="sig-role">Branch Building &amp; Maintenance Manager</td>
+      </tr>
+    </table>
   </div>
 
   <div class="footer">

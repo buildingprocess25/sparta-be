@@ -119,6 +119,28 @@ const lookupKontraktorEmail = async (
     }
 };
 
+/**
+ * Lookup nama_lengkap dari user_cabang berdasarkan email.
+ * Return null jika tidak ditemukan.
+ */
+const lookupNamaLengkap = async (email: string | null | undefined): Promise<string | null> => {
+    if (!email) return null;
+    try {
+        const { pool } = await import("../../db/pool");
+        const res = await pool.query<{ nama_lengkap: string }>(
+            `SELECT nama_lengkap
+             FROM user_cabang
+             WHERE LOWER(TRIM(COALESCE(email_sat, ''))) = LOWER(TRIM($1))
+             LIMIT 1`,
+            [email]
+        );
+        return res.rows[0]?.nama_lengkap?.trim() || null;
+    } catch (err: any) {
+        console.warn(`[SP Service] lookupNamaLengkap error for "${email}":`, err?.message);
+        return null;
+    }
+};
+
 export const spService = {
     ensureSchema: () => spRepository.ensureSchema(),
 
@@ -263,6 +285,7 @@ export const spService = {
                 lampiran_1_url: lampiranUrl,
                 lampiran_2_url: input.lampiran_2_url,
                 actor_email: actorEmail(input.actor),
+                actor_name: input.actor?.nama_lengkap ?? await lookupNamaLengkap(actorEmail(input.actor)) ?? null,
                 actor_role: actorRole(input.actor),
                 cabang: input.actor?.cabang ?? null,
             });
@@ -276,6 +299,7 @@ export const spService = {
             lampiran_1_url: input.lampiran_1_url,
             lampiran_2_url: input.lampiran_2_url,
             actor_email: actorEmail(input.actor),
+            actor_name: input.actor?.nama_lengkap ?? await lookupNamaLengkap(actorEmail(input.actor)) ?? null,
             actor_role: actorRole(input.actor),
             cabang: (input.actor as any)?.cabang ?? null,
         });
@@ -310,13 +334,19 @@ export const spService = {
             }
 
             const approvedAt = new Date().toISOString();
+            // Resolve nama lengkap approver (prioritaskan nama_lengkap dari session, fallback ke lookup DB)
+            const approverName = input.actor?.nama_lengkap ?? await lookupNamaLengkap(actorEmail(input.actor)) ?? actorEmail(input.actor) ?? "-";
+            // Resolve nama lengkap submitter dari record (sudah tersimpan saat create)
+            const submitterName = current.submitted_by_name ?? await lookupNamaLengkap(current.submitted_by_email) ?? current.submitted_by_email ?? "-";
+
             const pdfBuffer = await buildSuratPeringatanPdfBuffer({
                 action: { ...current, nomor_surat: nomorSurat, manager_approved_at: approvedAt },
                 tokoNama: tokoNama,
-                approvedBy: input.actor?.nama_lengkap ?? actorEmail(input.actor) ?? "-",
+                approvedBy: approverName,
                 approvedRole: actorRole(input.actor) ?? "MANAGER",
                 approvedAt: approvedAt,
-                submittedBy: current.submitted_by_email ?? "-",
+                submittedBy: submitterName,
+                submittedAt: current.submitted_at ?? current.created_at,
             });
 
             const safeUlok = sanitizeFilenamePart(current.nomor_ulok, "ULOK");
@@ -388,13 +418,18 @@ export const spService = {
             tokoNama = target ? "Toko" : "-";
         }
 
+        // Resolve nama lengkap untuk regenerate PDF
+        const approverName = current.manager_approved_by ?? "-";
+        const submitterName = current.submitted_by_name ?? await lookupNamaLengkap(current.submitted_by_email) ?? current.submitted_by_email ?? "-";
+
         const pdfBuffer = await buildSuratPeringatanPdfBuffer({
             action: { ...current, nomor_surat: nomorSurat },
             tokoNama: tokoNama,
-            approvedBy: current.manager_approved_by ?? "-",
+            approvedBy: approverName,
             approvedRole: current.manager_approved_role ?? "MANAGER",
             approvedAt: current.manager_approved_at || new Date().toISOString(),
-            submittedBy: current.submitted_by_email ?? "-",
+            submittedBy: submitterName,
+            submittedAt: current.submitted_at ?? current.created_at,
         });
 
         const safeUlok = sanitizeFilenamePart(current.nomor_ulok, "ULOK");
@@ -419,13 +454,11 @@ export const spService = {
             throw new AppError("Gagal mengunggah PDF ke Google Drive.", 500);
         }
 
-        // Simpan link_pdf terbaru
-        const updated = await spRepository.approveAction({
+        // Gunakan updatePdfLink (bukan approveAction) agar bisa update tanpa peduli status
+        const updated = await spRepository.updatePdfLink({
             id: input.id,
-            actor_email: current.manager_approved_by, // keep original manager
-            actor_role: current.manager_approved_role,
-            nomor_surat: nomorSurat,
             link_pdf: linkPdf,
+            nomor_surat: nomorSurat,
         });
 
         return updated;
