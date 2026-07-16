@@ -38,11 +38,16 @@ function hasNumericPrice(value: unknown): boolean {
     return Number.isFinite(parsed);
 }
 
+function isBebanKontraktor(value: unknown): boolean {
+    if (typeof value !== "string") return false;
+    return value.trim().toLowerCase().includes("kontraktor");
+}
+
 function isTextPriceDirective(value: unknown): boolean {
     if (typeof value !== "string") return false;
 
     const trimmed = value.trim();
-    return Boolean(trimmed && trimmed !== "-" && !hasNumericPrice(trimmed));
+    return Boolean(trimmed && trimmed !== "-" && !hasNumericPrice(trimmed) && !isBebanKontraktor(trimmed));
 }
 
 function processPriceValue(rawValue: unknown): PriceValue {
