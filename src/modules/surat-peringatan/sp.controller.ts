@@ -162,7 +162,8 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
 
         // Set headers
         const filename = fileMeta.data.name || "document";
-        res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
+        const disposition = req.query.download === "true" ? "attachment" : "inline";
+        res.setHeader("Content-Disposition", `${disposition}; filename="${filename}"`);
         
         if (fileMeta.data.mimeType) {
             res.setHeader("Content-Type", fileMeta.data.mimeType);
