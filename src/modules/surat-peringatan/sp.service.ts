@@ -76,6 +76,49 @@ export const canApproveDendaAction = (user?: AuthenticatedUser | null): boolean 
     return roles.includes("SUPER HUMAN") || roles.includes("BRANCH MANAGER");
 };
 
+/**
+ * Lookup email kontraktor dari tabel user_cabang.
+ * Match: nama_pt (perusahaan kontraktor) dengan nama_kontraktor pada SP.
+ * Prioritas: cabang sama > cabang manapun.
+ * Return null jika tidak ditemukan.
+ */
+const lookupKontraktorEmail = async (
+    namaKontraktor: string,
+    cabang?: string | null
+): Promise<string | null> => {
+    try {
+        const { pool } = await import("../../db/pool");
+        // Coba cabang spesifik dulu
+        if (cabang) {
+            const res = await pool.query<{ email_sat: string }>(
+                `SELECT email_sat
+                 FROM user_cabang
+                 WHERE UPPER(jabatan) = 'KONTRAKTOR'
+                   AND LOWER(TRIM(COALESCE(nama_pt, ''))) = LOWER(TRIM($1))
+                   AND UPPER(TRIM(COALESCE(cabang, ''))) = UPPER(TRIM($2))
+                 ORDER BY email_sat ASC
+                 LIMIT 1`,
+                [namaKontraktor, cabang]
+            );
+            if (res.rows[0]?.email_sat) return res.rows[0].email_sat;
+        }
+        // Fallback: cabang mana saja
+        const res2 = await pool.query<{ email_sat: string }>(
+            `SELECT email_sat
+             FROM user_cabang
+             WHERE UPPER(jabatan) = 'KONTRAKTOR'
+               AND LOWER(TRIM(COALESCE(nama_pt, ''))) = LOWER(TRIM($1))
+             ORDER BY email_sat ASC
+             LIMIT 1`,
+            [namaKontraktor]
+        );
+        return res2.rows[0]?.email_sat ?? null;
+    } catch (err: any) {
+        console.warn(`[SP Service] lookupKontraktorEmail error for "${namaKontraktor}":`, err?.message);
+        return null;
+    }
+};
+
 export const spService = {
     ensureSchema: () => spRepository.ensureSchema(),
 
@@ -385,9 +428,13 @@ export const spService = {
         const templatePath = await resolveTemplatePath("send-notification-sp-to-kontraktor.njk");
         const htmlBody = await renderHtmlTemplate(templatePath, templateData);
 
-        // Get kontraktor email - for now use placeholder, should get from sheets
-        // TODO: Implement kontraktor email lookup from Google Sheets
-        const kontraktorEmail = `${action.nama_kontraktor.toLowerCase().replace(/\s+/g, '.')}@kontraktor.com`;
+        // Lookup email kontraktor dari user_cabang
+        const resolvedEmail = await lookupKontraktorEmail(action.nama_kontraktor, action.cabang);
+        if (!resolvedEmail) {
+            console.warn(`[SP Service] Email kontraktor tidak ditemukan untuk "${action.nama_kontraktor}" (cabang: ${action.cabang}). Email tidak dikirim.`);
+            return;
+        }
+        const kontraktorEmail = resolvedEmail;
         
         const subject = `⚠️ SURAT PERINGATAN ${getSpLevelRomawi(action.sp_level)} - ${action.nama_kontraktor} - ${action.cabang}`;
         const toEmail = kontraktorEmail;

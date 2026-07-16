@@ -1,13 +1,14 @@
 import { GoogleProvider } from "../../common/google";
 import { renderHtmlTemplate, resolveTemplatePath } from "../../common/html-pdf";
 import { env } from "../../config/env";
+import { pool } from "../../db/pool";
 import { spRepository } from "./sp.repository";
 
 /**
  * SP Cron Service - Background jobs for SP lifecycle management
- * 
+ *
  * Jobs:
- * 1. Check & send expiry reminders (H-30, H-7)
+ * 1. Check & send expiry reminders (H-30, H-7, H-1)
  * 2. Auto-mark expired SP
  * 3. Generate weekly SP summary reports
  */
@@ -35,8 +36,7 @@ function daysUntilExpiry(expiresAt: string): number {
     const now = new Date();
     const expiry = new Date(expiresAt);
     const diffMs = expiry.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-    return diffDays;
+    return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 }
 
 function formatTanggal(isoString?: string | null): string {
@@ -59,6 +59,34 @@ function getGreeting(): string {
     return "Selamat malam";
 }
 
+/** Lookup email kontraktor dari tabel user_cabang berdasarkan nama_pt */
+async function lookupKontraktorEmailCron(namaKontraktor: string, cabang?: string | null): Promise<string | null> {
+    try {
+        if (cabang) {
+            const res = await pool.query<{ email_sat: string }>(
+                `SELECT email_sat FROM user_cabang
+                 WHERE UPPER(jabatan) = 'KONTRAKTOR'
+                   AND LOWER(TRIM(COALESCE(nama_pt, ''))) = LOWER(TRIM($1))
+                   AND UPPER(TRIM(COALESCE(cabang, ''))) = UPPER(TRIM($2))
+                 ORDER BY email_sat ASC LIMIT 1`,
+                [namaKontraktor, cabang]
+            );
+            if (res.rows[0]?.email_sat) return res.rows[0].email_sat;
+        }
+        const res2 = await pool.query<{ email_sat: string }>(
+            `SELECT email_sat FROM user_cabang
+             WHERE UPPER(jabatan) = 'KONTRAKTOR'
+               AND LOWER(TRIM(COALESCE(nama_pt, ''))) = LOWER(TRIM($1))
+             ORDER BY email_sat ASC LIMIT 1`,
+            [namaKontraktor]
+        );
+        return res2.rows[0]?.email_sat ?? null;
+    } catch (err: any) {
+        console.warn(`[SP Cron] lookupKontraktorEmail error for "${namaKontraktor}":`, err?.message);
+        return null;
+    }
+}
+
 async function sendExpiryReminderEmail(sp: SpWithExpiry, daysLeft: number, urgency: string) {
     const gp = GoogleProvider.instance;
     const gmail = gp.spartaGmail;
@@ -67,8 +95,12 @@ async function sendExpiryReminderEmail(sp: SpWithExpiry, daysLeft: number, urgen
         return;
     }
 
-    // TODO: Get kontraktor email from sheets
-    const kontraktorEmail = `${sp.nama_kontraktor?.toLowerCase().replace(/\s+/g, '.')}@kontraktor.com`;
+    // Lookup email kontraktor dari user_cabang
+    const kontraktorEmail = await lookupKontraktorEmailCron(sp.nama_kontraktor ?? "", sp.cabang);
+    if (!kontraktorEmail) {
+        console.warn(`[SP Cron] Email tidak ditemukan untuk kontraktor "${sp.nama_kontraktor}" — reminder tidak dikirim.`);
+        return;
+    }
 
     const templateData = {
         greeting: getGreeting(),
@@ -118,7 +150,7 @@ async function sendExpiryReminderEmail(sp: SpWithExpiry, daysLeft: number, urgen
             requestBody: { raw: encodedMessage },
         });
 
-        console.log(`[SP Cron] Expiry reminder sent: SP #${sp.id}, ${daysLeft} days left`);
+        console.log(`[SP Cron] Expiry reminder sent to ${kontraktorEmail}: SP #${sp.id}, ${daysLeft} days left`);
     } catch (error: any) {
         console.error(`[SP Cron] Failed to send reminder for SP #${sp.id}:`, error.message);
     }
@@ -126,8 +158,8 @@ async function sendExpiryReminderEmail(sp: SpWithExpiry, daysLeft: number, urgen
 
 export const spCronService = {
     /**
-     * Check all active SP and send reminders for those approaching expiry
-     * Should run daily
+     * Check all active SP and send reminders for those approaching expiry.
+     * Should run daily.
      */
     async checkAndSendExpiryReminders(): Promise<{
         checked: number;
@@ -135,10 +167,9 @@ export const spCronService = {
         errors: number;
     }> {
         console.log("[SP Cron] Starting expiry reminder check...");
-        
+
         await spRepository.ensureSchema();
-        
-        // Get all active SP that are not yet expired
+
         const activeSp = await spRepository.getActiveSpWithExpiry();
         console.log(`[SP Cron] Found ${activeSp.length} active SP to check`);
 
@@ -150,7 +181,6 @@ export const spCronService = {
 
             const daysLeft = daysUntilExpiry(sp.expires_at);
 
-            // Check if we need to send reminder for any threshold
             for (const config of REMINDER_CONFIGS) {
                 if (daysLeft === config.days) {
                     try {
@@ -174,19 +204,19 @@ export const spCronService = {
     },
 
     /**
-     * Mark SP as expired if past expiry date
-     * Should run daily
+     * Mark SP as expired if past expiry date.
+     * Should run daily.
      */
     async markExpiredSp(): Promise<{
         checked: number;
         marked_expired: number;
     }> {
         console.log("[SP Cron] Starting expired SP check...");
-        
+
         await spRepository.ensureSchema();
-        
+
         const expired = await spRepository.markExpiredSp();
-        
+
         console.log(`[SP Cron] Marked ${expired} SP as expired`);
         return {
             checked: expired,
@@ -195,8 +225,8 @@ export const spCronService = {
     },
 
     /**
-     * Generate weekly summary report for managers
-     * Should run weekly (e.g., every Monday)
+     * Generate weekly summary report for managers.
+     * Should run weekly (e.g., every Monday).
      */
     async generateWeeklySummary(): Promise<{
         total_sp: number;
@@ -205,20 +235,20 @@ export const spCronService = {
         pending_acknowledge: number;
     }> {
         console.log("[SP Cron] Generating weekly summary...");
-        
+
         await spRepository.ensureSchema();
-        
+
         const stats = await spRepository.getGlobalStats();
-        
+
         console.log("[SP Cron] Weekly summary:", stats);
-        
+
         // TODO: Send summary email to managers
-        
+
         return stats;
     },
 
     /**
-     * Manual trigger for testing - run all cron jobs
+     * Manual trigger for testing — run all cron jobs.
      */
     async runAllJobs(): Promise<{
         reminders: any;
@@ -226,11 +256,11 @@ export const spCronService = {
         summary: any;
     }> {
         console.log("[SP Cron] Running all jobs manually...");
-        
+
         const reminders = await this.checkAndSendExpiryReminders();
         const expired = await this.markExpiredSp();
         const summary = await this.generateWeeklySummary();
-        
+
         return { reminders, expired, summary };
     }
 };

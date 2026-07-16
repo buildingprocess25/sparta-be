@@ -171,6 +171,7 @@ const priceValueToNumberOrNull = (value: unknown): number | null => {
     if (typeof value === "string") {
         const trimmed = value.trim();
         if (!trimmed || /^(kondisional|sbo)$/i.test(trimmed)) return null;
+        if (trimmed.toLowerCase() === 'beban kontraktor') return 0;
         const parsed = Number(trimmed.replace(/[.,](?=\d{3}(\D|$))/g, "").replace(",", "."));
         return Number.isFinite(parsed) ? parsed : null;
     }

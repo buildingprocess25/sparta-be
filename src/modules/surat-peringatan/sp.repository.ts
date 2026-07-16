@@ -62,6 +62,9 @@ export type DendaActionRow = {
     sent_to_contractor_at: string | null;
     viewed_by_contractor_at: string | null;
     acknowledged_by_contractor_at: string | null;
+    acknowledged_by_email: string | null;
+    acknowledged_by_role: string | null;
+    catatan_acknowledge: string | null;
     expires_at: string | null;
     actor_email: string | null;
     actor_role: string | null;
@@ -90,7 +93,8 @@ const ACTION_SELECT = `
     nomor_surat, link_pdf, submitted_by_email, submitted_by_role, submitted_at,
     manager_approved_by, manager_approved_role, manager_approved_at,
     manager_rejected_by, manager_rejected_role, manager_rejected_at, manager_rejected_reason,
-    sent_to_contractor_at, viewed_by_contractor_at, acknowledged_by_contractor_at, expires_at,
+    sent_to_contractor_at, viewed_by_contractor_at, acknowledged_by_contractor_at,
+    acknowledged_by_email, acknowledged_by_role, catatan_acknowledge, expires_at,
     actor_email, actor_role, created_at, updated_at,
     (expires_at IS NOT NULL AND expires_at < timezone('Asia/Jakarta', now())) AS is_expired,
     (
@@ -138,6 +142,9 @@ export const spRepository = {
                 sent_to_contractor_at TIMESTAMP,
                 viewed_by_contractor_at TIMESTAMP,
                 acknowledged_by_contractor_at TIMESTAMP,
+                acknowledged_by_email TEXT,
+                acknowledged_by_role TEXT,
+                catatan_acknowledge TEXT,
                 expires_at TIMESTAMP,
                 actor_email TEXT,
                 actor_role TEXT,
@@ -174,6 +181,9 @@ export const spRepository = {
                 ADD COLUMN IF NOT EXISTS sent_to_contractor_at TIMESTAMP,
                 ADD COLUMN IF NOT EXISTS viewed_by_contractor_at TIMESTAMP,
                 ADD COLUMN IF NOT EXISTS acknowledged_by_contractor_at TIMESTAMP,
+                ADD COLUMN IF NOT EXISTS acknowledged_by_email TEXT,
+                ADD COLUMN IF NOT EXISTS acknowledged_by_role TEXT,
+                ADD COLUMN IF NOT EXISTS catatan_acknowledge TEXT,
                 ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP
         `);
 
