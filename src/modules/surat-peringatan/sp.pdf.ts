@@ -66,6 +66,12 @@ const getAlasanSpText = (alasan?: string | null): string => {
     return alasan ?? "-";
 };
 
+const getKeterlambatanText = (action: DendaActionRow): string | null => {
+    if ((action.alasan_sp ?? "").toUpperCase() !== "KETERLAMBATAN") return null;
+    const hari = Number(action.hari_denda ?? 0);
+    return hari > 0 ? `Keterlambatan ${hari} hari` : "Keterlambatan";
+};
+
 export async function buildSuratPeringatanPdfBuffer(input: BuildSpPdfInput): Promise<Buffer> {
     const templatePath = await resolveTemplatePath("surat_peringatan_report.njk");
 
@@ -81,7 +87,7 @@ export async function buildSuratPeringatanPdfBuffer(input: BuildSpPdfInput): Pro
         lingkupPekerjaan: input.action.lingkup_pekerjaan ?? "-",
         nomorSpk: input.action.nomor_spk?.trim() || null,
         tanggalSurat: formatTanggal(input.action.manager_approved_at ?? input.action.submitted_at ?? input.action.created_at ?? new Date().toISOString()),
-        alasanSpText: getAlasanSpText(input.action.alasan_sp),
+        alasanSpText: getKeterlambatanText(input.action) ?? getAlasanSpText(input.action.alasan_sp),
         alasan: (input.action.alasan_sp ?? '').toUpperCase(),
         // Split multi-line catatan into array for numbered list in PDF
         catatanList: (input.action.catatan ?? '').split('\n').filter(l => l.trim()),
