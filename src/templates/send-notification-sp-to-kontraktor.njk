@@ -14,7 +14,7 @@
                     <tr>
                         <td style="background:#E31E24; padding:20px 24px; text-align:center;">
                             <h1 style="margin:0; font-size:24px; color:#ffffff; font-weight:bold;">
-                                ⚠️ SURAT PERINGATAN {{ sp_level_romawi }}
+                                SURAT PERINGATAN {{ sp_level_romawi }}
                             </h1>
                             <p style="margin:8px 0 0; font-size:14px; color:#ffffff; opacity:0.9;">
                                 SPARTA Building Management System
@@ -34,7 +34,7 @@
                             </p>
                             
                             <p style="margin:0 0 24px; font-size:15px; color:#333333; line-height:1.6;">
-                                Bersama ini kami sampaikan <strong>Surat Peringatan {{ sp_level_romawi }}</strong> yang telah disetujui oleh Branch Manager. 
+                                Bersama ini kami sampaikan <strong>Surat Peringatan {{ sp_level_romawi }}</strong> yang telah disetujui oleh Branch Building &amp; Maintenance Manager.
                                 Surat ini berkaitan dengan proyek berikut:
                             </p>
                             
@@ -84,7 +84,7 @@
                             {% endif %}
                             
                             <p style="margin:0 0 24px; font-size:15px; color:#333333; line-height:1.6;">
-                                Anda <strong>diwajibkan untuk mengakui penerimaan</strong> surat peringatan ini dan mengambil tindakan perbaikan yang diperlukan.
+                                Mohon buka surat berikut, baca detailnya, lalu konfirmasi penerimaan setelah dokumen diterima dengan baik.
                             </p>
                             
                             <!-- CTA Button -->
@@ -94,7 +94,7 @@
                                         <a href="{{ acknowledge_url }}" 
                                            target="_blank"
                                            style="display:inline-block; padding:14px 32px; color:#ffffff; text-decoration:none; font-size:15px; font-weight:600; border-radius:6px;">
-                                            📋 Lihat & Acknowledge Surat Peringatan
+                                            Buka & Konfirmasi Penerimaan
                                         </a>
                                     </td>
                                 </tr>
@@ -118,7 +118,7 @@
                                 Hormat kami,
                             </p>
                             <p style="margin:0; font-size:14px; color:#1b1b1b; font-weight:600;">
-                                Branch Manager {{ cabang }}
+                                Branch Building &amp; Maintenance Manager {{ cabang }}
                             </p>
                         </td>
                     </tr>
@@ -140,3 +140,11 @@
     </table>
 </body>
 </html>
+                            {% if pdf_url %}
+                            <p style="margin:0 0 8px; font-size:13px; color:#666; text-align:center;">
+                                PDF resmi Surat Peringatan:
+                            </p>
+                            <p style="margin:0 0 20px; font-size:12px; color:#007bff; text-align:center; word-break:break-all;">
+                                <a href="{{ pdf_url }}" target="_blank" style="color:#007bff;">{{ pdf_url }}</a>
+                            </p>
+                            {% endif %}

@@ -5,7 +5,7 @@
   <style>
     @page {
       size: A4;
-      margin: 18mm 14mm;
+      margin: 14mm 14mm;
     }
 
     body {
@@ -63,8 +63,8 @@
     .body-text {
       font-size: 11px;
       text-align: justify;
-      margin: 0 0 7px;
-      line-height: 1.65;
+      margin: 0 0 6px;
+      line-height: 1.5;
     }
 
     .poin-list {
@@ -94,7 +94,7 @@
     }
 
     .signatures {
-      margin-top: 20px;
+      margin-top: 14px;
       width: 100%;
       page-break-inside: avoid;
     }
@@ -112,8 +112,8 @@
     }
 
     .signature-space {
-      height: 55px;
-      min-height: 55px;
+      height: 40px;
+      min-height: 40px;
     }
 
     .sig-name {
@@ -131,6 +131,8 @@
       font-size: 10px;
       color: #555;
       font-style: italic;
+      height: 18px;
+      vertical-align: middle;
     }
 
     .footer {
@@ -173,7 +175,7 @@
       <td>{{ namaToko or '-' }}</td>
     </tr>
     {% endif %}
-    {% if nomorSpk and nomorSpk != '-' %}
+    {% if nomorSpk %}
     <tr>
       <td class="label">Nomor SPK</td>
       <td>{{ nomorSpk }}</td>
@@ -197,11 +199,11 @@
   {# ---- Paragraph pembuka berbeda-beda sesuai alasan SP ---- #}
   {% if alasan == 'KETERLAMBATAN' %}
   <p class="body-text">
-    Sehubungan dengan Surat Perintah Kerja No. {{ nomorSpk or '-' }}{% if lingkupPekerjaan and lingkupPekerjaan != '-' %} tentang pekerjaan {{ lingkupPekerjaan }}{% endif %}{% if nomorUlok and nomorUlok != '-' %} di {{ nomorUlok }}{% endif %}, ternyata setelah dilakukan pengecekan masih ada beberapa pekerjaan yang mengalami <strong>keterlambatan penyelesaian</strong> yang tidak sesuai dengan jadwal yang telah disepakati, diantaranya sebagai berikut:
+    {% if nomorSpk %}Sehubungan dengan Surat Perintah Kerja No. {{ nomorSpk }}{% if lingkupPekerjaan and lingkupPekerjaan != '-' %} tentang pekerjaan {{ lingkupPekerjaan }}{% endif %}{% if nomorUlok and nomorUlok != '-' %} di Nomor ULOK {{ nomorUlok }}{% endif %}{% else %}Berdasarkan hasil evaluasi pelaksanaan pekerjaan{% if lingkupPekerjaan and lingkupPekerjaan != '-' %} {{ lingkupPekerjaan }}{% endif %}{% if nomorUlok and nomorUlok != '-' %} pada Nomor ULOK {{ nomorUlok }}{% endif %}{% endif %}, ternyata setelah dilakukan pengecekan masih ada beberapa pekerjaan yang mengalami <strong>keterlambatan penyelesaian</strong> yang tidak sesuai dengan jadwal yang telah disepakati, diantaranya sebagai berikut:
   </p>
   {% elif alasan == 'MENOLAK_SPK' %}
   <p class="body-text">
-    Sehubungan dengan Surat Perintah Kerja No. {{ nomorSpk or '-' }}{% if lingkupPekerjaan and lingkupPekerjaan != '-' %} tentang pekerjaan {{ lingkupPekerjaan }}{% endif %}{% if nomorUlok and nomorUlok != '-' %} di {{ nomorUlok }}{% endif %}, bahwa kontraktor tersebut di atas telah <strong>menolak atau tidak bersedia melaksanakan</strong> pekerjaan sesuai dengan SPK yang telah diterbitkan, diantaranya sebagai berikut:
+    {% if nomorSpk %}Sehubungan dengan Surat Perintah Kerja No. {{ nomorSpk }}{% if lingkupPekerjaan and lingkupPekerjaan != '-' %} tentang pekerjaan {{ lingkupPekerjaan }}{% endif %}{% if nomorUlok and nomorUlok != '-' %} di Nomor ULOK {{ nomorUlok }}{% endif %}, bahwa kontraktor tersebut di atas telah <strong>menolak atau tidak bersedia melaksanakan</strong> pekerjaan sesuai dengan SPK yang telah diterbitkan{% else %}Berdasarkan hasil evaluasi pelaksanaan pekerjaan{% if lingkupPekerjaan and lingkupPekerjaan != '-' %} {{ lingkupPekerjaan }}{% endif %}{% if nomorUlok and nomorUlok != '-' %} pada Nomor ULOK {{ nomorUlok }}{% endif %}, kontraktor tersebut di atas dinilai <strong>menolak atau tidak bersedia melaksanakan</strong> pekerjaan yang menjadi tanggung jawabnya{% endif %}, diantaranya sebagai berikut:
   </p>
   {% elif alasan == 'MANIPULASI' %}
   <p class="body-text">
@@ -267,11 +269,11 @@
       </tr>
       <tr>
         <td class="sig-name">{{ submittedBy }}</td>
-        <td class="sig-name">{{ approvedBy }}</td>
+        <td class="sig-name">{{ approvedBy or "" }}</td>
       </tr>
       <tr>
         <td class="sig-role">Branch Building Coordinator/Support</td>
-        <td class="sig-role">Branch Building &amp; Maintenance Manager</td>
+        <td class="sig-role">{% if approvedBy %}Branch Building &amp; Maintenance Manager{% endif %}</td>
       </tr>
     </table>
   </div>

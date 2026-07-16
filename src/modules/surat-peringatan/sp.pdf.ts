@@ -7,9 +7,9 @@ import type { DendaActionRow } from "./sp.repository";
 type BuildSpPdfInput = {
     action: DendaActionRow;
     tokoNama?: string | null;
-    approvedBy: string;
-    approvedRole: string;
-    approvedAt: string;
+    approvedBy?: string | null;
+    approvedRole?: string | null;
+    approvedAt?: string | null;
     submittedBy: string;
     submittedAt?: string | null;
 };
@@ -79,17 +79,17 @@ export async function buildSuratPeringatanPdfBuffer(input: BuildSpPdfInput): Pro
         nomorUlok: input.action.nomor_ulok ?? "-",
         namaToko: input.tokoNama ?? "-",
         lingkupPekerjaan: input.action.lingkup_pekerjaan ?? "-",
-        nomorSpk: input.action.nomor_spk ?? "-",
-        tanggalSurat: formatTanggal(input.action.manager_approved_at ?? new Date().toISOString()),
+        nomorSpk: input.action.nomor_spk?.trim() || null,
+        tanggalSurat: formatTanggal(input.action.manager_approved_at ?? input.action.submitted_at ?? input.action.created_at ?? new Date().toISOString()),
         alasanSpText: getAlasanSpText(input.action.alasan_sp),
         alasan: (input.action.alasan_sp ?? '').toUpperCase(),
         // Split multi-line catatan into array for numbered list in PDF
         catatanList: (input.action.catatan ?? '').split('\n').filter(l => l.trim()),
         instruksiTindakLanjut: input.action.instruksi_tindak_lanjut,
         deadlineTindakLanjut: formatTanggal(input.action.deadline_tindak_lanjut),
-        approvedBy: input.approvedBy,
-        approvedAt: input.approvedAt,
-        approvedRole: input.approvedRole,
+        approvedBy: input.approvedBy ?? null,
+        approvedAt: input.approvedAt ?? null,
+        approvedRole: input.approvedRole ?? null,
         submittedBy: input.submittedBy,
         submittedAt: input.submittedAt ?? null,
     };

@@ -73,7 +73,46 @@ export const canSubmitDendaAction = (user?: AuthenticatedUser | null): boolean =
 export const canApproveDendaAction = (user?: AuthenticatedUser | null): boolean => {
     if (!user) return false;
     const roles = userRolesText(user);
-    return roles.includes("SUPER HUMAN") || roles.includes("BRANCH MANAGER");
+    return roles.includes("SUPER HUMAN") || roles.includes("BRANCH BUILDING & MAINTENANCE MANAGER");
+};
+
+const buildAndUploadSpPdf = async (input: {
+    action: any;
+    nomorSurat: string;
+    submittedBy: string;
+    submittedAt?: string | null;
+    approvedBy?: string | null;
+    approvedRole?: string | null;
+    approvedAt?: string | null;
+}): Promise<string> => {
+    const { buildSuratPeringatanPdfBuffer } = await import("./sp.pdf");
+    const pdfBuffer = await buildSuratPeringatanPdfBuffer({
+        action: { ...input.action, nomor_surat: input.nomorSurat, manager_approved_at: input.approvedAt ?? input.action.manager_approved_at },
+        tokoNama: "Toko",
+        approvedBy: input.approvedBy ?? null,
+        approvedRole: input.approvedRole ?? null,
+        approvedAt: input.approvedAt ?? null,
+        submittedBy: input.submittedBy,
+        submittedAt: input.submittedAt ?? input.action.submitted_at ?? input.action.created_at,
+    });
+
+    const safeUlok = sanitizeFilenamePart(input.action.nomor_ulok, "ULOK");
+    const safeKontraktor = sanitizeFilenamePart(input.action.nama_kontraktor, "KONTRAKTOR");
+    const filename = `SURAT_PERINGATAN_SP${input.action.sp_level}_${safeUlok}_${safeKontraktor}_${Date.now()}.pdf`;
+
+    const gp = GoogleProvider.instance;
+    const drive = gp.spartaDrive;
+    if (!drive) throw new AppError("Google Drive (Sparta) belum terkonfigurasi", 500);
+
+    const result = await gp.uploadFile(
+        env.PDF_STORAGE_FOLDER_ID,
+        filename,
+        "application/pdf",
+        pdfBuffer,
+        2,
+        drive
+    );
+    return result.webViewLink ?? `https://drive.google.com/file/d/${result.id}/view`;
 };
 
 /**
@@ -322,16 +361,6 @@ export const spService = {
 
         if (current.action_type === "SP") {
             nomorSurat = `SP-${current.sp_level}/${current.cabang || 'HO'}/${new Date().getFullYear()}/${current.id}`;
-            
-            // Build PDF buffer
-            const { buildSuratPeringatanPdfBuffer } = await import("./sp.pdf");
-            
-            // Find toko name if id_toko exists
-            let tokoNama = "-";
-            if (current.id_toko) {
-                const target = await spRepository.findTargetByTokoId(current.id_toko);
-                tokoNama = target ? "Toko" : "-"; // actually target doesn't return nama_toko. That's fine, we will just use nomor_ulok
-            }
 
             const approvedAt = new Date().toISOString();
             // Resolve nama lengkap approver (prioritaskan nama_lengkap dari session, fallback ke lookup DB)
@@ -339,33 +368,15 @@ export const spService = {
             // Resolve nama lengkap submitter dari record (sudah tersimpan saat create)
             const submitterName = current.submitted_by_name ?? await lookupNamaLengkap(current.submitted_by_email) ?? current.submitted_by_email ?? "-";
 
-            const pdfBuffer = await buildSuratPeringatanPdfBuffer({
-                action: { ...current, nomor_surat: nomorSurat, manager_approved_at: approvedAt },
-                tokoNama: tokoNama,
+            linkPdf = await buildAndUploadSpPdf({
+                action: current,
+                nomorSurat,
                 approvedBy: approverName,
-                approvedRole: actorRole(input.actor) ?? "MANAGER",
-                approvedAt: approvedAt,
+                approvedRole: actorRole(input.actor) ?? "BRANCH BUILDING & MAINTENANCE MANAGER",
+                approvedAt,
                 submittedBy: submitterName,
                 submittedAt: current.submitted_at ?? current.created_at,
             });
-
-            const safeUlok = sanitizeFilenamePart(current.nomor_ulok, "ULOK");
-            const safeKontraktor = sanitizeFilenamePart(current.nama_kontraktor, "KONTRAKTOR");
-            const filename = `SURAT_PERINGATAN_SP${current.sp_level}_${safeUlok}_${safeKontraktor}_${Date.now()}.pdf`;
-
-            const gp = GoogleProvider.instance;
-            const drive = gp.spartaDrive;
-            if (drive) {
-                const result = await gp.uploadFile(
-                    env.PDF_STORAGE_FOLDER_ID,
-                    filename,
-                    "application/pdf",
-                    pdfBuffer,
-                    2,
-                    drive
-                );
-                linkPdf = result.webViewLink ?? `https://drive.google.com/file/d/${result.id}/view`;
-            }
         }
 
         const updated = await spRepository.approveAction({
@@ -401,58 +412,26 @@ export const spService = {
         if (current.action_type !== "SP") {
             throw new AppError("Aksi ini hanya untuk Surat Peringatan.", 400);
         }
-        if (current.status === "WAITING_MANAGER" || current.status === "REJECTED_BY_MANAGER" || current.status === "EXPIRED") {
-            throw new AppError("SP belum disetujui atau sudah tidak valid.", 400);
+        if (current.status === "REJECTED_BY_MANAGER" || current.status === "EXPIRED") {
+            throw new AppError("SP ditolak atau sudah tidak valid.", 400);
         }
 
-        let linkPdf: string | null = null;
         let nomorSurat = current.nomor_surat || `SP-${current.sp_level}/${current.cabang || 'HO'}/${new Date().getFullYear()}/${current.id}`;
-        
-        // Build PDF buffer
-        const { buildSuratPeringatanPdfBuffer } = await import("./sp.pdf");
-        
-        // Find toko name if id_toko exists
-        let tokoNama = "-";
-        if (current.id_toko) {
-            const target = await spRepository.findTargetByTokoId(current.id_toko);
-            tokoNama = target ? "Toko" : "-";
-        }
 
         // Resolve nama lengkap untuk regenerate PDF
-        const approverName = current.manager_approved_by ?? "-";
+        const hasManagerApproval = Boolean(current.manager_approved_at);
+        const approverName = hasManagerApproval ? current.manager_approved_by ?? "-" : null;
         const submitterName = current.submitted_by_name ?? await lookupNamaLengkap(current.submitted_by_email) ?? current.submitted_by_email ?? "-";
 
-        const pdfBuffer = await buildSuratPeringatanPdfBuffer({
-            action: { ...current, nomor_surat: nomorSurat },
-            tokoNama: tokoNama,
+        const linkPdf = await buildAndUploadSpPdf({
+            action: current,
+            nomorSurat,
             approvedBy: approverName,
-            approvedRole: current.manager_approved_role ?? "MANAGER",
-            approvedAt: current.manager_approved_at || new Date().toISOString(),
+            approvedRole: hasManagerApproval ? current.manager_approved_role ?? "BRANCH BUILDING & MAINTENANCE MANAGER" : null,
+            approvedAt: hasManagerApproval ? current.manager_approved_at : null,
             submittedBy: submitterName,
             submittedAt: current.submitted_at ?? current.created_at,
         });
-
-        const safeUlok = sanitizeFilenamePart(current.nomor_ulok, "ULOK");
-        const safeKontraktor = sanitizeFilenamePart(current.nama_kontraktor, "KONTRAKTOR");
-        const filename = `SURAT_PERINGATAN_SP${current.sp_level}_${safeUlok}_${safeKontraktor}_${Date.now()}.pdf`;
-
-        const gp = GoogleProvider.instance;
-        const drive = gp.spartaDrive;
-        if (drive) {
-            const result = await gp.uploadFile(
-                env.PDF_STORAGE_FOLDER_ID,
-                filename,
-                "application/pdf",
-                pdfBuffer,
-                2,
-                drive
-            );
-            linkPdf = result.webViewLink ?? `https://drive.google.com/file/d/${result.id}/view`;
-        }
-
-        if (!linkPdf) {
-            throw new AppError("Gagal mengunggah PDF ke Google Drive.", 500);
-        }
 
         // Gunakan updatePdfLink (bukan approveAction) agar bisa update tanpa peduli status
         const updated = await spRepository.updatePdfLink({
@@ -551,6 +530,7 @@ export const spService = {
             catatan: action.catatan,
             tanggal_expired: formatTanggal(action.expires_at),
             acknowledge_url: acknowledgeUrl,
+            pdf_url: action.link_pdf,
             sent_at: new Intl.DateTimeFormat("sv-SE", {
                 timeZone: "Asia/Jakarta",
                 year: "numeric",
@@ -573,7 +553,7 @@ export const spService = {
         }
         const kontraktorEmail = resolvedEmail;
         
-        const subject = `⚠️ SURAT PERINGATAN ${getSpLevelRomawi(action.sp_level)} - ${action.nama_kontraktor} - ${action.cabang}`;
+        const subject = `Surat Peringatan ${getSpLevelRomawi(action.sp_level)} - ${action.nama_kontraktor} - ${action.cabang}`;
         const toEmail = kontraktorEmail;
 
         // Build email

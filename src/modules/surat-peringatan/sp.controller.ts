@@ -106,7 +106,7 @@ export const regeneratePdf = asyncHandler(async (req: Request, res: Response) =>
 
     res.json({
         status: "success",
-        message: "PDF Surat Peringatan berhasil digenerate ulang.",
+        message: "PDF Surat Peringatan berhasil digenerate.",
         data,
     });
 });
