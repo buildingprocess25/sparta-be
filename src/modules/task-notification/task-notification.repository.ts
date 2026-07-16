@@ -73,6 +73,11 @@ const isSuperHuman = (user: AuthenticatedUser) => hasActiveRole(user, "SUPER HUM
 const isRegionalManager = (user: AuthenticatedUser) => hasActiveRole(user, "REGIONAL MANAGER");
 const isHeadOffice = (user: AuthenticatedUser) => normalize(user.cabang) === "HEAD OFFICE";
 const isBranchSupportRole = (user: AuthenticatedUser) => hasActiveRole(user, "BRANCH BUILDING SUPPORT");
+const isBranchBuildingMaintenanceManager = (user: AuthenticatedUser) =>
+    hasActiveRole(user, "BRANCH BUILDING & MAINTENANCE MANAGER")
+    || hasRole(user, "BRANCH BUILDING & MAINTENANCE MANAGER")
+    || hasActiveRole(user, "BBMM")
+    || hasRole(user, "BBMM");
 
 const canViewAllBranches = (user: AuthenticatedUser) =>
     isHeadOffice(user)
@@ -449,8 +454,8 @@ const findProjectPlanningApproval = async (user: AuthenticatedUser): Promise<Not
 };
 
 const findDendaActionApproval = async (user: AuthenticatedUser): Promise<NotificationRow[]> => {
-    // Only Manager can approve SP
-    if (!hasActiveRole(user, "BRANCH MANAGER") && !isSuperHuman(user)) return [];
+    // Only Branch Building & Maintenance Manager can approve SP.
+    if (!isBranchBuildingMaintenanceManager(user) && !isSuperHuman(user)) return [];
 
     const values: SqlValue[] = [];
     const branchWhere = addBranchScope(user, values, "d.cabang");
