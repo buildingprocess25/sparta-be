@@ -698,31 +698,31 @@ export const spRepository = {
                 actor_role
             )
             VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, 'WAITING_MANAGER', $9, $10, $11, $12, $13, $14, $15::date, $16, $17, $18, $19, $20, $18, $19, timezone('Asia/Jakarta', now())
+                $1, $2, $3, $4, $5, $6, $7, $8, 'WAITING_MANAGER', $9, $10, $11, $12, $13, $14, $15, $16::date, $17, $18, $19, $20, timezone('Asia/Jakarta', now()), $19, $20
             )
             RETURNING id
             `,
             [
-                input.id_toko ?? input.target?.id_toko ?? null,
-                input.target?.id_opname_final ?? null,
-                input.target?.nomor_ulok ?? null,
-                input.target?.lingkup_pekerjaan ?? null,
-                input.target?.cabang ?? input.cabang ?? null,
-                input.nama_kontraktor ?? input.target?.nama_kontraktor ?? null,
-                input.target?.nomor_spk ?? null,
-                input.action_type,
-                input.sp_level ?? null,
-                input.target?.hari_denda ?? 0,
-                input.target?.nilai_denda ?? '0',
-                input.alasan_sp ?? null,
-                input.alasan_lainnya ?? null,
-                input.catatan,
-                input.instruksi_tindak_lanjut ?? null,
-                input.deadline_tindak_lanjut ?? null,
-                input.lampiran_1_url ?? null,
-                input.lampiran_2_url ?? null,
-                input.actor_email ?? null,
-                input.actor_role ?? null,
+                input.id_toko ?? input.target?.id_toko ?? null,    // $1  id_toko
+                input.target?.id_opname_final ?? null,              // $2  id_opname_final
+                input.target?.nomor_ulok ?? null,                   // $3  nomor_ulok
+                input.target?.lingkup_pekerjaan ?? null,            // $4  lingkup_pekerjaan
+                input.target?.cabang ?? input.cabang ?? null,       // $5  cabang
+                input.nama_kontraktor ?? input.target?.nama_kontraktor ?? null, // $6 nama_kontraktor
+                input.target?.nomor_spk ?? null,                    // $7  nomor_spk
+                input.action_type,                                  // $8  action_type
+                input.sp_level ?? null,                             // $9  sp_level
+                input.target?.hari_denda ?? 0,                      // $10 hari_denda
+                input.target?.nilai_denda ?? '0',                   // $11 nilai_denda
+                input.alasan_sp ?? null,                            // $12 alasan_sp
+                input.alasan_lainnya ?? null,                       // $13 alasan_lainnya
+                input.catatan,                                      // $14 catatan
+                input.instruksi_tindak_lanjut ?? null,              // $15 instruksi_tindak_lanjut
+                input.deadline_tindak_lanjut ?? null,               // $16 deadline_tindak_lanjut (::date cast in query)
+                input.lampiran_1_url ?? null,                       // $17 lampiran_1_url
+                input.lampiran_2_url ?? null,                       // $18 lampiran_2_url
+                input.actor_email ?? null,                          // $19 actor_email = submitted_by_email (reused)
+                input.actor_role ?? null,                           // $20 actor_role = submitted_by_role (reused)
             ]
         );
 
