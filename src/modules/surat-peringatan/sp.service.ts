@@ -360,6 +360,77 @@ export const spService = {
         return updated;
     },
 
+    async regenerateSpPdf(input: { id: number; actor?: AuthenticatedUser | null }) {
+        if (!canApproveDendaAction(input.actor)) {
+            throw new AppError("Hanya manager atau user berwenang yang dapat me-regenerate PDF SP.", 403);
+        }
+
+        await spRepository.ensureSchema();
+        const current = await spRepository.findActionById(input.id);
+        if (!current) throw new AppError("Pengajuan SP tidak ditemukan.", 404);
+        if (current.action_type !== "SP") {
+            throw new AppError("Aksi ini hanya untuk Surat Peringatan.", 400);
+        }
+        if (current.status === "WAITING_MANAGER" || current.status === "REJECTED_BY_MANAGER" || current.status === "EXPIRED") {
+            throw new AppError("SP belum disetujui atau sudah tidak valid.", 400);
+        }
+
+        let linkPdf: string | null = null;
+        let nomorSurat = current.nomor_surat || `SP-${current.sp_level}/${current.cabang || 'HO'}/${new Date().getFullYear()}/${current.id}`;
+        
+        // Build PDF buffer
+        const { buildSuratPeringatanPdfBuffer } = await import("./sp.pdf");
+        
+        // Find toko name if id_toko exists
+        let tokoNama = "-";
+        if (current.id_toko) {
+            const target = await spRepository.findTargetByTokoId(current.id_toko);
+            tokoNama = target ? "Toko" : "-";
+        }
+
+        const pdfBuffer = await buildSuratPeringatanPdfBuffer({
+            action: { ...current, nomor_surat: nomorSurat },
+            tokoNama: tokoNama,
+            approvedBy: current.manager_approved_by ?? "-",
+            approvedRole: current.manager_approved_role ?? "MANAGER",
+            approvedAt: current.manager_approved_at || new Date().toISOString(),
+            submittedBy: current.submitted_by_email ?? "-",
+        });
+
+        const safeUlok = sanitizeFilenamePart(current.nomor_ulok, "ULOK");
+        const safeKontraktor = sanitizeFilenamePart(current.nama_kontraktor, "KONTRAKTOR");
+        const filename = `SURAT_PERINGATAN_SP${current.sp_level}_${safeUlok}_${safeKontraktor}_${Date.now()}.pdf`;
+
+        const gp = GoogleProvider.instance;
+        const drive = gp.spartaDrive;
+        if (drive) {
+            const result = await gp.uploadFile(
+                env.PDF_STORAGE_FOLDER_ID,
+                filename,
+                "application/pdf",
+                pdfBuffer,
+                2,
+                drive
+            );
+            linkPdf = result.webViewLink ?? `https://drive.google.com/file/d/${result.id}/view`;
+        }
+
+        if (!linkPdf) {
+            throw new AppError("Gagal mengunggah PDF ke Google Drive.", 500);
+        }
+
+        // Simpan link_pdf terbaru
+        const updated = await spRepository.approveAction({
+            id: input.id,
+            actor_email: current.manager_approved_by, // keep original manager
+            actor_role: current.manager_approved_role,
+            nomor_surat: nomorSurat,
+            link_pdf: linkPdf,
+        });
+
+        return updated;
+    },
+
     async rejectAction(input: { id: number; payload: RejectDendaActionInput; actor?: AuthenticatedUser | null }) {
         if (!canApproveDendaAction(input.actor)) {
             throw new AppError("Hanya manager atau user berwenang yang dapat reject SP/Takeover.", 403);

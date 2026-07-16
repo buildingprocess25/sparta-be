@@ -97,6 +97,20 @@ export const approveDendaAction = asyncHandler(async (req: Request, res: Respons
     });
 });
 
+export const regeneratePdf = asyncHandler(async (req: Request, res: Response) => {
+    const { id } = dendaActionIdParamsSchema.parse(req.params);
+    const data = await spService.regenerateSpPdf({
+        id,
+        actor: req.user,
+    });
+
+    res.json({
+        status: "success",
+        message: "PDF Surat Peringatan berhasil digenerate ulang.",
+        data,
+    });
+});
+
 export const rejectDendaAction = asyncHandler(async (req: Request, res: Response) => {
     const { id } = dendaActionIdParamsSchema.parse(req.params);
     const payload = rejectDendaActionSchema.parse(req.body);

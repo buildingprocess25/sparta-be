@@ -14,6 +14,7 @@ import {
     acknowledgeKontraktorSp,
     runSpCronJobs,
     getSpAnalytics,
+    regeneratePdf,
 } from "./sp.controller";
 
 const spRouter = Router();
@@ -40,6 +41,7 @@ spRouter.post("/kontraktor/:id/acknowledge", acknowledgeKontraktorSp);
 spRouter.get("/", listDendaActions);
 spRouter.post("/", spUpload.single("lampiran"), createDendaAction);
 spRouter.post("/:id/approve", approveDendaAction);
+spRouter.post("/:id/regenerate-pdf", regeneratePdf);
 spRouter.post("/:id/reject", rejectDendaAction);
 
 // Analytics & Cron
