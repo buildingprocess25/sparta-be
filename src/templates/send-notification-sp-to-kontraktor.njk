@@ -86,6 +86,15 @@
                             <p style="margin:0 0 24px; font-size:15px; color:#333333; line-height:1.6;">
                                 Mohon buka surat berikut, baca detailnya, lalu konfirmasi penerimaan setelah dokumen diterima dengan baik.
                             </p>
+
+                            {% if pdf_url %}
+                            <p style="margin:0 0 8px; font-size:13px; color:#666; text-align:center;">
+                                PDF resmi Surat Peringatan:
+                            </p>
+                            <p style="margin:0 0 20px; font-size:12px; color:#007bff; text-align:center; word-break:break-all;">
+                                <a href="{{ pdf_url }}" target="_blank" style="color:#007bff;">{{ pdf_url }}</a>
+                            </p>
+                            {% endif %}
                             
                             <!-- CTA Button -->
                             <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 auto 24px;">
@@ -140,11 +149,3 @@
     </table>
 </body>
 </html>
-                            {% if pdf_url %}
-                            <p style="margin:0 0 8px; font-size:13px; color:#666; text-align:center;">
-                                PDF resmi Surat Peringatan:
-                            </p>
-                            <p style="margin:0 0 20px; font-size:12px; color:#007bff; text-align:center; word-break:break-all;">
-                                <a href="{{ pdf_url }}" target="_blank" style="color:#007bff;">{{ pdf_url }}</a>
-                            </p>
-                            {% endif %}

@@ -133,7 +133,15 @@ const lookupKontraktorEmail = async (
                 `SELECT email_sat
                  FROM user_cabang
                  WHERE UPPER(jabatan) = 'KONTRAKTOR'
-                   AND LOWER(TRIM(COALESCE(nama_pt, ''))) = LOWER(TRIM($1))
+                   AND NULLIF(TRIM(COALESCE(nama_pt, '')), '') IS NOT NULL
+                   AND (
+                       LOWER(TRIM(COALESCE(nama_pt, ''))) = LOWER(TRIM($1))
+                       OR LOWER(TRIM(COALESCE(nama_pt, ''))) LIKE '%' || LOWER(TRIM($1)) || '%'
+                       OR LOWER(TRIM($1)) LIKE '%' || LOWER(TRIM(COALESCE(nama_pt, ''))) || '%'
+                       OR regexp_replace(UPPER(COALESCE(nama_pt, '')), '[^A-Z0-9]', '', 'g') = regexp_replace(UPPER($1), '[^A-Z0-9]', '', 'g')
+                       OR regexp_replace(UPPER(COALESCE(nama_pt, '')), '[^A-Z0-9]', '', 'g') LIKE '%' || regexp_replace(UPPER($1), '[^A-Z0-9]', '', 'g') || '%'
+                       OR regexp_replace(UPPER($1), '[^A-Z0-9]', '', 'g') LIKE '%' || regexp_replace(UPPER(COALESCE(nama_pt, '')), '[^A-Z0-9]', '', 'g') || '%'
+                   )
                    AND UPPER(TRIM(COALESCE(cabang, ''))) = UPPER(TRIM($2))
                  ORDER BY email_sat ASC
                  LIMIT 1`,
@@ -146,7 +154,15 @@ const lookupKontraktorEmail = async (
             `SELECT email_sat
              FROM user_cabang
              WHERE UPPER(jabatan) = 'KONTRAKTOR'
-               AND LOWER(TRIM(COALESCE(nama_pt, ''))) = LOWER(TRIM($1))
+               AND NULLIF(TRIM(COALESCE(nama_pt, '')), '') IS NOT NULL
+               AND (
+                   LOWER(TRIM(COALESCE(nama_pt, ''))) = LOWER(TRIM($1))
+                   OR LOWER(TRIM(COALESCE(nama_pt, ''))) LIKE '%' || LOWER(TRIM($1)) || '%'
+                   OR LOWER(TRIM($1)) LIKE '%' || LOWER(TRIM(COALESCE(nama_pt, ''))) || '%'
+                   OR regexp_replace(UPPER(COALESCE(nama_pt, '')), '[^A-Z0-9]', '', 'g') = regexp_replace(UPPER($1), '[^A-Z0-9]', '', 'g')
+                   OR regexp_replace(UPPER(COALESCE(nama_pt, '')), '[^A-Z0-9]', '', 'g') LIKE '%' || regexp_replace(UPPER($1), '[^A-Z0-9]', '', 'g') || '%'
+                   OR regexp_replace(UPPER($1), '[^A-Z0-9]', '', 'g') LIKE '%' || regexp_replace(UPPER(COALESCE(nama_pt, '')), '[^A-Z0-9]', '', 'g') || '%'
+               )
              ORDER BY email_sat ASC
              LIMIT 1`,
             [namaKontraktor]

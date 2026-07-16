@@ -94,7 +94,7 @@
     }
 
     .signatures {
-      margin-top: 14px;
+      margin-top: 16px;
       width: 100%;
       page-break-inside: avoid;
     }
@@ -102,18 +102,38 @@
     .signatures table {
       width: 100%;
       border-collapse: separate;
+      border-spacing: 10px 0;
       text-align: center;
       table-layout: fixed;
     }
 
     .signatures td {
-      padding: 2px 4px;
       vertical-align: top;
     }
 
-    .signature-space {
-      height: 40px;
-      min-height: 40px;
+    .signature-card {
+      background: #f8f9fb;
+      min-height: 118px;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .signature-title {
+      background: #e30613;
+      color: #fff;
+      font-weight: 700;
+      font-size: 11px;
+      text-transform: uppercase;
+      padding: 7px 4px;
+      border-bottom: 3px solid #f7c5c8;
+    }
+
+    .signature-body {
+      padding: 10px 10px 8px;
+      min-height: 88px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
     }
 
     .sig-name {
@@ -125,14 +145,18 @@
       font-size: 10px;
       color: #4b5563;
       margin-top: 2px;
+      border-top: 1px solid #e5e7eb;
+      padding-top: 6px;
     }
 
     .sig-timestamp {
       font-size: 10px;
-      color: #555;
+      color: #6b7280;
       font-style: italic;
-      height: 18px;
-      vertical-align: middle;
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .footer {
@@ -252,28 +276,34 @@
   <div class="signatures">
     <table>
       <tr>
-        <td>Dibuat oleh,</td>
-        <td>Mengetahui,</td>
-      </tr>
-      <tr>
-        <td class="sig-timestamp">
-          {% if submittedAt %}{{ submittedAt | replace("T", " ") | truncate(16, true, "") }} WIB{% endif %}
+        <td>
+          <div class="signature-card">
+            <div class="signature-title">Dibuat</div>
+            <div class="signature-body">
+              <div class="sig-timestamp">
+                {% if submittedAt %}{{ submittedAt | replace("T", " ") | truncate(16, true, "") }} WIB{% endif %}
+              </div>
+              <div>
+                <div class="sig-name">{{ submittedBy }}</div>
+                <div class="sig-role">Branch Building Coordinator/Support</div>
+              </div>
+            </div>
+          </div>
         </td>
-        <td class="sig-timestamp">
-          {% if approvedAt %}{{ approvedAt | replace("T", " ") | truncate(16, true, "") }} WIB{% endif %}
+        <td>
+          <div class="signature-card">
+            <div class="signature-title">Mengetahui</div>
+            <div class="signature-body">
+              <div class="sig-timestamp">
+                {% if approvedAt %}{{ approvedAt | replace("T", " ") | truncate(16, true, "") }} WIB{% endif %}
+              </div>
+              <div>
+                <div class="sig-name">{{ approvedBy or "" }}</div>
+                <div class="sig-role">{% if approvedBy %}Branch Building &amp; Maintenance Manager{% endif %}</div>
+              </div>
+            </div>
+          </div>
         </td>
-      </tr>
-      <tr>
-        <td><div class="signature-space"></div></td>
-        <td><div class="signature-space"></div></td>
-      </tr>
-      <tr>
-        <td class="sig-name">{{ submittedBy }}</td>
-        <td class="sig-name">{{ approvedBy or "" }}</td>
-      </tr>
-      <tr>
-        <td class="sig-role">Branch Building Coordinator/Support</td>
-        <td class="sig-role">{% if approvedBy %}Branch Building &amp; Maintenance Manager{% endif %}</td>
       </tr>
     </table>
   </div>
