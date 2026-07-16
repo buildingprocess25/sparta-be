@@ -46,7 +46,21 @@ export const listDendaActions = asyncHandler(async (req: Request, res: Response)
     if (!req.user) {
         throw new AppError("User tidak terautentikasi", 401);
     }
+    const isContractor = req.user.roles.some((role) => role === "KONTRAKTOR" || role.includes("DIREKTUR KONTRAKTOR"));
     let query = listDendaActionsQuerySchema.parse(req.query);
+
+    if (isContractor && query.action_type === "SP") {
+        const data = req.user.nama_pt
+            ? await spService.listActionsForKontraktor(req.user.nama_pt)
+            : [];
+
+        res.json({
+            status: "success",
+            data,
+        });
+        return;
+    }
+
     query = await injectBranchFilter(req.user, query);
     const data = await spService.listActions(query);
 

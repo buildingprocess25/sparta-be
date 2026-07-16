@@ -995,7 +995,7 @@ export const spRepository = {
              FROM denda_keterlambatan_action
              WHERE action_type = 'SP'
                AND nama_kontraktor = $1
-               AND status IN ('SENT_TO_CONTRACTOR', 'VIEWED_BY_CONTRACTOR', 'ACKNOWLEDGED_BY_CONTRACTOR', 'APPROVED')
+               AND status IN ('APPROVED', 'SENT_TO_CONTRACTOR', 'VIEWED_BY_CONTRACTOR', 'ACKNOWLEDGED_BY_CONTRACTOR')
              ORDER BY created_at DESC`,
             [namaKontraktor]
         );

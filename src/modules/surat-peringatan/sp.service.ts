@@ -218,6 +218,11 @@ export const spService = {
         return spRepository.listActions(query);
     },
 
+    async listActionsForKontraktor(namaKontraktor: string) {
+        await spRepository.ensureSchema();
+        return spRepository.listKontraktorActions(namaKontraktor);
+    },
+
     async createAction(input: CreateDendaActionInput & {
         actor?: AuthenticatedUser | null;
         attachment?: UploadedDendaActionAttachment;
