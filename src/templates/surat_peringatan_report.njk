@@ -35,86 +35,82 @@
     .meta {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 14px;
+      margin-bottom: 10px;
     }
 
     .meta td {
       border: 1px solid #c7cbd1;
-      padding: 6px 8px;
+      padding: 5px 8px;
       vertical-align: top;
     }
 
     .meta .label {
-      width: 170px;
+      width: 160px;
       font-weight: 600;
       background: #f6f8fb;
     }
 
     .section-title {
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 700;
-      margin: 14px 0 6px;
+      margin: 10px 0 5px;
       color: #e30613;
       text-transform: uppercase;
       border-bottom: 1px solid #e30613;
-      padding-bottom: 4px;
+      padding-bottom: 3px;
     }
     
     .body-text {
       font-size: 11px;
       text-align: justify;
-      margin: 0 0 10px;
-      line-height: 1.7;
+      margin: 0 0 7px;
+      line-height: 1.65;
     }
 
     .poin-list {
-      margin: 4px 0 12px 22px;
+      margin: 4px 0 8px 18px;
       padding: 0;
       font-size: 11px;
-      line-height: 1.9;
+      line-height: 1.8;
     }
     .poin-list li {
       margin-bottom: 2px;
     }
 
     .catatan-box {
-      margin: 6px 0 12px 0;
+      margin: 5px 0 8px 0;
       font-size: 11px;
-      line-height: 1.7;
+      line-height: 1.65;
       border: 1px solid #c7cbd1;
-      padding: 8px;
+      padding: 6px 8px;
       background: #f8fafc;
       border-radius: 4px;
     }
 
-    .ttd-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 14px;
-      page-break-inside: avoid;
+    .hormat-kami {
+      margin: 10px 0 0 0;
+      font-size: 11px;
+      line-height: 1.7;
     }
 
-    .ttd-table td {
-      border: 1px solid #c7cbd1;
-      padding: 0;
-      vertical-align: top;
-      width: 50%;
-      text-align: center;
+    .ttd-section {
+      margin-top: 10px;
+      page-break-inside: avoid;
+      display: flex;
+      justify-content: space-between;
     }
-    
-    .ttd-header {
-      background: #f6f8fb;
-      font-weight: 600;
-      border-bottom: 1px solid #c7cbd1;
-      padding: 6px;
+
+    .ttd-block {
+      width: 45%;
+      font-size: 11px;
+    }
+
+    .ttd-block p {
+      margin: 0 0 2px 0;
     }
 
     .ttd-space {
-      height: 60px;
-    }
-
-    .ttd-footer {
-      padding: 6px;
+      height: 55px;
     }
 
     .ttd-name {
@@ -129,7 +125,7 @@
     }
 
     .footer {
-      margin-top: 16px;
+      margin-top: 12px;
       font-size: 10px;
       color: #6b7280;
       text-align: right;
@@ -144,7 +140,7 @@
   {% endif %}
 
   <div class="content">
-  {{ sparta_header("Surat Peringatan " ~ spLevelRomawi, (nomorUlok or "-") ~ " - " ~ (namaToko or "-")) | safe }}
+  {{ sparta_header("Surat Peringatan " ~ spLevelRomawi, (nomorUlok and nomorUlok != '-') and (namaToko and namaToko != '-') and (nomorUlok ~ " - " ~ namaToko) or (namaKontraktor or "-")) | safe }}
 
   <div class="section-title">Informasi Proyek</div>
   <table class="meta">
@@ -160,32 +156,60 @@
       <td class="label">Cabang</td>
       <td>{{ targetCabang or '-' }}</td>
     </tr>
+    {% if nomorUlok and nomorUlok != '-' %}
     <tr>
       <td class="label">Nomor ULOK</td>
-      <td>{{ nomorUlok or '-' }}</td>
+      <td>{{ nomorUlok }}</td>
       <td class="label">Nama Toko</td>
       <td>{{ namaToko or '-' }}</td>
     </tr>
+    {% endif %}
+    {% if nomorSpk and nomorSpk != '-' %}
     <tr>
       <td class="label">Nomor SPK</td>
-      <td>{{ nomorSpk or '-' }}</td>
+      <td>{{ nomorSpk }}</td>
+      {% if lingkupPekerjaan and lingkupPekerjaan != '-' %}
       <td class="label">Lingkup Pekerjaan</td>
-      <td>{{ lingkupPekerjaan or '-' }}</td>
+      <td>{{ lingkupPekerjaan }}</td>
+      {% else %}
+      <td></td><td></td>
+      {% endif %}
     </tr>
+    {% elif lingkupPekerjaan and lingkupPekerjaan != '-' %}
+    <tr>
+      <td class="label">Lingkup Pekerjaan</td>
+      <td colspan="3">{{ lingkupPekerjaan }}</td>
+    </tr>
+    {% endif %}
   </table>
 
   <div class="section-title">Isi Peringatan</div>
+
+  {# ---- Paragraph pembuka berbeda-beda sesuai alasan SP ---- #}
+  {% if alasan == 'KETERLAMBATAN' %}
   <p class="body-text">
-    Sehubungan dengan Surat Perintah Kerja No. {{ nomorSpk or '-' }} tentang pekerjaan {{ lingkupPekerjaan or '-' }} di {{ nomorUlok or '-' }}, ternyata setelah dilakukan pengecekan masih ada beberapa pekerjaan yang tidak sesuai dengan ketentuan yang ada di RKS, diantaranya sebagai berikut:
+    Sehubungan dengan Surat Perintah Kerja No. {{ nomorSpk or '-' }}{% if lingkupPekerjaan and lingkupPekerjaan != '-' %} tentang pekerjaan {{ lingkupPekerjaan }}{% endif %}{% if nomorUlok and nomorUlok != '-' %} di {{ nomorUlok }}{% endif %}, ternyata setelah dilakukan pengecekan masih ada beberapa pekerjaan yang mengalami <strong>keterlambatan penyelesaian</strong> yang tidak sesuai dengan jadwal yang telah disepakati, diantaranya sebagai berikut:
   </p>
+  {% elif alasan == 'MENOLAK_SPK' %}
+  <p class="body-text">
+    Sehubungan dengan Surat Perintah Kerja No. {{ nomorSpk or '-' }}{% if lingkupPekerjaan and lingkupPekerjaan != '-' %} tentang pekerjaan {{ lingkupPekerjaan }}{% endif %}{% if nomorUlok and nomorUlok != '-' %} di {{ nomorUlok }}{% endif %}, bahwa kontraktor tersebut di atas telah <strong>menolak atau tidak bersedia melaksanakan</strong> pekerjaan sesuai dengan SPK yang telah diterbitkan, diantaranya sebagai berikut:
+  </p>
+  {% elif alasan == 'MANIPULASI' %}
+  <p class="body-text">
+    Berdasarkan hasil pemeriksaan dan temuan di lapangan{% if nomorUlok and nomorUlok != '-' %} pada lokasi {{ nomorUlok }}{% if namaToko and namaToko != '-' %} ({{ namaToko }}){% endif %}{% endif %}, kontraktor <strong>{{ namaKontraktor }}</strong> terbukti telah melakukan <strong>tindakan manipulasi dan/atau pelanggaran berat</strong> yang bertentangan dengan ketentuan yang berlaku, diantaranya sebagai berikut:
+  </p>
+  {% else %}
+  <p class="body-text">
+    Sehubungan dengan hasil evaluasi kinerja kontraktor <strong>{{ namaKontraktor }}</strong>{% if nomorUlok and nomorUlok != '-' %} pada lokasi {{ nomorUlok }}{% if namaToko and namaToko != '-' %} ({{ namaToko }}){% endif %}{% endif %}, ditemukan adanya hal-hal yang perlu mendapat perhatian serius dan tindak lanjut segera, diantaranya sebagai berikut:
+  </p>
+  {% endif %}
 
   <ol class="poin-list">
     <li><strong>{{ alasanSpText }}</strong></li>
-    {% if catatan and catatan != "-" %}
-    {% set lines = catatan.split("\n") %}
-    {% for line in lines %}
-    {% if line | trim %}
-    <li>{{ line | trim }}</li>
+    {% if catatanList %}
+    {% for item in catatanList %}
+    {% if item | trim %}
+    <li>{{ item | trim }}</li>
     {% endif %}
     {% endfor %}
     {% endif %}
@@ -195,7 +219,7 @@
   <div class="section-title">Instruksi Tindak Lanjut</div>
   <div class="catatan-box">
     {{ instruksiTindakLanjut | replace("\n", "<br>") | safe }}
-    {% if deadlineTindakLanjut and deadlineTindakLanjut != "-" %}
+    {% if deadlineTindakLanjut and deadlineTindakLanjut != '-' %}
     <br><br><strong>Batas Waktu:</strong> {{ deadlineTindakLanjut }}
     {% endif %}
   </div>
@@ -209,27 +233,25 @@
     Demikian Surat Peringatan {{ spLevelRomawi }} ini kami sampaikan. Atas perhatian dan kerjasamanya kami ucapkan terimakasih.
   </p>
 
-  <div class="section-title">Pengesahan</div>
-  <table class="ttd-table">
-    <tr>
-      <td>
-        <div class="ttd-header">Dibuat oleh,</div>
-        <div class="ttd-space"></div>
-        <div class="ttd-footer">
-          <div class="ttd-name">{{ submittedBy }}</div>
-          <div class="ttd-role">Branch Building Coordinator/Support</div>
-        </div>
-      </td>
-      <td>
-        <div class="ttd-header">Mengetahui,</div>
-        <div class="ttd-space"></div>
-        <div class="ttd-footer">
-          <div class="ttd-name">{{ approvedBy }}</div>
-          <div class="ttd-role">Branch Building &amp; Maintenance Manager</div>
-        </div>
-      </td>
-    </tr>
-  </table>
+  <p class="body-text hormat-kami">
+    Hormat kami,<br>
+    <strong>PT SUMBER ALFARIA TRIJAYA TBK</strong>
+  </p>
+
+  <div class="ttd-section">
+    <div class="ttd-block">
+      <p>Dibuat oleh,</p>
+      <div class="ttd-space"></div>
+      <div class="ttd-name">{{ submittedBy }}</div>
+      <div class="ttd-role">Branch Building Coordinator/Support</div>
+    </div>
+    <div class="ttd-block" style="text-align:right;">
+      <p>Mengetahui,</p>
+      <div class="ttd-space"></div>
+      <div class="ttd-name">{{ approvedBy }}</div>
+      <div class="ttd-role">Branch Building &amp; Maintenance Manager</div>
+    </div>
+  </div>
 
   <div class="footer">
     Dokumen ini di-generate otomatis oleh sistem SPARTA Building pada {{ tanggalSurat }}

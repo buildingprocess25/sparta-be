@@ -57,9 +57,11 @@ const getSpLevelRomawi = (level?: number | null): string => {
 };
 
 const getAlasanSpText = (alasan?: string | null): string => {
-    if (alasan === 'KETERLAMBATAN') return "Keterlambatan Pekerjaan";
-    if (alasan === 'MENOLAK_SPK') return "Menolak SPK / Pekerjaan";
-    if (alasan === 'MANIPULASI') return "Tindakan Manipulasi / Pelanggaran Berat";
+    const a = (alasan ?? '').toUpperCase();
+    if (a === 'KETERLAMBATAN') return "Keterlambatan Pekerjaan";
+    if (a === 'MENOLAK_SPK') return "Menolak SPK / Pekerjaan";
+    if (a === 'MANIPULASI') return "Tindakan Manipulasi / Pelanggaran Berat";
+    if (a === 'LAINNYA') return alasan ?? "Lainnya"; // return the raw alasan which may contain custom text
     return alasan ?? "-";
 };
 
@@ -79,7 +81,9 @@ export async function buildSuratPeringatanPdfBuffer(input: BuildSpPdfInput): Pro
         nomorSpk: input.action.nomor_spk ?? "-",
         tanggalSurat: formatTanggal(input.action.manager_approved_at ?? new Date().toISOString()),
         alasanSpText: getAlasanSpText(input.action.alasan_sp),
-        catatan: input.action.catatan ?? "-",
+        alasan: (input.action.alasan_sp ?? '').toUpperCase(),
+        // Split multi-line catatan into array for numbered list in PDF
+        catatanList: (input.action.catatan ?? '').split('\n').filter(l => l.trim()),
         instruksiTindakLanjut: input.action.instruksi_tindak_lanjut,
         deadlineTindakLanjut: formatTanggal(input.action.deadline_tindak_lanjut),
         approvedBy: input.approvedBy,
