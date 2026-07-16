@@ -168,8 +168,9 @@ export const spService = {
         await spRepository.ensureSchema();
         
         let target = undefined;
-        let effectiveKontraktor = input.action_type === "SP" && input.alasan_sp === "MANIPULASI" ? input.nama_kontraktor : null;
+        let effectiveKontraktor = input.action_type === "SP" && (input.alasan_sp === "MANIPULASI" || input.alasan_sp === "LAINNYA") ? input.nama_kontraktor : null;
         let tokoId = (input as any).id_toko;
+        const isKontraktorScope = input.action_type === "SP" && (input.alasan_sp === "MANIPULASI" || input.alasan_sp === "LAINNYA");
         
         if (tokoId) {
             target = await spRepository.findTargetByTokoId(tokoId);
@@ -191,29 +192,58 @@ export const spService = {
             );
         }
 
-        const stats = tokoId ? await spRepository.getActionStatsByTokoId(tokoId) : { active_sp_count: 0, pending_approval_count: 0 };
-        
-        // If it's manipulasi without toko, we might want to check contractor level stats in the future, 
-        // but for now, we just rely on the toko stats if id_toko is provided.
+        // Ambil stats sesuai scope:
+        // - MANIPULASI/LAINNYA  → cek per kontraktor (nama_kontraktor)
+        // - ULOK-based          → cek per toko (id_toko)
+        let stats: { active_sp_count: number; pending_approval_count: number; highest_active_sp_level: number };
+        if (isKontraktorScope && effectiveKontraktor) {
+            stats = await spRepository.getActionStatsByKontraktor(effectiveKontraktor);
+        } else if (tokoId) {
+            stats = await spRepository.getActionStatsByTokoId(tokoId);
+        } else {
+            stats = { active_sp_count: 0, pending_approval_count: 0, highest_active_sp_level: 0 };
+        }
+
+        // Blok jika masih ada SP yang menunggu approval manager
         if (stats.pending_approval_count > 0) {
-            throw new AppError("Masih ada pengajuan SP/Takeover yang menunggu approval manager.", 409);
+            const scope = isKontraktorScope
+                ? `kontraktor "${effectiveKontraktor}"`
+                : `ULOK ini`;
+            throw new AppError(
+                `Masih ada pengajuan SP untuk ${scope} yang sedang menunggu persetujuan manager. Selesaikan terlebih dahulu.`,
+                409
+            );
         }
 
         if (input.action_type === "SP") {
-            if (stats.active_sp_count >= 3 && tokoId) {
-                throw new AppError("SP aktif sudah mencapai maksimal 3. Tunggu masa aktif SP berakhir atau gunakan opsi lain.", 409);
+            // Blok jika sudah 3 SP aktif
+            if (stats.active_sp_count >= 3) {
+                throw new AppError(
+                    "SP aktif sudah mencapai maksimal 3. Tidak dapat mengajukan SP baru.",
+                    409
+                );
             }
 
-            const expectedLevel = input.id_toko ? stats.active_sp_count + 1 : 1;
-            if (input.id_toko && input.sp_level !== expectedLevel) {
-                throw new AppError(`SP berikutnya harus SP ke-${expectedLevel}.`, 409);
+            // Auto-determine SP level:
+            // Jika tidak ada SP aktif, user bebas pilih SP ke-berapa (dari input FE)
+            // Jika ada SP aktif, SP berikutnya adalah (highest_active_sp_level + 1)
+            let autoSpLevel = stats.active_sp_count === 0
+                ? (input.sp_level ?? 1)
+                : (stats.highest_active_sp_level + 1);
+
+            // Validasi maksimal tingkat SP adalah 3
+            if (autoSpLevel > 3) {
+                throw new AppError(
+                    `SP berikutnya (SP ${autoSpLevel}) melebihi batas maksimum SP 3.`,
+                    409
+                );
             }
 
             const uploadedUrl = input.attachment
                 ? await uploadSpAttachmentToDrive(input.attachment, {
-                    nomor_ulok: target?.nomor_ulok ?? "MANIPULASI",
+                    nomor_ulok: target?.nomor_ulok ?? input.alasan_sp ?? "MANIPULASI",
                     nama_kontraktor: effectiveKontraktor,
-                    sp_level: input.sp_level,
+                    sp_level: autoSpLevel,
                 })
                 : null;
             const lampiranUrl = uploadedUrl ?? input.lampiran_1_url?.trim() ?? null;
@@ -226,13 +256,15 @@ export const spService = {
                 id_toko: input.id_toko ?? undefined,
                 nama_kontraktor: effectiveKontraktor ?? undefined,
                 action_type: input.action_type,
-                sp_level: input.sp_level,
+                sp_level: autoSpLevel,
                 alasan_sp: input.alasan_sp,
+                alasan_lainnya: input.alasan_lainnya,
                 catatan: input.catatan,
                 lampiran_1_url: lampiranUrl,
                 lampiran_2_url: input.lampiran_2_url,
                 actor_email: actorEmail(input.actor),
                 actor_role: actorRole(input.actor),
+                cabang: input.actor?.cabang ?? null,
             });
         }
 
@@ -245,6 +277,7 @@ export const spService = {
             lampiran_2_url: input.lampiran_2_url,
             actor_email: actorEmail(input.actor),
             actor_role: actorRole(input.actor),
+            cabang: (input.actor as any)?.cabang ?? null,
         });
     },
 

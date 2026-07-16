@@ -42,6 +42,7 @@ export type DendaActionRow = {
     hari_denda: number;
     nilai_denda: string;
     alasan_sp: SpReason | null;
+    alasan_lainnya: string | null;
     catatan: string | null;
     instruksi_tindak_lanjut: string | null;
     deadline_tindak_lanjut: string | null;
@@ -88,7 +89,7 @@ export type DendaActionTargetRow = {
 
 const ACTION_SELECT = `
     id, id_toko, id_opname_final, nomor_ulok, lingkup_pekerjaan, cabang, nama_kontraktor, nomor_spk,
-    action_type, status, sp_level, hari_denda, nilai_denda, alasan_sp, catatan,
+    action_type, status, sp_level, hari_denda, nilai_denda, alasan_sp, alasan_lainnya, catatan,
     instruksi_tindak_lanjut, deadline_tindak_lanjut, lampiran_1_url, lampiran_2_url,
     nomor_surat, link_pdf, submitted_by_email, submitted_by_role, submitted_at,
     manager_approved_by, manager_approved_role, manager_approved_at,
@@ -158,6 +159,7 @@ export const spRepository = {
                 ALTER COLUMN status SET DEFAULT 'WAITING_MANAGER',
                 ALTER COLUMN id_toko DROP NOT NULL,
                 ALTER COLUMN id_opname_final DROP NOT NULL,
+                ADD COLUMN IF NOT EXISTS alasan_lainnya TEXT,
                 ADD COLUMN IF NOT EXISTS sp_level INTEGER,
                 ADD COLUMN IF NOT EXISTS nama_kontraktor TEXT,
                 ADD COLUMN IF NOT EXISTS nomor_spk TEXT,
@@ -556,8 +558,9 @@ export const spRepository = {
     async getActionStatsByOpnameFinalId(idOpnameFinal: number): Promise<{
         active_sp_count: number;
         pending_approval_count: number;
+        highest_active_sp_level: number;
     }> {
-        const result = await pool.query<{ active_sp_count: string; pending_approval_count: string }>(
+        const result = await pool.query<{ active_sp_count: string; pending_approval_count: string; highest_active_sp_level: string }>(
             `
             SELECT
                 COUNT(*) FILTER (
@@ -565,7 +568,12 @@ export const spRepository = {
                       AND status IN ('APPROVED', 'SENT_TO_CONTRACTOR', 'VIEWED_BY_CONTRACTOR', 'ACKNOWLEDGED_BY_CONTRACTOR')
                       AND (expires_at IS NULL OR expires_at >= timezone('Asia/Jakarta', now()))
                 ) AS active_sp_count,
-                COUNT(*) FILTER (WHERE status = 'WAITING_MANAGER') AS pending_approval_count
+                COUNT(*) FILTER (WHERE status = 'WAITING_MANAGER') AS pending_approval_count,
+                MAX(sp_level) FILTER (
+                    WHERE action_type = 'SP'
+                      AND status IN ('APPROVED', 'SENT_TO_CONTRACTOR', 'VIEWED_BY_CONTRACTOR', 'ACKNOWLEDGED_BY_CONTRACTOR')
+                      AND (expires_at IS NULL OR expires_at >= timezone('Asia/Jakarta', now()))
+                ) AS highest_active_sp_level
             FROM denda_keterlambatan_action
             WHERE id_opname_final = $1
             `,
@@ -575,14 +583,16 @@ export const spRepository = {
         return {
             active_sp_count: Number(result.rows[0]?.active_sp_count ?? 0),
             pending_approval_count: Number(result.rows[0]?.pending_approval_count ?? 0),
+            highest_active_sp_level: Number(result.rows[0]?.highest_active_sp_level ?? 0),
         };
     },
 
     async getActionStatsByTokoId(idToko: number): Promise<{
         active_sp_count: number;
         pending_approval_count: number;
+        highest_active_sp_level: number;
     }> {
-        const result = await pool.query<{ active_sp_count: string; pending_approval_count: string }>(
+        const result = await pool.query<{ active_sp_count: string; pending_approval_count: string; highest_active_sp_level: string }>(
             `
             SELECT
                 COUNT(*) FILTER (
@@ -590,7 +600,12 @@ export const spRepository = {
                       AND status IN ('APPROVED', 'SENT_TO_CONTRACTOR', 'VIEWED_BY_CONTRACTOR', 'ACKNOWLEDGED_BY_CONTRACTOR')
                       AND (expires_at IS NULL OR expires_at >= timezone('Asia/Jakarta', now()))
                 ) AS active_sp_count,
-                COUNT(*) FILTER (WHERE status = 'WAITING_MANAGER') AS pending_approval_count
+                COUNT(*) FILTER (WHERE status = 'WAITING_MANAGER') AS pending_approval_count,
+                MAX(sp_level) FILTER (
+                    WHERE action_type = 'SP'
+                      AND status IN ('APPROVED', 'SENT_TO_CONTRACTOR', 'VIEWED_BY_CONTRACTOR', 'ACKNOWLEDGED_BY_CONTRACTOR')
+                      AND (expires_at IS NULL OR expires_at >= timezone('Asia/Jakarta', now()))
+                ) AS highest_active_sp_level
             FROM denda_keterlambatan_action
             WHERE id_toko = $1
             `,
@@ -600,6 +615,40 @@ export const spRepository = {
         return {
             active_sp_count: Number(result.rows[0]?.active_sp_count ?? 0),
             pending_approval_count: Number(result.rows[0]?.pending_approval_count ?? 0),
+            highest_active_sp_level: Number(result.rows[0]?.highest_active_sp_level ?? 0),
+        };
+    },
+
+    async getActionStatsByKontraktor(namaKontraktor: string): Promise<{
+        active_sp_count: number;
+        pending_approval_count: number;
+        highest_active_sp_level: number;
+    }> {
+        const result = await pool.query<{ active_sp_count: string; pending_approval_count: string; highest_active_sp_level: string }>(
+            `
+            SELECT
+                COUNT(*) FILTER (
+                    WHERE action_type = 'SP'
+                      AND status IN ('APPROVED', 'SENT_TO_CONTRACTOR', 'VIEWED_BY_CONTRACTOR', 'ACKNOWLEDGED_BY_CONTRACTOR')
+                      AND (expires_at IS NULL OR expires_at >= timezone('Asia/Jakarta', now()))
+                ) AS active_sp_count,
+                COUNT(*) FILTER (WHERE status = 'WAITING_MANAGER') AS pending_approval_count,
+                MAX(sp_level) FILTER (
+                    WHERE action_type = 'SP'
+                      AND status IN ('APPROVED', 'SENT_TO_CONTRACTOR', 'VIEWED_BY_CONTRACTOR', 'ACKNOWLEDGED_BY_CONTRACTOR')
+                      AND (expires_at IS NULL OR expires_at >= timezone('Asia/Jakarta', now()))
+                ) AS highest_active_sp_level
+            FROM denda_keterlambatan_action
+            WHERE LOWER(TRIM(COALESCE(nama_kontraktor, ''))) = LOWER(TRIM($1))
+              AND alasan_sp IN ('MANIPULASI', 'LAINNYA')
+            `,
+            [namaKontraktor]
+        );
+
+        return {
+            active_sp_count: Number(result.rows[0]?.active_sp_count ?? 0),
+            pending_approval_count: Number(result.rows[0]?.pending_approval_count ?? 0),
+            highest_active_sp_level: Number(result.rows[0]?.highest_active_sp_level ?? 0),
         };
     },
 
@@ -610,6 +659,7 @@ export const spRepository = {
         action_type: DendaActionType;
         sp_level?: number | null;
         alasan_sp?: SpReason | null;
+        alasan_lainnya?: string | null;
         catatan: string;
         instruksi_tindak_lanjut?: string | null;
         deadline_tindak_lanjut?: string | null;
@@ -617,6 +667,7 @@ export const spRepository = {
         lampiran_2_url?: string | null;
         actor_email?: string | null;
         actor_role?: string | null;
+        cabang?: string | null;
     }): Promise<DendaActionRow> {
         const result = await pool.query<{ id: string }>(
             `
@@ -634,6 +685,7 @@ export const spRepository = {
                 hari_denda,
                 nilai_denda,
                 alasan_sp,
+                alasan_lainnya,
                 catatan,
                 instruksi_tindak_lanjut,
                 deadline_tindak_lanjut,
@@ -646,7 +698,7 @@ export const spRepository = {
                 actor_role
             )
             VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, 'WAITING_MANAGER', $9, $10, $11, $12, $13, $14, $15::date, $16, $17, $18, $19, timezone('Asia/Jakarta', now()), $18, $19
+                $1, $2, $3, $4, $5, $6, $7, $8, 'WAITING_MANAGER', $9, $10, $11, $12, $13, $14, $15::date, $16, $17, $18, $19, $20, $18, $19, timezone('Asia/Jakarta', now())
             )
             RETURNING id
             `,
@@ -655,7 +707,7 @@ export const spRepository = {
                 input.target?.id_opname_final ?? null,
                 input.target?.nomor_ulok ?? null,
                 input.target?.lingkup_pekerjaan ?? null,
-                input.target?.cabang ?? null,
+                input.target?.cabang ?? input.cabang ?? null,
                 input.nama_kontraktor ?? input.target?.nama_kontraktor ?? null,
                 input.target?.nomor_spk ?? null,
                 input.action_type,
@@ -663,6 +715,7 @@ export const spRepository = {
                 input.target?.hari_denda ?? 0,
                 input.target?.nilai_denda ?? '0',
                 input.alasan_sp ?? null,
+                input.alasan_lainnya ?? null,
                 input.catatan,
                 input.instruksi_tindak_lanjut ?? null,
                 input.deadline_tindak_lanjut ?? null,
