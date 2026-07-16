@@ -361,7 +361,7 @@ export const spService = {
     },
 
     async regenerateSpPdf(input: { id: number; actor?: AuthenticatedUser | null }) {
-        if (!canApproveDendaAction(input.actor)) {
+        if (!canApproveDendaAction(input.actor) && !canSubmitDendaAction(input.actor)) {
             throw new AppError("Hanya manager atau user berwenang yang dapat me-regenerate PDF SP.", 403);
         }
 
