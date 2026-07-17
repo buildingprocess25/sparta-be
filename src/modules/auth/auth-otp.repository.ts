@@ -12,6 +12,47 @@ type AuthOtpRow = {
 };
 
 export const authOtpRepository = {
+    async ensureSchema(): Promise<void> {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS auth_otp (
+                id SERIAL PRIMARY KEY,
+                email_sat VARCHAR(255) NOT NULL,
+                cabang VARCHAR(255) NOT NULL,
+                otp_hash VARCHAR(255) NOT NULL,
+                otp_token VARCHAR(64) NOT NULL,
+                expires_at TIMESTAMPTZ NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT now(),
+                consumed_at TIMESTAMPTZ DEFAULT NULL
+            );
+
+            DO $$
+            DECLARE
+                seq_name text;
+            BEGIN
+                SELECT pg_get_serial_sequence('auth_otp', 'id') INTO seq_name;
+
+                IF seq_name IS NULL THEN
+                    CREATE SEQUENCE IF NOT EXISTS auth_otp_id_seq OWNED BY auth_otp.id;
+                    ALTER TABLE auth_otp
+                        ALTER COLUMN id SET DEFAULT nextval('auth_otp_id_seq'::regclass);
+                    seq_name := 'auth_otp_id_seq';
+                END IF;
+
+                EXECUTE format(
+                    'SELECT setval(%L, GREATEST(COALESCE((SELECT MAX(id) FROM auth_otp), 0) + 1, 1), false)',
+                    seq_name
+                );
+            END $$;
+
+            CREATE INDEX IF NOT EXISTS idx_auth_otp_lookup
+                ON auth_otp (email_sat, cabang, otp_token);
+
+            CREATE INDEX IF NOT EXISTS idx_auth_otp_active
+                ON auth_otp (email_sat, cabang, expires_at)
+                WHERE consumed_at IS NULL;
+        `);
+    },
+
     async invalidateActive(emailSat: string, cabang: string) {
         await pool.query(
             `

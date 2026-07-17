@@ -1,6 +1,7 @@
 import { app } from "./app";
 import { env } from "./config/env";
 import { GoogleProvider } from "./common/google";
+import { authOtpRepository } from "./modules/auth/auth-otp.repository";
 import { authSessionRepository } from "./modules/auth/auth-session.repository";
 import { systemMaintenanceService } from "./modules/system-maintenance/system-maintenance.service";
 import { systemAccessScheduleService } from "./modules/system-access-schedule/system-access-schedule.service";
@@ -75,6 +76,7 @@ function scheduleWeeklyMondayWib(hour: number, minute: number, fn: () => Promise
 const bootstrap = async () => {
     await GoogleProvider.initialize();
     await authSessionRepository.ensureSchema();
+    await authOtpRepository.ensureSchema();
     await systemMaintenanceService.ensureSchema();
     await systemAccessScheduleService.ensureSchema();
     await serahTerimaService.ensureDateCorrectionAuditSchema();
@@ -117,4 +119,3 @@ app.listen(env.PORT, () => {
             console.error("Startup bootstrap gagal:", error);
         });
 });
-
