@@ -44,6 +44,25 @@ export const authSessionRepository = {
                 updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
             );
 
+            DO $$
+            DECLARE
+                seq_name text;
+            BEGIN
+                SELECT pg_get_serial_sequence('auth_session', 'id') INTO seq_name;
+
+                IF seq_name IS NULL THEN
+                    CREATE SEQUENCE IF NOT EXISTS auth_session_id_seq OWNED BY auth_session.id;
+                    ALTER TABLE auth_session
+                        ALTER COLUMN id SET DEFAULT nextval('auth_session_id_seq'::regclass);
+                    seq_name := 'auth_session_id_seq';
+                END IF;
+
+                EXECUTE format(
+                    'SELECT setval(%L, GREATEST(COALESCE((SELECT MAX(id) FROM auth_session), 0) + 1, 1), false)',
+                    seq_name
+                );
+            END $$;
+
             CREATE INDEX IF NOT EXISTS idx_auth_session_active_token
                 ON auth_session (token_hash, expires_at)
                 WHERE revoked_at IS NULL;
