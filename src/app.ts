@@ -26,6 +26,7 @@ import { getKontraktor, loginUserCabang, verifyLoginOtp } from "./modules/toko/t
 import { dashboardRouter } from "./modules/dashboard/dashboard.routes";
 import { dendaRouter } from "./modules/denda/denda.routes";
 import { emailNotificationRouter } from "./modules/email-notification/email-notification.routes";
+import { emailResendRouter } from "./modules/email-resend/email-resend.routes";
 import { projekPlanningRouter } from "./modules/project-planning/project-planning.routes";
 import { activityLogRouter } from "./modules/activity-log/activity-log.routes";
 import { dcDevelopmentRouter } from "./modules/dc-development/dc-development.routes";
@@ -156,6 +157,7 @@ app.use("/api/task-notifications", taskNotificationRouter);
 app.use("/api/system-maintenance", systemMaintenanceRouter);
 app.use("/api/system-access-schedule", systemAccessScheduleRouter);
 app.use("/api", emailNotificationRouter);
+app.use("/api", emailResendRouter);
 app.use("/api", serahTerimaRouter);
 app.use("/", priceRabRouter);
 app.use("/api", priceRabRouter);

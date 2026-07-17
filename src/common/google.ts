@@ -111,9 +111,13 @@ export class GoogleProvider {
     spartaSheets: sheets_v4.Sheets | null = null;
     spartaDrive: drive_v3.Drive | null = null;
     spartaGmail: gmail_v1.Gmail | null = null;
+    spartaAuthClient: any = null;
+    spartaTokenMeta = { source: null as string | null, tokenFileFound: false, hasRefreshToken: false };
     // Doc (untuk document CRUD – sheet + drive)
     docSheets: sheets_v4.Sheets | null = null;
     docDrive: drive_v3.Drive | null = null;
+    docAuthClient: any = null;
+    docTokenMeta = { source: null as string | null, tokenFileFound: false, hasRefreshToken: false };
 
     private static _instance: GoogleProvider | null = null;
     private static _initPromise: Promise<void> | null = null;
@@ -145,6 +149,8 @@ export class GoogleProvider {
         if (spartaTokenPath) {
             try {
                 const spartaAuth = await loadOAuth2Client(spartaTokenPath);
+                this.spartaAuthClient = spartaAuth;
+                this.spartaTokenMeta = { source: `file:${spartaTokenPath}`, tokenFileFound: true, hasRefreshToken: true };
                 this.spartaSheets = google.sheets({ version: "v4", auth: spartaAuth });
                 this.spartaDrive = google.drive({ version: "v3", auth: spartaAuth });
                 this.spartaGmail = google.gmail({ version: "v1", auth: spartaAuth });
@@ -161,6 +167,8 @@ export class GoogleProvider {
         if (docTokenPath) {
             try {
                 const docAuth = await loadOAuth2Client(docTokenPath);
+                this.docAuthClient = docAuth;
+                this.docTokenMeta = { source: `file:${docTokenPath}`, tokenFileFound: true, hasRefreshToken: true };
                 this.docSheets = google.sheets({ version: "v4", auth: docAuth });
                 this.docDrive = google.drive({ version: "v3", auth: docAuth });
                 console.log("✅ Service Dokumen (Sheets + Drive) Berhasil.");
