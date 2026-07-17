@@ -28,6 +28,24 @@ const formatTanggal = (isoString?: string | null): string => {
     }).format(d);
 };
 
+const formatTanggalJamWib = (isoString?: string | null): string => {
+    if (!isoString) return "";
+    const normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(isoString)
+        ? isoString.replace(" ", "T") + "+07:00"
+        : isoString;
+    const d = new Date(normalized);
+    if (Number.isNaN(d.getTime())) return String(isoString);
+    return new Intl.DateTimeFormat("sv-SE", {
+        timeZone: JAKARTA_TIME_ZONE,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+    }).format(d).replace(" ", " ") + " WIB";
+};
+
 const staticAssetPath = (filename: string): string => {
     const candidates = [
         path.resolve(__dirname, "../../image", filename),
@@ -83,7 +101,7 @@ export async function buildSuratPeringatanPdfBuffer(input: BuildSpPdfInput): Pro
         namaKontraktor: input.action.nama_kontraktor ?? "-",
         idToko: input.action.id_toko,
         nomorUlok: input.action.nomor_ulok ?? "-",
-        namaToko: input.tokoNama ?? "-",
+        namaToko: input.tokoNama && input.tokoNama.trim().toUpperCase() !== "TOKO" ? input.tokoNama : "-",
         lingkupPekerjaan: input.action.lingkup_pekerjaan ?? "-",
         nomorSpk: input.action.nomor_spk?.trim() || null,
         tanggalSurat: formatTanggal(input.action.manager_approved_at ?? input.action.submitted_at ?? input.action.created_at ?? new Date().toISOString()),
@@ -95,9 +113,11 @@ export async function buildSuratPeringatanPdfBuffer(input: BuildSpPdfInput): Pro
         deadlineTindakLanjut: formatTanggal(input.action.deadline_tindak_lanjut),
         approvedBy: input.approvedBy ?? null,
         approvedAt: input.approvedAt ?? null,
+        approvedAtText: formatTanggalJamWib(input.approvedAt),
         approvedRole: input.approvedRole ?? null,
         submittedBy: input.submittedBy,
         submittedAt: input.submittedAt ?? null,
+        submittedAtText: formatTanggalJamWib(input.submittedAt),
     };
 
     const html = await renderHtmlTemplate(templatePath, data);

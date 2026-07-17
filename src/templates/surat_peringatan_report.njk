@@ -214,7 +214,7 @@
   {% endif %}
 
   <div class="content">
-  {{ sparta_header("Surat Peringatan " ~ spLevelRomawi, (nomorUlok and nomorUlok != '-') and (namaToko and namaToko != '-') and (nomorUlok ~ " - " ~ namaToko) or (namaKontraktor or "-")) | safe }}
+  {{ sparta_header("Surat Peringatan " ~ spLevelRomawi, (nomorUlok and nomorUlok != '-') and (nomorUlok ~ ((namaToko and namaToko != '-') and (" - " ~ namaToko) or "")) or (namaKontraktor or "-")) | safe }}
 
   <div class="section-title">Informasi Proyek</div>
   <table class="meta">
@@ -320,11 +320,11 @@
             <div class="signature-title">DIBUAT</div>
             <div class="signature-body">
               <div class="sig-timestamp">
-                {% if submittedAt %}{{ submittedAt | replace("T", " ") | truncate(16, true, "") }} WIB{% endif %}
+                {{ submittedAtText or "" }}
               </div>
               <div>
                 <div class="sig-name">{{ submittedBy }}</div>
-                <div class="sig-role">Branch Building Coordinator/Support</div>
+                <div class="sig-role">Branch Building Coordinator</div>
               </div>
             </div>
           </div>
@@ -334,7 +334,7 @@
             <div class="signature-title">Menyetujui</div>
             <div class="signature-body">
               <div class="sig-timestamp">
-                {% if approvedAt %}{{ approvedAt | replace("T", " ") | truncate(16, true, "") }} WIB{% endif %}
+                {{ approvedAtText or "" }}
               </div>
               <div>
                 <div class="sig-name">{{ approvedBy or "" }}</div>

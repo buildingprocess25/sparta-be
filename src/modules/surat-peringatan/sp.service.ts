@@ -252,7 +252,6 @@ export const spService = {
         let target = undefined;
         let effectiveKontraktor = input.action_type === "SP" && (input.alasan_sp === "MANIPULASI" || input.alasan_sp === "LAINNYA") ? input.nama_kontraktor : null;
         let tokoId = (input as any).id_toko;
-        const isKontraktorScope = input.action_type === "SP" && (input.alasan_sp === "MANIPULASI" || input.alasan_sp === "LAINNYA");
         
         if (tokoId) {
             target = await spRepository.findTargetByTokoId(tokoId);
@@ -278,7 +277,7 @@ export const spService = {
         // - MANIPULASI/LAINNYA  → cek per kontraktor (nama_kontraktor)
         // - ULOK-based          → cek per toko (id_toko)
         let stats: { active_sp_count: number; pending_approval_count: number; highest_active_sp_level: number };
-        if (isKontraktorScope && effectiveKontraktor) {
+        if (input.action_type === "SP" && effectiveKontraktor) {
             stats = await spRepository.getActionStatsByKontraktor(effectiveKontraktor);
         } else if (tokoId) {
             stats = await spRepository.getActionStatsByTokoId(tokoId);
@@ -288,7 +287,7 @@ export const spService = {
 
         // Blok jika masih ada SP yang menunggu approval manager
         if (stats.pending_approval_count > 0) {
-            const scope = isKontraktorScope
+            const scope = input.action_type === "SP" && effectiveKontraktor
                 ? `kontraktor "${effectiveKontraktor}"`
                 : `ULOK ini`;
             throw new AppError(

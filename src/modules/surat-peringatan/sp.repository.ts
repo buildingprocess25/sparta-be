@@ -350,12 +350,12 @@ export const spRepository = {
                     ) AS active_sp_count,
                     COUNT(*) FILTER (WHERE status = 'WAITING_MANAGER') AS pending_approval_count
                 FROM denda_keterlambatan_action action
-                WHERE action.id_toko = t.id
+                WHERE LOWER(TRIM(COALESCE(action.nama_kontraktor, ''))) = LOWER(TRIM(COALESCE(spk.nama_kontraktor, t.nama_kontraktor, '')))
             ) sp_stats ON TRUE
             LEFT JOIN LATERAL (
                 SELECT action_type, status, created_at, expires_at
                 FROM denda_keterlambatan_action action
-                WHERE action.id_toko = t.id
+                WHERE LOWER(TRIM(COALESCE(action.nama_kontraktor, ''))) = LOWER(TRIM(COALESCE(spk.nama_kontraktor, t.nama_kontraktor, '')))
                 ORDER BY action.created_at DESC, action.id DESC
                 LIMIT 1
             ) latest_action ON TRUE
@@ -642,7 +642,6 @@ export const spRepository = {
                 ) AS highest_active_sp_level
             FROM denda_keterlambatan_action
             WHERE LOWER(TRIM(COALESCE(nama_kontraktor, ''))) = LOWER(TRIM($1))
-              AND alasan_sp IN ('MANIPULASI', 'LAINNYA')
             `,
             [namaKontraktor]
         );

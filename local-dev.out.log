@@ -7110,3 +7110,2098 @@ Startup bootstrap selesai
   query: {},
   body: {}
 }
+[RES][160ffc81-942b-4f29-9a4b-7272562e7ce7] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 64 }
+[REQ][a04fa493-5261-4cbf-922a-428152f6bb8c] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][60d30257-9b5b-431c-a22d-bb3b639fa8dd] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][a04fa493-5261-4cbf-922a-428152f6bb8c] GET /api/system-maintenance/status { status: 304, duration_ms: 54 }
+[RES][60d30257-9b5b-431c-a22d-bb3b639fa8dd] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 223 }
+[REQ][d24e95e6-e610-439f-8c22-94ed64d08743] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][dfe909ad-1fc9-47c0-a367-256626a2969c] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][d24e95e6-e610-439f-8c22-94ed64d08743] GET /api/system-maintenance/status { status: 304, duration_ms: 30 }
+[REQ][5c1ec19a-7ed7-47cf-bd24-6ed88e312291] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][5c1ec19a-7ed7-47cf-bd24-6ed88e312291] GET /api/system-maintenance/status { status: 304, duration_ms: 29 }
+[RES][dfe909ad-1fc9-47c0-a367-256626a2969c] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 77 }
+[REQ][5cc06e83-f11b-44c6-ad0f-ade1a9eeef8c] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][5cc06e83-f11b-44c6-ad0f-ade1a9eeef8c] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 48 }
+[REQ][2039ab1b-4e1e-41ed-a951-f371d8f30803] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][820e919d-0fdd-4b6e-95ad-811aa9915892] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][2039ab1b-4e1e-41ed-a951-f371d8f30803] GET /api/system-maintenance/status { status: 304, duration_ms: 128 }
+[RES][820e919d-0fdd-4b6e-95ad-811aa9915892] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 525 }
+[REQ][5682cfaf-d8d3-4de9-96ff-d23fddff4177] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][0b24d1bb-b84a-413b-b511-b48398773e0b] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][5682cfaf-d8d3-4de9-96ff-d23fddff4177] GET /api/system-maintenance/status { status: 304, duration_ms: 85 }
+[REQ][e7f7118e-aa57-4e8c-b58d-8797f97b2949] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][e7f7118e-aa57-4e8c-b58d-8797f97b2949] GET /api/system-maintenance/status { status: 304, duration_ms: 105 }
+[RES][0b24d1bb-b84a-413b-b511-b48398773e0b] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 292 }
+[REQ][f978a896-2542-460c-aa8b-6fb96706fa22] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][f978a896-2542-460c-aa8b-6fb96706fa22] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 179 }
+[REQ][55696777-b0df-4ee9-90f0-581f3153b87a] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][3ec6321a-333d-4e1c-8740-f7a2c75bbc2e] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][55696777-b0df-4ee9-90f0-581f3153b87a] GET /api/system-maintenance/status { status: 304, duration_ms: 68 }
+[RES][3ec6321a-333d-4e1c-8740-f7a2c75bbc2e] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 181 }
+[REQ][c21b8c42-5309-46a6-a637-5640840d9c28] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][c47f6047-d2e2-40fb-84e2-3c1f033d58d2] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][c21b8c42-5309-46a6-a637-5640840d9c28] GET /api/system-maintenance/status { status: 304, duration_ms: 39 }
+[RES][c47f6047-d2e2-40fb-84e2-3c1f033d58d2] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 235 }
+[REQ][80c64436-c4e9-4e2c-bdfa-659e7033c6ef] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][32664477-37bb-42fc-b2cb-8476935a32f9] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][80c64436-c4e9-4e2c-bdfa-659e7033c6ef] GET /api/system-maintenance/status { status: 304, duration_ms: 117 }
+[RES][32664477-37bb-42fc-b2cb-8476935a32f9] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 293 }
+[REQ][d2d83d1d-5c3a-48a3-826f-a151807a5c22] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][f3c45ee7-c549-4173-bd37-e5becf7b3861] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][d2d83d1d-5c3a-48a3-826f-a151807a5c22] GET /api/system-maintenance/status { status: 304, duration_ms: 138 }
+[RES][f3c45ee7-c549-4173-bd37-e5becf7b3861] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 521 }
+[REQ][bdf9f987-9d16-48ce-8ae2-890b8a1e14de] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][0ed2dabe-8b49-4da2-b8b7-242699af0573] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][bdf9f987-9d16-48ce-8ae2-890b8a1e14de] GET /api/system-maintenance/status { status: 304, duration_ms: 71 }
+[RES][0ed2dabe-8b49-4da2-b8b7-242699af0573] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 206 }
+[REQ][046cd229-3b54-49b1-a2f5-8a1dcea51dce] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][7086146b-c1b3-401c-9837-acf000db3f7c] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][046cd229-3b54-49b1-a2f5-8a1dcea51dce] GET /api/system-maintenance/status { status: 304, duration_ms: 57 }
+[RES][7086146b-c1b3-401c-9837-acf000db3f7c] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 174 }
+[REQ][d772e98c-1f93-4984-a497-6e64a498b08e] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][b9bfea46-a3fd-4dbd-b7ea-2acf09f38a86] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][d772e98c-1f93-4984-a497-6e64a498b08e] GET /api/system-maintenance/status { status: 304, duration_ms: 100 }
+[REQ][fdeaa5de-30f4-4247-8ffc-569b435231e0] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][fdeaa5de-30f4-4247-8ffc-569b435231e0] GET /api/system-maintenance/status { status: 304, duration_ms: 68 }
+[RES][b9bfea46-a3fd-4dbd-b7ea-2acf09f38a86] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 562 }
+[REQ][854e0e80-9e27-44d7-9d2c-935982e7a4a1] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][854e0e80-9e27-44d7-9d2c-935982e7a4a1] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 80 }
+[REQ][56098443-0bc6-46dc-9975-9111a70f079f] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][481664c1-9cd7-45e0-85a1-cd4b82e07f2e] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][56098443-0bc6-46dc-9975-9111a70f079f] GET /api/system-maintenance/status { status: 304, duration_ms: 52 }
+[RES][481664c1-9cd7-45e0-85a1-cd4b82e07f2e] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 166 }
+[REQ][7c494b99-aabe-4dc5-9c40-a41f3b15d3ea] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][d8602cd4-9808-40bb-8aef-eccccbd1e784] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][7c494b99-aabe-4dc5-9c40-a41f3b15d3ea] GET /api/system-maintenance/status { status: 304, duration_ms: 36 }
+[RES][d8602cd4-9808-40bb-8aef-eccccbd1e784] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 114 }
+[REQ][d52e2cea-bdfd-40e0-9c7d-b6bbfde22542] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][8e7ff16b-19e2-4563-9fd6-68261ecfc2fb] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][d52e2cea-bdfd-40e0-9c7d-b6bbfde22542] GET /api/system-maintenance/status { status: 304, duration_ms: 23 }
+[RES][8e7ff16b-19e2-4563-9fd6-68261ecfc2fb] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 66 }
+[REQ][40c68eb9-3a8b-4b6b-9b28-8b621c8652b0] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][4badb92b-9425-43d8-a8fe-ac5aae196dcc] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][40c68eb9-3a8b-4b6b-9b28-8b621c8652b0] GET /api/system-maintenance/status { status: 304, duration_ms: 27 }
+[RES][4badb92b-9425-43d8-a8fe-ac5aae196dcc] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 94 }
+[REQ][acc9c079-59d5-4b8c-b151-ebbb3520ab20] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][63b0902c-f28c-4ec3-b45b-ad136496be1f] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][acc9c079-59d5-4b8c-b151-ebbb3520ab20] GET /api/system-maintenance/status { status: 304, duration_ms: 41 }
+[RES][63b0902c-f28c-4ec3-b45b-ad136496be1f] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 136 }
+[REQ][c19b54f8-4d88-4eed-b578-ea87ac8b21dc] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][814d26b2-8cab-42df-ae37-655f1ca6a552] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][c19b54f8-4d88-4eed-b578-ea87ac8b21dc] GET /api/system-maintenance/status { status: 304, duration_ms: 32 }
+[RES][814d26b2-8cab-42df-ae37-655f1ca6a552] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 95 }
+[REQ][b63721e7-6d11-4f60-af85-f5fe33f3f35e] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][93e5046a-f265-4a79-a5bc-4e4ea060a678] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][b63721e7-6d11-4f60-af85-f5fe33f3f35e] GET /api/system-maintenance/status { status: 304, duration_ms: 29 }
+[RES][93e5046a-f265-4a79-a5bc-4e4ea060a678] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 91 }
+[REQ][332c1b91-f802-48a9-87f4-f613467644c6] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][61de5184-e647-4959-a415-8545880b57ca] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][332c1b91-f802-48a9-87f4-f613467644c6] GET /api/system-maintenance/status { status: 304, duration_ms: 42 }
+[REQ][f44ceb38-c170-4310-bfb7-24ba45363363] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][61de5184-e647-4959-a415-8545880b57ca] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 133 }
+[REQ][8db4bbaf-140f-4c72-b1d9-b2314266b294] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][8db4bbaf-140f-4c72-b1d9-b2314266b294] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 67 }
+[RES][f44ceb38-c170-4310-bfb7-24ba45363363] GET /api/system-maintenance/status { status: 500, duration_ms: 297 }
+[REQ][de3a6758-53ef-4f58-9c4a-74cf32071cee] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][587513b8-ddab-434d-92e3-2a4f216adb26] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][de3a6758-53ef-4f58-9c4a-74cf32071cee] GET /api/system-maintenance/status { status: 200, duration_ms: 71 }
+[RES][587513b8-ddab-434d-92e3-2a4f216adb26] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 174 }
+[REQ][2a60d528-2b3e-4ad6-8fb5-2625eb9d0b6c] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][7fc642ab-7b85-4ef6-90de-9cc6cc9fa2b3] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][2a60d528-2b3e-4ad6-8fb5-2625eb9d0b6c] GET /api/system-maintenance/status { status: 304, duration_ms: 23 }
+[RES][7fc642ab-7b85-4ef6-90de-9cc6cc9fa2b3] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 68 }
+[REQ][cfba19ab-eb32-4ce7-9b66-f89c01854ed0] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][45e1b99c-dc58-49b2-848c-bfa709ff9e4a] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][cfba19ab-eb32-4ce7-9b66-f89c01854ed0] GET /api/system-maintenance/status { status: 304, duration_ms: 90 }
+[RES][45e1b99c-dc58-49b2-848c-bfa709ff9e4a] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 414 }
+[REQ][4c53e81c-92b5-42ba-8434-faf7c12c40a0] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][bd60c563-64bf-4422-ac10-69ad81bf0351] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][4c53e81c-92b5-42ba-8434-faf7c12c40a0] GET /api/system-maintenance/status { status: 304, duration_ms: 30 }
+[RES][bd60c563-64bf-4422-ac10-69ad81bf0351] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 99 }
+[REQ][2d23e871-f878-4612-bd65-6dc558d7bfdf] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][c0c01e27-5a73-4341-a3c7-4f86c2e25a22] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][2d23e871-f878-4612-bd65-6dc558d7bfdf] GET /api/system-maintenance/status { status: 304, duration_ms: 35 }
+[RES][c0c01e27-5a73-4341-a3c7-4f86c2e25a22] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 121 }
+[REQ][72c88168-acd7-4252-aaca-f6379bb18997] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][1a205601-1d92-4d96-8015-4ace1b16f66f] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][72c88168-acd7-4252-aaca-f6379bb18997] GET /api/system-maintenance/status { status: 304, duration_ms: 23 }
+[RES][1a205601-1d92-4d96-8015-4ace1b16f66f] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 68 }
+[REQ][cf21c1e1-7eeb-4fec-b319-08b3750277ab] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][7ab07c62-b2fa-4964-bf9f-ed7ae6214549] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][cf21c1e1-7eeb-4fec-b319-08b3750277ab] GET /api/system-maintenance/status { status: 304, duration_ms: 27 }
+[RES][7ab07c62-b2fa-4964-bf9f-ed7ae6214549] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 67 }
+[REQ][7c95e68f-a494-446c-bd72-4d73853bfa8f] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][7281622e-3e0e-4fee-ae06-b7e8c6bf7f4d] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][7c95e68f-a494-446c-bd72-4d73853bfa8f] GET /api/system-maintenance/status { status: 304, duration_ms: 24 }
+[REQ][f4847995-2644-4170-9694-93642f5fa5b2] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][f4847995-2644-4170-9694-93642f5fa5b2] GET /api/system-maintenance/status { status: 304, duration_ms: 23 }
+[RES][7281622e-3e0e-4fee-ae06-b7e8c6bf7f4d] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 291 }
+[REQ][ebcd7a72-dc55-4de2-9ab8-2c5c69eb5cfa] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][ebcd7a72-dc55-4de2-9ab8-2c5c69eb5cfa] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 48 }
+[REQ][2b6d4ba5-862c-42a0-af1c-d0d452ee21ba] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][175affe7-701b-4c95-98bf-123004f025db] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][2b6d4ba5-862c-42a0-af1c-d0d452ee21ba] GET /api/system-maintenance/status { status: 304, duration_ms: 24 }
+[RES][175affe7-701b-4c95-98bf-123004f025db] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 71 }
+[REQ][374978ff-ed0f-4bc3-ac31-bacc9fe99899] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][743386bb-f031-44ac-a0c3-ad42b5a160dc] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][374978ff-ed0f-4bc3-ac31-bacc9fe99899] GET /api/system-maintenance/status { status: 304, duration_ms: 49 }
+[RES][743386bb-f031-44ac-a0c3-ad42b5a160dc] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 99 }
+[REQ][dc00417a-4f0c-4984-bd22-992e06537280] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][2e8fc01d-61cb-40ab-aecb-a583abba954a] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][dc00417a-4f0c-4984-bd22-992e06537280] GET /api/system-maintenance/status { status: 304, duration_ms: 27 }
+[RES][2e8fc01d-61cb-40ab-aecb-a583abba954a] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 71 }
+[REQ][5e80fb03-11a2-43fa-ad72-419d1552362d] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][36ebe802-040d-4aab-9766-6d2c561258ee] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][5e80fb03-11a2-43fa-ad72-419d1552362d] GET /api/system-maintenance/status { status: 304, duration_ms: 25 }
+[RES][36ebe802-040d-4aab-9766-6d2c561258ee] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 75 }
+[REQ][d07c48da-25be-45b7-aeab-126f28698fff] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][fdc95fdd-d5d5-4922-8a4e-4e1b9beb35a7] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][d07c48da-25be-45b7-aeab-126f28698fff] GET /api/system-maintenance/status { status: 304, duration_ms: 66 }
+[RES][fdc95fdd-d5d5-4922-8a4e-4e1b9beb35a7] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 140 }
+[REQ][097d204c-a393-4724-86b3-d4b3bb77af9c] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][7a1dfa2d-28c2-4409-bc1c-0b675db0b36d] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][097d204c-a393-4724-86b3-d4b3bb77af9c] GET /api/system-maintenance/status { status: 304, duration_ms: 29 }
+[RES][7a1dfa2d-28c2-4409-bc1c-0b675db0b36d] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 90 }
+[REQ][d14b5bef-478d-4dbb-8696-56dcbdd1359f] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][37076d39-ee8c-464b-b986-e7ebf21fc4f6] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][d14b5bef-478d-4dbb-8696-56dcbdd1359f] GET /api/system-maintenance/status { status: 304, duration_ms: 399 }
+[RES][37076d39-ee8c-464b-b986-e7ebf21fc4f6] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 85 }
+[REQ][83da5cda-d2bd-4cf2-a746-6cd7d6b056fa] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][41366a84-20e3-42a6-a18d-35af0f49b5e3] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][83da5cda-d2bd-4cf2-a746-6cd7d6b056fa] GET /api/system-maintenance/status { status: 304, duration_ms: 24 }
+[REQ][ccb70209-002d-4210-aa3c-96cec40bd633] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][ccb70209-002d-4210-aa3c-96cec40bd633] GET /api/system-maintenance/status { status: 304, duration_ms: 23 }
+[RES][41366a84-20e3-42a6-a18d-35af0f49b5e3] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 425 }
+[REQ][5101afed-af8b-49e8-a41e-03cb5cefc3f9] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][5101afed-af8b-49e8-a41e-03cb5cefc3f9] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 97 }
+[REQ][2d3f0844-26bd-41d2-b761-a3bc9d96ddf4] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][595b0cfd-d476-4cff-8cda-6049df46d602] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][2d3f0844-26bd-41d2-b761-a3bc9d96ddf4] GET /api/system-maintenance/status { status: 304, duration_ms: 23 }
+[RES][595b0cfd-d476-4cff-8cda-6049df46d602] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 79 }
+[REQ][7e46efe9-cd58-4f93-8c97-dad977a9e560] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][931cb710-4a15-4906-bcce-2d65082707e7] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][7e46efe9-cd58-4f93-8c97-dad977a9e560] GET /api/system-maintenance/status { status: 304, duration_ms: 49 }
+[RES][931cb710-4a15-4906-bcce-2d65082707e7] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 90 }
+[REQ][ebfb0b8b-7f85-4337-9c9c-4784535db419] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][2267da87-4009-424a-aebe-2a190017ac42] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][ebfb0b8b-7f85-4337-9c9c-4784535db419] GET /api/system-maintenance/status { status: 304, duration_ms: 279 }
+[REQ][31aebb5c-5d49-453d-8f1c-e8a2b2b10f8f] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][2267da87-4009-424a-aebe-2a190017ac42] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 317 }
+[REQ][df544af5-292f-40b3-9a3f-45dbc8d09b20] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][df544af5-292f-40b3-9a3f-45dbc8d09b20] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 48 }
+[REQ][9cc0a1ba-62b2-4204-9cc6-3222211663b9] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][9cc0a1ba-62b2-4204-9cc6-3222211663b9] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 44 }
+[RES][31aebb5c-5d49-453d-8f1c-e8a2b2b10f8f] GET /api/system-maintenance/status { status: 304, duration_ms: 211 }
+[REQ][c2ac87fa-8051-47d7-8a40-ce818349d246] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][c2ac87fa-8051-47d7-8a40-ce818349d246] GET /api/system-maintenance/status { status: 304, duration_ms: 23 }
+[REQ][be968d9f-71a5-497c-a33f-a97b2163fd7b] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][3549e97b-f0c7-42a9-b870-7d481d70cafb] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][be968d9f-71a5-497c-a33f-a97b2163fd7b] GET /api/system-maintenance/status { status: 304, duration_ms: 509 }
+[REQ][8c640cdd-f620-4d56-a4e1-7582875d08c6] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][8c640cdd-f620-4d56-a4e1-7582875d08c6] GET /api/system-maintenance/status { status: 304, duration_ms: 28 }
+[REQ][86b4cd4d-17ca-4130-9716-4a87a0a4ff9e] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][3549e97b-f0c7-42a9-b870-7d481d70cafb] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 621 }
+[REQ][f56f4cf0-c9d4-49ad-b98e-e42612f6436a] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][f56f4cf0-c9d4-49ad-b98e-e42612f6436a] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 77 }
+[REQ][0005620a-21ec-4746-8b50-0eb260c9274e] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][0005620a-21ec-4746-8b50-0eb260c9274e] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 85 }
+[RES][86b4cd4d-17ca-4130-9716-4a87a0a4ff9e] GET /api/system-maintenance/status { status: 304, duration_ms: 469 }
+[REQ][4b11c944-9011-445d-ba83-0ca3287fe79b] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][cf64249b-947e-45ad-a003-b3884bf305c0] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][4b11c944-9011-445d-ba83-0ca3287fe79b] GET /api/system-maintenance/status { status: 304, duration_ms: 266 }
+[REQ][25cdb333-434f-404b-9516-669422abaae2] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][25cdb333-434f-404b-9516-669422abaae2] GET /api/system-maintenance/status { status: 304, duration_ms: 23 }
+[REQ][a9404a73-813e-4f0e-bbaa-a5296c3c6361] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][a9404a73-813e-4f0e-bbaa-a5296c3c6361] GET /api/system-maintenance/status { status: 304, duration_ms: 24 }
+[RES][cf64249b-947e-45ad-a003-b3884bf305c0] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 521 }
+[REQ][e034830e-01c7-4963-97d9-a54f93da7b94] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][e034830e-01c7-4963-97d9-a54f93da7b94] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 47 }
+[REQ][4aab89e3-1c36-43ca-a68b-d59c1bfaed26] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][4aab89e3-1c36-43ca-a68b-d59c1bfaed26] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 47 }
+[REQ][fa89cc3c-86b9-4012-8b7e-2aae2e2fdfac] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][42eb8a43-1db5-4c5a-b8aa-39fd3670a922] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][fa89cc3c-86b9-4012-8b7e-2aae2e2fdfac] GET /api/system-maintenance/status { status: 304, duration_ms: 332 }
+[REQ][b820cb11-7a65-4c6e-b76a-e5181732e146] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][b820cb11-7a65-4c6e-b76a-e5181732e146] GET /api/system-maintenance/status { status: 304, duration_ms: 40 }
+[REQ][6111dd19-3b49-4fe0-a7a3-cdb890138c2a] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][42eb8a43-1db5-4c5a-b8aa-39fd3670a922] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 404 }
+[REQ][929356db-f817-4714-8042-204f52db8426] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][929356db-f817-4714-8042-204f52db8426] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 78 }
+[REQ][138a2268-4cea-4181-92e5-54c3f898dc18] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][138a2268-4cea-4181-92e5-54c3f898dc18] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 69 }
+[RES][6111dd19-3b49-4fe0-a7a3-cdb890138c2a] GET /api/system-maintenance/status { status: 500, duration_ms: 248 }
+[REQ][d96af3aa-85e5-4138-9481-3cb676063c14] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][248a9894-9f63-4688-8f00-929088bff041] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][d96af3aa-85e5-4138-9481-3cb676063c14] GET /api/system-maintenance/status { status: 200, duration_ms: 835 }
+[REQ][40b6d428-f02a-45ff-90a8-155dfdf4ad76] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][40b6d428-f02a-45ff-90a8-155dfdf4ad76] GET /api/system-maintenance/status { status: 304, duration_ms: 28 }
+[REQ][56ed1900-41f3-4f89-9b25-8d287af82ad5] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][56ed1900-41f3-4f89-9b25-8d287af82ad5] GET /api/system-maintenance/status { status: 304, duration_ms: 26 }
+[RES][248a9894-9f63-4688-8f00-929088bff041] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 1360 }
+[REQ][e83d74de-655a-474f-b0dc-02bba7fca0af] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][e83d74de-655a-474f-b0dc-02bba7fca0af] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 51 }
+[REQ][3db8b731-05dc-4a3f-a16c-d92d327544a7] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][3db8b731-05dc-4a3f-a16c-d92d327544a7] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 61 }
+11.04.17 [tsx] change in ./src\common\google.ts Restarting...
+c11.04.31 [tsx] change in ./src\modules\toko\toko.controller.ts Restarting...
+crab-service running on port 8081
+✅ Token refreshed dari token.json
+✅ Service Sparta (Sheets) Berhasil.
+✅ Token refreshed dari token_doc.json
+✅ Service Dokumen (Sheets + Drive) Berhasil.
+[Scheduler] SP markExpiredSp akan mulai dalam 780 menit (jam 00:05 WIB)
+[Scheduler] SP expiryReminders akan mulai dalam 1255 menit (jam 08:00 WIB)
+[Scheduler] SP weeklySummary akan mulai dalam 68 jam (Senin jam 07:00 WIB)
+Startup bootstrap selesai
+[REQ][715dd7b1-6ca6-43e2-b4a2-f436e62d284e] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][a305a8db-5314-47b1-97a3-0fc650dcb359] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][715dd7b1-6ca6-43e2-b4a2-f436e62d284e] GET /api/system-maintenance/status { status: 304, duration_ms: 594 }
+[REQ][6d6d703f-fc68-4d78-aee0-7642ce945721] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][a305a8db-5314-47b1-97a3-0fc650dcb359] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 1007 }
+[REQ][dc988222-4e1c-4e32-be20-6376ba78d24d] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][dc988222-4e1c-4e32-be20-6376ba78d24d] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 162 }
+[REQ][539a8320-9cd4-49ad-8c76-df1b3926e631] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][539a8320-9cd4-49ad-8c76-df1b3926e631] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 238 }
+[RES][6d6d703f-fc68-4d78-aee0-7642ce945721] GET /api/system-maintenance/status { status: 304, duration_ms: 903 }
+[REQ][009c2b8f-59d4-4a8c-84ba-297207841120] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][009c2b8f-59d4-4a8c-84ba-297207841120] GET /api/system-maintenance/status { status: 304, duration_ms: 59 }
+[REQ][776a1db6-614d-4139-8b5b-06c29f4c6a79] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][eba49eea-d2c8-42fc-994b-6de1ce9a873d] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][776a1db6-614d-4139-8b5b-06c29f4c6a79] GET /api/system-maintenance/status { status: 304, duration_ms: 494 }
+[REQ][d84ba62f-2804-4e56-a3b4-a5ab123a5d54] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][d84ba62f-2804-4e56-a3b4-a5ab123a5d54] GET /api/system-maintenance/status { status: 304, duration_ms: 29 }
+[REQ][85b4114c-96b5-4563-9b4a-0433fecbebda] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][85b4114c-96b5-4563-9b4a-0433fecbebda] GET /api/system-maintenance/status { status: 304, duration_ms: 65 }
+[RES][eba49eea-d2c8-42fc-994b-6de1ce9a873d] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 831 }
+[REQ][fc6984ec-bb36-4324-943f-4de88b988e42] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][fc6984ec-bb36-4324-943f-4de88b988e42] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 109 }
+[REQ][ca120b7b-279f-4be6-ba26-b0770ee8bd20] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][ca120b7b-279f-4be6-ba26-b0770ee8bd20] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 52 }
+[REQ][4b2cde84-a5eb-4e5c-8369-565866d24945] POST /api/auth/login {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '54',
+  params: {},
+  query: {},
+  body: { email_sat: 'firman.hakim@sat.co.id', cabang: 'LUWU' }
+}
+[RES][4b2cde84-a5eb-4e5c-8369-565866d24945] POST /api/auth/login { status: 200, duration_ms: 124 }
+[REQ][fabb6bca-e74c-4162-bbfb-70db6cdd7dc2] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][fbd2dd6c-1dc6-4cd1-a7f1-832654aacf21] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][fabb6bca-e74c-4162-bbfb-70db6cdd7dc2] GET /api/system-maintenance/status { status: 304, duration_ms: 47 }
+[RES][fbd2dd6c-1dc6-4cd1-a7f1-832654aacf21] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 86 }
+[REQ][d543b257-3511-43d9-a3d5-3562b3ca2c68] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][dd89a6be-6360-4232-b350-832ae9bad89a] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][d543b257-3511-43d9-a3d5-3562b3ca2c68] GET /api/system-maintenance/status { status: 304, duration_ms: 33 }
+[RES][dd89a6be-6360-4232-b350-832ae9bad89a] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 75 }
+[REQ][699a09b8-38b7-41b1-8a56-9405aa02c510] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][d797129e-1055-48a5-b6d4-d79c6924cae0] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][86ede98b-c447-42df-ae3f-680bebbf31ea] GET /api/dashboard/all {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][699a09b8-38b7-41b1-8a56-9405aa02c510] GET /api/system-maintenance/status { status: 304, duration_ms: 51 }
+[REQ][e2d959b9-3bf1-4b5d-a0eb-f37dc90eb1c5] GET /api/rab {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][d797129e-1055-48a5-b6d4-d79c6924cae0] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 179 }
+[REQ][f5f84e50-d7d6-4bbb-ab54-a6ae8f5aa3cb] GET /api/task-notifications {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[RES][f5f84e50-d7d6-4bbb-ab54-a6ae8f5aa3cb] GET /api/task-notifications { status: 200, duration_ms: 320 }
+[REQ][8e68f459-d60c-46c2-a3ad-1b367e3d4468] GET /api/task-notifications {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RAB LIST] Request from user: {
+  email: 'firman.hakim@sat.co.id',
+  cabang: 'LUWU',
+  roles: [ 'BRANCH BUILDING & MAINTENANCE MANAGER' ],
+  query_cabang_before: undefined
+}
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH FILTER] User: firman.hakim@sat.co.id Cabang: LUWU Source: branch_group Branches: [ 'LUWU' ]
+[RAB LIST] After injectBranchFilter: { cabang_array: [ 'LUWU' ], cabang_array_length: 1 }
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[REQ][8e673b64-edbb-4670-8313-78704c3a82de] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RAB LIST] Result: { total_documents: 68, unique_branches: [ 'LUWU' ] }
+[RES][e2d959b9-3bf1-4b5d-a0eb-f37dc90eb1c5] GET /api/rab { status: 200, duration_ms: 1264 }
+[REQ][eaf14943-8a69-4ac2-99ce-bdfa8bfbdcaf] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][f746ce75-c4c9-43c3-9896-bfcaa96abdfb] GET /api/rab {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[REQ][cc602eae-1d2a-4847-a6d5-87d97c3e3113] GET /api/final_opname?aksi=terkunci&tipe_opname=OPNAME_FINAL {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { aksi: 'terkunci', tipe_opname: 'OPNAME_FINAL' },
+  body: {}
+}
+[RES][8e673b64-edbb-4670-8313-78704c3a82de] GET /api/system-maintenance/status { status: 304, duration_ms: 715 }
+[RES][8e68f459-d60c-46c2-a3ad-1b367e3d4468] GET /api/task-notifications { status: 304, duration_ms: 1367 }
+[REQ][b2b67b4c-84be-4e6e-8818-4ac44366f6b0] GET /api/task-notifications {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RAB LIST] Request from user: {
+  email: 'firman.hakim@sat.co.id',
+  cabang: 'LUWU',
+  roles: [ 'BRANCH BUILDING & MAINTENANCE MANAGER' ],
+  query_cabang_before: undefined
+}
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH FILTER] User: firman.hakim@sat.co.id Cabang: LUWU Source: branch_group Branches: [ 'LUWU' ]
+[RAB LIST] After injectBranchFilter: { cabang_array: [ 'LUWU' ], cabang_array_length: 1 }
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH FILTER] User: firman.hakim@sat.co.id Cabang: LUWU Source: branch_group Branches: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[RES][eaf14943-8a69-4ac2-99ce-bdfa8bfbdcaf] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 949 }
+[RAB LIST] Result: { total_documents: 68, unique_branches: [ 'LUWU' ] }
+[RES][f746ce75-c4c9-43c3-9896-bfcaa96abdfb] GET /api/rab { status: 304, duration_ms: 1027 }
+[RES][cc602eae-1d2a-4847-a6d5-87d97c3e3113] GET /api/final_opname?aksi=terkunci&tipe_opname=OPNAME_FINAL { status: 200, duration_ms: 993 }
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[REQ][419c0068-6515-49f2-912c-6eeb2c4c4104] GET /api/rab {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][67fbe970-afb4-4d87-aad0-45ab2103f1f9] GET /api/final_opname?aksi=terkunci&tipe_opname=OPNAME_FINAL {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { aksi: 'terkunci', tipe_opname: 'OPNAME_FINAL' },
+  body: {}
+}
+[REQ][3748d13d-3b75-4f22-9a98-df96a2973e4a] GET /api/instruksi-lapangan/list {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][b2b67b4c-84be-4e6e-8818-4ac44366f6b0] GET /api/task-notifications { status: 304, duration_ms: 1441 }
+[RAB LIST] Request from user: {
+  email: 'firman.hakim@sat.co.id',
+  cabang: 'LUWU',
+  roles: [ 'BRANCH BUILDING & MAINTENANCE MANAGER' ],
+  query_cabang_before: undefined
+}
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH FILTER] User: firman.hakim@sat.co.id Cabang: LUWU Source: branch_group Branches: [ 'LUWU' ]
+[RAB LIST] After injectBranchFilter: { cabang_array: [ 'LUWU' ], cabang_array_length: 1 }
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH FILTER] User: firman.hakim@sat.co.id Cabang: LUWU Source: branch_group Branches: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH FILTER] User: firman.hakim@sat.co.id Cabang: LUWU Source: branch_group Branches: [ 'LUWU' ]
+[RES][67fbe970-afb4-4d87-aad0-45ab2103f1f9] GET /api/final_opname?aksi=terkunci&tipe_opname=OPNAME_FINAL { status: 304, duration_ms: 2349 }
+[RAB LIST] Result: { total_documents: 68, unique_branches: [ 'LUWU' ] }
+[RES][419c0068-6515-49f2-912c-6eeb2c4c4104] GET /api/rab { status: 304, duration_ms: 2423 }
+[RES][3748d13d-3b75-4f22-9a98-df96a2973e4a] GET /api/instruksi-lapangan/list { status: 200, duration_ms: 2172 }
+[REQ][db7122fe-ec58-405c-a751-0617168a7d15] GET /api/final_opname?aksi=terkunci&tipe_opname=OPNAME_FINAL {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { aksi: 'terkunci', tipe_opname: 'OPNAME_FINAL' },
+  body: {}
+}
+[REQ][95ae7655-a3af-4eed-bf31-0c61b4d419af] GET /api/instruksi-lapangan/list {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][82213708-18f1-4663-9b28-9b82c2fd27a9] GET /api/projek-planning {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH FILTER] User: firman.hakim@sat.co.id Cabang: LUWU Source: branch_group Branches: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH FILTER] User: firman.hakim@sat.co.id Cabang: LUWU Source: branch_group Branches: [ 'LUWU' ]
+[RES][95ae7655-a3af-4eed-bf31-0c61b4d419af] GET /api/instruksi-lapangan/list { status: 304, duration_ms: 174 }
+[RES][82213708-18f1-4663-9b28-9b82c2fd27a9] GET /api/projek-planning { status: 304, duration_ms: 269 }
+[RES][db7122fe-ec58-405c-a751-0617168a7d15] GET /api/final_opname?aksi=terkunci&tipe_opname=OPNAME_FINAL { status: 304, duration_ms: 373 }
+[REQ][b5373ea2-1dd1-4537-a689-f0b2ff122e6a] GET /api/projek-planning {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][52279905-5abd-4675-a82b-7ce7a30ae5bb] GET /api/instruksi-lapangan/list {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][8de9673d-06db-486f-a511-24fb8b8c260b] GET /api/denda/actions?action_type=SP {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { action_type: 'SP' },
+  body: {}
+}
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH FILTER] User: firman.hakim@sat.co.id Cabang: LUWU Source: branch_group Branches: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH FILTER] User: firman.hakim@sat.co.id Cabang: LUWU Source: branch_group Branches: [ 'LUWU' ]
+[RES][b5373ea2-1dd1-4537-a689-f0b2ff122e6a] GET /api/projek-planning { status: 304, duration_ms: 388 }
+[RES][52279905-5abd-4675-a82b-7ce7a30ae5bb] GET /api/instruksi-lapangan/list { status: 304, duration_ms: 431 }
+[REQ][d9d5edb6-a9a3-42c0-8b84-5cb911440bda] GET /api/projek-planning {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][d9d5edb6-a9a3-42c0-8b84-5cb911440bda] GET /api/projek-planning { status: 304, duration_ms: 267 }
+[RES][8de9673d-06db-486f-a511-24fb8b8c260b] GET /api/denda/actions?action_type=SP { status: 200, duration_ms: 1104 }
+[REQ][a336b8fa-55d5-4d3b-97b9-b1d803d844f7] GET /api/denda/actions?action_type=SP {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { action_type: 'SP' },
+  body: {}
+}
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH FILTER] User: firman.hakim@sat.co.id Cabang: LUWU Source: branch_group Branches: [ 'LUWU' ]
+[RES][a336b8fa-55d5-4d3b-97b9-b1d803d844f7] GET /api/denda/actions?action_type=SP { status: 304, duration_ms: 523 }
+[REQ][a872bb01-c360-4b84-8ad2-8551422b225d] GET /api/denda/actions?action_type=SP {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { action_type: 'SP' },
+  body: {}
+}
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH FILTER] User: firman.hakim@sat.co.id Cabang: LUWU Source: branch_group Branches: [ 'LUWU' ]
+[RES][86ede98b-c447-42df-ae3f-680bebbf31ea] GET /api/dashboard/all { status: 200, duration_ms: 9787 }
+[REQ][5589db63-5b25-47ee-9829-a9748845c2bf] GET /api/dashboard/all {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][a872bb01-c360-4b84-8ad2-8551422b225d] GET /api/denda/actions?action_type=SP { status: 304, duration_ms: 2365 }
+[RES][5589db63-5b25-47ee-9829-a9748845c2bf] GET /api/dashboard/all { status: 304, duration_ms: 9657 }
+[REQ][ee44789c-d895-4e1e-aa1e-a3cc5fc571ae] GET /api/dashboard/all {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][c3490ae1-e728-464e-b93d-56b7160918fd] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][f4836058-7ece-4e5b-8add-3d9ef6666684] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][c3490ae1-e728-464e-b93d-56b7160918fd] GET /api/system-maintenance/status { status: 304, duration_ms: 63 }
+[RES][f4836058-7ece-4e5b-8add-3d9ef6666684] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 87 }
+[RES][ee44789c-d895-4e1e-aa1e-a3cc5fc571ae] GET /api/dashboard/all { status: 304, duration_ms: 7363 }
+[REQ][74df1bae-ab19-4300-9c76-e0e85ac48dbe] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][47f27ea5-7a90-4900-915f-cadd0ca0f8c0] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][74df1bae-ab19-4300-9c76-e0e85ac48dbe] GET /api/system-maintenance/status { status: 304, duration_ms: 84 }
+[RES][47f27ea5-7a90-4900-915f-cadd0ca0f8c0] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 163 }
+[REQ][0be5c774-ab9e-4ffa-9181-6fae7cd8b456] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][0fcc5c85-54b2-411b-9c1a-c63f4461d6a5] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][0be5c774-ab9e-4ffa-9181-6fae7cd8b456] GET /api/system-maintenance/status { status: 304, duration_ms: 34 }
+[RES][0fcc5c85-54b2-411b-9c1a-c63f4461d6a5] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 80 }
+[REQ][ebc6bc06-cc9b-4667-bcbf-d443ad690fe2] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][edf3994e-e9aa-472d-9bdc-28e1f1ecbd71] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][ebc6bc06-cc9b-4667-bcbf-d443ad690fe2] GET /api/system-maintenance/status { status: 304, duration_ms: 26 }
+[RES][edf3994e-e9aa-472d-9bdc-28e1f1ecbd71] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 56 }
+[REQ][3e0c48e6-bb74-4294-baa1-d813beb3b73f] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][fc0061fa-3e49-45cf-aa91-d3b3e68b2e13] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][3e0c48e6-bb74-4294-baa1-d813beb3b73f] GET /api/system-maintenance/status { status: 304, duration_ms: 1594 }
+[RES][fc0061fa-3e49-45cf-aa91-d3b3e68b2e13] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 186 }
+[REQ][508edbd6-c3dc-4cfc-81f1-c1d9f6a5f5f6] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][e4b8efde-6d7c-4f4c-a37d-058d7ca9771f] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][508edbd6-c3dc-4cfc-81f1-c1d9f6a5f5f6] GET /api/system-maintenance/status { status: 304, duration_ms: 1665 }
+[RES][e4b8efde-6d7c-4f4c-a37d-058d7ca9771f] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 1592 }
+[REQ][601d8111-e4e1-49f9-88a0-d03a37373d78] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][2cc4db1f-3810-4d6d-bc0c-0a0139c20679] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][601d8111-e4e1-49f9-88a0-d03a37373d78] GET /api/system-maintenance/status { status: 304, duration_ms: 77 }
+[RES][2cc4db1f-3810-4d6d-bc0c-0a0139c20679] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 112 }
+[REQ][6b91af34-204f-4077-a7f9-213f431edad8] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][c4634ed0-4c86-4537-b7bb-ae21ae4c62f3] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][6b91af34-204f-4077-a7f9-213f431edad8] GET /api/system-maintenance/status { status: 304, duration_ms: 90 }
+[RES][c4634ed0-4c86-4537-b7bb-ae21ae4c62f3] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 677 }
+[REQ][31f579dc-bd95-4ca4-a932-bf0ade237062] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][cb84850c-86f7-4f6a-aa12-9ca24d1e680d] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][31f579dc-bd95-4ca4-a932-bf0ade237062] GET /api/system-maintenance/status { status: 304, duration_ms: 96 }
+[RES][cb84850c-86f7-4f6a-aa12-9ca24d1e680d] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 124 }
+[REQ][74b25307-aae8-4ca0-a65d-3aedce094c21] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][36bf9ce4-4836-4d8a-b827-2c62d47421bb] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][74b25307-aae8-4ca0-a65d-3aedce094c21] GET /api/system-maintenance/status { status: 304, duration_ms: 46 }
+[RES][36bf9ce4-4836-4d8a-b827-2c62d47421bb] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 118 }
+[REQ][c4736fb4-21d4-4924-8816-1d4cd2a53b6e] GET /api/dashboard/all {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][a3fc4a15-a3e2-4cc1-ad10-510d86fc0767] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][81000370-0266-4543-b6d4-7dae1a1734f7] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][f6969e94-9bdc-45f3-b73c-e1b0be7b82a7] GET /api/rab {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][a3fc4a15-a3e2-4cc1-ad10-510d86fc0767] GET /api/system-maintenance/status { status: 304, duration_ms: 356 }
+[REQ][8c2de8c8-ce3b-4b7b-96d3-7c6674d05ac4] GET /api/task-notifications {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[RES][8c2de8c8-ce3b-4b7b-96d3-7c6674d05ac4] GET /api/task-notifications { status: 304, duration_ms: 619 }
+[REQ][24da566a-7e68-49cb-a907-35caafbe055b] GET /api/task-notifications {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[RAB LIST] Request from user: {
+  email: 'firman.hakim@sat.co.id',
+  cabang: 'LUWU',
+  roles: [ 'BRANCH BUILDING & MAINTENANCE MANAGER' ],
+  query_cabang_before: undefined
+}
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH FILTER] User: firman.hakim@sat.co.id Cabang: LUWU Source: branch_group Branches: [ 'LUWU' ]
+[RAB LIST] After injectBranchFilter: { cabang_array: [ 'LUWU' ], cabang_array_length: 1 }
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[RES][81000370-0266-4543-b6d4-7dae1a1734f7] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 1648 }
+[RES][24da566a-7e68-49cb-a907-35caafbe055b] GET /api/task-notifications { status: 304, duration_ms: 620 }
+[RAB LIST] Result: { total_documents: 68, unique_branches: [ 'LUWU' ] }
+[RES][f6969e94-9bdc-45f3-b73c-e1b0be7b82a7] GET /api/rab { status: 304, duration_ms: 1408 }
+[REQ][a2dadd68-2f7f-4502-b2b6-cdd3205ceb49] GET /api/final_opname?aksi=terkunci&tipe_opname=OPNAME_FINAL {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { aksi: 'terkunci', tipe_opname: 'OPNAME_FINAL' },
+  body: {}
+}
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH FILTER] User: firman.hakim@sat.co.id Cabang: LUWU Source: branch_group Branches: [ 'LUWU' ]
+[RES][a2dadd68-2f7f-4502-b2b6-cdd3205ceb49] GET /api/final_opname?aksi=terkunci&tipe_opname=OPNAME_FINAL { status: 304, duration_ms: 861 }
+[REQ][0a0c9cd1-7e30-4086-826e-c83e5d339041] GET /api/instruksi-lapangan/list {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH FILTER] User: firman.hakim@sat.co.id Cabang: LUWU Source: branch_group Branches: [ 'LUWU' ]
+[RES][0a0c9cd1-7e30-4086-826e-c83e5d339041] GET /api/instruksi-lapangan/list { status: 304, duration_ms: 371 }
+[REQ][c31ce948-9a88-496a-bcda-f5c4166dd25b] GET /api/projek-planning {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][c31ce948-9a88-496a-bcda-f5c4166dd25b] GET /api/projek-planning { status: 304, duration_ms: 422 }
+[REQ][fca6466a-9dcd-42da-8a58-25a4b557bef9] GET /api/denda/actions?action_type=SP {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { action_type: 'SP' },
+  body: {}
+}
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH FILTER] User: firman.hakim@sat.co.id Cabang: LUWU Source: branch_group Branches: [ 'LUWU' ]
+[RES][fca6466a-9dcd-42da-8a58-25a4b557bef9] GET /api/denda/actions?action_type=SP { status: 304, duration_ms: 1872 }
+[RES][c4736fb4-21d4-4924-8816-1d4cd2a53b6e] GET /api/dashboard/all { status: 304, duration_ms: 9811 }
+[REQ][e7cd4e81-0275-49fc-b5d8-6593beeb9de2] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][6aa4e810-d137-4edc-9487-c010f6f731a8] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][e7cd4e81-0275-49fc-b5d8-6593beeb9de2] GET /api/system-maintenance/status { status: 304, duration_ms: 28 }
+[RES][6aa4e810-d137-4edc-9487-c010f6f731a8] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 81 }
+[REQ][cb636c18-7a55-48d2-a31f-f5ca7b7dc405] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][9150dd77-6651-4839-b947-14a82d6a6c08] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][cb636c18-7a55-48d2-a31f-f5ca7b7dc405] GET /api/system-maintenance/status { status: 304, duration_ms: 1438 }
+[RES][9150dd77-6651-4839-b947-14a82d6a6c08] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 1057 }
+[REQ][5f4e1ad0-7481-4e23-bbb0-35111aeb1e52] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][bc2e7d49-3944-4683-b9dc-ea14aa3b8f90] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][5f4e1ad0-7481-4e23-bbb0-35111aeb1e52] GET /api/system-maintenance/status { status: 304, duration_ms: 32 }
+[RES][bc2e7d49-3944-4683-b9dc-ea14aa3b8f90] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 86 }
+[REQ][be07751c-5543-4c4c-b904-8aef800878dc] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][8b3b31fb-570e-4c43-acfc-c538dc72fb5f] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][be07751c-5543-4c4c-b904-8aef800878dc] GET /api/system-maintenance/status { status: 304, duration_ms: 41 }
+[RES][8b3b31fb-570e-4c43-acfc-c538dc72fb5f] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 81 }
+[REQ][20ad6ddc-fe1a-4d86-a6d4-db4bc59037dd] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][39cf9537-2d1a-4f4a-a749-09e594245878] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][20ad6ddc-fe1a-4d86-a6d4-db4bc59037dd] GET /api/system-maintenance/status { status: 304, duration_ms: 34 }
+[RES][39cf9537-2d1a-4f4a-a749-09e594245878] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 79 }
+[REQ][1862c189-659d-4d0b-bd9b-b917a17a3d4d] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][30c31ad3-064c-4a39-875f-8265507d51e1] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][1862c189-659d-4d0b-bd9b-b917a17a3d4d] GET /api/system-maintenance/status { status: 304, duration_ms: 28 }
+[RES][30c31ad3-064c-4a39-875f-8265507d51e1] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 109 }
+[REQ][d96559f1-4c99-4df9-963d-b65db1c4f258] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][d96559f1-4c99-4df9-963d-b65db1c4f258] GET /api/system-maintenance/status { status: 304, duration_ms: 27 }
+[REQ][9f415ac0-78cc-40eb-bcec-23afdb8f39a1] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][9f415ac0-78cc-40eb-bcec-23afdb8f39a1] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 130 }
+[REQ][1c1f6540-2eae-447a-9c0f-e7699b113ce9] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][1c1f6540-2eae-447a-9c0f-e7699b113ce9] GET /api/system-maintenance/status { status: 304, duration_ms: 71 }
+[REQ][1bb31995-0291-4c47-af5a-c7c23442464f] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][1bb31995-0291-4c47-af5a-c7c23442464f] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 82 }
+[REQ][ea14e824-c5b0-4fbd-bfe8-170f55d738a4] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][cd1bcc52-95aa-40b5-b2f7-594e28723587] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][ea14e824-c5b0-4fbd-bfe8-170f55d738a4] GET /api/system-maintenance/status { status: 304, duration_ms: 27 }
+[RES][cd1bcc52-95aa-40b5-b2f7-594e28723587] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 59 }
+[REQ][98af1a7e-43ff-4d19-8784-fc2125df52e6] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][5032284a-51f1-4576-a355-01590ae33627] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][98af1a7e-43ff-4d19-8784-fc2125df52e6] GET /api/system-maintenance/status { status: 304, duration_ms: 536 }
+[REQ][4a9bd67e-28ed-48c9-8ab8-70d1253f8029] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][5032284a-51f1-4576-a355-01590ae33627] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 531 }
+[REQ][3174d058-d8ff-4a0f-97b2-ac9011783142] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][3174d058-d8ff-4a0f-97b2-ac9011783142] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 59 }
+[RES][4a9bd67e-28ed-48c9-8ab8-70d1253f8029] GET /api/system-maintenance/status { status: 304, duration_ms: 248 }
+[REQ][018b1f42-01e3-409f-97df-dbd3c3cb0594] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][a702ad38-f67d-4877-bf6d-64e3501cd763] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][018b1f42-01e3-409f-97df-dbd3c3cb0594] GET /api/system-maintenance/status { status: 304, duration_ms: 425 }
+[REQ][93599b5b-f1e3-4a06-8c46-2f9d4c9054ff] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][93599b5b-f1e3-4a06-8c46-2f9d4c9054ff] GET /api/system-maintenance/status { status: 304, duration_ms: 31 }
+[RES][a702ad38-f67d-4877-bf6d-64e3501cd763] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 543 }
+[REQ][34637860-68c5-4f46-9689-6713b91c2c46] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][34637860-68c5-4f46-9689-6713b91c2c46] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 55 }
+[REQ][447e6182-83b9-4087-afe1-1d027fce3505] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][d00a7c58-5e24-4fe0-9565-c446305c9595] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][447e6182-83b9-4087-afe1-1d027fce3505] GET /api/system-maintenance/status { status: 304, duration_ms: 870 }
+[REQ][45812421-f476-443b-9937-f6821af246e5] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][d00a7c58-5e24-4fe0-9565-c446305c9595] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 428 }
+[REQ][b184eb9c-1446-4686-88a2-d8f4e52c0cab] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][b184eb9c-1446-4686-88a2-d8f4e52c0cab] GET /api/system-access-schedule/schedule { status: 304, duration_ms: 59 }
+[RES][45812421-f476-443b-9937-f6821af246e5] GET /api/system-maintenance/status { status: 304, duration_ms: 243 }
+[REQ][347f3bde-5a28-4b5c-8f51-0d77e16f86d9] GET /api/task-notifications {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[BRANCH SCOPE] getBranchScopeCandidates('LUWU') → normalized:'LUWU' → result: [ 'LUWU' ]
+[RES][347f3bde-5a28-4b5c-8f51-0d77e16f86d9] GET /api/task-notifications { status: 500, duration_ms: 418 }

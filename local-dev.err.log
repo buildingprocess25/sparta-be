@@ -678,3 +678,85 @@ Gagal membaca session auth: error: remaining connection slots are reserved for r
   line: '960',
   routine: 'InitPostgres'
 }
+Unhandled error: {
+  request_id: 'f44ceb38-c170-4310-bfb7-24ba45363363',
+  error: error: remaining connection slots are reserved for roles with the SUPERUSER attribute
+      at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async Object.getStatus (C:\alfamart\SPARTA\sparta-be\src\modules\system-maintenance\system-maintenance.repository.ts:68:24)
+      at async <anonymous> (C:\alfamart\SPARTA\sparta-be\src\modules\system-maintenance\system-maintenance.controller.ts:11:18) {
+    length: 137,
+    severity: 'FATAL',
+    code: '53300',
+    detail: undefined,
+    hint: undefined,
+    position: undefined,
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: undefined,
+    table: undefined,
+    column: undefined,
+    dataType: undefined,
+    constraint: undefined,
+    file: 'postinit.c',
+    line: '960',
+    routine: 'InitPostgres'
+  }
+}
+Unhandled error: {
+  request_id: '6111dd19-3b49-4fe0-a7a3-cdb890138c2a',
+  error: error: remaining connection slots are reserved for roles with the SUPERUSER attribute
+      at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async Object.getStatus (C:\alfamart\SPARTA\sparta-be\src\modules\system-maintenance\system-maintenance.repository.ts:68:24)
+      at async <anonymous> (C:\alfamart\SPARTA\sparta-be\src\modules\system-maintenance\system-maintenance.controller.ts:11:18) {
+    length: 137,
+    severity: 'FATAL',
+    code: '53300',
+    detail: undefined,
+    hint: undefined,
+    position: undefined,
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: undefined,
+    table: undefined,
+    column: undefined,
+    dataType: undefined,
+    constraint: undefined,
+    file: 'postinit.c',
+    line: '960',
+    routine: 'InitPostgres'
+  }
+}
+(node:10652) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Unhandled error: {
+  request_id: '347f3bde-5a28-4b5c-8f51-0d77e16f86d9',
+  error: error: remaining connection slots are reserved for roles with the SUPERUSER attribute
+      at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async queryNotificationRows (C:\alfamart\SPARTA\sparta-be\src\modules\task-notification\task-notification.repository.ts:218:20)
+      at async Promise.all (index 5)
+      at async Object.getGroups (C:\alfamart\SPARTA\sparta-be\src\modules\task-notification\task-notification.repository.ts:906:13)
+      at async <anonymous> (C:\alfamart\SPARTA\sparta-be\src\modules\task-notification\task-notification.controller.ts:15:20) {
+    length: 137,
+    severity: 'FATAL',
+    code: '53300',
+    detail: undefined,
+    hint: undefined,
+    position: undefined,
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: undefined,
+    table: undefined,
+    column: undefined,
+    dataType: undefined,
+    constraint: undefined,
+    file: 'postinit.c',
+    line: '960',
+    routine: 'InitPostgres'
+  }
+}
