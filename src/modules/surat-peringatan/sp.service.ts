@@ -27,6 +27,38 @@ const sanitizeFilenamePart = (value: string | null | undefined, fallback: string
     return normalized || fallback;
 };
 
+const wrapBase64 = (value: string): string => value.match(/.{1,76}/g)?.join("\r\n") ?? value;
+
+const escapeMailHeaderValue = (value: string): string => value.replace(/["\r\n]/g, "_");
+
+const extractDriveFileId = (value?: string | null): string | null => {
+    const trimmed = String(value ?? "").trim();
+    if (!trimmed) return null;
+    const driveFileMatch = trimmed.match(/drive\.google\.com\/file\/d\/([^/]+)/);
+    const driveOpenMatch = trimmed.match(/drive\.google\.com\/open\?id=([^&]+)/);
+    const idMatch = trimmed.match(/[?&]id=([^&]+)/);
+    return driveFileMatch?.[1] ?? driveOpenMatch?.[1] ?? idMatch?.[1] ?? null;
+};
+
+const companyMatches = (left?: string | null, right?: string | null): boolean => {
+    const a = String(left ?? "").trim();
+    const b = String(right ?? "").trim();
+    if (!a || !b) return false;
+    const normalA = normalizeText(a);
+    const normalB = normalizeText(b);
+    const compactA = normalA.replace(/[^A-Z0-9]/g, "");
+    const compactB = normalB.replace(/[^A-Z0-9]/g, "");
+    return normalA === normalB
+        || normalA.includes(normalB)
+        || normalB.includes(normalA)
+        || compactA === compactB
+        || compactA.includes(compactB)
+        || compactB.includes(compactA);
+};
+
+const isContractorUser = (user?: AuthenticatedUser | null): boolean =>
+    userRolesText(user).includes("KONTRAKTOR");
+
 const resolveFileExtension = (file: UploadedDendaActionAttachment): string => {
     const rawName = file.originalname ?? "";
     const lastDot = rawName.lastIndexOf(".");
@@ -422,15 +454,15 @@ export const spService = {
     },
 
     async regenerateSpPdf(input: { id: number; actor?: AuthenticatedUser | null }) {
-        if (!canApproveDendaAction(input.actor) && !canSubmitDendaAction(input.actor)) {
-            throw new AppError("Hanya manager atau user berwenang yang dapat me-regenerate PDF SP.", 403);
-        }
-
         await spRepository.ensureSchema();
         const current = await spRepository.findActionById(input.id);
         if (!current) throw new AppError("Pengajuan SP tidak ditemukan.", 404);
         if (current.action_type !== "SP") {
             throw new AppError("Aksi ini hanya untuk Surat Peringatan.", 400);
+        }
+        const contractorOwnsSp = isContractorUser(input.actor) && companyMatches(current.nama_kontraktor, input.actor?.nama_pt);
+        if (!canApproveDendaAction(input.actor) && !canSubmitDendaAction(input.actor) && !contractorOwnsSp) {
+            throw new AppError("Hanya manager, koordinator, atau kontraktor terkait yang dapat me-regenerate PDF SP.", 403);
         }
         if (current.status === "REJECTED_BY_MANAGER" || current.status === "EXPIRED") {
             throw new AppError("SP ditolak atau sudah tidak valid.", 400);
@@ -536,7 +568,14 @@ export const spService = {
         };
 
         const frontendUrl = env.FRONTEND_URL || "https://sparta-building.vercel.app";
-        const acknowledgeUrl = `${frontendUrl}/kontraktor/surat-peringatan?id=${action.id}&kontraktor=${encodeURIComponent(action.nama_kontraktor)}`;
+        const acknowledgeUrl = `${frontendUrl}/surat-peringatan`;
+        const pdfFileId = extractDriveFileId(action.link_pdf);
+        const pdfBuffer = pdfFileId && GoogleProvider.instance.spartaDrive
+            ? await GoogleProvider.instance.getFileBufferById(GoogleProvider.instance.spartaDrive, pdfFileId)
+            : null;
+        if (action.link_pdf && !pdfBuffer) {
+            console.warn(`[SP Service] PDF SP tidak berhasil dilampirkan dari Drive: ${action.link_pdf}`);
+        }
 
         const templateData = {
             greeting: getGreeting(),
@@ -550,7 +589,6 @@ export const spService = {
             catatan: action.catatan,
             tanggal_expired: formatTanggal(action.expires_at),
             acknowledge_url: acknowledgeUrl,
-            pdf_url: action.link_pdf,
             sent_at: new Intl.DateTimeFormat("sv-SE", {
                 timeZone: "Asia/Jakarta",
                 year: "numeric",
@@ -575,17 +613,33 @@ export const spService = {
         
         const subject = `Surat Peringatan ${getSpLevelRomawi(action.sp_level)} - ${action.nama_kontraktor} - ${action.cabang}`;
         const toEmail = kontraktorEmail;
-
-        // Build email
+        const boundary = `sparta_sp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+        const safeFilename = escapeMailHeaderValue(`Surat_Peringatan_${getSpLevelRomawi(action.sp_level)}_${sanitizeFilenamePart(action.nomor_ulok, "ULOK")}.pdf`);
         const messageParts = [
             `From: SPARTA Building <no-reply@sparta-building.com>`,
             `To: ${toEmail}`,
             `Subject: ${subject}`,
             `MIME-Version: 1.0`,
-            `Content-Type: text/html; charset=utf-8`,
+            `Content-Type: multipart/mixed; boundary="${boundary}"`,
             ``,
-            htmlBody
+            `--${boundary}`,
+            `Content-Type: text/html; charset=utf-8`,
+            `Content-Transfer-Encoding: base64`,
+            ``,
+            wrapBase64(Buffer.from(htmlBody, "utf8").toString("base64")),
         ];
+        if (pdfBuffer) {
+            messageParts.push(
+                ``,
+                `--${boundary}`,
+                `Content-Type: application/pdf; name="${safeFilename}"`,
+                `Content-Disposition: attachment; filename="${safeFilename}"`,
+                `Content-Transfer-Encoding: base64`,
+                ``,
+                wrapBase64(pdfBuffer.toString("base64")),
+            );
+        }
+        messageParts.push(``, `--${boundary}--`);
 
         const message = messageParts.join("\r\n");
         const encodedMessage = Buffer.from(message).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
