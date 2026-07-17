@@ -27,6 +27,9 @@ export type ProjekPlanningRow = {
     cabang: string | null;
     alamat_toko: string | null;
     link_google_maps: string | null;
+    akhir_masa_sewa: string | null;
+    spd: string | null;
+    link_ba_tidak_sesuai_standar: string | null;
     link_siteplan: string | null;
     proyek: string | null;
     lingkup_pekerjaan: string | null;
@@ -119,6 +122,9 @@ export type ProjekPlanningRow = {
     bm2_approver_email: string | null;
     bm2_waktu_persetujuan: string | null;
     bm2_alasan_penolakan: string | null;
+    bm_regional_approver_email: string | null;
+    bm_regional_waktu_persetujuan: string | null;
+    bm_regional_alasan_penolakan: string | null;
     pp2_rab_status: string | null;
     pp2_gambar_status: string | null;
     pp2_rab_rejected_item_ids: number[] | null;
@@ -170,7 +176,9 @@ export type RabRequestRow = {
 
 const PP_COLUMNS = `
     id, id_toko, nomor_ulok, email_pembuat,
-    nama_toko, kode_toko, cabang, alamat_toko, link_google_maps, link_siteplan, proyek, lingkup_pekerjaan,
+    nama_toko, kode_toko, cabang, alamat_toko, link_google_maps,
+    akhir_masa_sewa, spd, link_ba_tidak_sesuai_standar,
+    link_siteplan, proyek, lingkup_pekerjaan,
     jenis_proyek, estimasi_biaya, keterangan,
     nama_pengaju, nama_lokasi,
     jenis_pengajuan, jenis_pengajuan_lainnya,
@@ -187,6 +195,7 @@ const PP_COLUMNS = `
     is_head_to_head, jarak_head_to_head, is_seating_area, is_dark_store, beanspot_tipe,
     bm_approver_email, bm_waktu_persetujuan, bm_alasan_penolakan,
     bm2_approver_email, bm2_waktu_persetujuan, bm2_alasan_penolakan,
+    bm_regional_approver_email, bm_regional_waktu_persetujuan, bm_regional_alasan_penolakan,
     pp1_approver_email, pp1_waktu_persetujuan, pp1_alasan_penolakan,
     pp_manager_approver_email, pp_manager_waktu_persetujuan, pp_manager_alasan_penolakan,
     pp2_approver_email, pp2_waktu_persetujuan, pp2_alasan_penolakan,
@@ -552,6 +561,9 @@ export const projekPlanningRepository = {
                 ["cabang", payload.cabang],
                 ["alamat_toko", payload.alamat_toko],
                 ["link_google_maps", (payload as any).link_google_maps ?? null],
+                ["akhir_masa_sewa", nullIfBlank((payload as any).akhir_masa_sewa)],
+                ["spd", nullIfBlank((payload as any).spd)],
+                ["link_ba_tidak_sesuai_standar", (payload as any).link_ba_tidak_sesuai_standar ?? null],
                 ["proyek", payload.proyek],
                 ["lingkup_pekerjaan", payload.lingkup_pekerjaan],
                 ["jenis_proyek", payload.jenis_proyek],
@@ -655,6 +667,8 @@ export const projekPlanningRepository = {
                 ["cabang",                  payload.cabang],
                 ["alamat_toko",             payload.alamat_toko],
                 ["link_google_maps",        (payload as any).link_google_maps ?? null],
+                ["akhir_masa_sewa",         nullIfBlank((payload as any).akhir_masa_sewa)],
+                ["spd",                     nullIfBlank((payload as any).spd)],
                 ["proyek",                  payload.proyek],
                 ["luas_bangunan",           (payload as any).luas_bangunan ?? null],
                 ["luas_area_terbuka",       (payload as any).luas_area_terbuka ?? null],
@@ -697,10 +711,14 @@ export const projekPlanningRepository = {
                 ["pp_manager_waktu_persetujuan",    null],
                 ["pp2_approver_email",              null],
                 ["pp2_waktu_persetujuan",           null],
+                ["bm2_approver_email",              null],
+                ["bm2_waktu_persetujuan",           null],
+                ["bm_regional_approver_email",      null],
+                ["bm_regional_waktu_persetujuan",   null],
             ];
 
             // COALESCE columns: only overwrite if new value is not null
-            const coalesceColumns = new Set(["link_fpd", "link_siteplan", "link_gambar_kerja", "link_gambar_kompetitor"]);
+            const coalesceColumns = new Set(["link_fpd", "link_siteplan", "link_gambar_kerja", "link_gambar_kompetitor", "link_ba_tidak_sesuai_standar"]);
 
             // Append COALESCE columns separately so they are not overwritten with NULL
             const coalesceFields: Array<[string, unknown]> = [
@@ -708,6 +726,7 @@ export const projekPlanningRepository = {
                 ["link_siteplan",           (payload as any).link_siteplan ?? null],
                 ["link_gambar_kerja",       (payload as any).link_gambar_kerja ?? null],
                 ["link_gambar_kompetitor",  (payload as any).link_gambar_kompetitor ?? null],
+                ["link_ba_tidak_sesuai_standar", (payload as any).link_ba_tidak_sesuai_standar ?? null],
             ];
 
             // Build SET clause
@@ -876,6 +895,27 @@ export const projekPlanningRepository = {
         return result.rows[0];
     },
 
+    async updateStatusAndBmRegionalApproval(
+        id: number,
+        newStatus: PpStatus,
+        action: ApprovalInput,
+        client?: PoolClient
+    ): Promise<ProjekPlanningRow> {
+        const db = client ?? pool;
+        const result = await db.query<ProjekPlanningRow>(
+            `UPDATE projek_planning
+             SET status = $1::text,
+                 bm_regional_approver_email = $2,
+                 bm_regional_waktu_persetujuan = NOW(),
+                 bm_regional_alasan_penolakan = CASE WHEN $1::text = 'WAITING_RAB_UPLOAD' THEN $3 ELSE NULL END,
+                 updated_at = NOW()
+             WHERE id = $4
+             RETURNING ${PP_COLUMNS}`,
+            [newStatus, action.approver_email, action.alasan_penolakan ?? null, id]
+        );
+        return result.rows[0];
+    },
+
     async updateStatusAndPp1Approval(
         id: number,
         newStatus: PpStatus,
@@ -946,6 +986,12 @@ export const projekPlanningRepository = {
                  id_rab_me = COALESCE($5, id_rab_me),
                  link_gambar_kerja_final_sipil = COALESCE($6, link_gambar_kerja_final_sipil),
                  link_gambar_kerja_final_me = COALESCE($7, link_gambar_kerja_final_me),
+                 bm2_approver_email = NULL,
+                 bm2_waktu_persetujuan = NULL,
+                 bm2_alasan_penolakan = NULL,
+                 bm_regional_approver_email = NULL,
+                 bm_regional_waktu_persetujuan = NULL,
+                 bm_regional_alasan_penolakan = NULL,
                  pp2_rab_status = NULL,
                  pp2_gambar_status = NULL,
                  pp2_alasan_penolakan = NULL,

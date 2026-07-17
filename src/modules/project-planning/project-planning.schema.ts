@@ -8,6 +8,7 @@ const fasilitasItemSchema = z.object({
 });
 
 const optionalText = z.string().optional().or(z.literal(""));
+const optionalDate = z.string().optional().or(z.literal("")).nullable();
 
 const validateProjectPlanningBusinessRules = (val: {
     jenis_pengajuan: string;
@@ -53,6 +54,9 @@ export const submitProjekPlanningSchema = z.object({
     kode_toko: optionalText,
     alamat_toko: optionalText,
     link_google_maps: optionalText,
+    akhir_masa_sewa: optionalDate,
+    spd: z.coerce.number().nonnegative().optional().nullable(),
+    link_ba_tidak_sesuai_standar: optionalText,
     
     email_pembuat: z.string().email(),
     lingkup_pekerjaan: optionalText,
@@ -131,6 +135,9 @@ export const resubmitProjekPlanningSchema = z.object({
     kode_toko: optionalText,
     alamat_toko: optionalText,
     link_google_maps: optionalText,
+    akhir_masa_sewa: optionalDate,
+    spd: z.coerce.number().nonnegative().optional().nullable(),
+    link_ba_tidak_sesuai_standar: optionalText,
     email_pembuat: z.string().email(),
     lingkup_pekerjaan: optionalText,
     jenis_proyek: optionalText,
@@ -348,6 +355,7 @@ export const projekPlanningInterventionSchema = z.object({
         "PP_DESIGN_3D_REQUIRED",
         "WAITING_RAB_UPLOAD",
         "WAITING_BM_APPROVAL_2",
+        "WAITING_BM_REGIONAL_APPROVAL",
         "WAITING_PP_MANAGER_APPROVAL",
         "WAITING_PP_APPROVAL_2",
         "COMPLETED",

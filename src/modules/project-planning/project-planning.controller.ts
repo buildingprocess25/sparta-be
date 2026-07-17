@@ -178,8 +178,29 @@ export const handleBmApproval = asyncHandler(async (req: Request, res: Response)
     res.json({
         status: "success",
         message: action.tindakan === "APPROVE"
-            ? "Disetujui oleh BM Manager, menunggu approval PP Specialist"
+            ? (result.new_status === "WAITING_BM_REGIONAL_APPROVAL"
+                ? "Disetujui oleh BM Manager tahap 2, menunggu approval B&M Regional Manager"
+                : "Disetujui oleh BM Manager, menunggu approval PP Specialist")
             : "Ditolak oleh BM Manager, dikembalikan ke Coordinator",
+        data: result,
+    });
+});
+
+export const handleBmRegionalApproval = asyncHandler(async (req: Request, res: Response) => {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+        res.status(400).json({ status: "error", message: "ID tidak valid" });
+        return;
+    }
+
+    const action = approvalSchema.parse(req.body);
+    const result = await projekPlanningService.bmRegionalApproval(id, action);
+
+    res.json({
+        status: "success",
+        message: action.tindakan === "APPROVE"
+            ? "Disetujui oleh B&M Regional Manager, menunggu approval PP Specialist"
+            : "Ditolak oleh B&M Regional Manager, dikembalikan ke Building Coord untuk revisi tahap kedua",
         data: result,
     });
 });
@@ -357,6 +378,7 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
     let fileUrl: string | null | undefined;
     if (field === "fpd") fileUrl = projek.link_fpd;
     else if (field === "siteplan") fileUrl = (projek as any).link_siteplan;
+    else if (field === "ba_tidak_sesuai_standar") fileUrl = (projek as any).link_ba_tidak_sesuai_standar;
     // Dokumen form awal koordinator
     else if (field === "gambar_kerja_awal" || field === "gambar_kerja") fileUrl = projek.link_gambar_kerja;
     else if (field === "gambar_kompetitor") fileUrl = projek.link_gambar_kompetitor;

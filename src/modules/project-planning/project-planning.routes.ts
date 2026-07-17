@@ -6,6 +6,7 @@ import {
     listProjekPlanning,
     getProjekPlanningById,
     handleBmApproval,
+    handleBmRegionalApproval,
     handlePpApproval1,
     handleUpload3d,
     handleUploadRab,
@@ -52,6 +53,7 @@ projekPlanningRouter.post("/:id/intervention", handleProjekPlanningIntervention)
 
 // ── BM Manager ───────────────────────────────────────────────
 projekPlanningRouter.post("/:id/bm-approval", handleBmApproval);
+projekPlanningRouter.post("/:id/bm-regional-approval", handleBmRegionalApproval);
 
 // ── PP Specialist ─────────────────────────────────────────────
 projekPlanningRouter.post("/:id/pp-approval-1", handlePpApproval1);

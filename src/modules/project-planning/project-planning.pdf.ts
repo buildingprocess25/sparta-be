@@ -147,6 +147,7 @@ export const buildProjekPlanningPdfBuffer = async (
     const bmApproverEmailFinal = projek.bm2_approver_email || projek.bm_approver_email;
     const bmApprovalTimeFinal = projek.bm2_waktu_persetujuan || projek.bm_waktu_persetujuan;
     const hasBmSignature = [
+        "WAITING_BM_REGIONAL_APPROVAL",
         "WAITING_PP_APPROVAL_2",
         "WAITING_PP_MANAGER_APPROVAL",
         "COMPLETED",

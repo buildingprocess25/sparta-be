@@ -112,6 +112,7 @@ function buildRevisionSummary(
         link_gambar_kerja?: string | null;
         link_gambar_kompetitor?: string | null;
         link_siteplan?: string | null;
+        link_ba_tidak_sesuai_standar?: string | null;
     }
 ): string {
     const changed: string[] = [];
@@ -145,6 +146,9 @@ function buildRevisionSummary(
     addIfChanged("Siteplan", projek.link_siteplan, links.link_siteplan);
     addIfChanged("Gambar kerja ME", projek.link_gambar_kerja, links.link_gambar_kerja);
     addIfChanged("Gambar kompetitor", projek.link_gambar_kompetitor, links.link_gambar_kompetitor);
+    addIfChanged("Akhir masa sewa", projek.akhir_masa_sewa, payload.akhir_masa_sewa);
+    addIfChanged("SPD", projek.spd, payload.spd);
+    addIfChanged("Lampiran BA tidak sesuai standar", projek.link_ba_tidak_sesuai_standar, links.link_ba_tidak_sesuai_standar);
 
     return changed.length > 0
         ? `Perubahan revisi: ${changed.join(", ")}.`
@@ -224,6 +228,7 @@ export const projekPlanningService = {
         let gambarKerjaMe = payload.link_gambar_kerja;
         let gambarKompetitor = payload.link_gambar_kompetitor;
         let siteplanLink = payload.link_siteplan;
+        let baTidakSesuaiStandarLink = payload.link_ba_tidak_sesuai_standar;
         let fotoItemsLinks: { item_index: number; link_foto: string }[] = [];
 
         if (files && files.length > 0) {
@@ -231,6 +236,7 @@ export const projekPlanningService = {
             const fGambarKerjaMe = files.filter(f => f.fieldname === "file_gambar_kerja_me");
             const fKompetitor = files.filter(f => f.fieldname === "file_gambar_kompetitor");
             const fSiteplan = files.filter(f => f.fieldname === "file_siteplan");
+            const fBaTidakSesuaiStandar = files.filter(f => f.fieldname === "file_ba_tidak_sesuai_standar");
 
             const itemRegex = /^foto_items_(\d+)$/i;
 
@@ -258,6 +264,10 @@ export const projekPlanningService = {
                 if (fSiteplan.length > 0) {
                     const link = await uploadCompressedFiles(fSiteplan, PROJECT_PLANNING_DRIVE_FOLDER_ID);
                     if (link) siteplanLink = link;
+                }
+                if (fBaTidakSesuaiStandar.length > 0) {
+                    const link = await uploadCompressedFiles(fBaTidakSesuaiStandar, PROJECT_PLANNING_DRIVE_FOLDER_ID);
+                    if (link) baTidakSesuaiStandarLink = link;
                 }
 
                 // Process foto_items_X
@@ -306,6 +316,7 @@ export const projekPlanningService = {
             beanspot_tipe: normalizeBeanspotTipe(payload.beanspot_tipe),
             link_fpd: fpdLink ?? undefined,
             link_siteplan: siteplanLink ?? undefined,
+            link_ba_tidak_sesuai_standar: baTidakSesuaiStandarLink ?? undefined,
             link_gambar_kerja: gambarKerjaMe ?? undefined,
             link_gambar_kompetitor: gambarKompetitor ?? undefined,
             status: initialMeta.status,
@@ -350,6 +361,7 @@ export const projekPlanningService = {
         let gambarKerjaMe = payload.link_gambar_kerja;
         let gambarKompetitor = payload.link_gambar_kompetitor;
         let siteplanLink = payload.link_siteplan;
+        let baTidakSesuaiStandarLink = payload.link_ba_tidak_sesuai_standar;
         let fotoItemsLinks: { item_index: number; link_foto: string }[] = [];
 
         if (files && files.length > 0) {
@@ -357,6 +369,7 @@ export const projekPlanningService = {
             const fGambarKerjaMe = files.filter(f => f.fieldname === "file_gambar_kerja_me");
             const fKompetitor = files.filter(f => f.fieldname === "file_gambar_kompetitor");
             const fSiteplan = files.filter(f => f.fieldname === "file_siteplan");
+            const fBaTidakSesuaiStandar = files.filter(f => f.fieldname === "file_ba_tidak_sesuai_standar");
 
             const itemRegex = /^foto_items_(\d+)$/i;
 
@@ -384,6 +397,10 @@ export const projekPlanningService = {
                 if (fSiteplan.length > 0) {
                     const link = await uploadCompressedFiles(fSiteplan, PROJECT_PLANNING_DRIVE_FOLDER_ID);
                     if (link) siteplanLink = link;
+                }
+                if (fBaTidakSesuaiStandar.length > 0) {
+                    const link = await uploadCompressedFiles(fBaTidakSesuaiStandar, PROJECT_PLANNING_DRIVE_FOLDER_ID);
+                    if (link) baTidakSesuaiStandarLink = link;
                 }
 
                 // Process foto_items_X
@@ -419,6 +436,7 @@ export const projekPlanningService = {
             link_siteplan: siteplanLink ?? projek.link_siteplan ?? null,
             link_gambar_kerja: gambarKerjaMe ?? projek.link_gambar_kerja ?? null,
             link_gambar_kompetitor: gambarKompetitor ?? projek.link_gambar_kompetitor ?? null,
+            link_ba_tidak_sesuai_standar: baTidakSesuaiStandarLink ?? projek.link_ba_tidak_sesuai_standar ?? null,
         });
 
         const updated = await projekPlanningRepository.resubmitDraft(id, {
@@ -436,6 +454,7 @@ export const projekPlanningService = {
             beanspot_tipe: normalizeBeanspotTipe(payload.beanspot_tipe),
             link_fpd: fpdLink ?? projek.link_fpd ?? undefined,
             link_siteplan: siteplanLink ?? projek.link_siteplan ?? undefined,
+            link_ba_tidak_sesuai_standar: baTidakSesuaiStandarLink ?? projek.link_ba_tidak_sesuai_standar ?? undefined,
             link_gambar_kerja: gambarKerjaMe ?? projek.link_gambar_kerja ?? undefined,
             link_gambar_kompetitor: gambarKompetitor ?? projek.link_gambar_kompetitor ?? undefined,
             status: initialMeta.status,
@@ -574,10 +593,10 @@ export const projekPlanningService = {
 
         const isApprove = action.tindakan === "APPROVE";
         const newStatus = isStage2
-            ? (isApprove ? PP_STATUS.WAITING_PP_APPROVAL_2 : PP_STATUS.WAITING_RAB_UPLOAD)
+            ? (isApprove ? PP_STATUS.WAITING_BM_REGIONAL_APPROVAL : PP_STATUS.WAITING_RAB_UPLOAD)
             : (isApprove ? PP_STATUS.WAITING_PP_APPROVAL_1 : PP_STATUS.DRAFT);
         const approveMessage = isStage2
-            ? "Disetujui oleh BM Manager tahap 2, menunggu approval PP Specialist tahap 2"
+            ? "Disetujui oleh B&M Manager tahap 2, menunggu approval B&M Regional Manager"
             : "Disetujui oleh BM Manager, menunggu approval PP Specialist";
         const rejectMessage = isStage2
             ? `Ditolak oleh BM Manager tahap 2: ${action.alasan_penolakan}. Dikembalikan ke Coordinator untuk input ulang tahap kedua`
@@ -601,6 +620,49 @@ export const projekPlanningService = {
                 : isApprove
                     ? (client) => projekPlanningRepository.updateStatusAndBmApproval(id, newStatus, action, client)
                     : (client) => projekPlanningRepository.updateStatusAndRejectToDraft(id, PP_ROLE.BM, action, client)
+        );
+
+        return {
+            id,
+            old_status: projek.status,
+            new_status: updated.status,
+            tindakan: action.tindakan,
+        };
+    },
+
+    // ============================================================
+    // BM REGIONAL APPROVAL (Tahap 2)
+    // ============================================================
+
+    async bmRegionalApproval(id: number, action: ApprovalInput) {
+        const data = await projekPlanningRepository.findById(id);
+        if (!data) throw new AppError("Project planning tidak ditemukan", 404);
+
+        const { projek } = data;
+        if (projek.status !== PP_STATUS.WAITING_BM_REGIONAL_APPROVAL) {
+            throw new AppError(
+                `Aksi tidak valid. Status saat ini: ${PP_STATUS_LABEL[projek.status]}`,
+                409
+            );
+        }
+
+        const isApprove = action.tindakan === "APPROVE";
+        const newStatus = isApprove ? PP_STATUS.WAITING_PP_APPROVAL_2 : PP_STATUS.WAITING_RAB_UPLOAD;
+
+        const { projek: updated } = await projekPlanningRepository.updateStatusWithLog(
+            id,
+            {
+                actor_email: action.approver_email,
+                role: PP_ROLE.BM_REGIONAL,
+                aksi: isApprove ? PP_AKSI.APPROVE : PP_AKSI.REJECT,
+                status_sebelum: projek.status,
+                status_sesudah: newStatus,
+                alasan_penolakan: action.alasan_penolakan ?? null,
+                keterangan: isApprove
+                    ? buildApprovalNote("Disetujui oleh B&M Regional Manager, menunggu approval PP Specialist tahap 2", action.catatan)
+                    : `Ditolak oleh B&M Regional Manager: ${action.alasan_penolakan}. Dikembalikan ke Building Coord untuk revisi input tahap kedua`,
+            },
+            (client) => projekPlanningRepository.updateStatusAndBmRegionalApproval(id, newStatus, action, client)
         );
 
         return {
@@ -1001,6 +1063,12 @@ export const projekPlanningService = {
                 [PP_STATUS.WAITING_BM_APPROVAL, PP_STATUS.WAITING_BM_APPROVAL_2],
                 input.cabang
             );
+        }
+
+        if (hasRole("BUILDING & MAINTENANCE REGIONAL MANAGER") || hasRole("REGIONAL MANAGER")) {
+            approval += await projekPlanningRepository.countByStatuses([
+                PP_STATUS.WAITING_BM_REGIONAL_APPROVAL,
+            ]);
         }
 
         if (hasRole("PROJECT PLANNING & DEVELOPMENT SPECIALIST")) {
