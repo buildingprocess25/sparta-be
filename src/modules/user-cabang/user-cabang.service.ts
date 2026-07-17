@@ -1,5 +1,5 @@
 import { AppError } from "../../common/app-error";
-import { userCabangRepository } from "./user-cabang.repository";
+import { DC_USER_ROLE_OPTIONS, userCabangRepository } from "./user-cabang.repository";
 import type { CreateUserCabangInput, ListUserCabangQueryInput, UpdateUserCabangInput } from "./user-cabang.schema";
 
 type PgError = {
@@ -14,8 +14,26 @@ const toPgError = (error: unknown): PgError => {
     return {};
 };
 
+const isDcRole = (role?: string | null) =>
+    DC_USER_ROLE_OPTIONS.includes(String(role ?? "").trim().toUpperCase() as typeof DC_USER_ROLE_OPTIONS[number]);
+
+const assertDcUserPayload = (input: CreateUserCabangInput | UpdateUserCabangInput) => {
+    if (input.workspace !== "dc") return;
+    if (input.jabatan && !isDcRole(input.jabatan)) {
+        throw new AppError("Role tidak termasuk role DC Development", 422);
+    }
+    if (
+        String(input.jabatan ?? "").trim().toUpperCase() === "DC DOCUMENT ADMIN"
+        && input.cabang
+        && input.cabang.trim().toUpperCase() !== "HEAD OFFICE"
+    ) {
+        throw new AppError("DC Document Admin wajib menggunakan cabang HEAD OFFICE", 422);
+    }
+};
+
 export const userCabangService = {
     async create(input: CreateUserCabangInput) {
+        assertDcUserPayload(input);
         try {
             return await userCabangRepository.create(input);
         } catch (error: unknown) {
@@ -42,6 +60,7 @@ export const userCabangService = {
     },
 
     async updateById(id: number, input: UpdateUserCabangInput) {
+        assertDcUserPayload(input);
         try {
             const updated = await userCabangRepository.updateById(id, input);
             if (!updated) {

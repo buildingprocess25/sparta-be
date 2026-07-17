@@ -37,6 +37,7 @@ import {
     addDcTermSchedule,
     submitDcTermClaim
 } from "./dc-development.controller";
+import { DC_ROLES } from "./dc-development.constants";
 
 const dcDevelopmentRouter = Router();
 const dcDocumentUpload = multer({
@@ -44,6 +45,31 @@ const dcDocumentUpload = multer({
     limits: {
         fileSize: 50 * 1024 * 1024
     }
+});
+
+const hasRole = (roles: string[] | undefined, roleName: string) =>
+    roles?.some((role) => role.trim().toUpperCase() === roleName) ?? false;
+
+const isDcDocumentPath = (path: string) =>
+    path === "/archive-projects"
+    || path.startsWith("/archive-projects/")
+    || path === "/documents"
+    || path.startsWith("/documents/");
+
+dcDevelopmentRouter.use((req, res, next) => {
+    const roles = req.user?.roles;
+    if (
+        hasRole(roles, DC_ROLES.DC_DOCUMENT_ADMIN)
+        && !hasRole(roles, DC_ROLES.SUPER_HUMAN)
+        && !isDcDocumentPath(req.path)
+    ) {
+        res.status(403).json({
+            status: "error",
+            message: "Akun DC Document Admin hanya dapat mengakses Penyimpanan Dokumen DC."
+        });
+        return;
+    }
+    next();
 });
 
 dcDevelopmentRouter.get("/projects", listDcProjects);

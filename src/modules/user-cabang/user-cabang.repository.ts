@@ -2,6 +2,20 @@ import { pool } from "../../db/pool";
 import { getBranchScopeCandidates } from "../../common/branch-scope";
 import type { CreateUserCabangInput, ListUserCabangQueryInput, UpdateUserCabangInput } from "./user-cabang.schema";
 
+export const DC_USER_ROLE_OPTIONS = [
+    "KONSULTAN SOIL INVESTIGATION",
+    "KONSULTAN PERENCANA",
+    "KONSULTAN PENGAWAS DC",
+    "KONTRAKTOR DC",
+    "DC BUILDING & DEVELOPMENT MANAGER",
+    "DC BUILDING & DEVELOPMENT SPECIALIST",
+    "DC DOCUMENT ADMIN",
+    "BUILDING & DEVELOPMENT GENERAL MANAGER",
+    "LOCATION & DEVELOPMENT GENERAL MANAGER",
+    "PROPERTY DEVELOPMENT DIRECTOR",
+    "BUILDING & MAINTENANCE SUPER HUMAN"
+] as const;
+
 export type UserCabangRow = {
     id: number;
     cabang: string;
@@ -84,6 +98,11 @@ export const userCabangRepository = {
         if (query.nama_pt) {
             values.push(query.nama_pt);
             filters.push(`LOWER(uc.nama_pt) = LOWER($${values.length})`);
+        }
+
+        if (query.workspace === "dc") {
+            values.push([...DC_USER_ROLE_OPTIONS]);
+            filters.push(`UPPER(TRIM(uc.jabatan)) = ANY($${values.length}::text[])`);
         }
 
         const whereClause = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";

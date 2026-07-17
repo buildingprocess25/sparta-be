@@ -8,6 +8,7 @@ import {
     updateUserCabangSchema,
     userCabangIdParamSchema
 } from "./user-cabang.schema";
+import { DC_USER_ROLE_OPTIONS } from "./user-cabang.repository";
 import { userCabangService } from "./user-cabang.service";
 
 /**
@@ -23,12 +24,21 @@ const canManageUsers = (user?: { roles: string[] }): boolean => {
     });
 };
 
+const canManageDcUsers = (user?: { roles: string[] }): boolean =>
+    Boolean(user?.roles.some((role) => role.trim().toUpperCase().includes("SUPER HUMAN")));
+
+const isDcUserRole = (role?: string | null): boolean =>
+    DC_USER_ROLE_OPTIONS.includes(String(role ?? "").trim().toUpperCase() as typeof DC_USER_ROLE_OPTIONS[number]);
+
 export const createUserCabang = asyncHandler(async (req: Request, res: Response) => {
     if (!canManageUsers(req.user)) {
         throw new AppError("Anda tidak memiliki akses untuk membuat user", 403);
     }
 
     const payload = createUserCabangSchema.parse(req.body);
+    if (payload.workspace === "dc" && !canManageDcUsers(req.user)) {
+        throw new AppError("Hanya Super Human yang dapat membuat user DC", 403);
+    }
     const data = await userCabangService.create(payload);
 
     res.status(201).json({
@@ -59,6 +69,10 @@ export const updateUserCabangById = asyncHandler(async (req: Request, res: Respo
 
     const params = userCabangIdParamSchema.parse(req.params);
     const payload = updateUserCabangSchema.parse(req.body);
+    const existing = await userCabangService.getById(params.id);
+    if ((payload.workspace === "dc" || isDcUserRole(existing.jabatan) || isDcUserRole(payload.jabatan)) && !canManageDcUsers(req.user)) {
+        throw new AppError("Hanya Super Human yang dapat mengubah user DC", 403);
+    }
     const data = await userCabangService.updateById(params.id, payload);
 
     res.json({
@@ -74,6 +88,10 @@ export const deleteUserCabangById = asyncHandler(async (req: Request, res: Respo
     }
 
     const params = userCabangIdParamSchema.parse(req.params);
+    const existing = await userCabangService.getById(params.id);
+    if (isDcUserRole(existing.jabatan) && !canManageDcUsers(req.user)) {
+        throw new AppError("Hanya Super Human yang dapat menghapus user DC", 403);
+    }
     const data = await userCabangService.deleteById(params.id);
 
     res.json({

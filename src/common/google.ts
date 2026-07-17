@@ -326,6 +326,7 @@ export class GoogleProvider {
         buffer: Buffer,
         maxRetry = 2,
         driveOverride?: drive_v3.Drive,
+        options?: { makePublic?: boolean },
     ): Promise<{ id?: string; webViewLink?: string; thumbnailLink?: string; name?: string; mimeType?: string }> {
         const drive = driveOverride ?? this.ensureDocDrive();
 
@@ -338,7 +339,9 @@ export class GoogleProvider {
                     supportsAllDrives: true,
                 });
 
-                await this.setPublicPermission(drive, uploaded.data.id ?? undefined);
+                if (options?.makePublic !== false) {
+                    await this.setPublicPermission(drive, uploaded.data.id ?? undefined);
+                }
 
                 await sleep(250);
                 return {
@@ -368,6 +371,7 @@ export class GoogleProvider {
         buffer: Buffer,
         maxRetry = 2,
         driveOverride?: drive_v3.Drive,
+        options?: { makePublic?: boolean },
     ): Promise<{ id?: string; webViewLink?: string; thumbnailLink?: string; name?: string; mimeType?: string }> {
         const drive = driveOverride ?? this.ensureDocDrive();
 
@@ -381,7 +385,9 @@ export class GoogleProvider {
                     supportsAllDrives: true,
                 });
 
-                await this.setPublicPermission(drive, uploaded.data.id ?? undefined);
+                if (options?.makePublic !== false) {
+                    await this.setPublicPermission(drive, uploaded.data.id ?? undefined);
+                }
 
                 await sleep(250);
                 return {

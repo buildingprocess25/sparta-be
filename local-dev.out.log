@@ -1,0 +1,22 @@
+
+> sparta-api@1.0.1 dev
+> tsx watch src/index.ts
+
+rab-service running on port 8081
+[REQ][13778efc-3227-4cbe-98e9-42b563a13822] GET /health {
+  ip: '::ffff:127.0.0.1',
+  user_agent: 'Mozilla/5.0 (Windows NT; Windows NT 10.0; id-ID) WindowsPowerShell/5.1.26100.8875',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][13778efc-3227-4cbe-98e9-42b563a13822] GET /health { status: 200, duration_ms: 29 }
+✅ Token refreshed dari token.json
+✅ Service Sparta (Sheets) Berhasil.
+✅ Token refreshed dari token_doc.json
+✅ Service Dokumen (Sheets + Drive) Berhasil.
+[Scheduler] SP markExpiredSp akan mulai dalam 913 menit (jam 00:05 WIB)
+[Scheduler] SP expiryReminders akan mulai dalam 1388 menit (jam 08:00 WIB)
+[Scheduler] SP weeklySummary akan mulai dalam 70 jam (Senin jam 07:00 WIB)
+Startup bootstrap selesai

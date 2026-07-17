@@ -34,6 +34,20 @@ const getUploadedFiles = (req: Request): UploadedDcDocumentFile[] => {
     return files ?? [];
 };
 
+const getSessionActor = (req: Request) => {
+    if (!req.user) return null;
+    const actorRole = req.user.roles.length ? req.user.roles.join(",") : req.user.jabatan;
+    return {
+        actor_email: req.user.email_sat,
+        actor_role: actorRole || "USER"
+    };
+};
+
+const withSessionActor = <T extends { actor_email: string; actor_role: string }>(req: Request, input: T): T => {
+    const sessionActor = getSessionActor(req);
+    return sessionActor ? { ...input, ...sessionActor } : input;
+};
+
 export const listDcProjects = asyncHandler(async (req: Request, res: Response) => {
     const query = dcProjectListQuerySchema.parse(req.query);
     const data = await dcDevelopmentService.listProjects(query);
@@ -41,13 +55,13 @@ export const listDcProjects = asyncHandler(async (req: Request, res: Response) =
 });
 
 export const listDcArchiveProjects = asyncHandler(async (req: Request, res: Response) => {
-    const query = dcArchiveProjectListQuerySchema.parse(req.query);
+    const query = withSessionActor(req, dcArchiveProjectListQuerySchema.parse(req.query));
     const data = await dcDevelopmentService.listArchiveProjects(query);
     res.json({ status: "success", data });
 });
 
 export const createDcArchiveProject = asyncHandler(async (req: Request, res: Response) => {
-    const input = createDcArchiveProjectSchema.parse(req.body);
+    const input = withSessionActor(req, createDcArchiveProjectSchema.parse(req.body));
     const data = await dcDevelopmentService.createArchiveProject(input);
     res.status(201).json({
         status: "success",
@@ -265,13 +279,13 @@ export const listDcApprovals = asyncHandler(async (req: Request, res: Response) 
 });
 
 export const listDcDocuments = asyncHandler(async (req: Request, res: Response) => {
-    const query = dcDocumentListQuerySchema.parse(req.query);
+    const query = withSessionActor(req, dcDocumentListQuerySchema.parse(req.query));
     const data = await dcDevelopmentService.listDocuments(query);
     res.json({ status: "success", data });
 });
 
 export const createDcDocument = asyncHandler(async (req: Request, res: Response) => {
-    const input = createDcDocumentSchema.parse(req.body);
+    const input = withSessionActor(req, createDcDocumentSchema.parse(req.body));
     const data = await dcDevelopmentService.createDocument(input, getUploadedFiles(req));
     res.status(201).json({
         status: "success",
@@ -281,13 +295,13 @@ export const createDcDocument = asyncHandler(async (req: Request, res: Response)
 });
 
 export const getDcDocumentDetail = asyncHandler(async (req: Request, res: Response) => {
-    const actor = dcDocumentActorQuerySchema.parse(req.query);
+    const actor = withSessionActor(req, dcDocumentActorQuerySchema.parse(req.query));
     const data = await dcDevelopmentService.getDocumentDetail(req.params.id, actor);
     res.json({ status: "success", data });
 });
 
 export const updateDcDocument = asyncHandler(async (req: Request, res: Response) => {
-    const input = updateDcDocumentSchema.parse(req.body);
+    const input = withSessionActor(req, updateDcDocumentSchema.parse(req.body));
     const data = await dcDevelopmentService.updateDocument(req.params.id, input, getUploadedFiles(req));
     res.json({
         status: "success",
@@ -297,7 +311,7 @@ export const updateDcDocument = asyncHandler(async (req: Request, res: Response)
 });
 
 export const deleteDcDocument = asyncHandler(async (req: Request, res: Response) => {
-    const actor = dcDocumentActorQuerySchema.parse(req.query);
+    const actor = withSessionActor(req, dcDocumentActorQuerySchema.parse(req.query));
     const data = await dcDevelopmentService.deleteDocument(req.params.id, actor);
     res.json({
         status: "success",
@@ -307,7 +321,7 @@ export const deleteDcDocument = asyncHandler(async (req: Request, res: Response)
 });
 
 export const viewDcDocument = asyncHandler(async (req: Request, res: Response) => {
-    const actor = dcDocumentActorQuerySchema.parse(req.query);
+    const actor = withSessionActor(req, dcDocumentActorQuerySchema.parse(req.query));
     const file = await dcDevelopmentService.getDocumentFile(req.params.id, actor);
     if (!file.buffer && file.link) {
         res.redirect(file.link);
@@ -323,7 +337,7 @@ export const viewDcDocument = asyncHandler(async (req: Request, res: Response) =
 });
 
 export const downloadDcDocument = asyncHandler(async (req: Request, res: Response) => {
-    const actor = dcDocumentActorQuerySchema.parse(req.query);
+    const actor = withSessionActor(req, dcDocumentActorQuerySchema.parse(req.query));
     const file = await dcDevelopmentService.getDocumentFile(req.params.id, actor);
     if (!file.buffer && file.link) {
         res.redirect(file.link);

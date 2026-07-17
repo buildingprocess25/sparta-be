@@ -5,7 +5,8 @@ export const createUserCabangSchema = z.object({
     email_sat: z.string().trim().email(),
     nama_lengkap: z.string().trim().min(1).optional(),
     jabatan: z.string().trim().min(1).optional(),
-    nama_pt: z.string().trim().min(1).optional()
+    nama_pt: z.string().trim().min(1).optional(),
+    workspace: z.enum(["store", "dc"]).optional()
 });
 
 export const updateUserCabangSchema = z.object({
@@ -13,7 +14,8 @@ export const updateUserCabangSchema = z.object({
     email_sat: z.string().trim().email().optional(),
     nama_lengkap: z.string().trim().min(1).nullable().optional(),
     jabatan: z.string().trim().min(1).nullable().optional(),
-    nama_pt: z.string().trim().min(1).nullable().optional()
+    nama_pt: z.string().trim().min(1).nullable().optional(),
+    workspace: z.enum(["store", "dc"]).optional()
 }).refine((payload) => Object.keys(payload).length > 0, {
     message: "Minimal satu field harus diisi"
 });
@@ -24,7 +26,8 @@ export const listUserCabangQuerySchema = z.object({
     email_sat: z.string().trim().email().optional(),
     jabatan: z.string().trim().min(1).optional(),
     nama_pt: z.string().trim().min(1).optional(),
-    include_branch_scope: z.coerce.boolean().optional()
+    include_branch_scope: z.coerce.boolean().optional(),
+    workspace: z.enum(["store", "dc"]).optional()
 });
 
 export const userCabangIdParamSchema = z.object({

@@ -34,9 +34,16 @@ const accessRank: Record<DcMemberAccessLevel, number> = {
 const hasSuperHumanRole = (role?: string | null): boolean =>
     String(role ?? "").toUpperCase().includes(DC_ROLES.SUPER_HUMAN);
 
+const hasDcDocumentAdminRole = (role?: string | null): boolean =>
+    String(role ?? "").toUpperCase().includes(DC_ROLES.DC_DOCUMENT_ADMIN);
+
+const canBypassDocumentAccess = (role?: string | null): boolean =>
+    hasSuperHumanRole(role) || hasDcDocumentAdminRole(role);
+
 const canCreateArchiveProject = (role?: string | null): boolean => {
     const normalized = String(role ?? "").toUpperCase();
     return hasSuperHumanRole(normalized)
+        || hasDcDocumentAdminRole(normalized)
         || normalized.includes(DC_ROLES.DC_MANAGER)
         || normalized.includes(DC_ROLES.DC_SPECIALIST);
 };
@@ -102,7 +109,7 @@ const ensureAccess = async (
     actor: { email: string; role: string },
     required: DcMemberAccessLevel
 ) => {
-    if (hasSuperHumanRole(actor.role)) return;
+    if (canBypassDocumentAccess(actor.role)) return;
     const member = await dcDevelopmentRepository.findProjectMember(projectId, actor.email);
     if (!member || accessRank[member.access_level] < accessRank[required]) {
         throw new AppError("Anda tidak terlibat atau tidak memiliki akses ke dokumen DC ini", 403);
@@ -139,8 +146,8 @@ const uploadFilesToDrive = async (
         const mimeType = file.mimetype || "application/octet-stream";
         const useResumable = (file.size ?? 0) >= RESUMABLE_THRESHOLD_BYTES;
         const uploaded = useResumable
-            ? await gp.uploadFileResumable(documentFolder, filename, mimeType, file.buffer)
-            : await gp.uploadFile(documentFolder, filename, mimeType, file.buffer);
+            ? await gp.uploadFileResumable(documentFolder, filename, mimeType, file.buffer, undefined, undefined, { makePublic: false })
+            : await gp.uploadFile(documentFolder, filename, mimeType, file.buffer, undefined, undefined, { makePublic: false });
         const link = resolveDriveLink(uploaded.id ?? null, uploaded.webViewLink ?? null);
         if (!uploaded.id || !link) throw new AppError("Upload dokumen DC ke Google Drive gagal", 500);
 
@@ -161,12 +168,12 @@ const uploadFilesToDrive = async (
 
 export const dcDevelopmentService = {
     listArchiveProjects(filter: DcArchiveProjectListQuery) {
-        return dcDevelopmentRepository.listArchiveProjects(filter, hasSuperHumanRole(filter.actor_role));
+        return dcDevelopmentRepository.listArchiveProjects(filter, canBypassDocumentAccess(filter.actor_role));
     },
 
     async createArchiveProject(input: CreateDcArchiveProjectInput) {
         if (!canCreateArchiveProject(input.actor_role)) {
-            throw new AppError("Hanya Super Human, DC Manager, atau DC Specialist yang dapat menambah data arsip DC", 403);
+            throw new AppError("Hanya Super Human, DC Manager, DC Specialist, atau DC Document Admin yang dapat menambah data arsip DC", 403);
         }
 
         try {
@@ -482,7 +489,7 @@ export const dcDevelopmentService = {
     },
 
     listDocuments(filter: DcDocumentListQuery) {
-        return dcDevelopmentRepository.listDocuments(filter, hasSuperHumanRole(filter.actor_role));
+        return dcDevelopmentRepository.listDocuments(filter, canBypassDocumentAccess(filter.actor_role));
     },
 
     async createDocument(input: CreateDcDocumentInput, files: UploadedDcDocumentFile[]) {
