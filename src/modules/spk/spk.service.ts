@@ -39,7 +39,7 @@ const numericCurrencyValue = (value: number | string | null | undefined): number
 
 const roundSpkGrandTotal = (value: number): number => {
     if (!Number.isFinite(value) || value <= 0) return 0;
-    return Math.round(value / 1000) * 1000;
+    return Math.floor(value / 10000) * 10000;
 };
 
 const isNoPpnArea = (toko: { cabang?: string | null; nama_toko?: string | null; alamat?: string | null }): boolean => {

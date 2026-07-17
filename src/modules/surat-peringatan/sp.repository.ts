@@ -106,6 +106,17 @@ const ACTION_SELECT = `
     ) AS is_active
 `;
 
+const contractorMatchSql = (param: string) => `
+    (
+        LOWER(TRIM(COALESCE(nama_kontraktor, ''))) = LOWER(TRIM(${param}))
+        OR LOWER(TRIM(COALESCE(nama_kontraktor, ''))) LIKE '%' || LOWER(TRIM(${param})) || '%'
+        OR LOWER(TRIM(${param})) LIKE '%' || LOWER(TRIM(COALESCE(nama_kontraktor, ''))) || '%'
+        OR regexp_replace(UPPER(COALESCE(nama_kontraktor, '')), '[^A-Z0-9]', '', 'g') = regexp_replace(UPPER(${param}), '[^A-Z0-9]', '', 'g')
+        OR regexp_replace(UPPER(COALESCE(nama_kontraktor, '')), '[^A-Z0-9]', '', 'g') LIKE '%' || regexp_replace(UPPER(${param}), '[^A-Z0-9]', '', 'g') || '%'
+        OR regexp_replace(UPPER(${param}), '[^A-Z0-9]', '', 'g') LIKE '%' || regexp_replace(UPPER(COALESCE(nama_kontraktor, '')), '[^A-Z0-9]', '', 'g') || '%'
+    )
+`;
+
 export const spRepository = {
     async ensureSchema(): Promise<void> {
         await pool.query(`
@@ -993,7 +1004,7 @@ export const spRepository = {
             `SELECT ${ACTION_SELECT}
              FROM denda_keterlambatan_action
              WHERE action_type = 'SP'
-               AND nama_kontraktor = $1
+               AND ${contractorMatchSql("$1")}
                AND status IN ('APPROVED', 'SENT_TO_CONTRACTOR', 'VIEWED_BY_CONTRACTOR', 'ACKNOWLEDGED_BY_CONTRACTOR')
              ORDER BY created_at DESC`,
             [namaKontraktor]
@@ -1008,7 +1019,7 @@ export const spRepository = {
              FROM denda_keterlambatan_action
              WHERE id = $1 
                AND action_type = 'SP'
-               AND nama_kontraktor = $2`,
+               AND ${contractorMatchSql("$2")}`,
             [id, namaKontraktor]
         );
         return result.rows[0] ?? null;
@@ -1049,7 +1060,7 @@ export const spRepository = {
                  catatan_acknowledge = $4,
                  updated_at = timezone('Asia/Jakarta', now())
              WHERE id = $1 
-               AND nama_kontraktor = $5
+               AND ${contractorMatchSql("$5")}
                AND action_type = 'SP'
                AND status IN ('SENT_TO_CONTRACTOR', 'VIEWED_BY_CONTRACTOR')
              RETURNING id`,
@@ -1074,11 +1085,11 @@ export const spRepository = {
         }>(
             `SELECT 
                COUNT(*) FILTER (WHERE action_type = 'SP') AS total_sp,
-               COUNT(*) FILTER (WHERE action_type = 'SP' AND status IN ('SENT_TO_CONTRACTOR', 'VIEWED_BY_CONTRACTOR', 'ACKNOWLEDGED_BY_CONTRACTOR') AND (expires_at IS NULL OR expires_at > timezone('Asia/Jakarta', now()))) AS active_sp,
+               COUNT(*) FILTER (WHERE action_type = 'SP' AND status IN ('APPROVED', 'SENT_TO_CONTRACTOR', 'VIEWED_BY_CONTRACTOR', 'ACKNOWLEDGED_BY_CONTRACTOR') AND (expires_at IS NULL OR expires_at > timezone('Asia/Jakarta', now()))) AS active_sp,
                COUNT(*) FILTER (WHERE action_type = 'SP' AND status = 'ACKNOWLEDGED_BY_CONTRACTOR') AS acknowledged_sp,
                COUNT(*) FILTER (WHERE action_type = 'SP' AND status IN ('SENT_TO_CONTRACTOR', 'VIEWED_BY_CONTRACTOR') AND (expires_at IS NULL OR expires_at > timezone('Asia/Jakarta', now()))) AS pending_acknowledge
              FROM denda_keterlambatan_action
-             WHERE nama_kontraktor = $1`,
+             WHERE ${contractorMatchSql("$1")}`,
             [namaKontraktor]
         );
         return {
@@ -1150,8 +1161,8 @@ export const spRepository = {
         }>(
             `SELECT 
                COUNT(*) FILTER (WHERE action_type = 'SP') AS total_sp,
-               COUNT(*) FILTER (WHERE action_type = 'SP' AND status IN ('SENT_TO_CONTRACTOR', 'VIEWED_BY_CONTRACTOR', 'ACKNOWLEDGED_BY_CONTRACTOR') AND (expires_at IS NULL OR expires_at > timezone('Asia/Jakarta', now()))) AS active_sp,
-               COUNT(*) FILTER (WHERE action_type = 'SP' AND status IN ('SENT_TO_CONTRACTOR', 'VIEWED_BY_CONTRACTOR', 'ACKNOWLEDGED_BY_CONTRACTOR') AND expires_at IS NOT NULL AND expires_at > timezone('Asia/Jakarta', now()) AND expires_at < timezone('Asia/Jakarta', now()) + INTERVAL '30 days') AS expiring_soon,
+               COUNT(*) FILTER (WHERE action_type = 'SP' AND status IN ('APPROVED', 'SENT_TO_CONTRACTOR', 'VIEWED_BY_CONTRACTOR', 'ACKNOWLEDGED_BY_CONTRACTOR') AND (expires_at IS NULL OR expires_at > timezone('Asia/Jakarta', now()))) AS active_sp,
+               COUNT(*) FILTER (WHERE action_type = 'SP' AND status IN ('APPROVED', 'SENT_TO_CONTRACTOR', 'VIEWED_BY_CONTRACTOR', 'ACKNOWLEDGED_BY_CONTRACTOR') AND expires_at IS NOT NULL AND expires_at > timezone('Asia/Jakarta', now()) AND expires_at < timezone('Asia/Jakarta', now()) + INTERVAL '30 days') AS expiring_soon,
                COUNT(*) FILTER (WHERE action_type = 'SP' AND status IN ('SENT_TO_CONTRACTOR', 'VIEWED_BY_CONTRACTOR') AND (expires_at IS NULL OR expires_at > timezone('Asia/Jakarta', now()))) AS pending_acknowledge
              FROM denda_keterlambatan_action`
         );
