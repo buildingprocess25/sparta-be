@@ -459,7 +459,7 @@ export class GoogleProvider {
         }
     }
 
-    /** Sama persis dg Python get_kontraktor_by_cabang(). */
+    /** Sama persis dg Python get_kontraktor_by_cabang(), dengan normalisasi nama wilayah. */
     async getKontraktorByCabang(userWilayah: string): Promise<string[]> {
         if (!this.spartaSheets) {
             throw new Error("Service Sparta belum siap");
@@ -484,14 +484,21 @@ export class GoogleProvider {
             return record;
         });
 
-        const allowedBranchesLower = userWilayah.trim().toLowerCase();
+        const normalizeWilayah = (value: string) =>
+            value
+                .trim()
+                .replace(/_+/g, " ")
+                .replace(/\s+/g, " ")
+                .toUpperCase();
+
+        const allowedBranch = normalizeWilayah(userWilayah);
         const kontraktorList: string[] = [];
 
         for (const record of records) {
-            const wilayah = String(record["WILAYAH"] ?? "").trim().toLowerCase();
+            const wilayah = normalizeWilayah(String(record["WILAYAH"] ?? ""));
             const statusKontraktor = String(record["STATUS KONTRAKTOR"] ?? "").trim().toUpperCase();
 
-            if (wilayah === allowedBranchesLower && statusKontraktor === "AKTIF") {
+            if (wilayah === allowedBranch && statusKontraktor === "AKTIF") {
                 const namaKontraktor = String(record["NAMA KONTRAKTOR"] ?? "").trim();
                 if (namaKontraktor && !kontraktorList.includes(namaKontraktor)) {
                     kontraktorList.push(namaKontraktor);

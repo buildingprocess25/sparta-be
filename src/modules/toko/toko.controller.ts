@@ -64,23 +64,15 @@ export const getKontraktor = async (req: Request, res: Response) => {
     }
 
     try {
-        let kontraktorList = await GoogleProvider.instance.getKontraktorByCabang(userCabang);
+        const merged = new Set<string>();
+        const candidates = getBranchScopeCandidates(userCabang);
 
-        if (kontraktorList.length === 0) {
-            const merged = new Set<string>();
-            const candidates = getBranchScopeCandidates(userCabang).filter(
-                (candidate) => candidate.toLowerCase() !== userCabang.toLowerCase()
-            );
-
-            for (const candidate of candidates) {
-                const candidateList = await GoogleProvider.instance.getKontraktorByCabang(candidate);
-                candidateList.forEach((name) => merged.add(name));
-            }
-
-            kontraktorList = Array.from(merged).sort();
+        for (const candidate of candidates.length ? candidates : [userCabang]) {
+            const candidateList = await GoogleProvider.instance.getKontraktorByCabang(candidate);
+            candidateList.forEach((name) => merged.add(name));
         }
 
-        return res.status(200).json(kontraktorList);
+        return res.status(200).json(Array.from(merged).sort());
     } catch (error: unknown) {
         console.error(error);
         const errorMessage = error instanceof Error ? error.message : String(error);
