@@ -387,7 +387,7 @@
     <tr>
 
       {# ── [1] DIBUAT — Coordinator (selalu ada nama & tanggal) ── #}
-      <td style="width: 25%; vertical-align: top; text-align: center;">
+      <td style="width: 20%; vertical-align: top; text-align: center;">
         <div class="approval-title">DIBUAT</div>
         <div class="approval-box bm" style="min-height: 90px;">
           <div style="min-height: 25px;"></div>
@@ -399,7 +399,7 @@
       </td>
 
       {# ── [2] MENGETAHUI — B&M Manager (nama & tanggal jika sudah approve) ── #}
-      <td style="width: 25%; vertical-align: top; text-align: center;">
+      <td style="width: 20%; vertical-align: top; text-align: center;">
         <div class="approval-title">MENGETAHUI</div>
         <div class="approval-box pp1" style="min-height: 90px;">
           {% if has_bm_signature %}
@@ -415,7 +415,22 @@
       </td>
 
       {# ── [3] MENGETAHUI — PP Specialist (nama & tanggal jika sudah approve) ── #}
-      <td style="width: 25%; vertical-align: top; text-align: center;">
+      <td style="width: 20%; vertical-align: top; text-align: center;">
+        <div class="approval-title">MENGETAHUI</div>
+        <div class="approval-box pp1" style="min-height: 90px;">
+          {% if has_bm_regional_signature %}
+            <div style="min-height: 25px;"></div>
+            <div class="approval-date">{{ bm_regional_waktu_formatted or '-' }}</div>
+            <div style="min-height: 25px;"></div>
+            <div class="approval-name">{{ projek.bm_regional_approver_email.split('@')[0] | upper }}</div>
+          {% else %}
+            <div style="min-height: 80px;"></div>
+          {% endif %}
+          <div class="approval-role">Building &amp; Maintenance Regional Manager</div>
+        </div>
+      </td>
+
+      <td style="width: 20%; vertical-align: top; text-align: center;">
         <div class="approval-title">MENGETAHUI</div>
         <div class="approval-box pp2" style="min-height: 90px;">
           {% if has_pp_specialist_signature %}
@@ -431,7 +446,7 @@
       </td>
 
       {# ── [4] DISETUJUI — PP Manager (nama & tanggal jika sudah approve) ── #}
-      <td style="width: 25%; vertical-align: top; text-align: center;">
+      <td style="width: 20%; vertical-align: top; text-align: center;">
         <div class="approval-title">DISETUJUI</div>
         <div class="approval-box bm" style="min-height: 90px;">
           {% if has_pp_manager_signature %}

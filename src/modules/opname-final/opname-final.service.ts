@@ -148,6 +148,63 @@ const uploadPdfToDrive = async (buffer: Buffer, filename: string): Promise<strin
     return result.webViewLink ?? `https://drive.google.com/file/d/${result.id}/view`;
 };
 
+const extractDriveFileId = (value: string): string | null => {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    const byIdParam = /[?&]id=([^&]+)/.exec(trimmed);
+    if (byIdParam?.[1]) return byIdParam[1];
+
+    const byPath = /\/d\/([^/]+)/.exec(trimmed);
+    if (byPath?.[1]) return byPath[1];
+
+    if (!trimmed.startsWith("http") && /^[a-zA-Z0-9_-]{20,}$/.test(trimmed)) {
+        return trimmed;
+    }
+
+    return null;
+};
+
+const normalizeDriveDownloadLink = (value: string): string => {
+    const fileId = extractDriveFileId(value);
+    if (!fileId) return value;
+    return `https://drive.usercontent.google.com/download?id=${fileId}&export=download&authuser=0`;
+};
+
+const downloadStoredPdfBuffer = async (linkPdf?: string | null): Promise<Buffer | null> => {
+    if (!linkPdf) return null;
+
+    const gp = GoogleProvider.instance;
+    const fileId = extractDriveFileId(linkPdf);
+    let buffer: Buffer | null = null;
+
+    if (fileId && gp.spartaDrive) {
+        buffer = await gp.getFileBufferById(gp.spartaDrive, fileId);
+    }
+
+    if (!buffer && fileId && gp.docDrive) {
+        buffer = await gp.getFileBufferById(gp.docDrive, fileId);
+    }
+
+    if (!buffer && /^https?:\/\//i.test(linkPdf)) {
+        try {
+            const response = await fetch(normalizeDriveDownloadLink(linkPdf), {
+                redirect: "follow",
+                headers: {
+                    "User-Agent": "Mozilla/5.0 (compatible; SPARTA-PDF/1.0)"
+                }
+            });
+            if (response.ok && !(response.headers.get("content-type") ?? "").includes("text/html")) {
+                buffer = Buffer.from(await response.arrayBuffer());
+            }
+        } catch {
+            // Fall back to regeneration below.
+        }
+    }
+
+    return buffer && buffer.length > 0 ? buffer : null;
+};
+
 const loadInstruksiLapanganItems = async (idToko: number) => {
     const approvedInstruksi = await instruksiLapanganRepository.getApprovedByTokoId(idToko);
     if (approvedInstruksi.length === 0) {
@@ -367,10 +424,26 @@ export const opnameFinalService = {
         };
     },
 
-    async generatePdf(id: string) {
+    async generatePdf(id: string, options?: { forceRegenerate?: boolean }) {
         const detail = await opnameFinalRepository.findById(id);
         if (!detail) {
             throw new AppError("Data opname_final tidak ditemukan", 404);
+        }
+
+        const proyek = sanitizeFilenamePart(detail.toko.proyek ?? undefined, "PROYEK");
+        const nomorUlok = sanitizeFilenamePart(detail.toko.nomor_ulok ?? undefined, "ULOK");
+        const filenamePrefix = "OPNAME";
+        const filename = `${filenamePrefix}_${proyek}_${nomorUlok}_${id}.pdf`;
+
+        if (!options?.forceRegenerate) {
+            const storedBuffer = await downloadStoredPdfBuffer(detail.opname_final.link_pdf_opname);
+            if (storedBuffer) {
+                return {
+                    filename,
+                    pdfBuffer: storedBuffer,
+                    source: "stored" as const
+                };
+            }
         }
 
         await refreshDendaAllocation(id, detail.toko.id);
@@ -384,13 +457,20 @@ export const opnameFinalService = {
         const rabData = await loadRabData(refreshedDetail.opname_final.id);
         await applyRukoConversionIfNeeded(refreshedDetail, instruksiLapanganItems, rabData);
         const pdfBuffer = await buildOpnameFinalPdfBuffer(refreshedDetail, instruksiLapanganItems, rabData);
-        const proyek = sanitizeFilenamePart(refreshedDetail.toko.proyek ?? undefined, "PROYEK");
-        const nomorUlok = sanitizeFilenamePart(refreshedDetail.toko.nomor_ulok ?? undefined, "ULOK");
-        const filenamePrefix = "OPNAME";
+        try {
+            const linkPdf = await uploadPdfToDrive(pdfBuffer, filename);
+            await opnameFinalRepository.updatePdfLink(id, linkPdf);
+        } catch (error) {
+            console.warn("[opname-final] Gagal menyimpan cache PDF hasil generate; tetap mengirim PDF ke user", {
+                id,
+                message: error instanceof Error ? error.message : String(error)
+            });
+        }
 
         return {
-            filename: `${filenamePrefix}_${proyek}_${nomorUlok}_${id}.pdf`,
-            pdfBuffer
+            filename,
+            pdfBuffer,
+            source: "generated" as const
         };
     },
 

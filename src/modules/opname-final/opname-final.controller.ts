@@ -49,10 +49,12 @@ export const handleOpnameFinalApproval = asyncHandler(async (req: Request, res: 
 });
 
 export const downloadOpnameFinalPdf = asyncHandler(async (req: Request, res: Response) => {
-    const result = await opnameFinalService.generatePdf(req.params.id);
+    const forceRegenerate = String(req.query.regenerate ?? "").trim() === "1";
+    const result = await opnameFinalService.generatePdf(req.params.id, { forceRegenerate });
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);
+    res.setHeader("X-SPARTA-PDF-Source", result.source);
     res.send(result.pdfBuffer);
 });
 

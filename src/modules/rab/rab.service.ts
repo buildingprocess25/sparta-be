@@ -1,5 +1,5 @@
 import { AppError } from "../../common/app-error";
-import { getBranchScopeCandidates, isSameBranchScope } from "../../common/branch-scope";
+import { BRANCH_GROUPS, getBranchScopeCandidates, isSameBranchScope, normalizeBranchScopeName } from "../../common/branch-scope";
 import { GoogleProvider } from "../../common/google";
 import { normalizeProjectByUlok } from "../../common/project-type";
 import { env } from "../../config/env";
@@ -244,6 +244,11 @@ const normalizeCabangForPrice = (value?: string | null): string => {
         .trim();
 };
 
+const isCikokolBranchGroup = (cabang?: string | null): boolean => {
+    const normalized = normalizeBranchScopeName(cabang);
+    return normalized === "CIKOKOL" || BRANCH_GROUPS.CIKOKOL.includes(normalized);
+};
+
 const findUserCabangByEmailAndBranchScope = async (email: string, branch: string) => {
     const branchCandidates = getBranchScopeCandidates(branch);
     const rows = await Promise.all(
@@ -473,7 +478,8 @@ const syncDetailItemsWithBranchPrices = async (
     detailItems: DetailItemInput[],
     cabang?: string | null,
     lingkupPekerjaan?: string | null,
-    requirePriceSync = false
+    requirePriceSync = false,
+    requireEveryItemMatch = false
 ): Promise<DetailItemInput[]> => {
     const cabangKey = normalizeCabangForPrice(cabang);
     const lingkup = normalizeLingkupForPrice(lingkupPekerjaan);
@@ -490,13 +496,17 @@ const syncDetailItemsWithBranchPrices = async (
         const priceData = await priceRabService.getData(cabangKey, lingkup);
         const lookup = buildPriceLookup(priceData);
         let matchedCount = 0;
+        const unmatchedItems: string[] = [];
 
         const syncedItems = detailItems.map((item) => {
             const itemCategoryKey = normalizePriceLookupKey(item.kategori_pekerjaan);
             const itemJobKey = normalizePriceLookupKey(item.jenis_pekerjaan);
             const price = lookup.byCategoryAndJob.get(`${itemCategoryKey}|${itemJobKey}`)
                 ?? lookup.byJob.get(itemJobKey);
-            if (!price) return item;
+            if (!price) {
+                unmatchedItems.push(`${item.kategori_pekerjaan} - ${item.jenis_pekerjaan}`);
+                return item;
+            }
 
             const hargaMaterial = price.inputMaterialManual
                 ? item.harga_material
@@ -526,8 +536,20 @@ const syncDetailItemsWithBranchPrices = async (
             matched_items: matchedCount
         });
 
+        if (requireEveryItemMatch && unmatchedItems.length > 0) {
+            throw new AppError(
+                `Beberapa item RAB revisi tidak ditemukan di master harga cabang ${cabangKey} (${lingkup}): ${unmatchedItems.slice(0, 5).join("; ")}${unmatchedItems.length > 5 ? "; ..." : ""}. ` +
+                "Submit revisi dibatalkan agar harga tidak tersimpan memakai snapshot lama.",
+                422
+            );
+        }
+
         return syncedItems;
     } catch (error) {
+        if (error instanceof AppError) {
+            throw error;
+        }
+
         if (requirePriceSync) {
             throw new AppError(
                 `Gagal mengambil harga satuan cabang ${cabangKey} untuk lingkup ${lingkup}. Perubahan cabang belum bisa disimpan agar harga tidak salah.`,
@@ -1260,6 +1282,7 @@ export const rabService = {
         let rejectedRabToReplaceId: number | null = null;
         let rejectedRabExistingLogo: string | null = null;
         let rejectedRabExistingInsurance: string | null = null;
+        let rejectedRabExistingCabang: string | null = null;
         const isRevisionSubmit = payload.is_revisi === true;
         const existingTokoByCombination = await tokoRepository.findByNomorUlokAndLingkup(
             payload.nomor_ulok,
@@ -1287,6 +1310,7 @@ export const rabService = {
             rejectedRabToReplaceId = targetRab.id;
             rejectedRabExistingLogo = targetRab.logo;
             rejectedRabExistingInsurance = targetRab.file_asuransi;
+            rejectedRabExistingCabang = targetRab.cabang;
         } else if (existingTokoByCombination) {
             console.log('[RAB DEBUG] Existing toko found, checking for active RAB:', {
                 toko_id: existingTokoByCombination.id,
@@ -1312,7 +1336,18 @@ export const rabService = {
             }
         }
 
-        const detailItems = payload.detail_items;
+        const revisionPriceCabang = payload.cabang || rejectedRabExistingCabang || existingTokoByCombination?.cabang;
+        const shouldSyncRevisionPrices = isRevisionSubmit && isCikokolBranchGroup(revisionPriceCabang);
+
+        const detailItems = shouldSyncRevisionPrices
+            ? await syncDetailItemsWithBranchPrices(
+                payload.detail_items,
+                revisionPriceCabang,
+                normalizedLingkupPekerjaan,
+                true,
+                true
+            )
+            : payload.detail_items;
 
         // 2. Hitung totals
         const totals = computeTotals(detailItems);

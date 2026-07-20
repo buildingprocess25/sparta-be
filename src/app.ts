@@ -39,14 +39,31 @@ import { spkBackdatePolicyRouter } from "./modules/spk-backdate-policy/spk-backd
 
 const app = express();
 
-const corsOrigins = env.CORS_ORIGINS === "*"
+const configuredCorsOrigins = env.CORS_ORIGINS === "*"
     ? "*"
-    : env.CORS_ORIGINS.split(",").map((item) => item.trim());
+    : env.CORS_ORIGINS.split(",").map((item) => item.trim()).filter(Boolean);
+
+const isAllowedCorsOrigin = (origin?: string): boolean => {
+    if (!origin) return true;
+    if (configuredCorsOrigins === "*") return true;
+    if (configuredCorsOrigins.includes(origin)) return true;
+
+    try {
+        const hostname = new URL(origin).hostname.toLowerCase();
+        return hostname === "sparta-alfamart.web.id" || hostname.endsWith(".sparta-alfamart.web.id");
+    } catch {
+        return false;
+    }
+};
 
 app.use(helmet({
     crossOriginResourcePolicy: false
 }));
-app.use(cors({ origin: corsOrigins }));
+app.use(cors({
+    origin: (origin, callback) => {
+        callback(null, isAllowedCorsOrigin(origin) ? origin || true : false);
+    }
+}));
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 

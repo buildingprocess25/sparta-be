@@ -152,6 +152,11 @@ export const buildProjekPlanningPdfBuffer = async (
         "WAITING_PP_MANAGER_APPROVAL",
         "COMPLETED",
     ].includes(status) && !!bmApproverEmailFinal;
+    const hasBmRegionalSignature = [
+        "WAITING_PP_APPROVAL_2",
+        "WAITING_PP_MANAGER_APPROVAL",
+        "COMPLETED",
+    ].includes(status) && !!projek.bm_regional_approver_email;
     const ppSpecialistApproverEmail = projek.pp2_approver_email || projek.pp1_approver_email;
     const ppSpecialistApprovalTime = projek.pp2_waktu_persetujuan || projek.pp1_waktu_persetujuan;
     const hasPpSpecialistSignature = [
@@ -176,11 +181,13 @@ export const buildProjekPlanningPdfBuffer = async (
         sparta_logo_path: staticAssetPath("Building-Logo.png"),
         created_at_formatted: formatDateIndonesia(projek.created_at),
         has_bm_signature: hasBmSignature,
+        has_bm_regional_signature: hasBmRegionalSignature,
         has_pp_specialist_signature: hasPpSpecialistSignature,
         has_pp_manager_signature: hasPpManagerSignature,
         pp_specialist_approver_email: ppSpecialistApproverEmail,
         bm_approver_email_final: bmApproverEmailFinal,
         bm_waktu_formatted: formatDateIndonesia(bmApprovalTimeFinal),
+        bm_regional_waktu_formatted: formatDateIndonesia(projek.bm_regional_waktu_persetujuan),
         pp2_waktu_formatted: formatDateIndonesia(ppSpecialistApprovalTime),
         pp_manager_waktu_formatted: formatDateIndonesia(projek.pp_manager_waktu_persetujuan),
         estimasi_biaya_formatted: formatCurrency(projek.estimasi_biaya),

@@ -113,6 +113,7 @@ export type RabMinimalRow = {
     status: RabStatus;
     logo: string | null;
     file_asuransi: string | null;
+    cabang: string | null;
 };
 
 // ---------------------------------------------------------------------------
@@ -278,9 +279,10 @@ export const rabRepository = {
 
     async findMinimalById(rabId: number): Promise<RabMinimalRow | null> {
         const result = await pool.query<RabMinimalRow>(
-            `SELECT id, id_toko, status, logo, file_asuransi
-             FROM rab
-             WHERE id = $1
+            `SELECT r.id, r.id_toko, r.status, r.logo, r.file_asuransi, t.cabang
+             FROM rab r
+             LEFT JOIN toko t ON t.id = r.id_toko
+             WHERE r.id = $1
              LIMIT 1`,
             [rabId]
         );
