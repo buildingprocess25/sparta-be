@@ -160,3 +160,13 @@ Startup bootstrap selesai
 [Scheduler] SP expiryReminders akan mulai dalam 1195 menit (jam 08:00 WIB)
 [Scheduler] SP weeklySummary akan mulai dalam 163 jam (Senin jam 07:00 WIB)
 Startup bootstrap selesai
+14.18.59 [tsx] change in ./src\modules\spk\spk.pdf.ts Restarting...
+crab-service running on port 8081
+✅ Token refreshed dari token.json
+✅ Service Sparta (Sheets) Berhasil.
+✅ Token refreshed dari token_doc.json
+✅ Service Dokumen (Sheets + Drive) Berhasil.
+[Scheduler] SP markExpiredSp akan mulai dalam 586 menit (jam 00:05 WIB)
+[Scheduler] SP expiryReminders akan mulai dalam 1061 menit (jam 08:00 WIB)
+[Scheduler] SP weeklySummary akan mulai dalam 161 jam (Senin jam 07:00 WIB)
+Startup bootstrap selesai
