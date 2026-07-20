@@ -114,3 +114,49 @@ Startup bootstrap selesai
 [Scheduler] SP expiryReminders akan mulai dalam 1226 menit (jam 08:00 WIB)
 [Scheduler] SP weeklySummary akan mulai dalam 163 jam (Senin jam 07:00 WIB)
 Startup bootstrap selesai
+11.59.54 [tsx] change in ./src\modules\dashboard\dashboard.export.ts Restarting...
+crab-service running on port 8081
+✅ Token refreshed dari token.json
+✅ Service Sparta (Sheets) Berhasil.
+✅ Token refreshed dari token_doc.json
+✅ Service Dokumen (Sheets + Drive) Berhasil.
+[Scheduler] SP markExpiredSp akan mulai dalam 725 menit (jam 00:05 WIB)
+[Scheduler] SP expiryReminders akan mulai dalam 1200 menit (jam 08:00 WIB)
+[Scheduler] SP weeklySummary akan mulai dalam 163 jam (Senin jam 07:00 WIB)
+Startup bootstrap selesai
+12.00.41 [tsx] change in ./src\modules\dashboard\dashboard.repository.ts Restarting...
+crab-service running on port 8081
+✅ Token refreshed dari token.json
+✅ Service Sparta (Sheets) Berhasil.
+✅ Token refreshed dari token_doc.json
+✅ Service Dokumen (Sheets + Drive) Berhasil.
+12.00.49 [tsx] change in ./src\modules\dashboard\dashboard.service.ts Restarting...
+crab-service running on port 8081
+✅ Token refreshed dari token.json
+✅ Service Sparta (Sheets) Berhasil.
+✅ Token refreshed dari token_doc.json
+✅ Service Dokumen (Sheets + Drive) Berhasil.
+[Scheduler] SP markExpiredSp akan mulai dalam 724 menit (jam 00:05 WIB)
+[Scheduler] SP expiryReminders akan mulai dalam 1199 menit (jam 08:00 WIB)
+[Scheduler] SP weeklySummary akan mulai dalam 163 jam (Senin jam 07:00 WIB)
+Startup bootstrap selesai
+12.02.28 [tsx] change in ./src\modules\dashboard\dashboard.repository.ts Restarting...
+crab-service running on port 8081
+✅ Token refreshed dari token.json
+✅ Service Sparta (Sheets) Berhasil.
+✅ Token refreshed dari token_doc.json
+✅ Service Dokumen (Sheets + Drive) Berhasil.
+[Scheduler] SP markExpiredSp akan mulai dalam 722 menit (jam 00:05 WIB)
+[Scheduler] SP expiryReminders akan mulai dalam 1197 menit (jam 08:00 WIB)
+[Scheduler] SP weeklySummary akan mulai dalam 163 jam (Senin jam 07:00 WIB)
+Startup bootstrap selesai
+12.04.29 [tsx] change in ./src\modules\dashboard\dashboard.repository.ts Restarting...
+crab-service running on port 8081
+✅ Token refreshed dari token.json
+✅ Service Sparta (Sheets) Berhasil.
+✅ Token refreshed dari token_doc.json
+✅ Service Dokumen (Sheets + Drive) Berhasil.
+[Scheduler] SP markExpiredSp akan mulai dalam 720 menit (jam 00:05 WIB)
+[Scheduler] SP expiryReminders akan mulai dalam 1195 menit (jam 08:00 WIB)
+[Scheduler] SP weeklySummary akan mulai dalam 163 jam (Senin jam 07:00 WIB)
+Startup bootstrap selesai
