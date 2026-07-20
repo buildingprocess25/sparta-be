@@ -62,7 +62,8 @@ app.use(helmet({
 app.use(cors({
     origin: (origin, callback) => {
         callback(null, isAllowedCorsOrigin(origin) ? origin || true : false);
-    }
+    },
+    exposedHeaders: ["Content-Disposition", "X-SPARTA-PDF-Source"]
 }));
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
