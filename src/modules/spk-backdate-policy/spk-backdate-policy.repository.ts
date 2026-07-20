@@ -1,5 +1,5 @@
 import { pool, withTransaction } from "../../db/pool";
-import { normalizeBranchScopeName } from "../../common/branch-scope";
+import { BRANCH_GROUPS, normalizeBranchScopeName } from "../../common/branch-scope";
 
 export const DEFAULT_SPK_BACKDATE_BRANCHES = [
     "LAMPUNG",
@@ -29,8 +29,23 @@ export type UpdateSpkBackdatePolicyInput = {
     actor_role?: string | null;
 };
 
+const getPolicyBranchKey = (branchName?: string | null): string => {
+    const normalized = normalizeBranchScopeName(branchName);
+    if (!normalized) return "";
+
+    for (const [parentBranch, branchGroup] of Object.entries(BRANCH_GROUPS)) {
+        const normalizedParent = normalizeBranchScopeName(parentBranch);
+        const normalizedGroup = branchGroup.map(normalizeBranchScopeName);
+        if (normalizedParent === normalized || normalizedGroup.includes(normalized)) {
+            return normalizedParent;
+        }
+    }
+
+    return normalized;
+};
+
 const normalizeBranches = (branches: string[]): string[] =>
-    Array.from(new Set(branches.map(normalizeBranchScopeName).filter(Boolean))).sort();
+    Array.from(new Set(branches.map(getPolicyBranchKey).filter(Boolean))).sort();
 
 export const spkBackdatePolicyRepository = {
     normalizeBranches,
@@ -91,7 +106,7 @@ export const spkBackdatePolicyRepository = {
     },
 
     async isBranchEnabled(branchName?: string | null): Promise<boolean> {
-        const normalized = normalizeBranchScopeName(branchName);
+        const normalized = getPolicyBranchKey(branchName);
         if (!normalized) return false;
 
         await this.ensureSchema();
