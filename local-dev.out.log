@@ -46,3 +46,71 @@ Startup bootstrap selesai
 [Scheduler] SP expiryReminders akan mulai dalam 1343 menit (jam 08:00 WIB)
 [Scheduler] SP weeklySummary akan mulai dalam 165 jam (Senin jam 07:00 WIB)
 Startup bootstrap selesai
+10.37.56 [tsx] change in ./src\modules\gantt\gantt.repository.ts Restarting...
+crab-service running on port 8081
+✅ Token refreshed dari token.json
+✅ Service Sparta (Sheets) Berhasil.
+✅ Token refreshed dari token_doc.json
+✅ Service Dokumen (Sheets + Drive) Berhasil.
+[Scheduler] SP markExpiredSp akan mulai dalam 807 menit (jam 00:05 WIB)
+[Scheduler] SP expiryReminders akan mulai dalam 1282 menit (jam 08:00 WIB)
+[Scheduler] SP weeklySummary akan mulai dalam 164 jam (Senin jam 07:00 WIB)
+Startup bootstrap selesai
+10.40.00 [tsx] change in ./src\modules\spk-backdate-policy\spk-backdate-policy.repository.ts Restarting...
+crab-service running on port 8081
+✅ Token refreshed dari token.json
+✅ Service Sparta (Sheets) Berhasil.
+✅ Token refreshed dari token_doc.json
+✅ Service Dokumen (Sheets + Drive) Berhasil.
+[Scheduler] SP markExpiredSp akan mulai dalam 805 menit (jam 00:05 WIB)
+[Scheduler] SP expiryReminders akan mulai dalam 1280 menit (jam 08:00 WIB)
+[Scheduler] SP weeklySummary akan mulai dalam 164 jam (Senin jam 07:00 WIB)
+Startup bootstrap selesai
+10.47.46 [tsx] change in ./src\common\branch-scope.ts Restarting...
+c10.47.52 [tsx] change in ./src\modules\spk-backdate-policy\spk-backdate-policy.repository.ts Restarting...
+crab-service running on port 8081
+✅ Token refreshed dari token.json
+✅ Service Sparta (Sheets) Berhasil.
+✅ Token refreshed dari token_doc.json
+✅ Service Dokumen (Sheets + Drive) Berhasil.
+10.48.05 [tsx] change in ./src\modules\spk-backdate-policy\spk-backdate-policy.controller.ts Restarting...
+crab-service running on port 8081
+✅ Token refreshed dari token.json
+✅ Service Sparta (Sheets) Berhasil.
+✅ Token refreshed dari token_doc.json
+✅ Service Dokumen (Sheets + Drive) Berhasil.
+[Scheduler] SP markExpiredSp akan mulai dalam 797 menit (jam 00:05 WIB)
+[Scheduler] SP expiryReminders akan mulai dalam 1272 menit (jam 08:00 WIB)
+[Scheduler] SP weeklySummary akan mulai dalam 164 jam (Senin jam 07:00 WIB)
+Startup bootstrap selesai
+11.32.45 [tsx] change in ./src\common\national-holidays.ts Restarting...
+crab-service running on port 8081
+✅ Token refreshed dari token.json
+✅ Service Sparta (Sheets) Berhasil.
+✅ Token refreshed dari token_doc.json
+✅ Service Dokumen (Sheets + Drive) Berhasil.
+[Scheduler] SP markExpiredSp akan mulai dalam 752 menit (jam 00:05 WIB)
+[Scheduler] SP expiryReminders akan mulai dalam 1227 menit (jam 08:00 WIB)
+[Scheduler] SP weeklySummary akan mulai dalam 163 jam (Senin jam 07:00 WIB)
+Startup bootstrap selesai
+11.33.14 [tsx] change in ./src\modules\spk\spk.repository.ts Restarting...
+crab-service running on port 8081
+✅ Token refreshed dari token.json
+✅ Service Sparta (Sheets) Berhasil.
+✅ Token refreshed dari token_doc.json
+✅ Service Dokumen (Sheets + Drive) Berhasil.
+[Scheduler] SP markExpiredSp akan mulai dalam 752 menit (jam 00:05 WIB)
+[Scheduler] SP expiryReminders akan mulai dalam 1227 menit (jam 08:00 WIB)
+[Scheduler] SP weeklySummary akan mulai dalam 163 jam (Senin jam 07:00 WIB)
+Startup bootstrap selesai
+11.33.37 [tsx] change in ./src\modules\gantt\gantt.repository.ts Restarting...
+c11.33.44 [tsx] change in ./src\modules\gantt\gantt.repository.ts Restarting...
+crab-service running on port 8081
+✅ Token refreshed dari token.json
+✅ Service Sparta (Sheets) Berhasil.
+✅ Token refreshed dari token_doc.json
+✅ Service Dokumen (Sheets + Drive) Berhasil.
+[Scheduler] SP markExpiredSp akan mulai dalam 751 menit (jam 00:05 WIB)
+[Scheduler] SP expiryReminders akan mulai dalam 1226 menit (jam 08:00 WIB)
+[Scheduler] SP weeklySummary akan mulai dalam 163 jam (Senin jam 07:00 WIB)
+Startup bootstrap selesai

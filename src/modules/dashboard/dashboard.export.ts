@@ -907,7 +907,7 @@ const buildSerahTerimaRows = (projects: DashboardData[]): Array<Record<string, u
     return rows;
 };
 
-const buildKtkOpnameFinalRows = (projects: DashboardData[]): Array<Record<string, unknown>> => {
+export const buildKtkOpnameFinalRows = (projects: DashboardData[]): Array<Record<string, unknown>> => {
     const rows: Array<Record<string, unknown>> = [];
     for (const project of projects) {
         const approvedSpks = project.spk.filter((s) => isApprovedSpk(s.status));
@@ -974,6 +974,13 @@ const buildProjectPlanningRows = (projects: DashboardData[]): Array<Record<strin
     }
     return rows;
 };
+
+export const ktkOpnameFinalExportSection = (projects: DashboardData[]): DashboardExportSection => ({
+    title: dataTypeLabels.KTK_OPNAME_FINAL,
+    filenamePart: `jenis_data_${normalizeFilePart(dataTypeLabels.KTK_OPNAME_FINAL, "KTK_OPNAME_FINAL")}`,
+    rows: buildKtkOpnameFinalRows(projects),
+    columns: ktkOpnameFinalExportColumns
+});
 
 // ---------------------------------------------------------------------------
 // Section builder — menggabungkan semua jenis data menjadi sections
@@ -1120,6 +1127,14 @@ export const filterDashboardExportAccess = (projects: DashboardData[], query: Da
         if (!matchesPeriodFilter(project, query)) return false;
         return true;
     });
+};
+
+export const isKtkOpnameFinalOnlyExport = (dataTypes?: string, jobTypes?: string): boolean => {
+    const selectedDataTypes = parseCsvSet(dataTypes);
+    const selectedJobTypes = parseCsvSet(jobTypes);
+    return selectedDataTypes.size === 1
+        && selectedDataTypes.has("KTK_OPNAME_FINAL")
+        && selectedJobTypes.size === 0;
 };
 
 export const buildDokumentasiIndex = (rows: Array<{
@@ -1557,5 +1572,36 @@ export const buildDashboardExportFile = async (
     };
 };
 
+export const buildKtkOpnameFinalExportFile = async (
+    format: DashboardExportQueryInput["format"],
+    projects: DashboardData[],
+    meta: { cabang: string; generatedBy: string }
+): Promise<{ buffer: Buffer; filename: string; contentType: string }> => {
+    const section = ktkOpnameFinalExportSection(projects);
+    const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    const cabang = normalizeUpper(meta.cabang || "ALL").replace(/[^A-Z0-9]+/g, "_") || "ALL";
+
+    if (format === "csv") {
+        return {
+            buffer: buildDashboardCsvZipBuffer([section]),
+            filename: `SPARTA_DASHBOARD_EXPORT_${cabang}_${stamp}.zip`,
+            contentType: "application/zip"
+        };
+    }
+
+    if (format === "pdf") {
+        return {
+            buffer: await buildDashboardPdfBuffer([section], meta),
+            filename: `SPARTA_DASHBOARD_EXPORT_${cabang}_${stamp}.pdf`,
+            contentType: "application/pdf"
+        };
+    }
+
+    return {
+        buffer: buildDashboardExcelMultiSheetBuffer([section]),
+        filename: `SPARTA_DASHBOARD_EXPORT_${cabang}_${stamp}.xlsx`,
+        contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    };
+};
 
 

@@ -7,6 +7,7 @@ import type {
     PengawasanItemInput
 } from "./gantt.schema";
 import { instruksiLapanganRepository, type InstruksiLapanganItemRow } from "../instruksi-lapangan/instruksi-lapangan.repository";
+import { calculateEffectiveStDate, toIsoDateString } from "../../common/national-holidays";
 
 // ---------------------------------------------------------------------------
 // Row types – sesuai tabel gantt_chart, kategori_pekerjaan_gantt, dll
@@ -201,6 +202,42 @@ const insertDependencies = async (
             [ganttId, idKategori, idKategoriTerikat]
         );
     }
+};
+
+const parseDateOnly = (value?: string | null): Date | null => {
+    const raw = String(value ?? "").trim();
+    if (!raw) return null;
+    const parsed = raw.includes("/")
+        ? (() => {
+            const [dd, mm, yyyy] = raw.split("/");
+            return new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+        })()
+        : new Date(raw.split("T")[0] + "T00:00:00");
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const buildStTargetInfo = (effectiveEnd?: string | null) => {
+    const endDate = parseDateOnly(effectiveEnd);
+    if (!endDate) {
+        return {
+            st_target_date: null,
+            st_offset_days: 0,
+            st_offset_label: null,
+            st_offset_explanation: null,
+            st_skipped_weekends: 0,
+            st_skipped_holidays: 0
+        };
+    }
+
+    const target = calculateEffectiveStDate(endDate);
+    return {
+        st_target_date: toIsoDateString(target.effectiveStDate),
+        st_offset_days: target.offsetDays,
+        st_offset_label: target.label,
+        st_offset_explanation: target.explanation,
+        st_skipped_weekends: target.skippedWeekends,
+        st_skipped_holidays: target.skippedHolidays
+    };
 };
 
 // ---------------------------------------------------------------------------
@@ -455,7 +492,10 @@ export const ganttRepository = {
             [nomorUlok]
         );
 
-        return result.rows;
+        return result.rows.map((row: any) => ({
+            ...row,
+            ...buildStTargetInfo(row.spk_effective_end_date)
+        }));
     },
     async findLatestActiveByTokoId(tokoId: number): Promise<GanttRow | null> {
         const result = await pool.query<GanttRow>(
@@ -1197,9 +1237,10 @@ export const ganttRepository = {
             return { tanggal_pengawasan: null, inserted_count: 0 };
         }
 
+        const stTargetDate = buildStTargetInfo(effectiveEnd).st_target_date ?? effectiveEnd;
         const formattedDate = await pool.query<{ tanggal_pengawasan: string }>(
             `SELECT to_char($1::date, 'DD/MM/YYYY') AS tanggal_pengawasan`,
-            [effectiveEnd]
+            [stTargetDate]
         );
         const tanggalPengawasan = formattedDate.rows[0].tanggal_pengawasan;
 

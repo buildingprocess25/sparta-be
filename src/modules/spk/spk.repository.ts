@@ -3,6 +3,7 @@ import { getBranchScopeCandidates } from "../../common/branch-scope";
 import { activityLogRepository } from "../activity-log/activity-log.repository";
 import { ACTIVE_SPK_STATUSES, SPK_APPROVED_STATUSES, type SpkStatus } from "./spk.constants";
 import type { SpkApprovalInput, SpkInterventionInput } from "./spk.schema";
+import { calculateEffectiveStDate, toIsoDateString } from "../../common/national-holidays";
 
 export type PengajuanSpkRow = {
     id: string;
@@ -43,6 +44,12 @@ export type SpkListRow = PengajuanSpkRow & {
     effective_waktu_selesai: string | null;
     effective_durasi: number | null;
     pertambahan_spk_approved_until: string | null;
+    st_target_date: string | null;
+    st_offset_days: number;
+    st_offset_label: string | null;
+    st_offset_explanation: string | null;
+    st_skipped_weekends: number;
+    st_skipped_holidays: number;
 };
 
 export type SpkApprovalLogRow = {
@@ -72,6 +79,42 @@ type SpkListJoinRow = PengajuanSpkRow & {
     toko_nama_toko: string | null;
     toko_cabang: string | null;
     toko_alamat: string | null;
+};
+
+const parseDateOnly = (value?: string | null): Date | null => {
+    const raw = String(value ?? "").trim();
+    if (!raw) return null;
+    const parsed = raw.includes("/")
+        ? (() => {
+            const [dd, mm, yyyy] = raw.split("/");
+            return new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+        })()
+        : new Date(raw.split("T")[0] + "T00:00:00");
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const buildStTargetInfo = (effectiveEnd?: string | null) => {
+    const endDate = parseDateOnly(effectiveEnd);
+    if (!endDate) {
+        return {
+            st_target_date: null,
+            st_offset_days: 0,
+            st_offset_label: null,
+            st_offset_explanation: null,
+            st_skipped_weekends: 0,
+            st_skipped_holidays: 0
+        };
+    }
+
+    const target = calculateEffectiveStDate(endDate);
+    return {
+        st_target_date: toIsoDateString(target.effectiveStDate),
+        st_offset_days: target.offsetDays,
+        st_offset_label: target.label,
+        st_offset_explanation: target.explanation,
+        st_skipped_weekends: target.skippedWeekends,
+        st_skipped_holidays: target.skippedHolidays
+    };
 };
 
 const SPK_COLUMNS = `
@@ -449,6 +492,7 @@ export const spkRepository = {
                 effective_waktu_selesai,
                 effective_durasi,
                 pertambahan_spk_approved_until,
+                ...buildStTargetInfo(effective_waktu_selesai),
                 toko: {
                     id: toko_id,
                     nomor_ulok: toko_nomor_ulok ?? spk.nomor_ulok,

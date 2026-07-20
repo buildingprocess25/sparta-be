@@ -1,5 +1,5 @@
 import { pool } from "../../db/pool";
-import type { DashboardAllQueryInput, DashboardQueryInput } from "./dashboard.schema";
+import type { DashboardAllQueryInput, DashboardExportQueryInput, DashboardQueryInput } from "./dashboard.schema";
 
 export type DashboardTokoRow = {
     id: number;
@@ -371,6 +371,16 @@ const normalizeDashboardUlok = (value: string | null | undefined) => String(valu
 const normalizeDashboardScope = (value: string | null | undefined) => String(value || "").trim().toUpperCase();
 const dashboardScopeKey = (nomorUlok: string | null | undefined, lingkup: string | null | undefined) =>
     `${normalizeDashboardUlok(nomorUlok)}\u0000${normalizeDashboardScope(lingkup)}`;
+
+const parseNumberCsv = (value?: string): number[] => String(value ?? "")
+    .split(",")
+    .map((item) => Number(item.trim()))
+    .filter((id) => Number.isInteger(id) && id > 0);
+
+const parseTextCsv = (value?: string): string[] => String(value ?? "")
+    .split(",")
+    .map((item) => item.trim().toUpperCase())
+    .filter(Boolean);
 
 export const dashboardRepository = {
     async findTokoByQuery(query: DashboardQueryInput): Promise<DashboardTokoRow | null> {
@@ -1314,6 +1324,179 @@ export const dashboardRepository = {
             project_planning: ppByTokoId.get(toko.id) ?? []
         }));
 
+    },
+
+    async findKtkOpnameFinalDashboard(query: DashboardExportQueryInput): Promise<DashboardData[]> {
+        const filters: string[] = [
+            `EXISTS (
+                SELECT 1
+                FROM opname_final ofn
+                WHERE ofn.id_toko = t.id
+                  AND UPPER(COALESCE(ofn.tipe_opname, '')) = 'OPNAME_FINAL'
+            )`
+        ];
+        const values: Array<string | number | number[] | string[]> = [];
+
+        if (query.search) {
+            values.push(`%${query.search}%`);
+            const idx = values.length;
+            filters.push(
+                `(t.nomor_ulok ILIKE $${idx} OR t.nama_toko ILIKE $${idx} OR t.kode_toko ILIKE $${idx} OR t.cabang ILIKE $${idx} OR CAST(t.id AS TEXT) ILIKE $${idx})`
+            );
+        }
+
+        const tokoIds = parseNumberCsv(query.toko_ids);
+        if (tokoIds.length > 0) {
+            values.push(tokoIds);
+            filters.push(`t.id = ANY($${values.length}::int[])`);
+        }
+
+        const cabangs = parseTextCsv(query.cabangs);
+        if (cabangs.length > 0) {
+            values.push(cabangs);
+            filters.push(`UPPER(COALESCE(t.cabang, '')) = ANY($${values.length}::text[])`);
+        }
+
+        if (query.cabang_array && query.cabang_array.length > 0) {
+            values.push(query.cabang_array.map((item) => item.toUpperCase()));
+            filters.push(`UPPER(COALESCE(t.cabang, '')) = ANY($${values.length}::text[])`);
+        }
+
+        if (query.cabang && query.cabang.toUpperCase() !== "ALL") {
+            values.push(query.cabang.toUpperCase());
+            filters.push(`UPPER(COALESCE(t.cabang, '')) = $${values.length}`);
+        }
+
+        const tokoResult = await pool.query<DashboardTokoRow>(
+            `
+            SELECT t.id, t.nomor_ulok, t.lingkup_pekerjaan, t.nama_toko, t.kode_toko, t.proyek,
+                   t.cabang, t.alamat, t.nama_kontraktor
+            FROM toko t
+            WHERE ${filters.join(" AND ")}
+            ORDER BY t.id DESC
+            `,
+            values
+        );
+
+        if (tokoResult.rows.length === 0) {
+            return [];
+        }
+
+        const selectedTokoIds = tokoResult.rows.map((row) => row.id);
+        const tokoIdsByScopeKey = new Map<string, number[]>();
+        for (const row of tokoResult.rows) {
+            const scopeKey = dashboardScopeKey(row.nomor_ulok, row.lingkup_pekerjaan);
+            const scopedIds = tokoIdsByScopeKey.get(scopeKey) ?? [];
+            scopedIds.push(row.id);
+            tokoIdsByScopeKey.set(scopeKey, scopedIds);
+        }
+
+        const opnameFinalResult = await pool.query<DashboardOpnameFinalRow>(
+            `
+            SELECT id, id_toko, tipe_opname, aksi, status_opname_final, link_pdf_opname, email_pembuat,
+                   pemberi_persetujuan_direktur, waktu_persetujuan_direktur, pemberi_persetujuan_koordinator,
+                   waktu_persetujuan_koordinator, pemberi_persetujuan_manager, waktu_persetujuan_manager,
+                   alasan_penolakan, grand_total_opname, grand_total_rab, hari_denda, nilai_denda,
+                   tanggal_akhir_spk_denda, tanggal_serah_terima_denda, created_at, grand_total_final
+            FROM opname_final
+            WHERE id_toko = ANY($1::int[])
+              AND UPPER(COALESCE(tipe_opname, '')) = 'OPNAME_FINAL'
+            ORDER BY created_at DESC, id DESC
+            `,
+            [toArrayParam(selectedTokoIds)]
+        );
+
+        const spkResult = await pool.query<DashboardSpkRow>(
+            `
+            SELECT p.id,
+                   COALESCE(p.id_toko, t.id) AS id_toko,
+                   p.nomor_ulok,
+                   p.email_pembuat,
+                   p.lingkup_pekerjaan,
+                   p.nama_kontraktor,
+                   p.proyek,
+                   p.waktu_mulai,
+                   p.durasi,
+                   p.waktu_selesai,
+                   p.grand_total,
+                   p.terbilang,
+                   p.nomor_spk,
+                   p.par,
+                   p.spk_manual_1,
+                   p.spk_manual_2,
+                   p.status,
+                   p.link_pdf,
+                   p.approver_email,
+                   p.waktu_persetujuan,
+                   p.alasan_penolakan,
+                   p.created_at
+            FROM pengajuan_spk p
+            LEFT JOIN toko t
+              ON t.nomor_ulok = p.nomor_ulok
+             AND LOWER(COALESCE(t.lingkup_pekerjaan, '')) = LOWER(COALESCE(p.lingkup_pekerjaan, ''))
+            WHERE COALESCE(p.id_toko, t.id) = ANY($1::int[])
+            ORDER BY p.created_at DESC, p.id DESC
+            `,
+            [toArrayParam(selectedTokoIds)]
+        );
+
+        const berkasSerahTerimaResult = await pool.query<DashboardBerkasSerahTerimaRow>(
+            `
+            SELECT id, id_toko, link_pdf, created_at
+            FROM berkas_serah_terima
+            WHERE id_toko = ANY($1::int[])
+            ORDER BY created_at DESC, id DESC
+            `,
+            [toArrayParam(selectedTokoIds)]
+        );
+
+        const opnameFinalByTokoId = new Map<number, Array<DashboardOpnameFinalRow & { items: DashboardOpnameItemRow[] }>>();
+        for (const row of opnameFinalResult.rows) {
+            pushMapArray(opnameFinalByTokoId, row.id_toko, {
+                ...row,
+                // Keep parity with the existing dashboard export path, which
+                // builds KTK rows from header values without item detail rows.
+                items: []
+            });
+        }
+
+        const spkByTokoId = new Map<number, Array<DashboardSpkRow & {
+            approval_logs: DashboardSpkApprovalLogRow[];
+            pertambahan_spk: DashboardPertambahanSpkRow[];
+        }>>();
+
+        for (const row of spkResult.rows) {
+            const mapped = {
+                ...row,
+                approval_logs: [],
+                pertambahan_spk: []
+            };
+            const explicitTokoId = Number(row.id_toko);
+            const targetTokoIds = selectedTokoIds.includes(explicitTokoId)
+                ? [explicitTokoId]
+                : (tokoIdsByScopeKey.get(dashboardScopeKey(row.nomor_ulok, row.lingkup_pekerjaan)) ?? []);
+            for (const targetTokoId of targetTokoIds) {
+                pushMapArray(spkByTokoId, targetTokoId, mapped);
+            }
+        }
+
+        const berkasSerahByTokoId = new Map<number, DashboardBerkasSerahTerimaRow[]>();
+        for (const row of berkasSerahTerimaResult.rows) {
+            pushMapArray(berkasSerahByTokoId, row.id_toko, row);
+        }
+
+        return tokoResult.rows.map((toko) => ({
+            toko,
+            rab: [],
+            gantt: [],
+            spk: spkByTokoId.get(toko.id) ?? [],
+            pic_pengawasan: null,
+            pengawasan_pdf_pending: [],
+            instruksi_lapangan: [],
+            opname_final: opnameFinalByTokoId.get(toko.id) ?? [],
+            berkas_serah_terima: berkasSerahByTokoId.get(toko.id) ?? [],
+            project_planning: []
+        }));
     },
 
     async findDokumentasiBangunanForExport(): Promise<DashboardDokumentasiBangunanRow[]> {

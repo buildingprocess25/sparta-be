@@ -1,9 +1,11 @@
 import { AppError } from "../../common/app-error";
 import {
+    buildKtkOpnameFinalExportFile,
     buildDashboardExportFile,
     buildDashboardExportRows,
     buildDokumentasiIndex,
-    filterDashboardExportAccess
+    filterDashboardExportAccess,
+    isKtkOpnameFinalOnlyExport
 } from "./dashboard.export";
 import type {
     DashboardAllQueryInput,
@@ -118,6 +120,19 @@ export const dashboardService = {
     },
 
     async exportDashboard(query: DashboardExportQueryInput) {
+        if (isKtkOpnameFinalOnlyExport(query.data_types, query.job_types)) {
+            const projects = await dashboardRepository.findKtkOpnameFinalDashboard(query);
+            const scopedProjects = filterDashboardExportAccess(projects, query);
+            const cabangLabel = query.cabang && query.cabang !== "ALL"
+                ? query.cabang
+                : (query.actor_cabang.toUpperCase() === "HEAD OFFICE" ? "Semua Cabang" : query.actor_cabang);
+
+            return buildKtkOpnameFinalExportFile(query.format, scopedProjects, {
+                cabang: cabangLabel,
+                generatedBy: query.actor_role
+            });
+        }
+
         const projects = await dashboardRepository.findAllDashboard({ search: query.search });
         const scopedProjects = filterDashboardExportAccess(projects, query);
         const dokumentasiRows = await dashboardRepository.findDokumentasiBangunanForExport();
@@ -132,6 +147,5 @@ export const dashboardService = {
         }, query.data_types, query.job_types, scopedProjects);
     }
 };
-
 
 

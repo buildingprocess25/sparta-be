@@ -248,8 +248,10 @@ export const countCalendarDaysAfterFreeDate = (freeDate: Date, stDate: Date): nu
 export const calculateEffectiveStDate = (spkEndDate: Date): {
     effectiveStDate: Date;
     skippedDays: number;
+    offsetDays: number;
     skippedWeekends: number;
     skippedHolidays: number;
+    label: string;
     explanation: string;
 } => {
     const normalized = startOfDay(spkEndDate);
@@ -268,6 +270,7 @@ export const calculateEffectiveStDate = (spkEndDate: Date): {
     }
     
     const totalSkipped = skippedWeekends + skippedHolidays;
+    const offsetDays = Math.max(0, Math.round((current.getTime() - normalized.getTime()) / (24 * 60 * 60 * 1000)));
     
     // Build explanation untuk Gantt Chart
     const parts: string[] = [];
@@ -278,15 +281,18 @@ export const calculateEffectiveStDate = (spkEndDate: Date): {
         parts.push(`${skippedHolidays} libur nasional`);
     }
     
+    const label = `SPK +${offsetDays} hari`;
     const explanation = parts.length > 0 
-        ? `SPK+${totalSkipped} (${parts.join(", ")})`
-        : "SPK (tidak ada skip)";
+        ? `${label} (${parts.join(", ")})`
+        : label;
     
     return {
         effectiveStDate: current,
         skippedDays: totalSkipped,
+        offsetDays,
         skippedWeekends,
         skippedHolidays,
+        label,
         explanation
     };
 };
