@@ -53,7 +53,7 @@ const numericCurrencyValue = (value: number | string | null | undefined): number
     return Number.isFinite(numeric) ? numeric : 0;
 };
 
-const roundSpkGrandTotal = (value: number): number => {
+const roundBeforePpn = (value: number): number => {
     if (!Number.isFinite(value) || value <= 0) return 0;
     return Math.floor(value / 10000) * 10000;
 };
@@ -182,7 +182,8 @@ export const spkService = {
         const waktuSelesai = endDate.toISOString();
 
         const approvedRabTotals = await spkRepository.findApprovedRabTotalsByTokoId(payload.id_toko);
-        const rawSpkGrandTotal = isNoPpnArea(toko)
+        const noPpnArea = isNoPpnArea(toko);
+        const rawSpkGrandTotal = noPpnArea
             ? numericCurrencyValue(approvedRabTotals?.grand_total_non_sbo)
                 || numericCurrencyValue(approvedRabTotals?.grand_total)
                 || numericCurrencyValue(approvedRabTotals?.grand_total_final)
@@ -190,7 +191,7 @@ export const spkService = {
             : numericCurrencyValue(approvedRabTotals?.grand_total_final)
                 || numericCurrencyValue(approvedRabTotals?.grand_total)
                 || payload.grand_total;
-        const spkGrandTotal = roundSpkGrandTotal(rawSpkGrandTotal);
+        const spkGrandTotal = noPpnArea ? roundBeforePpn(rawSpkGrandTotal) : rawSpkGrandTotal;
 
         // Hitung terbilang
         const totalCost = Math.floor(spkGrandTotal);

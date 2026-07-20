@@ -62,9 +62,14 @@ const staticAssetPath = (filename: string): string => {
     return "";
 };
 
-const roundSpkPdfTotal = (value: number): number => {
+const roundBeforePpn = (value: number): number => {
     if (!Number.isFinite(value) || value <= 0) return 0;
     return Math.floor(value / 10000) * 10000;
+};
+
+const isNoPpnArea = (cabang?: string | null): boolean => {
+    const normalized = String(cabang ?? "").trim().toUpperCase();
+    return normalized === "BATAM" || normalized === "BINTAN";
 };
 
 const terbilang = (angka: number): string => {
@@ -88,8 +93,10 @@ export const buildSpkPdfBuffer = async (input: BuildSpkPdfInput): Promise<Buffer
     const startFormatted = formatTanggal(p.waktu_mulai);
     const endFormatted = formatTanggal(p.waktu_selesai);
     const today = formatTanggal(new Date().toISOString());
-    const roundedGrandTotal = roundSpkPdfTotal(Number(p.grand_total));
-    const totalFormatted = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(roundedGrandTotal);
+    const displayGrandTotal = isNoPpnArea(input.tokoCabang)
+        ? roundBeforePpn(Number(p.grand_total))
+        : Number(p.grand_total);
+    const totalFormatted = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(displayGrandTotal);
     const isBatam = input.tokoCabang.toUpperCase() === "BATAM";
     const initiatorRole = isBatam ? "Branch Building Coordinator" : "Branch Building & Maintenance Manager";
 
@@ -122,7 +129,7 @@ export const buildSpkPdfBuffer = async (input: BuildSpkPdfInput): Promise<Buffer
         nama_toko: input.tokoNama,
         kode_toko: input.tokoKode,
         total_cost_formatted: totalFormatted,
-        terbilang: terbilang(Math.floor(roundedGrandTotal)),
+        terbilang: terbilang(Math.floor(displayGrandTotal)),
         start_date: startFormatted,
         end_date: endFormatted,
         duration: p.durasi,
