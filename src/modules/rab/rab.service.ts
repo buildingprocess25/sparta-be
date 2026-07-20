@@ -520,6 +520,8 @@ const syncDetailItemsWithBranchPrices = async (
 
             return {
                 ...item,
+                kategori_pekerjaan: price.category || item.kategori_pekerjaan,
+                jenis_pekerjaan: price.jenisPekerjaan || item.jenis_pekerjaan,
                 satuan: price.satuan || item.satuan,
                 harga_material: hargaMaterial,
                 harga_upah: hargaUpah,
