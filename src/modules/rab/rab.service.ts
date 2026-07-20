@@ -157,6 +157,7 @@ type NumericPrice = {
 type PriceLookup = {
     byJob: Map<string, NumericPrice>;
     byCategoryAndJob: Map<string, NumericPrice>;
+    candidates: NumericPrice[];
 };
 
 const normalizePriceLookupKey = (value: string): string => {
@@ -165,6 +166,77 @@ const normalizePriceLookupKey = (value: string): string => {
         .replace(/\s+/g, " ")
         .replace(/[^\p{L}\p{N}\s]/gu, "")
         .trim();
+};
+
+const FUZZY_JOB_MATCH_THRESHOLD = 0.82;
+const FUZZY_JOB_MATCH_MARGIN = 0.06;
+const JOB_MATCH_STOPWORDS = new Set([
+    "pekerjaan", "pasang", "pemasangan", "merk", "ukuran", "warna",
+    "dan", "atau", "dengan", "untuk", "unit", "buah", "set", "type"
+]);
+
+const tokenizeJobName = (value?: string | null): string[] =>
+    normalizePriceLookupKey(value ?? "")
+        .split(" ")
+        .filter((token) => token.length > 1 && !JOB_MATCH_STOPWORDS.has(token));
+
+const levenshteinDistance = (left: string, right: string): number => {
+    if (left === right) return 0;
+    if (!left) return right.length;
+    if (!right) return left.length;
+
+    const previous = Array.from({ length: right.length + 1 }, (_, index) => index);
+    const current = Array(right.length + 1).fill(0);
+
+    for (let i = 1; i <= left.length; i += 1) {
+        current[0] = i;
+        for (let j = 1; j <= right.length; j += 1) {
+            const substitutionCost = left[i - 1] === right[j - 1] ? 0 : 1;
+            current[j] = Math.min(
+                current[j - 1] + 1,
+                previous[j] + 1,
+                previous[j - 1] + substitutionCost
+            );
+        }
+        for (let j = 0; j <= right.length; j += 1) previous[j] = current[j];
+    }
+
+    return previous[right.length];
+};
+
+const stringSimilarity = (left: string, right: string): number => {
+    const a = normalizePriceLookupKey(left);
+    const b = normalizePriceLookupKey(right);
+    if (!a || !b) return 0;
+    if (a === b) return 1;
+
+    const maxLength = Math.max(a.length, b.length);
+    return maxLength === 0 ? 0 : 1 - (levenshteinDistance(a, b) / maxLength);
+};
+
+const tokenSimilarity = (left: string, right: string): number => {
+    const leftTokens = new Set(tokenizeJobName(left));
+    const rightTokens = new Set(tokenizeJobName(right));
+    if (leftTokens.size === 0 || rightTokens.size === 0) return 0;
+
+    let overlap = 0;
+    leftTokens.forEach((token) => {
+        if (rightTokens.has(token)) overlap += 1;
+    });
+
+    return (2 * overlap) / (leftTokens.size + rightTokens.size);
+};
+
+const fuzzyJobScore = (left?: string | null, right?: string | null): number => {
+    const a = normalizePriceLookupKey(left ?? "");
+    const b = normalizePriceLookupKey(right ?? "");
+    if (!a || !b) return 0;
+    if (a === b) return 1;
+
+    const stringScore = stringSimilarity(a, b);
+    const tokenScore = tokenSimilarity(a, b);
+    const containsBonus = a.includes(b) || b.includes(a) ? 0.08 : 0;
+    return Math.min(1, Math.max(stringScore, (tokenScore * 0.78) + (stringScore * 0.22) + containsBonus));
 };
 
 const priceValueToNumberOrNull = (value: unknown): number | null => {
@@ -186,6 +258,7 @@ const isManualInputFlag = (value: unknown): boolean =>
 const buildPriceLookup = (priceData: PriceResult): PriceLookup => {
     const byJob = new Map<string, NumericPrice>();
     const byCategoryAndJob = new Map<string, NumericPrice>();
+    const candidates: NumericPrice[] = [];
 
     for (const [category, items] of Object.entries(priceData)) {
         for (const item of items) {
@@ -205,10 +278,42 @@ const buildPriceLookup = (priceData: PriceResult): PriceLookup => {
 
             byCategoryAndJob.set(`${normalizePriceLookupKey(category)}|${key}`, price);
             if (!byJob.has(key)) byJob.set(key, price);
+            candidates.push(price);
         }
     }
 
-    return { byJob, byCategoryAndJob };
+    return { byJob, byCategoryAndJob, candidates };
+};
+
+const findBestPriceMatch = (
+    lookup: PriceLookup,
+    category: string,
+    jenisPekerjaan: string
+): NumericPrice | null => {
+    const categoryKey = normalizePriceLookupKey(category);
+    const jobKey = normalizePriceLookupKey(jenisPekerjaan);
+    if (!jobKey) return null;
+
+    const exactCategoryMatch = lookup.byCategoryAndJob.get(`${categoryKey}|${jobKey}`);
+    if (exactCategoryMatch) return exactCategoryMatch;
+
+    const exactJobMatch = lookup.byJob.get(jobKey);
+    if (exactJobMatch) return exactJobMatch;
+
+    const ranked = lookup.candidates
+        .map((candidate) => {
+            const sameCategory = normalizePriceLookupKey(candidate.category) === categoryKey;
+            const score = fuzzyJobScore(jenisPekerjaan, candidate.jenisPekerjaan) + (sameCategory ? 0.04 : 0);
+            return { candidate, score };
+        })
+        .filter((item) => item.score >= FUZZY_JOB_MATCH_THRESHOLD)
+        .sort((a, b) => b.score - a.score);
+
+    if (ranked.length === 0) return null;
+    const [best, second] = ranked;
+    if (second && best.score - second.score < FUZZY_JOB_MATCH_MARGIN) return null;
+
+    return best.candidate;
 };
 
 const hasSuperHumanRole = (role?: string | null): boolean => {
@@ -499,10 +604,7 @@ const syncDetailItemsWithBranchPrices = async (
         const unmatchedItems: string[] = [];
 
         const syncedItems = detailItems.map((item) => {
-            const itemCategoryKey = normalizePriceLookupKey(item.kategori_pekerjaan);
-            const itemJobKey = normalizePriceLookupKey(item.jenis_pekerjaan);
-            const price = lookup.byCategoryAndJob.get(`${itemCategoryKey}|${itemJobKey}`)
-                ?? lookup.byJob.get(itemJobKey);
+            const price = findBestPriceMatch(lookup, item.kategori_pekerjaan, item.jenis_pekerjaan);
             if (!price) {
                 unmatchedItems.push(`${item.kategori_pekerjaan} - ${item.jenis_pekerjaan}`);
                 return item;
