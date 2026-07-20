@@ -291,9 +291,9 @@
     </tr>
     <tr>
       <td class="label">P x L Bangunan</td>
-      <td class="value">: {{ (projek.p_bangunan + ' x ' + projek.l_bangunan) if projek.p_bangunan and projek.l_bangunan else (projek.pxl_bangunan or '-') }}</td>
+      <td class="value">: {{ (projek.p_bangunan + ' m x ' + projek.l_bangunan + ' m') if projek.p_bangunan and projek.l_bangunan else (projek.pxl_bangunan or '-') }}</td>
       <td class="label">P x L Parkir</td>
-      <td class="value">: {{ (projek.p_area_parkir + ' x ' + projek.l_area_parkir) if projek.p_area_parkir and projek.l_area_parkir else (projek.pxl_area_parkir or '-') }}</td>
+      <td class="value">: {{ (projek.p_area_parkir + ' m x ' + projek.l_area_parkir + ' m') if projek.p_area_parkir and projek.l_area_parkir else (projek.pxl_area_parkir or '-') }}</td>
     </tr>
   </table>
 
