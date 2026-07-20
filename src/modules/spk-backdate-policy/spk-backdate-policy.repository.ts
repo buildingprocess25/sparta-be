@@ -102,7 +102,7 @@ export const spkBackdatePolicyRepository = {
             WHERE is_enabled = true
             ORDER BY branch_name ASC
         `);
-        return result.rows.map((row) => row.branch_name);
+        return normalizeBranches(result.rows.map((row) => row.branch_name));
     },
 
     async isBranchEnabled(branchName?: string | null): Promise<boolean> {

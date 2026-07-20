@@ -10,6 +10,7 @@ const hasSuperHumanRole = (user?: AuthenticatedUser | null): boolean =>
 
 export const spkBackdatePolicyService = {
     ensureSchema: () => spkBackdatePolicyRepository.ensureSchema(),
+    normalizeBranches: (branches: string[]) => spkBackdatePolicyRepository.normalizeBranches(branches),
 
     async list(actor?: AuthenticatedUser | null): Promise<{ rows: SpkBackdatePolicyRow[]; can_manage: boolean }> {
         const rows = await spkBackdatePolicyRepository.list();
