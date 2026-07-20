@@ -11,3 +11,38 @@ rab-service running on port 8081
 [Scheduler] SP expiryReminders akan mulai dalam 1352 menit (jam 08:00 WIB)
 [Scheduler] SP weeklySummary akan mulai dalam 166 jam (Senin jam 07:00 WIB)
 Startup bootstrap selesai
+09.32.22 [tsx] change in ./src\modules\rab\rab.service.ts Restarting...
+c09.32.30 [tsx] change in ./src\modules\spk\spk.service.ts Restarting...
+c09.32.37 [tsx] change in ./src\modules\gantt\gantt.service.ts Restarting...
+c09.32.46 [tsx] change in ./src\modules\project-planning\project-planning.service.ts Restarting...
+crab-service running on port 8081
+✅ Token refreshed dari token.json
+✅ Service Sparta (Sheets) Berhasil.
+✅ Token refreshed dari token_doc.json
+✅ Service Dokumen (Sheets + Drive) Berhasil.
+[Scheduler] SP markExpiredSp akan mulai dalam 872 menit (jam 00:05 WIB)
+[Scheduler] SP expiryReminders akan mulai dalam 1347 menit (jam 08:00 WIB)
+[Scheduler] SP weeklySummary akan mulai dalam 165 jam (Senin jam 07:00 WIB)
+Startup bootstrap selesai
+09.34.42 [tsx] change in ./src\modules\spk\spk-migration.service.ts Restarting...
+c09.34.48 [tsx] change in ./src\modules\gantt\gantt-migration.service.ts Restarting...
+c09.34.53 [tsx] change in ./src\modules\rab\rab-migration.service.ts Restarting...
+crab-service running on port 8081
+✅ Token refreshed dari token.json
+✅ Service Sparta (Sheets) Berhasil.
+✅ Token refreshed dari token_doc.json
+✅ Service Dokumen (Sheets + Drive) Berhasil.
+[Scheduler] SP markExpiredSp akan mulai dalam 870 menit (jam 00:05 WIB)
+[Scheduler] SP expiryReminders akan mulai dalam 1345 menit (jam 08:00 WIB)
+[Scheduler] SP weeklySummary akan mulai dalam 165 jam (Senin jam 07:00 WIB)
+Startup bootstrap selesai
+09.36.32 [tsx] change in ./src\modules\rab\rab.service.ts Restarting...
+crab-service running on port 8081
+✅ Token refreshed dari token.json
+✅ Service Sparta (Sheets) Berhasil.
+✅ Token refreshed dari token_doc.json
+✅ Service Dokumen (Sheets + Drive) Berhasil.
+[Scheduler] SP markExpiredSp akan mulai dalam 868 menit (jam 00:05 WIB)
+[Scheduler] SP expiryReminders akan mulai dalam 1343 menit (jam 08:00 WIB)
+[Scheduler] SP weeklySummary akan mulai dalam 165 jam (Senin jam 07:00 WIB)
+Startup bootstrap selesai
