@@ -7,6 +7,7 @@ import { systemMaintenanceService } from "./modules/system-maintenance/system-ma
 import { systemAccessScheduleService } from "./modules/system-access-schedule/system-access-schedule.service";
 import { serahTerimaService } from "./modules/serah-terima/serah-terima.service";
 import { spCronService } from "./modules/surat-peringatan/sp.cron.service";
+import { spkBackdatePolicyService } from "./modules/spk-backdate-policy/spk-backdate-policy.service";
 
 const cleanupAuthSessions = async () => {
     const deletedCount = await authSessionRepository.deleteExpiredOlderThan(env.AUTH_SESSION_RETENTION_DAYS);
@@ -79,6 +80,7 @@ const bootstrap = async () => {
     await authOtpRepository.ensureSchema();
     await systemMaintenanceService.ensureSchema();
     await systemAccessScheduleService.ensureSchema();
+    await spkBackdatePolicyService.ensureSchema();
     await serahTerimaService.ensureDateCorrectionAuditSchema();
     await cleanupAuthSessions();
 

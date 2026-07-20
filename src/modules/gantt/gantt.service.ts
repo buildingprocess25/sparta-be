@@ -1,4 +1,5 @@
 import { AppError } from "../../common/app-error";
+import { normalizeProjectByUlok } from "../../common/project-type";
 import * as xlsx from "xlsx";
 import { tokoRepository } from "../toko/toko.repository";
 import { picPengawasanService } from "../pic-pengawasan/pic-pengawasan.service";
@@ -282,6 +283,7 @@ export const ganttService = {
     async submit(payload: SubmitGanttInput) {
         const kategoriPekerjaan = [...payload.kategori_pekerjaan];
         includeDependencyCategories(kategoriPekerjaan, payload.dependencies);
+        const normalizedProject = normalizeProjectByUlok(payload.nomor_ulok, payload.proyek);
 
         // 1. Jika sudah ada gantt aktif untuk ULOK ini, lakukan replace data (bukan create baru)
 
@@ -297,7 +299,7 @@ export const ganttService = {
                     lingkup_pekerjaan: payload.lingkup_pekerjaan,
                     nama_toko: payload.nama_toko,
                     kode_toko: payload.kode_toko,
-                    proyek: payload.proyek,
+                    proyek: normalizedProject,
                     cabang: payload.cabang,
                 });
 
@@ -329,7 +331,7 @@ export const ganttService = {
             lingkup_pekerjaan: payload.lingkup_pekerjaan,
             nama_toko: payload.nama_toko,
             kode_toko: payload.kode_toko,
-            proyek: payload.proyek,
+            proyek: normalizedProject,
             cabang: payload.cabang,
             // gantt fields
             email_pembuat: payload.email_pembuat,

@@ -1,6 +1,7 @@
 import * as xlsx from "xlsx";
 import type { PoolClient } from "pg";
 import { AppError } from "../../common/app-error";
+import { normalizeProjectByUlok } from "../../common/project-type";
 import { pool, withTransaction } from "../../db/pool";
 import { activityLogRepository } from "../activity-log/activity-log.repository";
 import type { RabMigrationAction, RabMigrationCommitInput } from "./rab-migration.schema";
@@ -519,7 +520,7 @@ const parseLegacyWorkbook = (workbook: xlsx.WorkBook): ParsedWorkbook => {
             lingkup_pekerjaan: nullableText(row.lingkup_pekerjaan),
             nama_toko: nullableText(row.nama_toko),
             kode_toko: nullableText(row.kode_toko),
-            proyek: nullableText(row.proyek),
+            proyek: normalizeProjectByUlok(nomorUlok, nullableText(row.proyek)),
             cabang: nullableText(row.cabang),
             alamat: nullableText(row.alamat),
             nama_kontraktor: nullableText(row.nama_kontraktor)
@@ -703,7 +704,7 @@ const parseDataFormWorkbook = async (workbook: xlsx.WorkBook): Promise<ParsedWor
             lingkup_pekerjaan: lingkup,
             nama_toko: nullableText(row.nama_toko) ?? enriched?.nama_toko ?? null,
             kode_toko: enriched?.kode_toko ?? null,
-            proyek: nullableText(row.Proyek),
+            proyek: normalizeProjectByUlok(nomorUlok, nullableText(row.Proyek)),
             cabang: nullableText(row.Cabang),
             alamat: nullableText(row.Alamat),
             nama_kontraktor: nullableText(row.Nama_PT) ?? enriched?.nama_kontraktor ?? null

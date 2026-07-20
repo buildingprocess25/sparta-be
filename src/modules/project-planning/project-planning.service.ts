@@ -5,6 +5,7 @@ import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
 import { buildProjekPlanningPdfBuffer } from "./project-planning.pdf";
 import { compressImage } from "../../common/image-compressor";
+import { normalizeProjectByUlok } from "../../common/project-type";
 
 const PROJECT_PLANNING_DRIVE_FOLDER_ID = env.PROJECT_PLANNING_DRIVE_FOLDER_ID;
 
@@ -298,6 +299,8 @@ export const projekPlanningService = {
                 .forEach((link, idx) => fotoItemsLinks.push({ item_index: 39 + idx, link_foto: link }));
         }
 
+        const normalizedProject = normalizeProjectByUlok(nomorUlok, payload.jenis_proyek);
+
         // Buat record baru sesuai alur cabang
         const created = await projekPlanningRepository.create({
             ...payload,
@@ -312,7 +315,8 @@ export const projekPlanningService = {
             cabang: payload.cabang || null,
             alamat_toko: payload.alamat_toko || null,
             link_google_maps: payload.link_google_maps || null,
-            proyek: payload.jenis_proyek || null,
+            proyek: normalizedProject,
+            jenis_proyek: normalizedProject,
             beanspot_tipe: normalizeBeanspotTipe(payload.beanspot_tipe),
             link_fpd: fpdLink ?? undefined,
             link_siteplan: siteplanLink ?? undefined,
@@ -439,6 +443,8 @@ export const projekPlanningService = {
             link_ba_tidak_sesuai_standar: baTidakSesuaiStandarLink ?? projek.link_ba_tidak_sesuai_standar ?? null,
         });
 
+        const normalizedProject = normalizeProjectByUlok(projek.nomor_ulok, payload.jenis_proyek || projek.proyek);
+
         const updated = await projekPlanningRepository.resubmitDraft(id, {
             ...payload,
             is_head_to_head: darkStoreDesign ? false : payload.is_head_to_head,
@@ -450,7 +456,8 @@ export const projekPlanningService = {
             cabang: payload.cabang || projek.cabang || null,
             alamat_toko: payload.alamat_toko || projek.alamat_toko || null,
             link_google_maps: payload.link_google_maps || projek.link_google_maps || null,
-            proyek: payload.jenis_proyek || projek.proyek || null,
+            proyek: normalizedProject,
+            jenis_proyek: normalizedProject,
             beanspot_tipe: normalizeBeanspotTipe(payload.beanspot_tipe),
             link_fpd: fpdLink ?? projek.link_fpd ?? undefined,
             link_siteplan: siteplanLink ?? projek.link_siteplan ?? undefined,
@@ -521,7 +528,7 @@ export const projekPlanningService = {
             nama_toko: projek.nama_toko || projek.nama_lokasi || null,
             cabang: projek.cabang,
             alamat: projek.alamat_toko,
-            proyek: projek.proyek || projek.jenis_proyek || null,
+            proyek: normalizeProjectByUlok(projek.nomor_ulok, projek.proyek || projek.jenis_proyek),
             lingkup_pekerjaan: query.lingkup,
             luas_bangunan: projek.luas_bangunan,
             luas_area_terbuka: projek.luas_area_terbuka,

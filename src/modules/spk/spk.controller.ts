@@ -7,7 +7,7 @@ import { spkService } from "./spk.service";
 
 export const submitSpk = asyncHandler(async (req: Request, res: Response) => {
     const payload = submitSpkSchema.parse(req.body);
-    const data = await spkService.submit(payload);
+    const data = await spkService.submit(payload, req.user);
 
     res.status(201).json({
         status: "success",

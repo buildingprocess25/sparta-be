@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import * as xlsx from "xlsx";
 import { AppError } from "../../common/app-error";
+import { normalizeProjectByUlok } from "../../common/project-type";
 import { pool } from "../../db/pool";
 import { activityLogRepository } from "../activity-log/activity-log.repository";
 import { GANTT_STATUS } from "./gantt.constants";
@@ -315,7 +316,7 @@ const parseWorkbook = (buffer: Buffer): MigrationCandidate[] => {
             lingkup_pekerjaan: lingkup,
             nama_toko: normalizeText(header.Nama_Toko) || null,
             kode_toko: normalizeText(header.Kode_Toko) || null,
-            proyek: normalizeText(header.Proyek) || null,
+            proyek: normalizeProjectByUlok(nomorUlok, normalizeText(header.Proyek)),
             cabang: normalizeText(header.Cabang) || null,
             alamat: normalizeText(header.Alamat) || null,
             nama_kontraktor: normalizeText(header.Nama_Kontraktor) || null,

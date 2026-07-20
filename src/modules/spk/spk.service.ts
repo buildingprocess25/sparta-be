@@ -1,5 +1,6 @@
 import { AppError } from "../../common/app-error";
 import { GoogleProvider } from "../../common/google";
+import { normalizeProjectByUlok } from "../../common/project-type";
 import { env } from "../../config/env";
 import { opnameFinalService } from "../opname-final/opname-final.service";
 import { tokoRepository } from "../toko/toko.repository";
@@ -7,6 +8,8 @@ import { SPK_STATUS, getCabangCode } from "./spk.constants";
 import { buildSpkPdfBuffer } from "./spk.pdf";
 import { spkRepository } from "./spk.repository";
 import type { SpkApprovalInput, SpkInterventionInput, SpkListQuery, SubmitSpkInput } from "./spk.schema";
+import type { AuthenticatedUser } from "../auth/auth-session.service";
+import { spkBackdatePolicyService } from "../spk-backdate-policy/spk-backdate-policy.service";
 
 const terbilang = (angka: number): string => {
     const satuan = ["", "Satu", "Dua", "Tiga", "Empat", "Lima", "Enam", "Tujuh", "Delapan", "Sembilan", "Sepuluh", "Sebelas"];
@@ -25,6 +28,19 @@ const terbilang = (angka: number): string => {
 };
 
 const normalizeText = (value?: string | null): string => String(value ?? "").trim().toUpperCase();
+
+const parseDateOnly = (value: string): Date | null => {
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!match) return null;
+    const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const todayJakartaDateOnly = (): Date => {
+    const now = new Date();
+    const jakarta = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Jakarta" }));
+    return new Date(jakarta.getFullYear(), jakarta.getMonth(), jakarta.getDate());
+};
 
 const numericCurrencyValue = (value: number | string | null | undefined): number => {
     if (value === null || value === undefined) return 0;
@@ -95,7 +111,7 @@ async function regenerateSpkPdfAndUpload(
 }
 
 export const spkService = {
-    async submit(payload: SubmitSpkInput) {
+    async submit(payload: SubmitSpkInput, actor?: AuthenticatedUser | null) {
         // Validasi tambahan untuk kode toko
         const kodeToko = payload.kode_toko?.trim().toUpperCase();
         if (!kodeToko || kodeToko.length !== 4) {
@@ -125,6 +141,30 @@ export const spkService = {
                 `Data toko untuk ULOK ${payload.nomor_ulok} dengan lingkup ${payload.lingkup_pekerjaan} tidak cocok`,
                 409
             );
+        }
+
+        const startDateOnly = parseDateOnly(payload.waktu_mulai);
+        if (!startDateOnly) {
+            throw new AppError("Tanggal mulai SPK tidak valid.", 400);
+        }
+
+        const today = todayJakartaDateOnly();
+        if (startDateOnly.getTime() < today.getTime()) {
+            const canBackdate = await spkBackdatePolicyService.canBackdateBranch(toko.cabang);
+            if (!canBackdate) {
+                throw new AppError(
+                    `Cabang ${toko.cabang || "-"} tidak memiliki izin backdate SPK. Hubungi Super Human untuk mengaktifkan policy cabang ini.`,
+                    403
+                );
+            }
+
+            if (!actor) {
+                console.warn("[SPK_BACKDATE] Request backdate tanpa session actor valid", {
+                    nomor_ulok: payload.nomor_ulok,
+                    cabang: toko.cabang,
+                    waktu_mulai: payload.waktu_mulai,
+                });
+            }
         }
 
         const existingSpkByToko = await spkRepository.findLatestByTokoId(payload.id_toko);
@@ -162,13 +202,15 @@ export const spkService = {
         const sequence = await spkRepository.getNextSequence(toko.cabang, now.getFullYear(), now.getMonth() + 1);
         const nomorSpk = `${String(sequence).padStart(3, "0")}/PROPNDEV-${cabangCode}/${payload.spk_manual_1}/${payload.spk_manual_2}`;
 
+        const normalizedProject = normalizeProjectByUlok(payload.nomor_ulok, payload.proyek);
+
         const submitPayload = {
             id_toko: payload.id_toko,
             nomor_ulok: payload.nomor_ulok,
             email_pembuat: payload.email_pembuat,
             lingkup_pekerjaan: payload.lingkup_pekerjaan,
             nama_kontraktor: payload.nama_kontraktor,
-            proyek: payload.proyek,
+            proyek: normalizedProject ?? payload.proyek,
             waktu_mulai: payload.waktu_mulai,
             durasi: payload.durasi,
             waktu_selesai: waktuSelesai,
@@ -187,7 +229,7 @@ export const spkService = {
 
         try {
             const linkPdf = await regenerateSpkPdfAndUpload(String(created.id), {
-                proyek: payload.proyek,
+                proyek: normalizedProject ?? payload.proyek,
                 nomorUlok: payload.nomor_ulok
             });
 

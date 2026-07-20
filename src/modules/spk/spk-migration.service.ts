@@ -1,6 +1,7 @@
 import * as xlsx from "xlsx";
 import type { PoolClient } from "pg";
 import { AppError } from "../../common/app-error";
+import { normalizeProjectByUlok } from "../../common/project-type";
 import { pool, withTransaction } from "../../db/pool";
 import { activityLogRepository } from "../activity-log/activity-log.repository";
 import { SPK_STATUS, type SpkStatus } from "./spk.constants";
@@ -56,7 +57,7 @@ type ExistingSpk = {
 const UNKNOWN_PROJECT = "Tidak Diketahui";
 
 const inferProjectFromUlok = (nomorUlok: string): string =>
-    /R$/i.test(nomorUlok.trim()) ? "Renovasi" : "Alfamart Reguler";
+    /-R$/i.test(nomorUlok.trim()) ? "Renovasi" : "Alfamart Reguler";
 
 const hasSuperHumanRole = (role: string) => role.toUpperCase().includes("SUPER HUMAN");
 
@@ -186,12 +187,13 @@ const parseWorkbook = (buffer: Buffer): Candidate[] => {
             ?? projectByUlok.get((nomorUlok ?? "").toUpperCase())
             ?? null;
         const projectFromUlok = nomorUlok ? inferProjectFromUlok(nomorUlok) : null;
+        const rawProject = projectFromSource ?? projectFromRelatedData ?? projectFromUlok ?? UNKNOWN_PROJECT;
         const spk: SourceSpk = {
             source_spk_id: sourceSpkId,
             nomor_spk: nomorSpk ?? "",
             par: nullableText(row.PAR),
             nomor_ulok: nomorUlok ?? "",
-            proyek: projectFromSource ?? projectFromRelatedData ?? projectFromUlok ?? UNKNOWN_PROJECT,
+            proyek: normalizeProjectByUlok(nomorUlok, rawProject) ?? UNKNOWN_PROJECT,
             alamat: nullableText(row.Alamat),
             cabang: nullableText(row.Cabang),
             kode_toko: nullableText(row["Kode Toko"]),

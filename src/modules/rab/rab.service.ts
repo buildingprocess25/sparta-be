@@ -1,6 +1,7 @@
 import { AppError } from "../../common/app-error";
 import { getBranchScopeCandidates, isSameBranchScope } from "../../common/branch-scope";
 import { GoogleProvider } from "../../common/google";
+import { normalizeProjectByUlok } from "../../common/project-type";
 import { env } from "../../config/env";
 import { tokoRepository } from "../toko/toko.repository";
 import { userCabangRepository } from "../user-cabang/user-cabang.repository";
@@ -1415,12 +1416,14 @@ export const rabService = {
             logRab("SUBMIT", "Rev file asuransi (file) diupload", { insuranceLink });
         }
 
+        const normalizedProject = normalizeProjectByUlok(payload.nomor_ulok, payload.proyek) ?? payload.proyek;
+
         const submitPayload = {
             // toko fields
             nomor_ulok: payload.nomor_ulok,
             lingkup_pekerjaan: normalizedLingkupPekerjaan,
             nama_toko: payload.nama_toko,
-            proyek: payload.proyek,
+            proyek: normalizedProject,
             cabang: payload.cabang || existingTokoByCombination?.cabang,
             alamat: payload.alamat,
             nama_kontraktor: submittedNamaPt,
@@ -1477,7 +1480,7 @@ export const rabService = {
         // 4. Generate & upload 3 PDF ke Drive (sama seperti server Python)
         try {
             const links = await regenerateRabPdfs(String(rab.id), {
-                proyek: payload.proyek,
+                proyek: normalizedProject,
                 nomorUlok: payload.nomor_ulok
             }, null, false, payload.alamat_cabang ?? null);
 
