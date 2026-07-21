@@ -58,6 +58,16 @@ export const downloadOpnameFinalPdf = asyncHandler(async (req: Request, res: Res
     res.send(result.pdfBuffer);
 });
 
+export const regenerateOpnameFinalPdf = asyncHandler(async (req: Request, res: Response) => {
+    const data = await opnameFinalService.queueRegeneratePdf(req.params.id);
+
+    res.status(data.queued ? 202 : 200).json({
+        status: "success",
+        message: data.message,
+        data
+    });
+});
+
 export const lockOpnameFinal = asyncHandler(async (req: Request, res: Response) => {
     const payload = lockOpnameFinalSchema.parse(req.body);
     const data = await opnameFinalService.lockOpnameFinal(req.params.id, payload);

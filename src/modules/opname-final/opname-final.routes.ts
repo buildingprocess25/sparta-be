@@ -4,7 +4,8 @@ import {
     getOpnameFinalById,
     handleOpnameFinalApproval,
     lockOpnameFinal,
-    listOpnameFinal
+    listOpnameFinal,
+    regenerateOpnameFinalPdf
 } from "./opname-final.controller";
 import multer from "multer";
 import {
@@ -23,6 +24,7 @@ opnameFinalRouter.post("/migration/commit", migrationUpload.single("file"), comm
 opnameFinalRouter.get("/", listOpnameFinal);
 opnameFinalRouter.get("/:id", getOpnameFinalById);
 opnameFinalRouter.get("/:id/pdf", downloadOpnameFinalPdf);
+opnameFinalRouter.post("/:id/pdf/regenerate", regenerateOpnameFinalPdf);
 opnameFinalRouter.post("/:id/kunci_opname_final", lockOpnameFinal);
 opnameFinalRouter.post("/:id/approval", handleOpnameFinalApproval);
 opnameFinalRouter.post("/approval/:id", handleOpnameFinalApproval);

@@ -2,6 +2,8 @@ import path from "path";
 import sharp from "sharp";
 import { GoogleProvider } from "./google";
 
+sharp.concurrency(1);
+
 const extractDriveFileId = (value: string): string | null => {
     const trimmed = value.trim();
     if (!trimmed) return null;

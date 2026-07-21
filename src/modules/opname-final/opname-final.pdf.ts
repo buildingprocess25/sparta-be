@@ -154,7 +154,7 @@ const buildOpnameGroupedItems = async (
     const grouped = new Map<string, OpnameItemView[]>();
     const totals = new Map<string, number>();
 
-    const preparedItems = await mapWithConcurrency(items, 16, async (item) => {
+    const preparedItems = await mapWithConcurrency(items, 4, async (item) => {
         const category = resolveOpnameCategory(item);
         const totalHargaRab = toNumber(item.total_harga_rab ?? item.rab_item?.total_harga ?? 0);
         const totalSelisih = toNumber(item.total_selisih);
@@ -206,7 +206,7 @@ const buildInstruksiLapanganGroups = async (
         if (instruksiId > 0) opnameByInstruksiId.set(instruksiId, opnameItem);
     }
 
-    const preparedItems = await mapWithConcurrency(items, 16, async (item) => {
+    const preparedItems = await mapWithConcurrency(items, 4, async (item) => {
         const category = String(item.kategori_pekerjaan ?? "").trim().toUpperCase() || "LAIN-LAIN";
         const totalHarga = toNumber(item.total_harga);
         const opnameItem = opnameByInstruksiId.get(Number(item.id));

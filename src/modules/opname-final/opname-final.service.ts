@@ -179,17 +179,18 @@ const downloadStoredPdfBuffer = async (linkPdf?: string | null): Promise<Buffer 
     let buffer: Buffer | null = null;
 
     if (fileId && gp.spartaDrive) {
-        buffer = await gp.getFileBufferById(gp.spartaDrive, fileId);
+        buffer = await gp.getFileBufferById(gp.spartaDrive, fileId, 5000);
     }
 
     if (!buffer && fileId && gp.docDrive) {
-        buffer = await gp.getFileBufferById(gp.docDrive, fileId);
+        buffer = await gp.getFileBufferById(gp.docDrive, fileId, 5000);
     }
 
-    if (!buffer && /^https?:\/\//i.test(linkPdf)) {
+    if (!buffer && !fileId && /^https?:\/\//i.test(linkPdf)) {
         try {
             const response = await fetch(normalizeDriveDownloadLink(linkPdf), {
                 redirect: "follow",
+                signal: AbortSignal.timeout(5000),
                 headers: {
                     "User-Agent": "Mozilla/5.0 (compatible; SPARTA-PDF/1.0)"
                 }
@@ -381,6 +382,38 @@ const regeneratePdfAndUpload = async (opnameFinalId: string): Promise<string> =>
     return uploadPdfToDrive(pdfBuffer, filename);
 };
 
+const runningRegenerateJobs = new Set<string>();
+
+const regeneratePdfInBackground = (id: string): boolean => {
+    if (runningRegenerateJobs.has(id)) return false;
+    runningRegenerateJobs.add(id);
+
+    setImmediate(() => {
+        opnameFinalRepository.findById(id)
+            .then(async (detail) => {
+                if (!detail) {
+                    throw new AppError("Data opname_final tidak ditemukan", 404);
+                }
+
+                await refreshDendaAllocation(id, detail.toko.id);
+                await opnameFinalRepository.updateTotals(id);
+                return regeneratePdfAndUpload(id);
+            })
+            .then((linkPdf) => opnameFinalRepository.updatePdfLink(id, linkPdf))
+            .catch((error) => {
+                console.warn("[opname-final] Background regenerate PDF gagal", {
+                    id,
+                    message: error instanceof Error ? error.message : String(error)
+                });
+            })
+            .finally(() => {
+                runningRegenerateJobs.delete(id);
+            });
+    });
+
+    return true;
+};
+
 export const opnameFinalService = {
     async list(query: OpnameFinalListQueryInput) {
         return opnameFinalRepository.list(query);
@@ -435,15 +468,22 @@ export const opnameFinalService = {
         const filenamePrefix = "OPNAME";
         const filename = `${filenamePrefix}_${proyek}_${nomorUlok}_${id}.pdf`;
 
-        if (!options?.forceRegenerate) {
-            const storedBuffer = await downloadStoredPdfBuffer(detail.opname_final.link_pdf_opname);
-            if (storedBuffer) {
+        const storedBuffer = await downloadStoredPdfBuffer(detail.opname_final.link_pdf_opname);
+        if (storedBuffer) {
+            if (options?.forceRegenerate) {
+                regeneratePdfInBackground(id);
                 return {
                     filename,
                     pdfBuffer: storedBuffer,
-                    source: "stored" as const
+                    source: "stored-regenerating" as const
                 };
             }
+
+            return {
+                filename,
+                pdfBuffer: storedBuffer,
+                source: "stored" as const
+            };
         }
 
         await refreshDendaAllocation(id, detail.toko.id);
@@ -470,6 +510,22 @@ export const opnameFinalService = {
             filename,
             pdfBuffer,
             source: "generated" as const
+        };
+    },
+
+    async queueRegeneratePdf(id: string) {
+        const detail = await opnameFinalRepository.findById(id);
+        if (!detail) {
+            throw new AppError("Data opname_final tidak ditemukan", 404);
+        }
+
+        const queued = regeneratePdfInBackground(id);
+        return {
+            id: Number(id),
+            queued,
+            message: queued
+                ? "Generate ulang PDF KTK sedang diproses di background"
+                : "Generate ulang PDF KTK sudah berjalan"
         };
     },
 
