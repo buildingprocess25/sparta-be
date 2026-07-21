@@ -21,6 +21,8 @@ import { ganttMigrationCommitSchema } from "./gantt-migration.schema";
 import { ganttMigrationService } from "./gantt-migration.service";
 import { ganttService } from "./gantt.service";
 
+const shouldLogDebug = process.env.NODE_ENV !== "production";
+
 export const submitGantt = asyncHandler(async (req: Request, res: Response) => {
     const payload = submitGanttSchema.parse(req.body);
     const data = await ganttService.submit(payload);
@@ -33,19 +35,25 @@ export const submitGantt = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const listGantt = asyncHandler(async (req: Request, res: Response) => {
-    console.log('[GANTT LIST] Original request query:', JSON.stringify(req.query));
-    console.log('[GANTT LIST] User info:', {
-        email: req.user?.email_sat,
-        cabang: req.user?.cabang,
-        roles: req.user?.roles
-    });
+    if (shouldLogDebug) {
+        console.log('[GANTT LIST] Original request query:', JSON.stringify(req.query));
+        console.log('[GANTT LIST] User info:', {
+            email: req.user?.email_sat,
+            cabang: req.user?.cabang,
+            roles: req.user?.roles
+        });
+    }
     
     let query = ganttListQuerySchema.parse(req.query);
-    console.log('[GANTT LIST] After schema parse:', JSON.stringify(query));
+    if (shouldLogDebug) {
+        console.log('[GANTT LIST] After schema parse:', JSON.stringify(query));
+    }
     
     // Inject branch filter untuk user non-global
     query = await injectBranchFilter(req.user!, query);
-    console.log('[GANTT LIST] After inject filter:', JSON.stringify(query));
+    if (shouldLogDebug) {
+        console.log('[GANTT LIST] After inject filter:', JSON.stringify(query));
+    }
     
     // Security: Pastikan cabang_array tidak kosong untuk user non-global
     // Global user (super human) akan punya cabang_array undefined = bypass, tidak perlu dicek
@@ -65,7 +73,9 @@ export const listGantt = asyncHandler(async (req: Request, res: Response) => {
     }
     
     const data = await ganttService.list(query);
-    console.log('[GANTT LIST] Result count:', data.length);
+    if (shouldLogDebug) {
+        console.log('[GANTT LIST] Result count:', data.length);
+    }
 
     res.json({ status: "success", data });
 });

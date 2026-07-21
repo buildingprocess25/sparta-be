@@ -13,6 +13,8 @@
 import type { AuthenticatedUser } from "../modules/auth/auth-session.service";
 import { getEffectiveBranchesForUser } from "./branch-scope";
 
+const shouldLogDebug = process.env.NODE_ENV !== "production";
+
 /**
  * Get user's accessible branches untuk filtering query
  * 
@@ -57,8 +59,9 @@ export const injectBranchFilter = async <T extends QueryWithBranchArray>(
         roles: user.roles
     });
     
-    // Log untuk debugging
-    console.log('[BRANCH FILTER] User:', user.email_sat, 'Cabang:', user.cabang, 'Source:', scope.source, 'Branches:', scope.branches);
+    if (shouldLogDebug) {
+        console.log('[BRANCH FILTER] User:', user.email_sat, 'Cabang:', user.cabang, 'Source:', scope.source, 'Branches:', scope.branches);
+    }
     
     if (scope.source === "global") {
         // Global user: bypass branch filtering entirely.

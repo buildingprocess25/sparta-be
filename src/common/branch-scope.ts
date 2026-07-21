@@ -19,6 +19,8 @@ export const GLOBAL_ACCESS_ROLES = [
     "STORE & BRANCH CONTROLLING SPECIALIST",
 ];
 
+const shouldLogDebug = process.env.NODE_ENV !== "production";
+
 export const normalizeBranchScopeName = (value?: string | null): string =>
     String(value ?? "")
         .trim()
@@ -39,7 +41,9 @@ export const getBranchScopeCandidates = (branch?: string | null): string[] => {
     }
 
     const result = Array.from(candidates);
-    console.log(`[BRANCH SCOPE] getBranchScopeCandidates('${branch}') → normalized:'${normalized}' → result:`, result);
+    if (shouldLogDebug) {
+        console.log(`[BRANCH SCOPE] getBranchScopeCandidates('${branch}') → normalized:'${normalized}' → result:`, result);
+    }
     return result;
 };
 

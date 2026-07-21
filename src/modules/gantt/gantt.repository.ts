@@ -97,6 +97,8 @@ const normalizeKategoriKey = (value: string) =>
 const getKategoriId = (kategoriMap: Map<string, number>, kategori: string) =>
     kategoriMap.get(normalizeKategoriKey(kategori));
 
+const shouldLogDebug = process.env.NODE_ENV !== "production";
+
 /**
  * Insert kategori pekerjaan dan return map nama -> id
  */
@@ -856,7 +858,9 @@ export const ganttRepository = {
             const normalizedBranches = filter.cabang_array.map((b: string) => b.trim().replace(/_+/g, ' ').replace(/\s+/g, ' ').toUpperCase());
             values.push(normalizedBranches as any);
             conditions.push(`REPLACE(UPPER(TRIM(t.cabang)), '_', ' ') = ANY($${values.length})`);
-            console.log('[GANTT FILTER] Branch filter applied:', normalizedBranches);
+            if (shouldLogDebug) {
+                console.log('[GANTT FILTER] Branch filter applied:', normalizedBranches);
+            }
         } else {
             // Jika sampai sini tanpa cabang_array, berarti ada bug di controller/filter logic
             console.warn('[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users');
@@ -867,7 +871,9 @@ export const ganttRepository = {
             const normalizedKontraktor = filter.nama_kontraktor.toLowerCase().replace(/\b(pt|cv)\b/gi, '').replace(/[.,]/g, '').replace(/\s+/g, ' ').trim();
             values.push(normalizedKontraktor);
             conditions.push(`LOWER(TRIM(REGEXP_REPLACE(REGEXP_REPLACE(t.nama_kontraktor, '\\y(pt|cv)\\y|[\\.,]', ' ', 'gi'), '\\s+', ' ', 'g'))) = $${values.length}`);
-            console.log('[GANTT FILTER] Contractor filter applied:', filter.nama_kontraktor);
+            if (shouldLogDebug) {
+                console.log('[GANTT FILTER] Contractor filter applied:', filter.nama_kontraktor);
+            }
         }
 
         if (filter.status) {
