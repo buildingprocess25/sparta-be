@@ -14,6 +14,15 @@ const rupiah = (value: number | string): string => {
     return new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(Number(value) || 0);
 };
 
+const formatVolume = (value: number | string | null | undefined): string => {
+    const raw = String(value ?? "").trim();
+    if (!raw) return "0";
+    const normalized = raw.replace(",", ".");
+    const numeric = Number(normalized);
+    if (!Number.isFinite(numeric)) return raw;
+    return new Intl.NumberFormat("id-ID", { maximumFractionDigits: 2 }).format(numeric);
+};
+
 const monthNames = [
     "Januari", "Februari", "Maret", "April", "Mei", "Juni",
     "Juli", "Agustus", "September", "Oktober", "November", "Desember",
@@ -90,7 +99,7 @@ const buildGroupedItems = (items: InstruksiLapanganItemRow[]) => {
         group.items.push({
             jenisPekerjaan: safeJenisPekerjaan,
             satuan: item.satuan,
-            volume: item.volume,
+            volume: formatVolume(item.volume),
             hargaMaterialFormatted: rupiah(item.harga_material),
             hargaUpahFormatted: rupiah(item.harga_upah),
             totalMaterialFormatted: rupiah(item.total_material),

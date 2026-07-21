@@ -31,7 +31,7 @@ const formatVolume = (value: number | string | null | undefined): string => {
     const normalized = raw.replace(",", ".");
     const numeric = Number(normalized);
     if (!Number.isFinite(numeric)) return raw;
-    return new Intl.NumberFormat("id-ID", { maximumFractionDigits: 4 }).format(numeric);
+    return new Intl.NumberFormat("id-ID", { maximumFractionDigits: 2 }).format(numeric);
 };
 
 const formatPlainNumber = (value: number | string | null | undefined): string => {

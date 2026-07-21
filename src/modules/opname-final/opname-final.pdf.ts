@@ -33,7 +33,7 @@ const formatVolume = (value: number | string | null | undefined): string => {
     const normalized = raw.replace(",", ".");
     const numeric = Number(normalized);
     if (!Number.isFinite(numeric)) return raw;
-    return new Intl.NumberFormat("id-ID", { maximumFractionDigits: 4 }).format(numeric);
+    return new Intl.NumberFormat("id-ID", { maximumFractionDigits: 2 }).format(numeric);
 };
 
 const toNumber = (value: string | number | null | undefined): number => {
@@ -75,9 +75,9 @@ const sumInstruksiLapanganTotalHarga = (items: InstruksiLapanganItemRow[]): numb
 type OpnameItemView = {
     jenis_pekerjaan: string;
     satuan: string;
-    volume_rab: number;
-    volume_akhir: number;
-    selisih_volume: number;
+    volume_rab: string;
+    volume_akhir: string;
+    selisih_volume: string;
     total_harga_rab_formatted: string;
     total_selisih_formatted: string;
     foto_data_url: string | null;
@@ -88,7 +88,7 @@ type InstruksiLapanganItemView = {
     id: number;
     jenis_pekerjaan: string;
     satuan: string;
-    volume: number;
+    volume: string;
     harga_material_formatted: string;
     harga_upah_formatted: string;
     total_material_formatted: string;
@@ -136,9 +136,9 @@ const buildOpnameGroupedItems = async (items: OpnameFinalItemRow[], noPpn = fals
         const view: OpnameItemView = {
             jenis_pekerjaan: resolveOpnameJenis(item),
             satuan: resolveOpnameSatuan(item),
-            volume_rab: toNumber(item.volume_rab ?? item.rab_item?.volume ?? 0),
-            volume_akhir: toNumber(item.volume_akhir),
-            selisih_volume: toNumber(item.selisih_volume),
+            volume_rab: formatVolume(item.volume_rab ?? item.rab_item?.volume ?? 0),
+            volume_akhir: formatVolume(item.volume_akhir),
+            selisih_volume: formatVolume(item.selisih_volume),
             total_harga_rab_formatted: rupiah(totalHargaRab),
             total_selisih_formatted: rupiah(totalSelisih),
             foto_data_url: await resolveDriveImageDataUrl(item.foto),
@@ -182,7 +182,7 @@ const buildInstruksiLapanganGroups = async (
             id: Number(item.id),
             jenis_pekerjaan: String(item.jenis_pekerjaan ?? "").trim() || "-",
             satuan: String(item.satuan ?? "").trim() || "-",
-            volume: opnameItem ? toNumber(opnameItem.volume_akhir) : toNumber(item.volume),
+            volume: formatVolume(opnameItem ? opnameItem.volume_akhir : item.volume),
             harga_material_formatted: rupiah(toNumber(item.harga_material)),
             harga_upah_formatted: rupiah(toNumber(item.harga_upah)),
             total_material_formatted: rupiah(toNumber(item.total_material)),
@@ -349,6 +349,7 @@ export const buildOpnameFinalPdfBuffer = async (
     const kerjaTambahSummary = buildFinancialSummary(financials.kerjaTambah.total, "up", noPpn);
     const kerjaKurangSummary = buildFinancialSummary(financials.kerjaKurang.total, "up", noPpn);
     const selisihKerjaTambahKurang = financials.selisihKerjaTambahKurang;
+    const selisihKerjaTambahKurangAbs = Math.abs(selisihKerjaTambahKurang);
     const totalOpnameFinal = financials.totalFinal;
 
     const html = await renderHtmlTemplate(templatePath, {
@@ -377,6 +378,8 @@ export const buildOpnameFinalPdfBuffer = async (
         grand_total_kerja_tambah_formatted: kerjaTambahSummary.grand_total_formatted,
         grand_total_kerja_kurang_formatted: kerjaKurangSummary.grand_total_formatted,
         selisih_kerja_tambah_kurang_formatted: rupiah(selisihKerjaTambahKurang),
+        selisih_kerja_tambah_kurang_raw: selisihKerjaTambahKurang,
+        selisih_kerja_tambah_kurang_abs_formatted: rupiah(selisihKerjaTambahKurangAbs),
         hari_denda: hariDenda,
         nilai_denda_formatted: rupiah(nilaiDenda),
         denda_allocation_note: detail.opname_final.denda_allocation_note,

@@ -5,6 +5,7 @@ import {
     listInstruksiLapangan,
     getInstruksiLapanganById,
     downloadInstruksiLapanganPdf,
+    regenerateInstruksiLapanganPdf,
     downloadInstruksiLapanganLampiran,
     handleInstruksiLapanganApproval
 } from "./instruksi-lapangan.controller";
@@ -47,6 +48,7 @@ router.post(
 router.get("/list", listInstruksiLapangan);
 router.get("/:id", getInstruksiLapanganById);
 router.get("/:id/pdf", downloadInstruksiLapanganPdf);
+router.post("/:id/pdf/regenerate", regenerateInstruksiLapanganPdf);
 router.get("/:id/lampiran", downloadInstruksiLapanganLampiran);
 router.post("/:id/approval", handleInstruksiLapanganApproval);
 

@@ -192,6 +192,40 @@
       font-weight: 600;
     }
 
+    .summary-caption {
+      margin: 14px 0 6px;
+      font-size: 10px;
+      font-weight: 700;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .summary .muted-note {
+      display: block;
+      margin-top: 3px;
+      color: #64748b;
+      font-size: 9px;
+      line-height: 1.35;
+      white-space: normal;
+      font-weight: 400;
+    }
+
+    .summary.final-summary {
+      margin-top: 6px;
+      border-top: 2px solid #475569;
+    }
+
+    .summary.final-summary .label {
+      background: #f8fafc;
+      color: #0f172a;
+    }
+
+    .summary.final-summary .grand-final td {
+      background: #f1f5f9;
+      font-weight: 800;
+    }
+
     .category-summary {
       width: 42%;
       margin: 8px 0 18px auto;
@@ -604,45 +638,60 @@
   {{ sparta_header("Rekap Total Keseluruhan", toko.nomor_ulok ~ " - " ~ (toko.nama_toko or '-')) | safe }}
   <p class="section-title">Rekap Total Keseluruhan</p>
 
+  <div class="summary-caption">Komponen KTK</div>
   <table class="summary">
     <tr>
-      <td class="label">Grand Total Final RAB</td>
+      <td class="label">RAB/Penawaran Final</td>
       <td class="num">{{ grand_total_final_rab_formatted }}</td>
     </tr>
     <tr>
-      <td class="label">Grand Total Instruksi Lapangan</td>
+      <td class="label">Instruksi Lapangan</td>
       <td class="num">{{ grand_total_il_formatted }}</td>
     </tr>
     <tr>
-      <td class="label">Grand Total Kerja Tambah</td>
+      <td class="label">Kerja Tambah</td>
       <td class="num">{{ grand_total_kerja_tambah_formatted }}</td>
     </tr>
     <tr>
-      <td class="label">Grand Total Kerja Kurang</td>
+      <td class="label">Kerja Kurang</td>
       <td class="num">{{ grand_total_kerja_kurang_formatted }}</td>
     </tr>
     <tr>
-      <td class="label">Selisih Kerja Tambah - Kerja Kurang</td>
-      <td class="num">{{ selisih_kerja_tambah_kurang_formatted }}</td>
-    </tr>
-    <tr>
       <td class="label">Denda Keterlambatan</td>
-      <td class="num">{{ nilai_denda_formatted }}{% if hari_denda > 0 %} ({{ hari_denda }} hari){% endif %}</td>
+      <td class="num">
+        {{ nilai_denda_formatted }}{% if hari_denda > 0 %} ({{ hari_denda }} hari){% endif %}
+        {% if denda_allocation_note %}
+        <span class="muted-note">{{ denda_allocation_note }}</span>
+        {% endif %}
+      </td>
     </tr>
-    {% if denda_allocation_note %}
-    <tr>
-      <td class="label">Keterangan Denda</td>
-      <td>{{ denda_allocation_note }}</td>
-    </tr>
-    {% endif %}
     <tr>
       <td class="label">Periode Denda</td>
       <td class="num">Akhir SPK: {{ tanggal_akhir_spk_denda_formatted }} | ST: {{ tanggal_serah_terima_denda_formatted }}</td>
     </tr>
+  </table>
+
+  <div class="summary-caption">Ringkasan Final</div>
+  <table class="summary final-summary">
     <tr>
-      <td class="label">Total {{ opname_label }}</td>
+      <td class="label">RAB/Penawaran Final</td>
+      <td class="num">{{ grand_total_final_rab_formatted }}</td>
+    </tr>
+    <tr class="grand-final">
+      <td class="label">Grand Total KTK Final</td>
       <td class="num">{{ total_opname_final_formatted }}</td>
     </tr>
+    {% if selisih_kerja_tambah_kurang_raw > 0 %}
+    <tr>
+      <td class="label">Grand Total Kerja Tambah</td>
+      <td class="num">{{ selisih_kerja_tambah_kurang_abs_formatted }}</td>
+    </tr>
+    {% elif selisih_kerja_tambah_kurang_raw < 0 %}
+    <tr>
+      <td class="label">Grand Total Kerja Kurang</td>
+      <td class="num">{{ selisih_kerja_tambah_kurang_abs_formatted }}</td>
+    </tr>
+    {% endif %}
   </table>
 
   <div class="page-break"></div>

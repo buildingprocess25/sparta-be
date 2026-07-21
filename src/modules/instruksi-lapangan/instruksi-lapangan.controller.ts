@@ -100,6 +100,17 @@ export const downloadInstruksiLapanganPdf = asyncHandler(async (req: Request, re
     res.send(result.pdfBuffer);
 });
 
+export const regenerateInstruksiLapanganPdf = asyncHandler(async (req: Request, res: Response) => {
+    await instruksiLapanganService.generateAndStorePdf(req.params.id);
+    const data = await instruksiLapanganService.getById(req.params.id);
+
+    res.json({
+        status: "success",
+        message: "PDF Instruksi Lapangan berhasil digenerate ulang",
+        data,
+    });
+});
+
 export const downloadInstruksiLapanganLampiran = asyncHandler(async (req: Request, res: Response) => {
     const result = await instruksiLapanganService.getAssetDownloadPayload(req.params.id, "lampiran");
 
