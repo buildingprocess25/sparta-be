@@ -183,24 +183,55 @@ const OPNAME_FINAL_COLUMNS = `
     COALESCE(
         ofn.tanggal_akhir_spk_denda,
         (
-            SELECT MAX(COALESCE(pt.tanggal_spk_akhir_setelah_perpanjangan::date, ps.waktu_selesai::date))
-            FROM toko peer_t
-            JOIN pengajuan_spk ps ON ps.id_toko = peer_t.id
-            LEFT JOIN pertambahan_spk pt ON pt.id_spk = ps.id
-              AND UPPER(TRIM(COALESCE(pt.status_persetujuan, ''))) IN ('APPROVED', 'DISETUJUI', 'DISETUJUI BM')
-            WHERE peer_t.nomor_ulok = t.nomor_ulok
-              AND UPPER(TRIM(COALESCE(peer_t.cabang, ''))) = UPPER(TRIM(COALESCE(t.cabang, '')))
-              AND UPPER(TRIM(COALESCE(ps.status, ''))) IN ('SPK_APPROVED', 'APPROVED', 'DISETUJUI', 'AKTIF', 'ACTIVE', 'SELESAI')
+            SELECT MAX(spk_scope.effective_spk_end)
+            FROM (
+                SELECT COALESCE(
+                    (
+                        SELECT MAX(
+                            CASE
+                                WHEN TRIM(COALESCE(pt.tanggal_spk_akhir_setelah_perpanjangan::text, '')) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+                                    THEN LEFT(TRIM(pt.tanggal_spk_akhir_setelah_perpanjangan::text), 10)::date
+                                WHEN TRIM(COALESCE(pt.tanggal_spk_akhir_setelah_perpanjangan::text, '')) ~ '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$'
+                                    THEN to_date(TRIM(pt.tanggal_spk_akhir_setelah_perpanjangan::text), 'DD/MM/YYYY')
+                                ELSE NULL
+                            END
+                        )
+                        FROM pertambahan_spk pt
+                        JOIN pengajuan_spk ps_source ON ps_source.id = pt.id_spk
+                        JOIN toko t_source ON t_source.id = ps_source.id_toko
+                        JOIN toko t_target ON t_target.nomor_ulok = t_source.nomor_ulok
+                        WHERE t_target.id = ps.id_toko
+                          AND UPPER(TRIM(COALESCE(pt.status_persetujuan, ''))) IN ('APPROVED', 'DISETUJUI', 'DISETUJUI BM')
+                    ),
+                    CASE
+                        WHEN TRIM(COALESCE(ps.waktu_selesai::text, '')) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+                            THEN LEFT(TRIM(ps.waktu_selesai::text), 10)::date
+                        WHEN TRIM(COALESCE(ps.waktu_selesai::text, '')) ~ '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$'
+                            THEN to_date(TRIM(ps.waktu_selesai::text), 'DD/MM/YYYY')
+                        ELSE NULL
+                    END
+                ) AS effective_spk_end
+                FROM toko peer_t
+                JOIN pengajuan_spk ps ON ps.id_toko = peer_t.id
+                WHERE peer_t.nomor_ulok = t.nomor_ulok
+                  AND UPPER(TRIM(COALESCE(peer_t.cabang, ''))) = UPPER(TRIM(COALESCE(t.cabang, '')))
+                  AND UPPER(TRIM(COALESCE(ps.status, ''))) IN ('SPK_APPROVED', 'APPROVED', 'DISETUJUI', 'AKTIF', 'ACTIVE', 'SELESAI')
+            ) spk_scope
         )
     ) AS tanggal_akhir_spk_denda,
     COALESCE(
         ofn.tanggal_serah_terima_denda,
         (
-            SELECT MIN(bst.created_at)::date
-            FROM toko peer_t
-            JOIN berkas_serah_terima bst ON bst.id_toko = peer_t.id
-            WHERE peer_t.nomor_ulok = t.nomor_ulok
-              AND UPPER(TRIM(COALESCE(peer_t.cabang, ''))) = UPPER(TRIM(COALESCE(t.cabang, '')))
+            SELECT st_scope.created_at::date
+            FROM (
+                SELECT bst.created_at
+                FROM toko peer_t
+                JOIN berkas_serah_terima bst ON bst.id_toko = peer_t.id
+                WHERE peer_t.nomor_ulok = t.nomor_ulok
+                  AND UPPER(TRIM(COALESCE(peer_t.cabang, ''))) = UPPER(TRIM(COALESCE(t.cabang, '')))
+                ORDER BY bst.created_at ASC, bst.id ASC
+                LIMIT 1
+            ) st_scope
         )
     ) AS tanggal_serah_terima_denda,
     NULL::text AS denda_allocation_note,
