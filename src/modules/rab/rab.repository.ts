@@ -270,9 +270,8 @@ export const rabRepository = {
             `SELECT EXISTS(
                 SELECT 1 FROM rab
                 WHERE id_toko = $1
-                  AND status = ANY($2::text[])
             )`,
-            [tokoId, ACTIVE_RAB_STATUSES]
+            [tokoId]
         );
         return result.rows[0]?.exists ?? false;
     },
@@ -698,46 +697,31 @@ export const rabRepository = {
             }
 
             console.log('[RAB DEBUG] Akan cek RAB aktif untuk toko ID:', tokoId);
-            const existingRabRes = await client.query<{ id: number }>(
-                `SELECT id
+            const existingRabRes = await client.query<{ id: number; status: RabStatus }>(
+                `SELECT id, status
                  FROM rab
                  WHERE id_toko = $1
-                   AND status = ANY($2::text[])
                  LIMIT 1
                  FOR UPDATE`,
-                [tokoId, ACTIVE_RAB_STATUSES]
+                [tokoId]
             );
             console.log('[RAB DEBUG] Hasil cek RAB aktif:', {
                 tokoId,
-                found_active_rab: (existingRabRes.rowCount ?? 0) > 0,
-                rab_id: existingRabRes.rows[0]?.id
+                found_existing_rab: (existingRabRes.rowCount ?? 0) > 0,
+                rab_id: existingRabRes.rows[0]?.id,
+                status: existingRabRes.rows[0]?.status
             });
             if ((existingRabRes.rowCount ?? 0) > 0) {
                 console.error('[RAB DEBUG] DUPLICATE RAB DETECTED di repository!', {
                     tokoId,
                     rab_id: existingRabRes.rows[0].id,
+                    status: existingRabRes.rows[0].status,
                     input_ulok: payload.nomor_ulok,
                     input_lingkup: normalizedLingkup
                 });
                 const duplicateError = new Error("RAB untuk kombinasi ULOK dan lingkup ini sudah ada") as Error & { code?: string };
                 duplicateError.code = "RAB_DUPLICATE";
                 throw duplicateError;
-            }
-
-            const rejectedRabRes = await client.query<{ id: number }>(
-                `SELECT id
-                 FROM rab
-                 WHERE id_toko = $1
-                   AND status = ANY($2::text[])
-                 FOR UPDATE`,
-                [tokoId, REJECTED_RAB_STATUSES]
-            );
-            const rejectedRabIds = rejectedRabRes.rows.map((row) => row.id);
-            if (rejectedRabIds.length > 0) {
-                await client.query(`DELETE FROM rab_revisi_item WHERE id_rab = ANY($1::int[])`, [rejectedRabIds]);
-                await client.query(`DELETE FROM rab_item WHERE id_rab = ANY($1::int[])`, [rejectedRabIds]);
-                await client.query(`DELETE FROM activity_log WHERE entity_type = 'RAB' AND entity_id = ANY($1::int[])`, [rejectedRabIds]);
-                await client.query(`DELETE FROM rab WHERE id = ANY($1::int[])`, [rejectedRabIds]);
             }
 
             const logoToPersist = toPersistedAssetLink(payload.logo);
