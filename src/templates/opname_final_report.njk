@@ -665,10 +665,16 @@
         {% endif %}
       </td>
     </tr>
+    {% if tanggal_akhir_spk_denda_formatted != '-' or tanggal_serah_terima_denda_formatted != '-' %}
     <tr>
       <td class="label">Periode Denda</td>
-      <td class="num">Akhir SPK: {{ tanggal_akhir_spk_denda_formatted }} | ST: {{ tanggal_serah_terima_denda_formatted }}</td>
+      <td class="num">
+        {% if tanggal_akhir_spk_denda_formatted != '-' %}Akhir SPK: {{ tanggal_akhir_spk_denda_formatted }}{% endif %}
+        {% if tanggal_akhir_spk_denda_formatted != '-' and tanggal_serah_terima_denda_formatted != '-' %} | {% endif %}
+        {% if tanggal_serah_terima_denda_formatted != '-' %}ST: {{ tanggal_serah_terima_denda_formatted }}{% endif %}
+      </td>
     </tr>
+    {% endif %}
   </table>
 
   <div class="summary-caption">Ringkasan Final</div>

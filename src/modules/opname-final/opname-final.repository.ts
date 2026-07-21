@@ -180,8 +180,29 @@ const OPNAME_FINAL_COLUMNS = `
     ofn.grand_total_rab,
     ofn.hari_denda,
     ofn.nilai_denda,
-    ofn.tanggal_akhir_spk_denda,
-    ofn.tanggal_serah_terima_denda,
+    COALESCE(
+        ofn.tanggal_akhir_spk_denda,
+        (
+            SELECT MAX(COALESCE(pt.tanggal_spk_akhir_setelah_perpanjangan::date, ps.waktu_selesai::date))
+            FROM toko peer_t
+            JOIN pengajuan_spk ps ON ps.id_toko = peer_t.id
+            LEFT JOIN pertambahan_spk pt ON pt.id_spk = ps.id
+              AND UPPER(TRIM(COALESCE(pt.status_persetujuan, ''))) IN ('APPROVED', 'DISETUJUI', 'DISETUJUI BM')
+            WHERE peer_t.nomor_ulok = t.nomor_ulok
+              AND UPPER(TRIM(COALESCE(peer_t.cabang, ''))) = UPPER(TRIM(COALESCE(t.cabang, '')))
+              AND UPPER(TRIM(COALESCE(ps.status, ''))) IN ('SPK_APPROVED', 'APPROVED', 'DISETUJUI', 'AKTIF', 'ACTIVE', 'SELESAI')
+        )
+    ) AS tanggal_akhir_spk_denda,
+    COALESCE(
+        ofn.tanggal_serah_terima_denda,
+        (
+            SELECT MIN(bst.created_at)::date
+            FROM toko peer_t
+            JOIN berkas_serah_terima bst ON bst.id_toko = peer_t.id
+            WHERE peer_t.nomor_ulok = t.nomor_ulok
+              AND UPPER(TRIM(COALESCE(peer_t.cabang, ''))) = UPPER(TRIM(COALESCE(t.cabang, '')))
+        )
+    ) AS tanggal_serah_terima_denda,
     NULL::text AS denda_allocation_note,
     NULL::date AS denda_allocation_tanggal_akhir_spk,
     NULL::date AS denda_allocation_tanggal_serah_terima,
