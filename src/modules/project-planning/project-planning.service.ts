@@ -641,7 +641,7 @@ export const projekPlanningService = {
     // BM REGIONAL APPROVAL (Tahap 2)
     // ============================================================
 
-    async bmRegionalApproval(id: number, action: ApprovalInput) {
+    async bmRegionalApproval(id: number, action: FinalReviewInput) {
         const data = await projekPlanningRepository.findById(id);
         if (!data) throw new AppError("Project planning tidak ditemukan", 404);
 
@@ -653,8 +653,10 @@ export const projekPlanningService = {
             );
         }
 
-        const isApprove = action.tindakan === "APPROVE";
+        const isApprove = action.rab_tindakan === "APPROVE" && action.gambar_tindakan === "APPROVE";
         const newStatus = isApprove ? PP_STATUS.WAITING_PP_APPROVAL_2 : PP_STATUS.WAITING_RAB_UPLOAD;
+        const reviewSummary = buildFinalReviewSummary(action);
+        const rejectReason = getFinalReviewRejectReason(action, reviewSummary);
 
         const { projek: updated } = await projekPlanningRepository.updateStatusWithLog(
             id,
@@ -664,19 +666,44 @@ export const projekPlanningService = {
                 aksi: isApprove ? PP_AKSI.APPROVE : PP_AKSI.REJECT,
                 status_sebelum: projek.status,
                 status_sesudah: newStatus,
-                alasan_penolakan: action.alasan_penolakan ?? null,
+                alasan_penolakan: isApprove ? null : rejectReason,
                 keterangan: isApprove
-                    ? buildApprovalNote("Disetujui oleh B&M Regional Manager, menunggu approval PP Specialist tahap 2", action.catatan)
-                    : `Ditolak oleh B&M Regional Manager: ${action.alasan_penolakan}. Dikembalikan ke Building Coord untuk revisi input tahap kedua`,
+                    ? `Disetujui oleh B&M Regional Manager, menunggu approval PP Specialist tahap 2. ${reviewSummary}`
+                    : `Ditolak oleh B&M Regional Manager: ${rejectReason}. ${reviewSummary}. Dikembalikan sesuai bagian yang perlu revisi`,
             },
-            (client) => projekPlanningRepository.updateStatusAndBmRegionalApproval(id, newStatus, action, client)
+            async (client) => {
+                const updated = await projekPlanningRepository.updateStatusAndBmRegionalFinalReview(
+                    id,
+                    newStatus,
+                    {
+                        approver_email: action.approver_email,
+                        rab_tindakan: action.rab_tindakan,
+                        gambar_tindakan: action.gambar_tindakan,
+                        alasan_penolakan: isApprove ? undefined : rejectReason,
+                        rab_rejected_item_ids: action.rab_rejected_item_ids,
+                        rab_rejected_item_notes: action.rab_rejected_item_notes,
+                    },
+                    client
+                );
+                if (action.rab_tindakan === "REJECT") {
+                    const rabIds = [projek.id_rab_sipil, projek.id_rab_me].filter((rabId): rabId is number => !!rabId);
+                    await projekPlanningRepository.markRabNeedsRevision(
+                        rabIds,
+                        action.approver_email,
+                        `FPD #${id} ditolak B&M Regional Manager. Lihat detail revisi RAB di Project Planning.`,
+                        client
+                    );
+                }
+                return updated;
+            }
         );
 
         return {
             id,
             old_status: projek.status,
             new_status: updated.status,
-            tindakan: action.tindakan,
+            rab_tindakan: action.rab_tindakan,
+            gambar_tindakan: action.gambar_tindakan,
         };
     },
 

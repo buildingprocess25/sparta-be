@@ -193,12 +193,12 @@ export const handleBmRegionalApproval = asyncHandler(async (req: Request, res: R
         return;
     }
 
-    const action = approvalSchema.parse(req.body);
+    const action = finalReviewSchema.parse(req.body);
     const result = await projekPlanningService.bmRegionalApproval(id, action);
 
     res.json({
         status: "success",
-        message: action.tindakan === "APPROVE"
+        message: result.new_status === "WAITING_PP_APPROVAL_2"
             ? "Disetujui oleh B&M Regional Manager, menunggu approval PP Specialist"
             : "Ditolak oleh B&M Regional Manager, dikembalikan ke Building Coord untuk revisi tahap kedua",
         data: result,

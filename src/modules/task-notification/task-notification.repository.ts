@@ -70,7 +70,6 @@ const hasAnyRole = (user: AuthenticatedUser, matchers: string[]) =>
     matchers.some(matcher => hasRole(user, matcher));
 
 const isSuperHuman = (user: AuthenticatedUser) => hasActiveRole(user, "SUPER HUMAN");
-const isRegionalManager = (user: AuthenticatedUser) => hasActiveRole(user, "REGIONAL MANAGER");
 const isHeadOffice = (user: AuthenticatedUser) => normalize(user.cabang) === "HEAD OFFICE";
 const isBranchSupportRole = (user: AuthenticatedUser) => hasActiveRole(user, "BRANCH BUILDING SUPPORT");
 const isBranchBuildingMaintenanceManager = (user: AuthenticatedUser) =>

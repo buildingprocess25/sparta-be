@@ -125,6 +125,10 @@ export type ProjekPlanningRow = {
     bm_regional_approver_email: string | null;
     bm_regional_waktu_persetujuan: string | null;
     bm_regional_alasan_penolakan: string | null;
+    bm_regional_rab_status: string | null;
+    bm_regional_gambar_status: string | null;
+    bm_regional_rab_rejected_item_ids: number[] | null;
+    bm_regional_rab_rejected_item_notes: string | null;
     pp2_rab_status: string | null;
     pp2_gambar_status: string | null;
     pp2_rab_rejected_item_ids: number[] | null;
@@ -196,6 +200,7 @@ const PP_COLUMNS = `
     bm_approver_email, bm_waktu_persetujuan, bm_alasan_penolakan,
     bm2_approver_email, bm2_waktu_persetujuan, bm2_alasan_penolakan,
     bm_regional_approver_email, bm_regional_waktu_persetujuan, bm_regional_alasan_penolakan,
+    bm_regional_rab_status, bm_regional_gambar_status, bm_regional_rab_rejected_item_ids, bm_regional_rab_rejected_item_notes,
     pp1_approver_email, pp1_waktu_persetujuan, pp1_alasan_penolakan,
     pp_manager_approver_email, pp_manager_waktu_persetujuan, pp_manager_alasan_penolakan,
     pp2_approver_email, pp2_waktu_persetujuan, pp2_alasan_penolakan,
@@ -916,6 +921,47 @@ export const projekPlanningRepository = {
         return result.rows[0];
     },
 
+    async updateStatusAndBmRegionalFinalReview(
+        id: number,
+        newStatus: PpStatus,
+        action: {
+            approver_email: string;
+            rab_tindakan: "APPROVE" | "REJECT";
+            gambar_tindakan: "APPROVE" | "REJECT";
+            alasan_penolakan?: string | null;
+            rab_rejected_item_ids?: number[];
+            rab_rejected_item_notes?: string | null;
+        },
+        client?: PoolClient
+    ): Promise<ProjekPlanningRow> {
+        const db = client ?? pool;
+        const result = await db.query<ProjekPlanningRow>(
+            `UPDATE projek_planning
+             SET status = $1::text,
+                 bm_regional_approver_email = $2,
+                 bm_regional_waktu_persetujuan = NOW(),
+                 bm_regional_alasan_penolakan = CASE WHEN $1::text = 'WAITING_RAB_UPLOAD' THEN $3 ELSE NULL END,
+                 bm_regional_rab_status = $4,
+                 bm_regional_gambar_status = $5,
+                 bm_regional_rab_rejected_item_ids = $6,
+                 bm_regional_rab_rejected_item_notes = $7,
+                 updated_at = NOW()
+             WHERE id = $8
+             RETURNING ${PP_COLUMNS}`,
+            [
+                newStatus,
+                action.approver_email,
+                action.alasan_penolakan ?? null,
+                action.rab_tindakan,
+                action.gambar_tindakan,
+                action.rab_rejected_item_ids && action.rab_rejected_item_ids.length > 0 ? action.rab_rejected_item_ids : null,
+                action.rab_rejected_item_notes?.trim() || null,
+                id,
+            ]
+        );
+        return result.rows[0];
+    },
+
     async updateStatusAndPp1Approval(
         id: number,
         newStatus: PpStatus,
@@ -992,6 +1038,10 @@ export const projekPlanningRepository = {
                  bm_regional_approver_email = NULL,
                  bm_regional_waktu_persetujuan = NULL,
                  bm_regional_alasan_penolakan = NULL,
+                 bm_regional_rab_status = NULL,
+                 bm_regional_gambar_status = NULL,
+                 bm_regional_rab_rejected_item_ids = NULL,
+                 bm_regional_rab_rejected_item_notes = NULL,
                  pp2_rab_status = NULL,
                  pp2_gambar_status = NULL,
                  pp2_alasan_penolakan = NULL,
