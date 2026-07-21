@@ -98,7 +98,7 @@ export const pengawasanRepository = {
                 input.jenis_pekerjaan,
                 input.catatan ?? null,
                 input.dokumentasi ?? null,
-                input.dokumentasi_base64 ?? null,
+                null,
                 input.status ?? null
             ]
         );
@@ -118,7 +118,7 @@ export const pengawasanRepository = {
                     item.jenis_pekerjaan,
                     item.catatan ?? null,
                     item.dokumentasi ?? null,
-                    item.dokumentasi_base64 ?? null,
+                    null,
                     item.status ?? null
                 );
                 return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, COALESCE($${base + 8}, 'progress'))`;
@@ -302,11 +302,6 @@ export const pengawasanRepository = {
             setClauses.push(`dokumentasi = $${values.length}`);
         }
 
-        if (typeof input.dokumentasi_base64 !== "undefined") {
-            values.push(input.dokumentasi_base64);
-            setClauses.push(`dokumentasi_base64 = $${values.length}`);
-        }
-
         if (typeof input.status !== "undefined") {
             values.push(input.status);
             setClauses.push(`status = $${values.length}`);
@@ -325,17 +320,6 @@ export const pengawasanRepository = {
         );
 
         return result.rows[0] ?? null;
-    },
-
-    async updateDokumentasiBase64(id: number, dokumentasiBase64: string): Promise<void> {
-        await pool.query(
-            `
-            UPDATE pengawasan
-            SET dokumentasi_base64 = $1
-            WHERE id = $2
-            `,
-            [dokumentasiBase64, id]
-        );
     },
 
     async deleteById(id: string): Promise<boolean> {

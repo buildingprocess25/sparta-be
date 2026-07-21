@@ -117,7 +117,8 @@ const uploadDokumentasiToDrive = async (
         file.mimetype || "application/octet-stream",
         file.buffer,
         2,
-        drive
+        drive,
+        { makePublic: false }
     );
 
     if (result.webViewLink) {
@@ -168,9 +169,6 @@ const imageBufferToPdfDataUrl = async (buffer: Buffer, mimeType?: string | null)
     }
 };
 
-const uploadedDokumentasiToPdfDataUrl = async (file: UploadedDokumentasiFile): Promise<string | null> =>
-    imageBufferToPdfDataUrl(Buffer.from(file.buffer), file.mimetype);
-
 const extractGdriveFileId = (url: string | null | undefined): string | null => {
     if (!url) return null;
     const byPath = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
@@ -197,7 +195,10 @@ const gdriveImageToBase64 = async (url: string | null | undefined): Promise<stri
 
         let mimeType: string | null | undefined;
         try {
-            const meta = await drive.files.get({ fileId, fields: "mimeType", supportsAllDrives: true });
+            const meta = await drive.files.get(
+                { fileId, fields: "mimeType", supportsAllDrives: true },
+                { timeout: 5000 }
+            );
             mimeType = meta.data.mimeType;
         } catch {
             mimeType = null;
@@ -212,15 +213,11 @@ const gdriveImageToBase64 = async (url: string | null | undefined): Promise<stri
 };
 
 const resolvePengawasanPhotoBase64 = async (item: PengawasanRow): Promise<string | null> => {
-    if (item.dokumentasi_base64) return item.dokumentasi_base64;
-
     const fromDrive = await gdriveImageToBase64(item.dokumentasi);
-    if (fromDrive) {
-        await pengawasanRepository.updateDokumentasiBase64(item.id, fromDrive)
-            .catch((error) => console.error("[berkas_pengawasan] Gagal cache foto lama:", error));
-    }
+    if (fromDrive) return fromDrive;
 
-    return fromDrive;
+    // Legacy fallback for old rows. New writes keep images in Drive only.
+    return item.dokumentasi_base64;
 };
 
 const normalizeTanggalPengawasan = (value: string): string => {
@@ -382,7 +379,8 @@ const generateAndUploadPengawasanPdf = async (
             "application/pdf",
             pdfBuffer,
             2,
-            drive
+            drive,
+            { makePublic: false }
         );
 
         const link = result.webViewLink
@@ -436,9 +434,6 @@ export const pengawasanService = {
             const dokumentasiLink = uploadedDokumentasi
                 ? await uploadDokumentasiToDrive(input.id_gantt, uploadedDokumentasi)
                 : undefined;
-            const dokumentasiBase64 = uploadedDokumentasi
-                ? await uploadedDokumentasiToPdfDataUrl(uploadedDokumentasi)
-                : undefined;
 
             const { tanggal_pengawasan: _tanggalPengawasan, ...inputWithoutTanggal } = input;
 
@@ -446,8 +441,7 @@ export const pengawasanService = {
                 ? {
                     ...inputWithoutTanggal,
                     id_pengawasan_gantt: idPengawasanGantt,
-                    dokumentasi: dokumentasiLink,
-                    dokumentasi_base64: dokumentasiBase64 ?? undefined
+                    dokumentasi: dokumentasiLink
                 }
                 : {
                     ...inputWithoutTanggal,
@@ -531,11 +525,9 @@ export const pengawasanService = {
 
                     const item = basePayloads[itemIndex];
                     const dokumentasiLink = await uploadDokumentasiToDrive(item.id_gantt, uploadedDokumentasiFiles[filePosition]);
-                    const dokumentasiBase64 = await uploadedDokumentasiToPdfDataUrl(uploadedDokumentasiFiles[filePosition]);
                     payloadWithDokumentasi[itemIndex] = {
                         ...item,
-                        dokumentasi: dokumentasiLink,
-                        dokumentasi_base64: dokumentasiBase64 ?? undefined
+                        dokumentasi: dokumentasiLink
                     };
                 }
 
@@ -561,11 +553,9 @@ export const pengawasanService = {
                     }
 
                     const dokumentasiLink = await uploadDokumentasiToDrive(item.id_gantt, file);
-                    const dokumentasiBase64 = await uploadedDokumentasiToPdfDataUrl(file);
                     payloadWithDokumentasi.push({
                         ...item,
-                        dokumentasi: dokumentasiLink,
-                        dokumentasi_base64: dokumentasiBase64 ?? undefined
+                        dokumentasi: dokumentasiLink
                     });
                 }
 
@@ -655,12 +645,9 @@ export const pengawasanService = {
             const dokumentasiLink = uploadedDokumentasi
                 ? await uploadDokumentasiToDrive(existing.id_gantt, uploadedDokumentasi)
                 : undefined;
-            const dokumentasiBase64 = uploadedDokumentasi
-                ? await uploadedDokumentasiToPdfDataUrl(uploadedDokumentasi)
-                : undefined;
 
             const payload = dokumentasiLink
-                ? { ...input, dokumentasi: dokumentasiLink, dokumentasi_base64: dokumentasiBase64 ?? undefined }
+                ? { ...input, dokumentasi: dokumentasiLink }
                 : input;
 
             const data = await pengawasanRepository.updateById(id, payload);
@@ -764,12 +751,9 @@ export const pengawasanService = {
                 const dokumentasiLink = uploadedDokumentasi
                     ? await uploadDokumentasiToDrive(existing.id_gantt, uploadedDokumentasi)
                     : undefined;
-                const dokumentasiBase64 = uploadedDokumentasi
-                    ? await uploadedDokumentasiToPdfDataUrl(uploadedDokumentasi)
-                    : undefined;
 
                 const finalPayload = dokumentasiLink
-                    ? { ...payload, dokumentasi: dokumentasiLink, dokumentasi_base64: dokumentasiBase64 ?? undefined }
+                    ? { ...payload, dokumentasi: dokumentasiLink }
                     : payload;
 
                 const data = await pengawasanRepository.updateById(String(id), finalPayload);

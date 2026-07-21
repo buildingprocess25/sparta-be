@@ -62,7 +62,10 @@ export const resolveDriveImageDataUrl = async (rawLink?: string | null): Promise
 
             if (buffer) {
                 try {
-                    const meta = await gp.spartaDrive.files.get({ fileId, fields: "name,mimeType" });
+                    const meta = await gp.spartaDrive.files.get(
+                        { fileId, fields: "name,mimeType" },
+                        { timeout: 5000 }
+                    );
                     filename = meta.data.name ?? null;
                     mimeType = meta.data.mimeType ?? null;
                 } catch {
@@ -76,7 +79,10 @@ export const resolveDriveImageDataUrl = async (rawLink?: string | null): Promise
             buffer = await gp.getFileBufferById(gp.docDrive, fileId);
             if (buffer) {
                 try {
-                    const meta = await gp.docDrive.files.get({ fileId, fields: "name,mimeType" });
+                    const meta = await gp.docDrive.files.get(
+                        { fileId, fields: "name,mimeType" },
+                        { timeout: 5000 }
+                    );
                     filename = meta.data.name ?? null;
                     mimeType = meta.data.mimeType ?? null;
                 } catch {
@@ -95,6 +101,7 @@ export const resolveDriveImageDataUrl = async (rawLink?: string | null): Promise
 
                 const response = await fetch(downloadUrl, {
                     redirect: "follow",
+                    signal: AbortSignal.timeout(10000),
                     headers: {
                         "User-Agent": "Mozilla/5.0 (compatible; SPARTA-PDF/1.0)",
                     }

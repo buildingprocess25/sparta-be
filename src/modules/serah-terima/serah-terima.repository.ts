@@ -259,7 +259,7 @@ export const serahTerimaRepository = {
                 oi.desain,
                 oi.kualitas,
                 oi.spesifikasi,
-                COALESCE(NULLIF(oi.foto, ''), latest_pengawasan.dokumentasi_base64, latest_pengawasan.dokumentasi) AS foto,
+                COALESCE(NULLIF(oi.foto, ''), latest_pengawasan.dokumentasi, latest_pengawasan.dokumentasi_base64) AS foto,
                 oi.catatan,
                 oi.created_at,
                 ri.kategori_pekerjaan,

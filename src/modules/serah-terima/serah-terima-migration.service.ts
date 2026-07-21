@@ -293,8 +293,7 @@ const reconcileFinalPengawasan = async (
             )
                 p.kategori_pekerjaan,
                 p.jenis_pekerjaan,
-                p.dokumentasi,
-                p.dokumentasi_base64
+                p.dokumentasi
             FROM pengawasan p
             JOIN pengawasan_gantt pg ON pg.id = p.id_pengawasan_gantt
             WHERE p.id_gantt = $1
@@ -312,7 +311,6 @@ const reconcileFinalPengawasan = async (
             jenis_pekerjaan,
             catatan,
             dokumentasi,
-            dokumentasi_base64,
             status
         )
         SELECT
@@ -322,7 +320,6 @@ const reconcileFinalPengawasan = async (
             latest.jenis_pekerjaan,
             'Diselesaikan berdasarkan Serah Terima DITERIMA',
             latest.dokumentasi,
-            latest.dokumentasi_base64,
             'selesai'
         FROM latest_item latest
         WHERE NOT EXISTS (

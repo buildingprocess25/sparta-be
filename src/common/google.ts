@@ -453,11 +453,11 @@ export class GoogleProvider {
     }
 
     /** Stream file via Drive API; return null jika gagal */
-    async getFileBufferById(drive: drive_v3.Drive, fileId: string): Promise<Buffer | null> {
+    async getFileBufferById(drive: drive_v3.Drive, fileId: string, timeoutMs = 15000): Promise<Buffer | null> {
         try {
             const resp = await drive.files.get(
                 { fileId, alt: "media", supportsAllDrives: true },
-                { responseType: "arraybuffer" },
+                { responseType: "arraybuffer", timeout: timeoutMs },
             );
             return Buffer.from(resp.data as ArrayBuffer);
         } catch (error: any) {
