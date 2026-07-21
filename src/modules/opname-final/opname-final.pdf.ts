@@ -351,6 +351,8 @@ export const buildOpnameFinalPdfBuffer = async (
     const selisihKerjaTambahKurang = financials.selisihKerjaTambahKurang;
     const selisihKerjaTambahKurangAbs = Math.abs(selisihKerjaTambahKurang);
     const totalOpnameFinal = financials.totalFinal;
+    const selisihFinalRabKtk = totalOpnameFinal - rabSummary.grand_total;
+    const selisihFinalRabKtkAbs = Math.abs(selisihFinalRabKtk);
 
     const html = await renderHtmlTemplate(templatePath, {
         generated_at: formatDateIndonesia(new Date().toISOString()),
@@ -380,6 +382,8 @@ export const buildOpnameFinalPdfBuffer = async (
         selisih_kerja_tambah_kurang_formatted: rupiah(selisihKerjaTambahKurang),
         selisih_kerja_tambah_kurang_raw: selisihKerjaTambahKurang,
         selisih_kerja_tambah_kurang_abs_formatted: rupiah(selisihKerjaTambahKurangAbs),
+        selisih_final_rab_ktk_raw: selisihFinalRabKtk,
+        selisih_final_rab_ktk_abs_formatted: rupiah(selisihFinalRabKtkAbs),
         hari_denda: hariDenda,
         nilai_denda_formatted: rupiah(nilaiDenda),
         denda_allocation_note: detail.opname_final.denda_allocation_note,

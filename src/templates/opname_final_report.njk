@@ -687,15 +687,15 @@
       <td class="label">Grand Total KTK Final</td>
       <td class="num">{{ total_opname_final_formatted }}</td>
     </tr>
-    {% if selisih_kerja_tambah_kurang_raw > 0 %}
+    {% if selisih_final_rab_ktk_raw > 0 %}
     <tr>
-      <td class="label">Grand Total Kerja Tambah</td>
-      <td class="num">{{ selisih_kerja_tambah_kurang_abs_formatted }}</td>
+      <td class="label">Selisih (Kerja Tambah)</td>
+      <td class="num">{{ selisih_final_rab_ktk_abs_formatted }}</td>
     </tr>
-    {% elif selisih_kerja_tambah_kurang_raw < 0 %}
+    {% elif selisih_final_rab_ktk_raw < 0 %}
     <tr>
-      <td class="label">Grand Total Kerja Kurang</td>
-      <td class="num">{{ selisih_kerja_tambah_kurang_abs_formatted }}</td>
+      <td class="label">Selisih (Kerja Kurang)</td>
+      <td class="num">{{ selisih_final_rab_ktk_abs_formatted }}</td>
     </tr>
     {% endif %}
   </table>
