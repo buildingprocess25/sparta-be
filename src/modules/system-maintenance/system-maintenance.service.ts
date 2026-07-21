@@ -12,7 +12,7 @@ const normalizeText = (value: unknown): string =>
 export const canManageSystemMaintenance = (user?: AuthenticatedUser | null): boolean =>
     Boolean(user?.roles.some((role) => normalizeText(role).includes("SUPER HUMAN")));
 
-const STATUS_CACHE_MS = 10_000;
+const STATUS_CACHE_MS = 60_000;
 let cachedStatus: { data: SystemMaintenanceRow; expiresAt: number } | null = null;
 
 const fallbackStatus = (): SystemMaintenanceRow => ({

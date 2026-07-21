@@ -6,6 +6,7 @@ import multer from "multer";
 import { ZodError } from "zod";
 import { env } from "./config/env";
 import { AppError } from "./common/app-error";
+import { pool } from "./db/pool";
 import { apiAuthMiddleware } from "./modules/auth/auth.middleware";
 import { tokoRouter } from "./modules/toko/toko.routes";
 import { rabRouter } from "./modules/rab/rab.routes";
@@ -38,6 +39,25 @@ import { spkBackdatePolicyRouter } from "./modules/spk-backdate-policy/spk-backd
 
 
 const app = express();
+const SLOW_REQUEST_MS = Number(process.env.SLOW_REQUEST_LOG_MS || 3000);
+const POLLING_ENDPOINTS = new Set([
+    "/api/system-maintenance/status",
+    "/api/system-access-schedule/schedule"
+]);
+
+const isProduction = process.env.NODE_ENV === "production";
+
+const shouldQuietPollingLog = (method: string, path: string): boolean => {
+    if (!isProduction || method !== "GET") return false;
+    const pathname = path.split("?")[0];
+    return POLLING_ENDPOINTS.has(pathname);
+};
+
+const getPoolStats = () => ({
+    total: pool.totalCount,
+    idle: pool.idleCount,
+    waiting: pool.waitingCount
+});
 
 const configuredCorsOrigins = env.CORS_ORIGINS === "*"
     ? "*"
@@ -126,14 +146,29 @@ app.use((req, res, next) => {
         body: sanitizeValue(req.body)
     };
 
-    console.log(`[REQ][${requestId}] ${method} ${path}`, payloadLog);
+    const quietPollingLog = shouldQuietPollingLog(method, path);
+
+    if (!quietPollingLog) {
+        console.log(`[REQ][${requestId}] ${method} ${path}`, payloadLog);
+    }
 
     res.on("finish", () => {
         const durationMs = Date.now() - startAt;
-        console.log(`[RES][${requestId}] ${method} ${path}`, {
+        const isSlow = durationMs >= SLOW_REQUEST_MS;
+        const shouldLogResponse = !quietPollingLog || res.statusCode >= 400 || isSlow;
+        if (!shouldLogResponse) return;
+
+        const responseLog: Record<string, unknown> = {
             status: res.statusCode,
             duration_ms: durationMs
-        });
+        };
+
+        const poolStats = getPoolStats();
+        if (isSlow || poolStats.waiting > 0) {
+            responseLog.pg_pool = poolStats;
+        }
+
+        console.log(`[RES][${requestId}] ${method} ${path}`, responseLog);
     });
 
     next();

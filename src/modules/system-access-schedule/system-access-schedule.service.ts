@@ -12,7 +12,7 @@ const normalizeText = (value: unknown): string =>
 export const canManageSystemControls = (user?: AuthenticatedUser | null): boolean =>
     Boolean(user?.roles.some((role) => normalizeText(role).includes("SUPER HUMAN")));
 
-const SCHEDULE_CACHE_MS = 10_000;
+const SCHEDULE_CACHE_MS = 60_000;
 let cachedSchedule: { data: SystemAccessScheduleRow; expiresAt: number } | null = null;
 
 const fallbackSchedule = (): SystemAccessScheduleRow => ({

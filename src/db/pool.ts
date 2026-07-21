@@ -30,14 +30,18 @@ const buildSslConfig = (rawUrl: string): PgSslConfig => {
     return { rejectUnauthorized: false };
 };
 
+const pgPoolMax = Math.min(Math.max(env.PG_POOL_MAX, 5), 20);
+
 export const pool = new Pool({
     connectionString: buildConnectionString(env.DATABASE_URL),
     ssl: buildSslConfig(env.DATABASE_URL),
-    max: Math.min(Math.max(env.PG_POOL_MAX, 5), 10),
+    max: pgPoolMax,
     keepAlive: env.PG_KEEP_ALIVE,
     connectionTimeoutMillis: env.PG_CONN_TIMEOUT_MS,
     idleTimeoutMillis: env.PG_IDLE_TIMEOUT_MS
 });
+
+console.log(`[Postgres] Pool max efektif: ${pgPoolMax}`);
 
 // Setiap koneksi baru: set timezone ke WIB
 pool.on("connect", (client) => {
