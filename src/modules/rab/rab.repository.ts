@@ -724,6 +724,22 @@ export const rabRepository = {
                 throw duplicateError;
             }
 
+            const rejectedRabRes = await client.query<{ id: number }>(
+                `SELECT id
+                 FROM rab
+                 WHERE id_toko = $1
+                   AND status = ANY($2::text[])
+                 FOR UPDATE`,
+                [tokoId, REJECTED_RAB_STATUSES]
+            );
+            const rejectedRabIds = rejectedRabRes.rows.map((row) => row.id);
+            if (rejectedRabIds.length > 0) {
+                await client.query(`DELETE FROM rab_revisi_item WHERE id_rab = ANY($1::int[])`, [rejectedRabIds]);
+                await client.query(`DELETE FROM rab_item WHERE id_rab = ANY($1::int[])`, [rejectedRabIds]);
+                await client.query(`DELETE FROM activity_log WHERE entity_type = 'RAB' AND entity_id = ANY($1::int[])`, [rejectedRabIds]);
+                await client.query(`DELETE FROM rab WHERE id = ANY($1::int[])`, [rejectedRabIds]);
+            }
+
             const logoToPersist = toPersistedAssetLink(payload.logo);
             const insuranceToPersist = toPersistedAssetLink(payload.file_asuransi);
 
