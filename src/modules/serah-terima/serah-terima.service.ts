@@ -345,8 +345,11 @@ export const serahTerimaService = {
             catatan: input.catatan ?? null,
         });
 
-        for (const row of updatedRows) {
-            await opnameFinalService.refreshDendaByTokoId(row.id_toko);
+        const uniqueTokoIds = Array.from(new Set(updatedRows.map((row) => row.id_toko)));
+        let refreshedDendaCount = 0;
+        for (const idToko of uniqueTokoIds) {
+            const refreshResult = await opnameFinalService.refreshDendaByTokoId(idToko);
+            refreshedDendaCount += Number(refreshResult.updated_count ?? 0);
         }
 
         setImmediate(() => {
@@ -376,7 +379,7 @@ export const serahTerimaService = {
             cabang: input.cabang ?? null,
             tanggal_serah_terima: input.tanggal_serah_terima,
             affected_count: updatedRows.length,
-            refreshed_denda_count: updatedRows.length,
+            refreshed_denda_count: refreshedDendaCount,
             pdf_refresh_queued_count: updatedRows.length,
             items: refreshed.filter((item) => {
                 if (!input.cabang) return true;

@@ -567,7 +567,7 @@ export const spService = {
             return "Selamat malam";
         };
 
-        const frontendUrl = env.FRONTEND_URL || "https://sparta-building.vercel.app";
+        const frontendUrl = env.FRONTEND_URL || "https://building.sparta-alfamart.web.id";
         const acknowledgeUrl = `${frontendUrl}/surat-peringatan`;
         const pdfFileId = extractDriveFileId(action.link_pdf);
         const pdfBuffer = pdfFileId && GoogleProvider.instance.spartaDrive

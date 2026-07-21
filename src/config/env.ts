@@ -38,7 +38,7 @@ const envSchema = z.object({
 
     // Email sender
     EMAIL_USER: z.string().optional(),
-    FRONTEND_URL: z.string().default("https://sparta-building.vercel.app"),
+    FRONTEND_URL: z.string().default("https://building.sparta-alfamart.web.id"),
     SPARTA_BACKEND_BASE_URL: z.string().optional(),
 
     // Puppeteer / Chrome runtime (useful on Render)
