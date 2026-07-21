@@ -457,15 +457,14 @@ export const opnameFinalService = {
         const rabData = await loadRabData(refreshedDetail.opname_final.id);
         await applyRukoConversionIfNeeded(refreshedDetail, instruksiLapanganItems, rabData);
         const pdfBuffer = await buildOpnameFinalPdfBuffer(refreshedDetail, instruksiLapanganItems, rabData);
-        try {
-            const linkPdf = await uploadPdfToDrive(pdfBuffer, filename);
-            await opnameFinalRepository.updatePdfLink(id, linkPdf);
-        } catch (error) {
+        uploadPdfToDrive(pdfBuffer, filename).then((linkPdf) =>
+            opnameFinalRepository.updatePdfLink(id, linkPdf)
+        ).catch((error) => {
             console.warn("[opname-final] Gagal menyimpan cache PDF hasil generate; tetap mengirim PDF ke user", {
                 id,
                 message: error instanceof Error ? error.message : String(error)
             });
-        }
+        });
 
         return {
             filename,

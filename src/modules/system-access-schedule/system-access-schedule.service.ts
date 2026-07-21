@@ -12,11 +12,40 @@ const normalizeText = (value: unknown): string =>
 export const canManageSystemControls = (user?: AuthenticatedUser | null): boolean =>
     Boolean(user?.roles.some((role) => normalizeText(role).includes("SUPER HUMAN")));
 
+const SCHEDULE_CACHE_MS = 10_000;
+let cachedSchedule: { data: SystemAccessScheduleRow; expiresAt: number } | null = null;
+
+const fallbackSchedule = (): SystemAccessScheduleRow => ({
+    id: 1,
+    is_enabled: true,
+    weekday_enabled: true,
+    weekend_enabled: false,
+    general_start_minutes: 360,
+    general_end_minutes: 1440,
+    contractor_start_minutes: 360,
+    contractor_end_minutes: 1440,
+    updated_by_email: null,
+    updated_by_role: null,
+    updated_at: new Date().toISOString(),
+});
+
 export const systemAccessScheduleService = {
     ensureSchema: () => systemAccessScheduleRepository.ensureSchema(),
 
     async getSchedule(): Promise<SystemAccessScheduleRow> {
-        return systemAccessScheduleRepository.getSchedule();
+        const now = Date.now();
+        if (cachedSchedule && cachedSchedule.expiresAt > now) {
+            return cachedSchedule.data;
+        }
+
+        try {
+            const data = await systemAccessScheduleRepository.getSchedule();
+            cachedSchedule = { data, expiresAt: now + SCHEDULE_CACHE_MS };
+            return data;
+        } catch (error) {
+            console.warn("[system-access-schedule] Gagal membaca jadwal, memakai fallback cache/default:", error);
+            return cachedSchedule?.data ?? fallbackSchedule();
+        }
     },
 
     async updateSchedule(input: Omit<UpdateSystemAccessScheduleInput, "actor_email" | "actor_role"> & { actor?: AuthenticatedUser | null }): Promise<SystemAccessScheduleRow> {
@@ -48,7 +77,7 @@ export const systemAccessScheduleService = {
             throw new AppError("Rentang jam akses harus antara 00:00 sampai 24:00.", 400);
         }
 
-        return systemAccessScheduleRepository.updateSchedule({
+        const data = await systemAccessScheduleRepository.updateSchedule({
             is_enabled: input.is_enabled,
             weekday_enabled: input.weekday_enabled,
             weekend_enabled: input.weekend_enabled,
@@ -59,5 +88,7 @@ export const systemAccessScheduleService = {
             actor_email: input.actor?.email_sat ?? null,
             actor_role: input.actor?.jabatan ?? input.actor?.roles.join(", ") ?? null,
         });
+        cachedSchedule = { data, expiresAt: Date.now() + SCHEDULE_CACHE_MS };
+        return data;
     },
 };

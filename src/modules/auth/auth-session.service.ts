@@ -19,6 +19,11 @@ export type CreatedAuthSession = {
 };
 
 const TOKEN_PREFIX = "sparta";
+const AUTH_CACHE_TTL_MS = 15_000;
+const ROLLING_EXTENSION_MIN_INTERVAL_MS = 5 * 60_000;
+
+const authenticatedUserCache = new Map<string, { user: AuthenticatedUser; expiresAt: number }>();
+const rollingExtensionCache = new Map<number, number>();
 
 function hashToken(token: string): string {
     return crypto.createHash("sha256").update(token).digest("hex");
@@ -87,21 +92,41 @@ export const authSessionService = {
         const normalizedToken = token.trim();
         if (!normalizedToken) return null;
 
-        const row = await authSessionRepository.findActiveByTokenHash(hashToken(normalizedToken));
+        const tokenHash = hashToken(normalizedToken);
+        const now = Date.now();
+        const cached = authenticatedUserCache.get(tokenHash);
+        if (cached && cached.expiresAt > now && Date.parse(cached.user.expires_at) > now) {
+            return cached.user;
+        }
+
+        const row = await authSessionRepository.findActiveByTokenHash(tokenHash);
         if (!row) return null;
 
         if (env.AUTH_ROLLING_SESSION) {
-            authSessionRepository.extendExpiry(row.id, calculateExpiry()).catch((error) => {
-                console.warn("Gagal memperpanjang session auth:", error);
-            });
+            const lastExtendedAt = rollingExtensionCache.get(row.id) ?? 0;
+            if (now - lastExtendedAt >= ROLLING_EXTENSION_MIN_INTERVAL_MS) {
+                rollingExtensionCache.set(row.id, now);
+                authSessionRepository.extendExpiry(row.id, calculateExpiry()).catch((error) => {
+                    rollingExtensionCache.delete(row.id);
+                    console.warn("Gagal memperpanjang session auth:", error);
+                });
+            }
         }
 
-        return toAuthenticatedUser(row);
+        const user = toAuthenticatedUser(row);
+        authenticatedUserCache.set(tokenHash, {
+            user,
+            expiresAt: now + AUTH_CACHE_TTL_MS
+        });
+
+        return user;
     },
 
     async revokeToken(token: string): Promise<void> {
         const normalizedToken = token.trim();
         if (!normalizedToken) return;
-        await authSessionRepository.revokeByTokenHash(hashToken(normalizedToken));
+        const tokenHash = hashToken(normalizedToken);
+        authenticatedUserCache.delete(tokenHash);
+        await authSessionRepository.revokeByTokenHash(tokenHash);
     }
 };
