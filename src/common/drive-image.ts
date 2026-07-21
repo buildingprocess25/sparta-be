@@ -58,13 +58,13 @@ export const resolveDriveImageDataUrl = async (rawLink?: string | null): Promise
 
         // Coba download via spartaDrive (OAuth)
         if (fileId && gp.spartaDrive) {
-            buffer = await gp.getFileBufferById(gp.spartaDrive, fileId);
+            buffer = await gp.getFileBufferById(gp.spartaDrive, fileId, 2500);
 
             if (buffer) {
                 try {
                     const meta = await gp.spartaDrive.files.get(
                         { fileId, fields: "name,mimeType" },
-                        { timeout: 5000 }
+                        { timeout: 3000 }
                     );
                     filename = meta.data.name ?? null;
                     mimeType = meta.data.mimeType ?? null;
@@ -76,12 +76,12 @@ export const resolveDriveImageDataUrl = async (rawLink?: string | null): Promise
 
         // Fallback: coba docDrive jika spartaDrive gagal
         if (!buffer && fileId && gp.docDrive) {
-            buffer = await gp.getFileBufferById(gp.docDrive, fileId);
+            buffer = await gp.getFileBufferById(gp.docDrive, fileId, 2500);
             if (buffer) {
                 try {
                     const meta = await gp.docDrive.files.get(
                         { fileId, fields: "name,mimeType" },
-                        { timeout: 5000 }
+                        { timeout: 3000 }
                     );
                     filename = meta.data.name ?? null;
                     mimeType = meta.data.mimeType ?? null;
@@ -91,17 +91,14 @@ export const resolveDriveImageDataUrl = async (rawLink?: string | null): Promise
             }
         }
 
-        // Fallback terakhir: fetch URL langsung dengan follow redirect
-        if (!buffer && /^https?:\/\//i.test(link)) {
+        // Fallback terakhir untuk URL non-Drive. File Drive private harus lewat OAuth/proxy backend.
+        if (!buffer && !fileId && /^https?:\/\//i.test(link)) {
             try {
-                // Coba usercontent.google.com dulu (lebih reliable dari /uc?export=download)
-                const downloadUrl = fileId
-                    ? `https://drive.usercontent.google.com/download?id=${fileId}&export=download&authuser=0`
-                    : normalizeDriveDownloadLink(link);
+                const downloadUrl = normalizeDriveDownloadLink(link);
 
                 const response = await fetch(downloadUrl, {
                     redirect: "follow",
-                    signal: AbortSignal.timeout(10000),
+                    signal: AbortSignal.timeout(5000),
                     headers: {
                         "User-Agent": "Mozilla/5.0 (compatible; SPARTA-PDF/1.0)",
                     }

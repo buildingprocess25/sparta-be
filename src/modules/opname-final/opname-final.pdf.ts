@@ -44,6 +44,27 @@ const toNumber = (value: string | number | null | undefined): number => {
 type GroupSummary = ReturnType<typeof buildFinancialSummary>;
 
 type GroupedItems<T> = Array<{ category: string; items: T[]; summary: GroupSummary }>;
+type PhotoResolver = (rawLink?: string | null) => Promise<string | null>;
+
+const mapWithConcurrency = async <T, R>(
+    items: T[],
+    concurrency: number,
+    mapper: (item: T, index: number) => Promise<R>
+): Promise<R[]> => {
+    const results = new Array<R>(items.length);
+    let nextIndex = 0;
+    const workerCount = Math.min(Math.max(concurrency, 1), items.length);
+
+    const workers = Array.from({ length: workerCount }, async () => {
+        while (nextIndex < items.length) {
+            const currentIndex = nextIndex++;
+            results[currentIndex] = await mapper(items[currentIndex], currentIndex);
+        }
+    });
+
+    await Promise.all(workers);
+    return results;
+};
 
 const sortOpnameItemsByRabOrder = (items: OpnameFinalItemRow[]): OpnameFinalItemRow[] => {
     return [...items].sort((left, right) => {
@@ -125,26 +146,36 @@ const resolveOpnameSatuan = (item: OpnameFinalItemRow): string => {
         .trim() || "-";
 };
 
-const buildOpnameGroupedItems = async (items: OpnameFinalItemRow[], noPpn = false): Promise<GroupedItems<OpnameItemView>> => {
+const buildOpnameGroupedItems = async (
+    items: OpnameFinalItemRow[],
+    noPpn = false,
+    resolvePhoto: PhotoResolver = resolveDriveImageDataUrl
+): Promise<GroupedItems<OpnameItemView>> => {
     const grouped = new Map<string, OpnameItemView[]>();
     const totals = new Map<string, number>();
 
-    for (const item of items) {
+    const preparedItems = await mapWithConcurrency(items, 16, async (item) => {
         const category = resolveOpnameCategory(item);
         const totalHargaRab = toNumber(item.total_harga_rab ?? item.rab_item?.total_harga ?? 0);
         const totalSelisih = toNumber(item.total_selisih);
-        const view: OpnameItemView = {
-            jenis_pekerjaan: resolveOpnameJenis(item),
-            satuan: resolveOpnameSatuan(item),
-            volume_rab: formatVolume(item.volume_rab ?? item.rab_item?.volume ?? 0),
-            volume_akhir: formatVolume(item.volume_akhir),
-            selisih_volume: formatVolume(item.selisih_volume),
-            total_harga_rab_formatted: rupiah(totalHargaRab),
-            total_selisih_formatted: rupiah(totalSelisih),
-            foto_data_url: await resolveDriveImageDataUrl(item.foto),
-            catatan: item.catatan
+        return {
+            category,
+            totalSelisih,
+            view: {
+                jenis_pekerjaan: resolveOpnameJenis(item),
+                satuan: resolveOpnameSatuan(item),
+                volume_rab: formatVolume(item.volume_rab ?? item.rab_item?.volume ?? 0),
+                volume_akhir: formatVolume(item.volume_akhir),
+                selisih_volume: formatVolume(item.selisih_volume),
+                total_harga_rab_formatted: rupiah(totalHargaRab),
+                total_selisih_formatted: rupiah(totalSelisih),
+                foto_data_url: await resolvePhoto(item.foto),
+                catatan: item.catatan
+            }
         };
+    });
 
+    for (const { category, totalSelisih, view } of preparedItems) {
         if (!grouped.has(category)) {
             grouped.set(category, []);
             totals.set(category, 0);
@@ -163,7 +194,8 @@ const buildOpnameGroupedItems = async (items: OpnameFinalItemRow[], noPpn = fals
 const buildInstruksiLapanganGroups = async (
     items: InstruksiLapanganItemRow[],
     opnameItems: OpnameFinalItemRow[],
-    noPpn = false
+    noPpn = false,
+    resolvePhoto: PhotoResolver = resolveDriveImageDataUrl
 ): Promise<GroupedItems<InstruksiLapanganItemView>> => {
     const grouped = new Map<string, InstruksiLapanganItemView[]>();
     const totals = new Map<string, number>();
@@ -174,23 +206,29 @@ const buildInstruksiLapanganGroups = async (
         if (instruksiId > 0) opnameByInstruksiId.set(instruksiId, opnameItem);
     }
 
-    for (const item of items) {
+    const preparedItems = await mapWithConcurrency(items, 16, async (item) => {
         const category = String(item.kategori_pekerjaan ?? "").trim().toUpperCase() || "LAIN-LAIN";
         const totalHarga = toNumber(item.total_harga);
         const opnameItem = opnameByInstruksiId.get(Number(item.id));
-        const view: InstruksiLapanganItemView = {
-            id: Number(item.id),
-            jenis_pekerjaan: String(item.jenis_pekerjaan ?? "").trim() || "-",
-            satuan: String(item.satuan ?? "").trim() || "-",
-            volume: formatVolume(opnameItem ? opnameItem.volume_akhir : item.volume),
-            harga_material_formatted: rupiah(toNumber(item.harga_material)),
-            harga_upah_formatted: rupiah(toNumber(item.harga_upah)),
-            total_material_formatted: rupiah(toNumber(item.total_material)),
-            total_upah_formatted: rupiah(toNumber(item.total_upah)),
-            total_harga_formatted: rupiah(totalHarga),
-            foto_data_url: await resolveDriveImageDataUrl(opnameItem?.foto),
+        return {
+            category,
+            totalHarga,
+            view: {
+                id: Number(item.id),
+                jenis_pekerjaan: String(item.jenis_pekerjaan ?? "").trim() || "-",
+                satuan: String(item.satuan ?? "").trim() || "-",
+                volume: formatVolume(opnameItem ? opnameItem.volume_akhir : item.volume),
+                harga_material_formatted: rupiah(toNumber(item.harga_material)),
+                harga_upah_formatted: rupiah(toNumber(item.harga_upah)),
+                total_material_formatted: rupiah(toNumber(item.total_material)),
+                total_upah_formatted: rupiah(toNumber(item.total_upah)),
+                total_harga_formatted: rupiah(totalHarga),
+                foto_data_url: await resolvePhoto(opnameItem?.foto),
+            }
         };
+    });
 
+    for (const { category, totalHarga, view } of preparedItems) {
         if (!grouped.has(category)) {
             grouped.set(category, []);
             totals.set(category, 0);
@@ -316,6 +354,17 @@ export const buildOpnameFinalPdfBuffer = async (
     const opnameItems = allOpnameItems.filter((item) => item.id_rab_item !== null);
     const kerjaTambahItems = opnameItems.filter((item) => toNumber(item.total_selisih) > 0);
     const kerjaKurangItems = opnameItems.filter((item) => toNumber(item.total_selisih) < 0);
+    const photoCache = new Map<string, Promise<string | null>>();
+    const resolvePhotoCached: PhotoResolver = async (rawLink) => {
+        const key = String(rawLink ?? "").trim();
+        if (!key) return null;
+        const existing = photoCache.get(key);
+        if (existing) return existing;
+
+        const promise = resolveDriveImageDataUrl(key);
+        photoCache.set(key, promise);
+        return promise;
+    };
     const rabItems = rabData?.items ?? [];
     const rabGrandTotalRaw = rabData?.header?.grand_total_final
         ?? rabData?.header?.grand_total_non_sbo
@@ -362,11 +411,11 @@ export const buildOpnameFinalPdfBuffer = async (
         header_left_logo_path: staticAssetPath("Alfamart-Emblem.png"),
         header_right_logo_path: staticAssetPath("Building-Logo.png"),
         watermark_logo_path: staticAssetPath("Building-Logo.png"),
-        grouped_items_list: await buildOpnameGroupedItems(opnameItems, noPpn),
+        grouped_items_list: await buildOpnameGroupedItems(opnameItems, noPpn, resolvePhotoCached),
         rab_grouped_items_list: buildRabGroupedItems(rabItems, noPpn),
-        instruksi_lapangan_groups: await buildInstruksiLapanganGroups(instruksiLapanganItems, allOpnameItems, noPpn),
-        kerja_tambah_groups: await buildOpnameGroupedItems(kerjaTambahItems, noPpn),
-        kerja_kurang_groups: await buildOpnameGroupedItems(kerjaKurangItems, noPpn),
+        instruksi_lapangan_groups: await buildInstruksiLapanganGroups(instruksiLapanganItems, allOpnameItems, noPpn, resolvePhotoCached),
+        kerja_tambah_groups: await buildOpnameGroupedItems(kerjaTambahItems, noPpn, resolvePhotoCached),
+        kerja_kurang_groups: await buildOpnameGroupedItems(kerjaKurangItems, noPpn, resolvePhotoCached),
         opname_summary: buildFinancialSummary(totalOpnameSelisih, "up", noPpn),
         rab_summary: rabSummary,
         instruksi_lapangan_summary: instruksiLapanganSummary,
