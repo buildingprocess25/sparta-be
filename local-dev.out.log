@@ -261,3 +261,24 @@ Startup bootstrap selesai
 [Scheduler] SP expiryReminders akan mulai dalam 937 menit (jam 08:00 WIB)
 [Scheduler] SP weeklySummary akan mulai dalam 159 jam (Senin jam 07:00 WIB)
 Startup bootstrap selesai
+17.31.00 [tsx] change in ./src\modules\rab\rab.service.ts Restarting...
+crab-service running on port 8081
+✅ Token refreshed dari token.json
+✅ Service Sparta (Sheets) Berhasil.
+✅ Token refreshed dari token_doc.json
+✅ Service Dokumen (Sheets + Drive) Berhasil.
+[Scheduler] SP markExpiredSp akan mulai dalam 393 menit (jam 00:05 WIB)
+[Scheduler] SP expiryReminders akan mulai dalam 868 menit (jam 08:00 WIB)
+[Scheduler] SP weeklySummary akan mulai dalam 157 jam (Senin jam 07:00 WIB)
+Startup bootstrap selesai
+17.59.20 [tsx] change in ./src\modules\rab\rab.service.ts Restarting...
+c17.59.29 [tsx] change in ./src\modules\rab\rab.service.ts Restarting...
+crab-service running on port 8081
+✅ Token refreshed dari token.json
+✅ Service Sparta (Sheets) Berhasil.
+✅ Token refreshed dari token_doc.json
+✅ Service Dokumen (Sheets + Drive) Berhasil.
+[Scheduler] SP markExpiredSp akan mulai dalam 365 menit (jam 00:05 WIB)
+[Scheduler] SP expiryReminders akan mulai dalam 840 menit (jam 08:00 WIB)
+[Scheduler] SP weeklySummary akan mulai dalam 157 jam (Senin jam 07:00 WIB)
+Startup bootstrap selesai

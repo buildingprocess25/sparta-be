@@ -92,7 +92,7 @@ const canViewAllBranches = (user: AuthenticatedUser) =>
 type ApprovalStage = "KOORDINATOR" | "MANAGER" | "DIREKTUR" | "DIREKTUR_KONTRAKTOR" | "KONTRAKTOR" | "ALL" | null;
 
 const getApprovalStage = (user: AuthenticatedUser): ApprovalStage => {
-    if (isSuperHuman(user) || isRegionalManager(user)) return "ALL";
+    if (isSuperHuman(user)) return "ALL";
     if (hasActiveRole(user, "DIREKTUR KONTRAKTOR")) return "DIREKTUR_KONTRAKTOR";
     if (hasActiveRole(user, "DIREKTUR")) return "DIREKTUR";
     if (hasActiveRole(user, "KONTRAKTOR")) return "KONTRAKTOR";
@@ -414,15 +414,20 @@ const findInstruksiLapanganApproval = async (user: AuthenticatedUser): Promise<N
 
 const findProjectPlanningApproval = async (user: AuthenticatedUser): Promise<NotificationRow[]> => {
     const isBmManager = hasActiveRole(user, "BRANCH BUILDING & MAINTENANCE MANAGER") || hasActiveRole(user, "BBMM");
+    const isBmRegionalManager =
+        hasActiveRole(user, "BUILDING & MAINTENANCE REGIONAL MANAGER")
+        || hasActiveRole(user, "B&M REGIONAL")
+        || hasActiveRole(user, "REGIONAL MANAGER");
     const isPpSpecialist = hasActiveRole(user, "PROJECT PLANNING & DEVELOPMENT SPECIALIST") || hasActiveRole(user, "PP SPECIALIST");
     const isPpManager = hasActiveRole(user, "PROJECT PLANNING & DEVELOPMENT MANAGER") || hasActiveRole(user, "PP MANAGER");
-    if (!isSuperHuman(user) && !isBmManager && !isPpSpecialist && !isPpManager) return [];
+    if (!isSuperHuman(user) && !isBmManager && !isBmRegionalManager && !isPpSpecialist && !isPpManager) return [];
 
     const statusConditions: string[] = [];
     if (isSuperHuman(user)) {
-        statusConditions.push("pp.status IN ('WAITING_BM_APPROVAL', 'WAITING_PP_APPROVAL_1', 'PP_DESIGN_3D_REQUIRED', 'WAITING_BM_APPROVAL_2', 'WAITING_PP_MANAGER_APPROVAL', 'WAITING_PP_APPROVAL_2')");
+        statusConditions.push("pp.status IN ('WAITING_BM_APPROVAL', 'WAITING_PP_APPROVAL_1', 'PP_DESIGN_3D_REQUIRED', 'WAITING_BM_APPROVAL_2', 'WAITING_BM_REGIONAL_APPROVAL', 'WAITING_PP_MANAGER_APPROVAL', 'WAITING_PP_APPROVAL_2')");
     } else {
         if (isBmManager) statusConditions.push("pp.status IN ('WAITING_BM_APPROVAL', 'WAITING_BM_APPROVAL_2')");
+        if (isBmRegionalManager) statusConditions.push("pp.status = 'WAITING_BM_REGIONAL_APPROVAL'");
         if (isPpSpecialist) statusConditions.push("pp.status IN ('WAITING_PP_APPROVAL_1', 'PP_DESIGN_3D_REQUIRED', 'WAITING_PP_APPROVAL_2')");
         if (isPpManager) statusConditions.push("pp.status = 'WAITING_PP_MANAGER_APPROVAL'");
     }
