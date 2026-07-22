@@ -206,6 +206,27 @@ const addApprovalBranchScope = (user: AuthenticatedUser, values: SqlValue[], bra
     `;
 };
 
+const addProjectPlanningBranchScope = (
+    user: AuthenticatedUser,
+    values: SqlValue[],
+    branchExpression: string,
+    allowHeadOfficeTask: boolean
+): string => {
+    if (isSuperHuman(user)) return "";
+
+    const scopedWhere = addApprovalBranchScope(user, values, branchExpression).replace(/^\s*AND\s*/, "");
+    const normalizedBranchExpression = `REPLACE(UPPER(TRIM(COALESCE(${branchExpression}, ''))), '_', ' ')`;
+
+    if (!allowHeadOfficeTask) return `AND ${scopedWhere}`;
+
+    return `
+        AND (
+            ${normalizedBranchExpression} = 'HEAD OFFICE'
+            OR ${scopedWhere}
+        )
+    `;
+};
+
 const addCompanyScope = (user: AuthenticatedUser, values: SqlValue[], companyExpression: string): string => {
     if (!hasActiveRole(user, "KONTRAKTOR")) return "";
     if (!user.nama_pt) return "AND FALSE";
@@ -480,7 +501,7 @@ const findProjectPlanningApproval = async (user: AuthenticatedUser): Promise<Not
     }
 
     const values: SqlValue[] = [];
-    const branchWhere = addApprovalBranchScope(user, values, "pp.cabang");
+    const branchWhere = addProjectPlanningBranchScope(user, values, "pp.cabang", isBmRegionalManager);
     values.push(ITEM_LIMIT);
 
     return queryNotificationRows(`
