@@ -28,6 +28,19 @@ export const normalizeBranchScopeName = (value?: string | null): string =>
         .replace(/_+/g, " ")         // Underscores → space (FIX for SIDOARJO BPN_SMD)
         .toUpperCase();
 
+const ALL_BRANCHES = Array.from(
+    new Set([
+        ...Object.values(BRANCH_GROUPS).flat(),
+        "LUWU", "REMBANG", "BANJARMASIN", "TEGAL", "GORONTALO", "PONTIANAK",
+        "CIANJUR", "JEMBER", "BALI", "KLATEN", "MAKASSAR", "PLUMBON",
+        "PEKANBARU", "JAMBI", "HEAD OFFICE", "BANDUNG RAYA", "CILACAP",
+        "SEMARANG", "MALANG", "MANADO", "BATAM", "MADIUN", "PALEMBANG",
+        "BENGKULU", "BANGKA", "BELITUNG", "KOTABUMI", "ACEH", "SUMBAWA",
+        "BOGOR", "BEKASI", "KARAWANG", "PARUNG", "BALARAJA", "SERANG", "BINTAN",
+        "SIDOARJO BPN SMD", "MANOKWARI", "NTT", "SORONG"
+    ])
+).map(normalizeBranchScopeName).filter(Boolean).sort();
+
 export const getBranchScopeCandidates = (branch?: string | null): string[] => {
     const normalized = normalizeBranchScopeName(branch);
     if (!normalized) return [];
@@ -77,6 +90,9 @@ export const isBranchSupportRole = (roles?: string[]): boolean => {
     );
 };
 
+const isSuperHumanRole = (roles?: string[]): boolean =>
+    (roles ?? []).some(role => normalizeBranchScopeName(role).includes("SUPER HUMAN"));
+
 /**
  * Get user's coverage branches from user_branch_coverage table
  */
@@ -94,6 +110,13 @@ export const getUserCoverageBranches = async (emailSat: string, cabang: string):
     );
 
     return result.rows.map(row => normalizeBranchScopeName(row.covered_cabang)).filter(Boolean);
+};
+
+const getBranchGroupOrFallback = (branch?: string | null): string[] => {
+    const normalized = normalizeBranchScopeName(branch);
+    if (!normalized) return [];
+    const group = getBranchScopeCandidates(normalized);
+    return group.length > 0 ? group.sort() : [normalized];
 };
 
 /**
@@ -133,16 +156,7 @@ export const getEffectiveBranchesForUser = async (input: {
 
     // 1. Global access
     if (hasGlobalAccess(cabang, roles)) {
-        const allBranches = Array.from(
-            new Set([
-                ...Object.values(BRANCH_GROUPS).flat(),
-                "LUWU", "REMBANG", "BANJARMASIN", "TEGAL", "GORONTALO", "PONTIANAK",
-                "CIANJUR", "JEMBER", "BALI", "KLATEN", "MAKASSAR", "PLUMBON",
-                "PEKANBARU", "JAMBI", "HEAD OFFICE", "BANDUNG RAYA", "CILACAP",
-                "SEMARANG", "MALANG", "MANADO", "BATAM", "MADIUN"
-            ])
-        ).sort();
-        return { branches: allBranches, source: "global" };
+        return { branches: ALL_BRANCHES, source: "global" };
     }
 
     // 2. Branch Support role → Always entire branch group
@@ -172,4 +186,42 @@ export const getEffectiveBranchesForUser = async (input: {
     // 4. Other branches (Lombok, Medan, Lampung, etc): ALL roles access entire branch group
     const branchGroup = getBranchScopeCandidates(normalizedCabang);
     return { branches: branchGroup.sort(), source: "branch_group" };
+};
+
+/**
+ * Branch scope khusus approval.
+ *
+ * Global view tetap global, tetapi tugas approval tidak ikut global access.
+ * Hanya Super Human yang boleh bypass approval branch scope. Role regional
+ * manager HEAD OFFICE memakai coverage jika tersedia.
+ */
+export const getApprovalBranchesForUser = async (input: {
+    emailSat: string;
+    cabang: string;
+    roles: string[];
+}): Promise<{ branches: string[]; source: "superhuman" | "coverage" | "support" | "branch_group" | "fallback" }> => {
+    const { emailSat, cabang, roles } = input;
+    const normalizedCabang = normalizeBranchScopeName(cabang);
+
+    if (isSuperHumanRole(roles)) {
+        return { branches: ALL_BRANCHES, source: "superhuman" };
+    }
+
+    const coverage = await getUserCoverageBranches(emailSat, cabang);
+    if (coverage.length > 0) {
+        return { branches: coverage.sort(), source: "coverage" };
+    }
+
+    if (isBranchSupportRole(roles)) {
+        return { branches: getBranchGroupOrFallback(normalizedCabang), source: "support" };
+    }
+
+    if (hasSpecificCoverageRules(normalizedCabang)) {
+        return {
+            branches: normalizedCabang ? [normalizedCabang] : [],
+            source: "fallback",
+        };
+    }
+
+    return { branches: getBranchGroupOrFallback(normalizedCabang), source: "branch_group" };
 };

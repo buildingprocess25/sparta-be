@@ -70,6 +70,7 @@ const hasAnyRole = (user: AuthenticatedUser, matchers: string[]) =>
     matchers.some(matcher => hasRole(user, matcher));
 
 const isSuperHuman = (user: AuthenticatedUser) => hasActiveRole(user, "SUPER HUMAN");
+const isLiteralActiveRole = (user: AuthenticatedUser, role: string) => normalize(user.jabatan) === normalize(role);
 const isHeadOffice = (user: AuthenticatedUser) => normalize(user.cabang) === "HEAD OFFICE";
 const isBranchSupportRole = (user: AuthenticatedUser) => hasActiveRole(user, "BRANCH BUILDING SUPPORT");
 const isBranchBuildingMaintenanceManager = (user: AuthenticatedUser) =>
@@ -95,8 +96,8 @@ const getApprovalStage = (user: AuthenticatedUser): ApprovalStage => {
     if (hasActiveRole(user, "DIREKTUR KONTRAKTOR")) return "DIREKTUR_KONTRAKTOR";
     if (hasActiveRole(user, "DIREKTUR")) return "DIREKTUR";
     if (hasActiveRole(user, "KONTRAKTOR")) return "KONTRAKTOR";
-    if (hasActiveRole(user, "BRANCH BUILDING & MAINTENANCE MANAGER") || hasActiveRole(user, "MANAGER")) return "MANAGER";
-    if (hasActiveRole(user, "BRANCH BUILDING COORDINATOR") || hasActiveRole(user, "COORDINATOR")) return "KOORDINATOR";
+    if (hasActiveRole(user, "BRANCH BUILDING & MAINTENANCE MANAGER") || hasActiveRole(user, "BBMM") || isLiteralActiveRole(user, "MANAGER")) return "MANAGER";
+    if (hasActiveRole(user, "BRANCH BUILDING COORDINATOR") || isLiteralActiveRole(user, "COORDINATOR") || isLiteralActiveRole(user, "KOORDINATOR")) return "KOORDINATOR";
     return null;
 };
 
@@ -104,7 +105,7 @@ const normalizeCompanySql = (expression: string) =>
     `regexp_replace(REPLACE(REPLACE(UPPER(COALESCE(${expression}, '')), 'PT', ''), 'CV', ''), '[^A-Z0-9]', '', 'g')`;
 
 const addBranchScope = (user: AuthenticatedUser, values: SqlValue[], branchExpression: string): string => {
-    if (canViewAllBranches(user)) return "";
+    if (isSuperHuman(user)) return "";
 
     if (isBranchSupportRole(user)) {
         const branches = getBranchScopeCandidates(user.cabang);
@@ -153,6 +154,53 @@ const addBranchScope = (user: AuthenticatedUser, values: SqlValue[], branchExpre
                       AND LOWER(TRIM(uc_scope.cabang)) = LOWER(TRIM($${cabangIndex}))
                 )
                 AND UPPER(TRIM(COALESCE(${branchExpression}, ''))) = UPPER(TRIM($${fallbackCabangIndex}))
+            )
+        )
+    `;
+};
+
+const addApprovalBranchScope = (user: AuthenticatedUser, values: SqlValue[], branchExpression: string): string => {
+    if (isSuperHuman(user)) return "";
+
+    values.push(user.email_sat);
+    const emailIndex = values.length;
+    values.push(user.cabang);
+    const cabangIndex = values.length;
+    values.push(getBranchScopeCandidates(user.cabang));
+    const branchGroupIndex = values.length;
+    const normalizedBranchExpression = `REPLACE(UPPER(TRIM(COALESCE(${branchExpression}, ''))), '_', ' ')`;
+
+    return `
+        AND (
+            (
+                EXISTS (
+                    SELECT 1
+                    FROM user_cabang uc_scope
+                    JOIN user_branch_coverage ubc_scope
+                      ON ubc_scope.user_cabang_id = uc_scope.id
+                    WHERE LOWER(TRIM(uc_scope.email_sat)) = LOWER(TRIM($${emailIndex}))
+                      AND LOWER(TRIM(uc_scope.cabang)) = LOWER(TRIM($${cabangIndex}))
+                )
+                AND EXISTS (
+                    SELECT 1
+                    FROM user_cabang uc_scope
+                    JOIN user_branch_coverage ubc_scope
+                      ON ubc_scope.user_cabang_id = uc_scope.id
+                    WHERE LOWER(TRIM(uc_scope.email_sat)) = LOWER(TRIM($${emailIndex}))
+                      AND LOWER(TRIM(uc_scope.cabang)) = LOWER(TRIM($${cabangIndex}))
+                      AND REPLACE(UPPER(TRIM(ubc_scope.covered_cabang)), '_', ' ') = ${normalizedBranchExpression}
+                )
+            )
+            OR (
+                NOT EXISTS (
+                    SELECT 1
+                    FROM user_cabang uc_scope
+                    JOIN user_branch_coverage ubc_scope
+                      ON ubc_scope.user_cabang_id = uc_scope.id
+                    WHERE LOWER(TRIM(uc_scope.email_sat)) = LOWER(TRIM($${emailIndex}))
+                      AND LOWER(TRIM(uc_scope.cabang)) = LOWER(TRIM($${cabangIndex}))
+                )
+                AND ${normalizedBranchExpression} = ANY($${branchGroupIndex}::text[])
             )
         )
     `;
@@ -236,7 +284,7 @@ const findRabApproval = async (user: AuthenticatedUser): Promise<NotificationRow
     if (statuses.length === 0) return [];
 
     values.push(statuses);
-    const branchWhere = addBranchScope(user, values, "t.cabang");
+    const branchWhere = addApprovalBranchScope(user, values, "t.cabang");
     const companyWhere = addCompanyScope(user, values, "r.nama_pt");
     values.push(ITEM_LIMIT);
 
@@ -268,7 +316,7 @@ const findRabApproval = async (user: AuthenticatedUser): Promise<NotificationRow
 const findSpkApproval = async (user: AuthenticatedUser): Promise<NotificationRow[]> => {
     if (!isSuperHuman(user) && !hasActiveRole(user, "BRANCH MANAGER")) return [];
     const values: SqlValue[] = [];
-    const branchWhere = addBranchScope(user, values, "t.cabang");
+    const branchWhere = addApprovalBranchScope(user, values, "t.cabang");
     values.push(ITEM_LIMIT);
 
     return queryNotificationRows(`
@@ -297,7 +345,7 @@ const findSpkApproval = async (user: AuthenticatedUser): Promise<NotificationRow
 const findPertambahanSpkApproval = async (user: AuthenticatedUser): Promise<NotificationRow[]> => {
     if (!isSuperHuman(user) && !hasActiveRole(user, "BRANCH MANAGER")) return [];
     const values: SqlValue[] = [];
-    const branchWhere = addBranchScope(user, values, "t.cabang");
+    const branchWhere = addApprovalBranchScope(user, values, "t.cabang");
     values.push(ITEM_LIMIT);
 
     return queryNotificationRows(`
@@ -342,7 +390,7 @@ const findOpnameApproval = async (user: AuthenticatedUser): Promise<Notification
     if (statuses.length === 0) return [];
 
     values.push(statuses);
-    const branchWhere = addBranchScope(user, values, "t.cabang");
+    const branchWhere = addApprovalBranchScope(user, values, "t.cabang");
     const companyWhere = addCompanyScope(user, values, "t.nama_kontraktor");
     values.push(ITEM_LIMIT);
 
@@ -385,7 +433,7 @@ const findInstruksiLapanganApproval = async (user: AuthenticatedUser): Promise<N
             : ["Menunggu Persetujuan Manager"];
 
     values.push(statuses);
-    const branchWhere = addBranchScope(user, values, "t.cabang");
+    const branchWhere = addApprovalBranchScope(user, values, "t.cabang");
     values.push(ITEM_LIMIT);
 
     return queryNotificationRows(`
@@ -432,7 +480,7 @@ const findProjectPlanningApproval = async (user: AuthenticatedUser): Promise<Not
     }
 
     const values: SqlValue[] = [];
-    const branchWhere = addBranchScope(user, values, "pp.cabang");
+    const branchWhere = addApprovalBranchScope(user, values, "pp.cabang");
     values.push(ITEM_LIMIT);
 
     return queryNotificationRows(`
@@ -462,7 +510,7 @@ const findDendaActionApproval = async (user: AuthenticatedUser): Promise<Notific
     if (!isBranchBuildingMaintenanceManager(user) && !isSuperHuman(user)) return [];
 
     const values: SqlValue[] = [];
-    const branchWhere = addBranchScope(user, values, "d.cabang");
+    const branchWhere = addApprovalBranchScope(user, values, "d.cabang");
     values.push(ITEM_LIMIT);
 
     return queryNotificationRows(`
