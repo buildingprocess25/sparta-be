@@ -133,16 +133,19 @@ const getSerahTerimaReadiness = async (idToko: number) => {
     const completion = await serahTerimaRepository.getSupervisionCompletionByTokoId(idToko);
     if (!completion.gantt_id || Number(completion.total_checkpoints) === 0) {
         const opnameItemCount = await serahTerimaRepository.countOpnameItemsByOpnameFinalId(opnameFinal.id);
-        if (completion.gantt_id && opnameItemCount > 0) {
-            return {
-                ready: true,
-                reason: null,
-            };
-        }
 
         return {
             ready: false,
-            reason: "Belum ada pekerjaan pengawasan selesai untuk toko ini",
+            reason: completion.gantt_id && opnameItemCount > 0
+                ? "Belum ada latest pengawasan selesai untuk toko ini"
+                : "Belum ada pekerjaan pengawasan selesai untuk toko ini",
+        };
+    }
+
+    if (Number(completion.incomplete_checkpoints) > 0) {
+        return {
+            ready: false,
+            reason: `Masih ada ${completion.incomplete_checkpoints} pekerjaan pengawasan yang belum selesai`,
         };
     }
 

@@ -129,6 +129,8 @@ export type SerahTerimaDetail = {
 
 export type SupervisionCompletionRow = {
     gantt_id: number | null;
+    total_latest_checkpoints: number;
+    incomplete_checkpoints: number;
     total_checkpoints: number;
     filled_checkpoints: number;
     missing_checkpoints: number;
@@ -340,6 +342,8 @@ export const serahTerimaRepository = {
             )
             SELECT
                 (SELECT id FROM latest_gantt) AS gantt_id,
+                COUNT(*)::int AS total_latest_checkpoints,
+                COUNT(*) FILTER (WHERE COALESCE(lp.status, '') <> 'selesai')::int AS incomplete_checkpoints,
                 COUNT(*) FILTER (WHERE lp.status = 'selesai')::int AS total_checkpoints,
                 COUNT(*) FILTER (
                     WHERE lp.status = 'selesai'
@@ -403,6 +407,8 @@ export const serahTerimaRepository = {
 
         return result.rows[0] ?? {
             gantt_id: null,
+            total_latest_checkpoints: 0,
+            incomplete_checkpoints: 0,
             total_checkpoints: 0,
             filled_checkpoints: 0,
             missing_checkpoints: 0,

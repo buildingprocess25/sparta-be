@@ -7,6 +7,10 @@ import { listInstruksiLapanganQuerySchema, submitInstruksiLapanganSchema } from 
 import { instruksiLapanganService } from "./instruksi-lapangan.service";
 
 export const submitInstruksiLapangan = asyncHandler(async (req: Request, res: Response) => {
+    if (!req.user?.email_sat) {
+        throw new AppError("User tidak terautentikasi", 401);
+    }
+
     let detailItems = req.body.detail_items;
     if (typeof detailItems === "string") {
         try {
@@ -18,6 +22,7 @@ export const submitInstruksiLapangan = asyncHandler(async (req: Request, res: Re
 
     const payloadCandidate = {
         ...req.body,
+        email_pembuat: req.user.email_sat,
         detail_items: detailItems,
     };
 
