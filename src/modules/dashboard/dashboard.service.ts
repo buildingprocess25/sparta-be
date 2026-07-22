@@ -23,6 +23,16 @@ import {
     toDashboardProjectRow
 } from "./dashboard.presentation";
 
+const hydrateExportProjects = async (projects: Awaited<ReturnType<typeof dashboardRepository.findAllDashboard>>, query: DashboardExportQueryInput) => {
+    if (!query.job_types) {
+        return dashboardRepository.hydrateDashboardExportItems(filterDashboardExportAccess(projects, query));
+    }
+
+    const prefiltered = filterDashboardExportAccess(projects, { ...query, job_types: undefined });
+    const hydrated = await dashboardRepository.hydrateDashboardExportItems(prefiltered);
+    return filterDashboardExportAccess(hydrated, query);
+};
+
 export const dashboardService = {
     async getDashboard(query: DashboardQueryInput) {
         const toko = await dashboardRepository.findTokoByQuery(query);
@@ -122,7 +132,7 @@ export const dashboardService = {
     async exportDashboard(query: DashboardExportQueryInput) {
         if (isKtkOpnameFinalOnlyExport(query.data_types, query.job_types)) {
             const projects = await dashboardRepository.findKtkOpnameFinalDashboard(query);
-            const scopedProjects = filterDashboardExportAccess(projects, query);
+            const scopedProjects = await hydrateExportProjects(projects, query);
             const cabangLabel = query.cabang && query.cabang !== "ALL"
                 ? query.cabang
                 : (query.actor_cabang.toUpperCase() === "HEAD OFFICE" ? "Semua Cabang" : query.actor_cabang);
@@ -134,7 +144,7 @@ export const dashboardService = {
         }
 
         const projects = await dashboardRepository.findAllDashboard({ search: query.search });
-        const scopedProjects = filterDashboardExportAccess(projects, query);
+        const scopedProjects = await hydrateExportProjects(projects, query);
         const dokumentasiRows = await dashboardRepository.findDokumentasiBangunanForExport();
         const rows = buildDashboardExportRows(scopedProjects, buildDokumentasiIndex(dokumentasiRows));
         const cabangLabel = query.cabang && query.cabang !== "ALL"
@@ -147,5 +157,3 @@ export const dashboardService = {
         }, query.data_types, query.job_types, scopedProjects);
     }
 };
-
-

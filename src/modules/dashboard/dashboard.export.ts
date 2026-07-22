@@ -448,16 +448,29 @@ const matchesPeriodFilter = (project: DashboardData, query: DashboardExportQuery
 
 const hasSpk = (project: DashboardData): boolean => project.spk.length > 0;
 
+const isStandaloneIlLabel = (value: unknown): boolean => {
+    const normalized = normalizeUpper(value);
+    return normalized === "IL" || normalized === "INSTRUKSI LAPANGAN";
+};
+
 const collectProjectWorkItems = (project: DashboardData): Set<string> => {
     const values: string[] = [];
+    const push = (value: unknown) => {
+        const normalized = normalizeUpper(value);
+        if (normalized && !isStandaloneIlLabel(normalized)) values.push(normalized);
+    };
 
     project.gantt.forEach((gantt) => {
         gantt.kategori_pekerjaan.forEach((kat: any) => {
-            if (kat.kategori_pekerjaan) values.push(normalizeUpper(kat.kategori_pekerjaan));
+            push(kat.kategori_pekerjaan);
         });
         gantt.pengawasan.forEach((p: any) => {
-            if (p.kategori_pekerjaan) values.push(normalizeUpper(p.kategori_pekerjaan));
+            push(p.kategori_pekerjaan);
         });
+    });
+    project.rab.forEach((rab) => rab.items.forEach((item) => push(item.kategori_pekerjaan || item.jenis_pekerjaan)));
+    project.instruksi_lapangan.forEach((instruksi) => {
+        instruksi.items.forEach((item) => push(item.kategori_pekerjaan || item.jenis_pekerjaan));
     });
 
     return new Set(values.filter(Boolean));
@@ -500,7 +513,7 @@ const collectProjectJobItems = (project: DashboardData): DashboardJobItemExportR
 
     project.instruksi_lapangan.forEach((instruksi) => instruksi.items.forEach((item) => {
         rows.push({
-            ...buildJobItemBase(project, "Instruksi Lapangan"),
+            ...buildJobItemBase(project, "IL"),
             kategori_pekerjaan: normalize(item.kategori_pekerjaan),
             jenis_pekerjaan: normalize(item.jenis_pekerjaan),
             satuan: normalize(item.satuan),
@@ -771,7 +784,7 @@ const rowMatchesJobType = (row: DashboardExportRow, jobType: string): boolean =>
 
 const jobItemMatchesJobType = (row: DashboardJobItemExportRow, jobType: string): boolean => {
     const type = normalizeUpper(jobType);
-    return normalizeUpper(row.kategori_pekerjaan || row.jenis_pekerjaan) === type;
+    return normalizeUpper(row.kategori_pekerjaan) === type || normalizeUpper(row.jenis_pekerjaan) === type;
 };
 
 // ---------------------------------------------------------------------------
@@ -1603,5 +1616,3 @@ export const buildKtkOpnameFinalExportFile = async (
         contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     };
 };
-
-

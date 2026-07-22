@@ -52,6 +52,12 @@ const parseDateValue = (value?: string | null): Date | null => {
         return new Date(Number(year), Number(month) - 1, Number(day));
     }
 
+    const isoDateMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoDateMatch) {
+        const [, year, month, day] = isoDateMatch;
+        return new Date(Number(year), Number(month) - 1, Number(day));
+    }
+
     const date = new Date(raw);
     if (Number.isNaN(date.getTime())) return null;
 

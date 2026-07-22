@@ -64,6 +64,16 @@ const downloadStoredPdfBuffer = async (linkPdf?: string | null): Promise<Buffer 
     return buffer && buffer.length > 0 ? buffer : null;
 };
 
+const dateOnlyKey = (value: unknown): string | null => {
+    const raw = String(value ?? "").trim();
+    if (!raw) return null;
+    const direct = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (direct) return direct[1];
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}-${String(parsed.getDate()).padStart(2, "0")}`;
+};
+
 
 const uploadPdfToDrive = async (buffer: Buffer, filename: string): Promise<string> => {
     const gp = GoogleProvider.instance;
@@ -249,8 +259,8 @@ export const serahTerimaService = {
             nama_kontraktor: filter.nama_kontraktor,
         });
 
-        // For rows that have no opname_final (hari_denda is null),
-        // compute denda on-the-fly using the same peer-minimum logic as the dashboard.
+        // Compute denda on-the-fly when no official denda exists or when the ST date
+        // was corrected but the denormalized opname_final denda fields are stale.
         // This ensures the serah terima list stays in sync with the dashboard's denda display.
         const enriched = await Promise.all(
             rows.map(async (row) => {
@@ -259,8 +269,13 @@ export const serahTerimaService = {
                 let tanggalAkhirSpkDenda = row.tanggal_akhir_spk_denda;
                 let tanggalSerahTerimaDenda = row.tanggal_serah_terima_denda;
 
-                // Only calculate on-the-fly when no official denda has been stored yet
-                if (hariDenda === null && tanggalAkhirSpkDenda === null) {
+                const storedStDate = dateOnlyKey(tanggalSerahTerimaDenda);
+                const actualStDate = dateOnlyKey(row.created_at);
+                const shouldRecalculateDenda =
+                    (hariDenda === null && tanggalAkhirSpkDenda === null)
+                    || Boolean(storedStDate && actualStDate && storedStDate !== actualStDate);
+
+                if (shouldRecalculateDenda) {
                     try {
                         const denda = await calculateDendaByTokoId(row.id_toko);
                         hariDenda = denda.hari_denda;
@@ -352,7 +367,20 @@ export const serahTerimaService = {
             refreshedDendaCount += Number(refreshResult.updated_count ?? 0);
         }
 
+        const refreshCorrectedDendaScope = () =>
+            Promise.allSettled(uniqueTokoIds.map((idToko) => opnameFinalService.refreshDendaByTokoId(idToko)));
+
         setImmediate(() => {
+            setTimeout(() => {
+                refreshCorrectedDendaScope().catch((error) => {
+                    console.error("[ST][DATE_CORRECTION] Refresh denda tertunda gagal", {
+                        nomorUlok: input.nomor_ulok,
+                        cabang: input.cabang ?? null,
+                        error: error instanceof Error ? error.message : String(error),
+                    });
+                });
+            }, 10_000);
+
             Promise.allSettled(updatedRows.map((row) => serahTerimaService.regeneratePdfByBerkasId(row.id)))
                 .then((results) => {
                     const failed = results.filter((result) => result.status === "rejected");
@@ -362,6 +390,7 @@ export const serahTerimaService = {
                             cabang: input.cabang ?? null,
                         });
                     }
+                    return refreshCorrectedDendaScope();
                 })
                 .catch((error) => {
                     console.error("[ST][DATE_CORRECTION] Regenerate PDF background gagal", {

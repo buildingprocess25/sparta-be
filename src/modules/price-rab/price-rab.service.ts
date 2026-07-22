@@ -165,6 +165,8 @@ function normalizeCabangInput(value: string): string {
     return value
         .trim()
         .toUpperCase()
+        .replace(/_+/g, " ")
+        .replace(/\s+/g, " ")
         .replace(/^CAB(?:ANG)?\.?\s+/, "")
         .replace(/^CABANG\s+/, "")
         .trim();

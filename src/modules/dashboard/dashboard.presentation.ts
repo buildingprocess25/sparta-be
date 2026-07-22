@@ -1,5 +1,6 @@
 import { isSameBranchScope } from "../../common/branch-scope";
 import {
+    calculateDendaFromDates,
     calculateDendaNominal,
     DENDA_ACTION_THRESHOLD_DAYS,
     isHeadOfficeCabang
@@ -20,6 +21,22 @@ const normalize = (value: unknown) => String(value || "").trim().toUpperCase();
 const parseDate = (value: unknown) => {
     const date = value ? new Date(String(value)) : null;
     return date && !Number.isNaN(date.getTime()) ? date : null;
+};
+
+const dateOnlyKey = (value: unknown): string | null => {
+    const raw = String(value ?? "").trim();
+    if (!raw) return null;
+    const direct = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (direct) return direct[1];
+    const date = parseDate(raw);
+    if (!date) return null;
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+};
+
+const isStoredStDateSynced = (project: DashboardData, opname: DashboardData["opname_final"][number] | undefined) => {
+    const stored = dateOnlyKey(opname?.tanggal_serah_terima_denda);
+    const actual = dateOnlyKey(project.berkas_serah_terima[0]?.created_at);
+    return !stored || !actual || stored === actual;
 };
 
 const isDateEffective = (value: unknown, now = new Date()) => {
@@ -119,7 +136,9 @@ export const isDashboardPastSla = (project: DashboardData, stage = getDashboardS
 
 export const getDashboardLateDays = (project: DashboardData) => {
     const opname = project.opname_final[0];
-    if (Number(opname?.hari_denda || 0) > 0) return Number(opname?.hari_denda || 0);
+    if (Number(opname?.hari_denda || 0) > 0 && isStoredStDateSynced(project, opname)) {
+        return Number(opname?.hari_denda || 0);
+    }
 
     const endDates = approvedSpks(project)
         .map((spk) => {
@@ -134,7 +153,7 @@ export const getDashboardLateDays = (project: DashboardData) => {
     if (!target) return 0;
 
     const compareDate = parseDate(project.berkas_serah_terima[0]?.created_at) || new Date();
-    return Math.max(0, Math.floor((compareDate.getTime() - target.getTime()) / 86_400_000));
+    return calculateDendaFromDates(target, compareDate).hari_denda;
 };
 
 export const getDashboardPenalty = (project: DashboardData) => {
@@ -146,7 +165,7 @@ export const getDashboardPenalty = (project: DashboardData) => {
     // If opname_final has a stored tanggal_akhir_spk_denda, a real denda calculation has been
     // persisted (even if the result is 0 – e.g. ME peer delivered on time → minimum = 0).
     // In that case we MUST use the official stored values and NOT fall through to the estimasi path.
-    const hasOfficialCalculation = Boolean(opname?.tanggal_akhir_spk_denda);
+    const hasOfficialCalculation = Boolean(opname?.tanggal_akhir_spk_denda) && isStoredStDateSynced(project, opname);
 
     if (official > 0 || officialHari > 0 || hasOfficialCalculation) {
         const actionDays = officialHari || days;

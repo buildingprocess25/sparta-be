@@ -278,6 +278,7 @@ export type DashboardOpnameItemRow = {
     id_toko: number;
     id_opname_final: number;
     id_rab_item: number;
+    id_instruksi_lapangan_item?: number | null;
     kategori_pekerjaan: string | null;
     jenis_pekerjaan: string | null;
     satuan: string | null;
@@ -1324,6 +1325,83 @@ export const dashboardRepository = {
             project_planning: ppByTokoId.get(toko.id) ?? []
         }));
 
+    },
+
+    async hydrateDashboardExportItems(projects: DashboardData[]): Promise<DashboardData[]> {
+        const rabIds = projects.flatMap((project) => project.rab.map((row) => row.id));
+        const instruksiIds = projects.flatMap((project) => project.instruksi_lapangan.map((row) => row.id));
+        const opnameFinalIds = projects.flatMap((project) => project.opname_final.map((row) => row.id));
+
+        const [rabItemResult, instruksiItemResult, opnameItemResult] = await Promise.all([
+            pool.query<DashboardRabItemRow>(
+                `
+                SELECT id, id_rab, kategori_pekerjaan, jenis_pekerjaan, satuan, volume,
+                       harga_material, harga_upah, total_material, total_upah, total_harga, catatan
+                FROM rab_item
+                WHERE id_rab = ANY($1::int[])
+                ORDER BY id ASC
+                `,
+                [toArrayParam(rabIds)]
+            ),
+            pool.query<DashboardInstruksiLapanganItemRow>(
+                `
+                SELECT id, id_instruksi_lapangan, kategori_pekerjaan, jenis_pekerjaan, satuan, volume,
+                       harga_material, harga_upah, total_material, total_upah, total_harga
+                FROM instruksi_lapangan_item
+                WHERE id_instruksi_lapangan = ANY($1::int[])
+                ORDER BY id ASC
+                `,
+                [toArrayParam(instruksiIds)]
+            ),
+            pool.query<DashboardOpnameItemRow>(
+                `
+                SELECT oi.id, oi.id_toko, oi.id_opname_final, oi.id_rab_item, oi.id_instruksi_lapangan_item,
+                       COALESCE(ri.kategori_pekerjaan, ili.kategori_pekerjaan) AS kategori_pekerjaan,
+                       COALESCE(ri.jenis_pekerjaan, ili.jenis_pekerjaan) AS jenis_pekerjaan,
+                       COALESCE(ri.satuan, ili.satuan) AS satuan,
+                       oi.status, oi.volume_akhir, oi.selisih_volume, oi.total_selisih,
+                       oi.total_harga_opname, oi.desain, oi.kualitas, oi.spesifikasi,
+                       oi.foto, oi.catatan, oi.created_at
+                FROM opname_item oi
+                LEFT JOIN rab_item ri ON ri.id = oi.id_rab_item
+                LEFT JOIN instruksi_lapangan_item ili ON ili.id = oi.id_instruksi_lapangan_item
+                WHERE oi.id_opname_final = ANY($1::int[])
+                ORDER BY oi.id ASC
+                `,
+                [toArrayParam(opnameFinalIds)]
+            )
+        ]);
+
+        const rabItemsByRabId = new Map<number, DashboardRabItemRow[]>();
+        for (const row of rabItemResult.rows) {
+            pushMapArray(rabItemsByRabId, row.id_rab, row);
+        }
+
+        const instruksiItemsById = new Map<number, DashboardInstruksiLapanganItemRow[]>();
+        for (const row of instruksiItemResult.rows) {
+            pushMapArray(instruksiItemsById, row.id_instruksi_lapangan, row);
+        }
+
+        const opnameItemsByFinalId = new Map<number, DashboardOpnameItemRow[]>();
+        for (const row of opnameItemResult.rows) {
+            pushMapArray(opnameItemsByFinalId, row.id_opname_final, row);
+        }
+
+        return projects.map((project) => ({
+            ...project,
+            rab: project.rab.map((row) => ({
+                ...row,
+                items: rabItemsByRabId.get(row.id) ?? []
+            })),
+            instruksi_lapangan: project.instruksi_lapangan.map((row) => ({
+                ...row,
+                items: instruksiItemsById.get(row.id) ?? []
+            })),
+            opname_final: project.opname_final.map((row) => ({
+                ...row,
+                items: opnameItemsByFinalId.get(row.id) ?? []
+            }))
+        }));
     },
 
     async findKtkOpnameFinalDashboard(query: DashboardExportQueryInput): Promise<DashboardData[]> {

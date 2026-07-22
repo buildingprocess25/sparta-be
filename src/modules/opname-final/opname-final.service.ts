@@ -349,7 +349,7 @@ const refreshDendaByTokoScope = async (idToko: number) => {
     const owner = resolvePenaltyOwner(rows);
 
     await Promise.all(rows.map(async (row) => {
-        const allocatedDenda = owner && row.id === owner.id ? denda : zeroAllocatedDenda();
+        const allocatedDenda = owner && String(row.id) === String(owner.id) ? denda : zeroAllocatedDenda();
         await opnameFinalRepository.updateDenda(String(row.id), allocatedDenda);
         await opnameFinalRepository.updateTotals(String(row.id));
     }));
