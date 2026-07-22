@@ -448,16 +448,21 @@ const matchesPeriodFilter = (project: DashboardData, query: DashboardExportQuery
 
 const hasSpk = (project: DashboardData): boolean => project.spk.length > 0;
 
-const isStandaloneIlLabel = (value: unknown): boolean => {
-    const normalized = normalizeUpper(value);
-    return normalized === "IL" || normalized === "INSTRUKSI LAPANGAN";
+const normalizeWorkItemLabel = (value: unknown): string => {
+    const normalized = normalizeUpper(value)
+        .replace(/^\[\s*IL\s*\]\s*/i, "")
+        .replace(/^IL\s*[-:]\s*/i, "")
+        .replace(/\s*\(\s*IL\s*\)\s*$/i, "")
+        .replace(/\s+/g, " ")
+        .trim();
+    return normalized === "IL" || normalized === "INSTRUKSI LAPANGAN" ? "" : normalized;
 };
 
 const collectProjectWorkItems = (project: DashboardData): Set<string> => {
     const values: string[] = [];
     const push = (value: unknown) => {
-        const normalized = normalizeUpper(value);
-        if (normalized && !isStandaloneIlLabel(normalized)) values.push(normalized);
+        const normalized = normalizeWorkItemLabel(value);
+        if (normalized) values.push(normalized);
     };
 
     project.gantt.forEach((gantt) => {
@@ -783,8 +788,8 @@ const rowMatchesJobType = (row: DashboardExportRow, jobType: string): boolean =>
 };
 
 const jobItemMatchesJobType = (row: DashboardJobItemExportRow, jobType: string): boolean => {
-    const type = normalizeUpper(jobType);
-    return normalizeUpper(row.kategori_pekerjaan) === type || normalizeUpper(row.jenis_pekerjaan) === type;
+    const type = normalizeWorkItemLabel(jobType);
+    return normalizeWorkItemLabel(row.kategori_pekerjaan) === type || normalizeWorkItemLabel(row.jenis_pekerjaan) === type;
 };
 
 // ---------------------------------------------------------------------------
