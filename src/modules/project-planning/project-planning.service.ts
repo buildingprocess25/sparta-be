@@ -890,6 +890,16 @@ export const projekPlanningService = {
             }
         }
 
+        const normalizeLink = (value?: string | null) => String(value ?? "").trim();
+        const rabChanged =
+            (selectedRabSipil?.id ?? null) !== (projek.id_rab_sipil ?? null) ||
+            (selectedRabMe?.id ?? null) !== (projek.id_rab_me ?? null) ||
+            normalizeLink(linkRabSipil) !== normalizeLink(projek.link_rab_sipil) ||
+            normalizeLink(linkRabMe) !== normalizeLink(projek.link_rab_me);
+        const gambarChanged =
+            normalizeLink(linkGambarSipil) !== normalizeLink(projek.link_gambar_kerja_final_sipil) ||
+            normalizeLink(linkGambarMe) !== normalizeLink(projek.link_gambar_kerja_final_me);
+
         const newStatus = PP_STATUS.WAITING_BM_APPROVAL_2;
 
         const { projek: updated } = await projekPlanningRepository.updateStatusWithLog(
@@ -910,6 +920,8 @@ export const projekPlanningService = {
                 id_rab_me: selectedRabMe?.id,
                 link_gambar_kerja_final_sipil: linkGambarSipil,
                 link_gambar_kerja_final_me: linkGambarMe,
+                rab_changed: rabChanged,
+                gambar_changed: gambarChanged,
             }, client)
         );
 

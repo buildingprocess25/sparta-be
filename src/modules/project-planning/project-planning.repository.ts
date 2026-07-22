@@ -1013,6 +1013,8 @@ export const projekPlanningRepository = {
             id_rab_me?: number;
             link_gambar_kerja_final_sipil?: string;
             link_gambar_kerja_final_me?: string;
+            rab_changed?: boolean;
+            gambar_changed?: boolean;
             fasilitas?: Array<{
                 jenis_fasilitas: string;
                 nama_fasilitas_lainnya?: string | null;
@@ -1038,20 +1040,20 @@ export const projekPlanningRepository = {
                  bm_regional_approver_email = NULL,
                  bm_regional_waktu_persetujuan = NULL,
                  bm_regional_alasan_penolakan = NULL,
-                 bm_regional_rab_status = NULL,
-                 bm_regional_gambar_status = NULL,
-                 bm_regional_rab_rejected_item_ids = NULL,
-                 bm_regional_rab_rejected_item_notes = NULL,
-                 pp2_rab_status = NULL,
-                 pp2_gambar_status = NULL,
+                 bm_regional_rab_status = CASE WHEN $9::boolean OR bm_regional_rab_status = 'REJECT' THEN NULL ELSE bm_regional_rab_status END,
+                 bm_regional_gambar_status = CASE WHEN $10::boolean OR bm_regional_gambar_status = 'REJECT' THEN NULL ELSE bm_regional_gambar_status END,
+                 bm_regional_rab_rejected_item_ids = CASE WHEN $9::boolean OR bm_regional_rab_status = 'REJECT' THEN NULL ELSE bm_regional_rab_rejected_item_ids END,
+                 bm_regional_rab_rejected_item_notes = CASE WHEN $9::boolean OR bm_regional_rab_status = 'REJECT' THEN NULL ELSE bm_regional_rab_rejected_item_notes END,
+                 pp2_rab_status = CASE WHEN $9::boolean OR pp2_rab_status = 'REJECT' THEN NULL ELSE pp2_rab_status END,
+                 pp2_gambar_status = CASE WHEN $10::boolean OR pp2_gambar_status = 'REJECT' THEN NULL ELSE pp2_gambar_status END,
                  pp2_alasan_penolakan = NULL,
-                 pp2_rab_rejected_item_ids = NULL,
-                 pp2_rab_rejected_item_notes = NULL,
-                 pp_manager_rab_status = NULL,
-                 pp_manager_gambar_status = NULL,
+                 pp2_rab_rejected_item_ids = CASE WHEN $9::boolean OR pp2_rab_status = 'REJECT' THEN NULL ELSE pp2_rab_rejected_item_ids END,
+                 pp2_rab_rejected_item_notes = CASE WHEN $9::boolean OR pp2_rab_status = 'REJECT' THEN NULL ELSE pp2_rab_rejected_item_notes END,
+                 pp_manager_rab_status = CASE WHEN $9::boolean OR pp_manager_rab_status = 'REJECT' THEN NULL ELSE pp_manager_rab_status END,
+                 pp_manager_gambar_status = CASE WHEN $10::boolean OR pp_manager_gambar_status = 'REJECT' THEN NULL ELSE pp_manager_gambar_status END,
                  pp_manager_alasan_penolakan = NULL,
-                 pp_manager_rab_rejected_item_ids = NULL,
-                 pp_manager_rab_rejected_item_notes = NULL,
+                 pp_manager_rab_rejected_item_ids = CASE WHEN $9::boolean OR pp_manager_rab_status = 'REJECT' THEN NULL ELSE pp_manager_rab_rejected_item_ids END,
+                 pp_manager_rab_rejected_item_notes = CASE WHEN $9::boolean OR pp_manager_rab_status = 'REJECT' THEN NULL ELSE pp_manager_rab_rejected_item_notes END,
                  updated_at = NOW()
              WHERE id = $8
              RETURNING ${PP_COLUMNS}`,
@@ -1064,6 +1066,8 @@ export const projekPlanningRepository = {
                 payload.link_gambar_kerja_final_sipil ?? null,
                 payload.link_gambar_kerja_final_me ?? null,
                 id,
+                payload.rab_changed ?? false,
+                payload.gambar_changed ?? false,
             ]
         );
 
