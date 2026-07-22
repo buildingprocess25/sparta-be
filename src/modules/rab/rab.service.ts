@@ -172,11 +172,24 @@ const FUZZY_JOB_MATCH_THRESHOLD = 0.82;
 const FUZZY_JOB_MATCH_MARGIN = 0.06;
 const JOB_MATCH_STOPWORDS = new Set([
     "pekerjaan", "pasang", "pemasangan", "merk", "ukuran", "warna",
-    "dan", "atau", "dengan", "untuk", "unit", "buah", "set", "type"
+    "dan", "atau", "dengan", "untuk", "unit", "buah", "set", "type",
+    "model", "khusus", "lokal", "full", "panel", "menggunakan"
 ]);
 
+const normalizeJobTokenText = (value?: string | null): string =>
+    String(value ?? "")
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}\s]/gu, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
 const tokenizeJobName = (value?: string | null): string[] =>
-    normalizePriceLookupKey(value ?? "")
+    normalizeJobTokenText(value)
+        .replace(/\baccesories\b/g, "accessories")
+        .replace(/\baksesoris\b/g, "accessories")
+        .replace(/\binclude\b/g, "include")
+        .replace(/\binc\b/g, "include")
+        .replace(/\babu abu\b/g, "abuabu")
         .split(" ")
         .filter((token) => token.length > 1 && !JOB_MATCH_STOPWORDS.has(token));
 
@@ -237,6 +250,24 @@ const fuzzyJobScore = (left?: string | null, right?: string | null): number => {
     const tokenScore = tokenSimilarity(a, b);
     const containsBonus = a.includes(b) || b.includes(a) ? 0.08 : 0;
     return Math.min(1, Math.max(stringScore, (tokenScore * 0.78) + (stringScore * 0.22) + containsBonus));
+};
+
+const hasAllTokens = (tokens: Set<string>, requiredTokens: string[]): boolean =>
+    requiredTokens.every((token) => tokens.has(token));
+
+const semanticJobMatchScore = (left?: string | null, right?: string | null): number => {
+    const leftTokens = new Set(tokenizeJobName(left));
+    const rightTokens = new Set(tokenizeJobName(right));
+    if (leftTokens.size === 0 || rightTokens.size === 0) return 0;
+
+    const hasBoth = (requiredTokens: string[]) =>
+        hasAllTokens(leftTokens, requiredTokens) && hasAllTokens(rightTokens, requiredTokens);
+
+    if (hasBoth(["paving", "block", "parkir", "press", "mesin"])) return 0.92;
+    if (hasBoth(["pintu", "kamar", "mandi", "upvc", "handle", "kunci", "knob"])) return 0.9;
+    if (hasBoth(["tempat", "sampah", "liter"])) return 0.88;
+
+    return 0;
 };
 
 const priceValueToNumberOrNull = (value: unknown): number | null => {
@@ -303,15 +334,28 @@ const findBestPriceMatch = (
     const ranked = lookup.candidates
         .map((candidate) => {
             const sameCategory = normalizePriceLookupKey(candidate.category) === categoryKey;
-            const score = fuzzyJobScore(jenisPekerjaan, candidate.jenisPekerjaan) + (sameCategory ? 0.04 : 0);
-            return { candidate, score };
+            const baseScore = fuzzyJobScore(jenisPekerjaan, candidate.jenisPekerjaan);
+            const semanticScore = semanticJobMatchScore(jenisPekerjaan, candidate.jenisPekerjaan);
+            const score = Math.max(baseScore, semanticScore) + (sameCategory ? 0.04 : 0);
+            return { candidate, score, sameCategory, baseScore, semanticScore };
         })
         .filter((item) => item.score >= FUZZY_JOB_MATCH_THRESHOLD)
-        .sort((a, b) => b.score - a.score);
+        .sort((a, b) => (b.score - a.score) || (b.baseScore - a.baseScore));
 
     if (ranked.length === 0) return null;
     const [best, second] = ranked;
-    if (second && best.score - second.score < FUZZY_JOB_MATCH_MARGIN) return null;
+    const bestHasSemanticTieBreaker =
+        Boolean(second)
+        && best.semanticScore > 0
+        && best.sameCategory
+        && second.sameCategory
+        && best.baseScore - second.baseScore >= 0.01;
+    if (
+        second
+        && best.score - second.score < FUZZY_JOB_MATCH_MARGIN
+        && !(best.sameCategory && !second.sameCategory)
+        && !bestHasSemanticTieBreaker
+    ) return null;
 
     return best.candidate;
 };

@@ -59,8 +59,12 @@ export const getDashboardStage = (project: DashboardData) => {
     const hasWaitingSpk = project.spk.some((spk) => normalize(spk.status) === "WAITING_FOR_BM_APPROVAL");
     const opname = project.opname_final.find((item) => String(item.link_pdf_opname || "").trim() && isDateEffective(item.created_at, now));
     const hasSt = project.berkas_serah_terima.some((item) => isDateEffective(item.created_at, now));
+    const hasStDocument = project.berkas_serah_terima.some((item) =>
+        String(item.link_pdf || "").trim() && isDateEffective(item.created_at, now)
+    );
 
     if (opname && normalize(opname.status_opname_final) === "DISETUJUI" && isDateEffective(opname.waktu_persetujuan_direktur, now)) return "Done";
+    if (hasStDocument) return "Done";
     if (opname || hasSt) return "Kerja Tambah Kurang";
     if (hasApprovedSpk) return "Ongoing";
     if (hasWaitingSpk) return "Approval SPK";
