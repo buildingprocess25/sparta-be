@@ -1,11 +1,13 @@
-import { pool } from "./src/db/pool";
-import { dashboardRepository } from "./src/modules/dashboard/dashboard.repository";
+import { dashboardRepository } from './src/modules/dashboard/dashboard.repository';
+import * as dotenv from 'dotenv';
+import { pool } from './src/config/database';
+
+dotenv.config();
 
 async function run() {
-    console.log("Benchmarking current findAllDashboard...");
-    const t0 = Date.now();
-    const data = await dashboardRepository.findAllDashboard({});
-    console.log(`Finished in ${Date.now() - t0}ms. Rows: ${data.length}`);
-    await pool.end();
+    const data = await dashboardRepository.findAllDashboard({ search: 'UZ01-2602-0010' });
+    const project = data.find(d => d.toko.lingkup_pekerjaan === 'ME');
+    console.log(JSON.stringify(project?.berkas_serah_terima, null, 2));
 }
-run().catch(console.error);
+
+run().finally(() => process.exit(0));
