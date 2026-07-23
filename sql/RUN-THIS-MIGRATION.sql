@@ -11,7 +11,7 @@
 -- ============================================================
 CREATE TABLE IF NOT EXISTS projek_planning_foto_item (
     id SERIAL PRIMARY KEY,
-    id_projek_planning INT NOT NULL,
+    id_projek_planning INT NOT NULL,Q
     item_index INT NOT NULL,
     link_foto VARCHAR(500) NOT NULL,
     created_at TIMESTAMP DEFAULT timezone('Asia/Jakarta', now()),

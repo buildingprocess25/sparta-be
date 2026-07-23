@@ -284,7 +284,10 @@ export const ganttRepository = {
                     SELECT pic.id, pic.plc_building_support
                     FROM pic_pengawasan pic
                     WHERE pic.id_toko = t.id
-                    ORDER BY pic.id DESC
+                       OR UPPER(TRIM(COALESCE(pic.nomor_ulok, ''))) = UPPER(TRIM(COALESCE(t.nomor_ulok, '')))
+                    ORDER BY
+                        CASE WHEN pic.id_toko = t.id THEN 0 ELSE 1 END,
+                        pic.id DESC
                     LIMIT 1
                 ) latest_pic ON true
                 LEFT JOIN LATERAL (
