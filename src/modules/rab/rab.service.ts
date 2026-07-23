@@ -623,7 +623,7 @@ const buildRabCoordinatorInfoPrefill = (
     };
 };
 
-const syncDetailItemsWithBranchPrices = async (
+export const syncDetailItemsWithBranchPrices = async (
     detailItems: DetailItemInput[],
     cabang?: string | null,
     lingkupPekerjaan?: string | null,
@@ -1485,7 +1485,14 @@ export const rabService = {
         }
 
         const revisionPriceCabang = payload.cabang || rejectedRabExistingCabang || existingTokoByCombination?.cabang;
-        const shouldSyncRevisionPrices = isRevisionSubmit && isCikokolBranchGroup(revisionPriceCabang);
+        
+        const branchChanged = Boolean(
+            rejectedRabExistingCabang && 
+            revisionPriceCabang && 
+            rejectedRabExistingCabang.trim().toUpperCase() !== revisionPriceCabang.trim().toUpperCase()
+        );
+        
+        const shouldSyncRevisionPrices = isRevisionSubmit && (branchChanged || isCikokolBranchGroup(revisionPriceCabang));
 
         const detailItems = shouldSyncRevisionPrices
             ? await syncDetailItemsWithBranchPrices(
