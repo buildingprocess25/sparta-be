@@ -115,17 +115,25 @@ const releaseRabApprovalAfterGantt = async (tokoId: number, source: string) => {
     }
 };
 
-const isScopeReadyForSerahTerima = (scope: any) =>
-    Boolean(scope.gantt_id)
-    && Boolean(scope.opname_final_id)
-    && (
-        (
-            Array.isArray(scope.checkpoints)
-            && scope.checkpoints.reduce((sum: number, checkpoint: any) => sum + Number(checkpoint?.opname_items || 0), 0) > 0
-            && scope.checkpoints.reduce((sum: number, checkpoint: any) => sum + Number(checkpoint?.ready_opname_items || 0), 0) === 0
-        )
-        || Number(scope.opname_item_count || 0) > 0
-    );
+const isScopeReadyForSerahTerima = (scope: any) => {
+    const hasGanttAndOpname = Boolean(scope.gantt_id) && Boolean(scope.opname_final_id);
+    if (!hasGanttAndOpname) return false;
+
+    // Jika KTK final sudah APPROVED (biasanya hasil migrasi), bisa ST meskipun pengawasan belum selesai semua
+    if (scope.status_opname_final === "APPROVED") {
+        return true;
+    }
+
+    const hasOpnameItems = (
+        Array.isArray(scope.checkpoints)
+        && scope.checkpoints.reduce((sum: number, checkpoint: any) => sum + Number(checkpoint?.opname_items || 0), 0) > 0
+        && scope.checkpoints.reduce((sum: number, checkpoint: any) => sum + Number(checkpoint?.ready_opname_items || 0), 0) === 0
+    ) || Number(scope.opname_item_count || 0) > 0;
+
+    const missingPengawasan = Number(scope.missing_pengawasan_checkpoints || 0);
+
+    return hasOpnameItems && missingPengawasan === 0;
+};
 
 const normalizePengawasanDate = (value: any): string => {
     const raw = String(value || "").trim();
