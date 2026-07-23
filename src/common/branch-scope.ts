@@ -94,6 +94,13 @@ const isSuperHumanRole = (roles?: string[]): boolean =>
     (roles ?? []).some(role => normalizeBranchScopeName(role).includes("SUPER HUMAN"));
 
 /**
+ * Check if user has a Kontraktor role (KONTRAKTOR or Direktur Kontraktor).
+ * Kontraktor gets full branch group access for CIKOKOL/CILEUNGSI — no subdivision.
+ */
+const isKontraktorRole = (roles?: string[]): boolean =>
+    (roles ?? []).some(role => normalizeBranchScopeName(role).includes("KONTRAKTOR"));
+
+/**
  * Get user's coverage branches from user_branch_coverage table
  */
 export const getUserCoverageBranches = async (emailSat: string, cabang: string): Promise<string[]> => {
@@ -136,15 +143,14 @@ const hasSpecificCoverageRules = (cabang: string): boolean => {
 /**
  * Get effective accessible branches for a user based on role and coverage.
  * This is the single source of truth for branch access logic.
- * 
+ *
  * Business Rules:
  * 1. Global roles (Superhuman, Regional Manager) → All branches
- * 2. Branch Support role → All branches in branch group (all branches)
- * 3. CIKOKOL/CILEUNGSI only:
- *    - Manager/Coordinator → Coverage from user_branch_coverage (subdivided)
- *    - If no coverage → Fallback to login branch
- * 4. Other branches (Lombok, Medan, Lampung, etc):
- *    - ALL roles → Entire branch group (no subdivision)
+ * 2. Branch Support role → All branches in branch group
+ * 3. CIKOKOL/CILEUNGSI — Kontraktor/Direktur Kontraktor → Full branch group (no subdivision)
+ * 4. CIKOKOL/CILEUNGSI — Manager/Coordinator → Coverage from user_branch_coverage (subdivided)
+ *    - If no coverage → Fallback to login branch only
+ * 5. Other branches (Lombok, Medan, Lampung, etc): ALL roles → Entire branch group
  */
 export const getEffectiveBranchesForUser = async (input: {
     emailSat: string;
@@ -169,7 +175,14 @@ export const getEffectiveBranchesForUser = async (input: {
     const hasSpecificRules = hasSpecificCoverageRules(normalizedCabang);
 
     if (hasSpecificRules) {
-        // For CIKOKOL/CILEUNGSI: Manager/Coordinator have subdivisions
+        // Kontraktor & Direktur Kontraktor → full branch group access, no subdivision
+        // They can work on any project in the entire CIKOKOL/CILEUNGSI group
+        if (isKontraktorRole(roles)) {
+            const branchGroup = getBranchScopeCandidates(normalizedCabang);
+            return { branches: branchGroup.sort(), source: "branch_group" };
+        }
+
+        // Manager/Coordinator → use coverage subdivisions from user_branch_coverage
         const coverage = await getUserCoverageBranches(emailSat, cabang);
 
         if (coverage.length > 0) {
@@ -183,7 +196,7 @@ export const getEffectiveBranchesForUser = async (input: {
         };
     }
 
-    // 4. Other branches (Lombok, Medan, Lampung, etc): ALL roles access entire branch group
+    // 5. Other branches (Lombok, Medan, Lampung, etc): ALL roles access entire branch group
     const branchGroup = getBranchScopeCandidates(normalizedCabang);
     return { branches: branchGroup.sort(), source: "branch_group" };
 };
