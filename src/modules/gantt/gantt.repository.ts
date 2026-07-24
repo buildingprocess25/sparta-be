@@ -392,6 +392,21 @@ export const ganttRepository = {
                     UPPER(TRIM(COALESCE(p.jenis_pekerjaan, ''))),
                     p.id DESC
             ),
+            latest_overall_status AS (
+                SELECT DISTINCT ON (
+                    id_gantt,
+                    UPPER(TRIM(COALESCE(kategori_pekerjaan, ''))),
+                    UPPER(TRIM(COALESCE(jenis_pekerjaan, '')))
+                )
+                    id_gantt,
+                    status
+                FROM pengawasan_per_date
+                ORDER BY
+                    id_gantt,
+                    UPPER(TRIM(COALESCE(kategori_pekerjaan, ''))),
+                    UPPER(TRIM(COALESCE(jenis_pekerjaan, ''))),
+                    id DESC
+            ),
             checkpoint AS (
                 SELECT
                     tpg.id_toko,
@@ -463,7 +478,12 @@ export const ganttRepository = {
                 s.*,
                 COALESCE(SUM(c.total_items), 0)::int AS total_pengawasan_checkpoints,
                 COALESCE(SUM(c.selesai_items), 0)::int AS filled_pengawasan_checkpoints,
-                COALESCE(SUM(c.total_items - c.selesai_items), 0)::int AS missing_pengawasan_checkpoints,
+                (
+                    SELECT COUNT(*)::int
+                    FROM latest_overall_status los
+                    WHERE los.id_gantt = s.gantt_id
+                      AND los.status != 'selesai'
+                ) AS missing_pengawasan_checkpoints,
                 COALESCE(
                     json_agg(
                         json_build_object(
