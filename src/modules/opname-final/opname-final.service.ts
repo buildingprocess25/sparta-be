@@ -11,7 +11,6 @@ import { OPNAME_FINAL_STATUS, type OpnameFinalStatus } from "./opname-final.cons
 import { opnameFinalRepository } from "./opname-final.repository";
 import type { OpnameFinalDetail, OpnameFinalIdRow } from "./opname-final.repository";
 import type { LockOpnameFinalInput, OpnameFinalListQueryInput } from "./opname-final.schema";
-import { scheduleAutomaticUnifiedSerahTerimaIfReady } from "../serah-terima/serah-terima.service";
 
 type PgError = {
     code?: string;
@@ -449,12 +448,6 @@ export const opnameFinalService = {
 
         const linkPdf = await regeneratePdfAndUpload(id);
         await opnameFinalRepository.updatePdfLink(id, linkPdf);
-
-        if (newStatus === OPNAME_FINAL_STATUS.APPROVED && currentStatus !== OPNAME_FINAL_STATUS.APPROVED) {
-            scheduleAutomaticUnifiedSerahTerimaIfReady(detail.toko.nomor_ulok).catch((err) => {
-                console.error("[AUTO ST ERROR]", err);
-            });
-        }
 
         return {
             id: Number(id),

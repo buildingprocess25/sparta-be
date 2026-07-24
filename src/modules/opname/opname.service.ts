@@ -5,6 +5,7 @@ import { calculateDendaByTokoId } from "../denda/denda-keterlambatan";
 import { instruksiLapanganRepository } from "../instruksi-lapangan/instruksi-lapangan.repository";
 import { opnameFinalRepository } from "../opname-final/opname-final.repository";
 import { scheduleAutomaticSerahTerimaIfReady } from "../serah-terima/serah-terima.service";
+import { scheduleAutomaticUnifiedSerahTerimaIfReady } from "../serah-terima/serah-terima.service";
 import { opnameRepository, type OpnameRow, type TokoSummaryRow } from "./opname.repository";
 import type {
     CreateBulkOpnameItemData,
@@ -206,6 +207,18 @@ const finalizeBulkCreate = async (
     await refreshOpnameFinalDenda(created.opnameFinal.id, created.opnameFinal.id_toko);
     await opnameFinalRepository.updateTotals(String(created.opnameFinal.id));
     await scheduleAutomaticSerahTerimaIfReady(created.opnameFinal.id_toko, created.opnameFinal.created_at);
+
+    // Trigger unified ST otomatis (SIPIL+ME) setelah semua pengawasan selesai dan opname masuk
+    opnameRepository.findTokoById(created.opnameFinal.id_toko)
+        .then((toko) => {
+            if (toko?.nomor_ulok) {
+                return scheduleAutomaticUnifiedSerahTerimaIfReady(toko.nomor_ulok);
+            }
+        })
+        .catch((err) => {
+            console.error("[AUTO ST UNIFIED]", err);
+        });
+
     return mapBulkCreateResponse(created);
 };
 
