@@ -177,9 +177,14 @@ const buildUnifiedSupervisionMetadata = (scopes: any[]) => {
         ? "SIPIL"
         : normalizeScopeName(masterScope) || "single";
 
-    const masterDates = sortDates([
-        ...new Set(getScopeCheckpoints(masterScope).map((checkpoint) => normalizePengawasanDate(checkpoint.tanggal_pengawasan)).filter(Boolean))
-    ]);
+    const allDates = new Set<string>();
+    activeScopes.forEach((scope) => {
+        getScopeCheckpoints(scope).forEach((checkpoint) => {
+            const dateStr = normalizePengawasanDate(checkpoint.tanggal_pengawasan);
+            if (dateStr) allDates.add(dateStr);
+        });
+    });
+    const masterDates = sortDates([...allDates]);
 
     const dateSetByScope = new Map<number, Set<string>>();
     const checkpointByScopeAndDate = new Map<number, Map<string, any>>();

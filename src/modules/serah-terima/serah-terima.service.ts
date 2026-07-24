@@ -779,9 +779,34 @@ export const serahTerimaService = {
             throw new AppError("Dokumen hasil migrasi tidak dapat diregenerasi karena tidak memiliki data transaksi digital", 400);
         }
 
+        const { toko, items } = await buildDetailByTokoId(berkas.id_toko);
+
+        // Jika toko memiliki nomor_ulok, periksa apakah ini perlu Unified PDF (SIPIL + ME)
+        if (toko.nomor_ulok) {
+            const scopes = await serahTerimaRepository.findTokoScopesByNomorUlok(toko.nomor_ulok);
+            const activeScopes = scopes.filter((scope) =>
+                ["SIPIL", "ME"].includes(String(scope.lingkup_pekerjaan || "").trim().toUpperCase())
+            );
+            
+            const hasSipil = activeScopes.some((scope) => String(scope.lingkup_pekerjaan || "").trim().toUpperCase() === "SIPIL");
+            const hasMe = activeScopes.some((scope) => String(scope.lingkup_pekerjaan || "").trim().toUpperCase() === "ME");
+
+            if (hasSipil && hasMe) {
+                // Generate ulang versi Unified yang akan otomatis meng-update link_pdf kedua scope
+                await module.exports.serahTerimaService.createPdfSerahTerimaUnified(toko.nomor_ulok);
+                
+                // Ambil ulang berkas yang sudah terupdate link-nya
+                const updatedBerkas = await serahTerimaRepository.findBerkasSerahTerimaById(id);
+                return {
+                    ...updatedBerkas,
+                    opname_final_id: opnameFinal.id,
+                    item_count: items.length,
+                };
+            }
+        }
+
         await opnameFinalService.refreshDendaByTokoId(berkas.id_toko);
 
-        const { toko, items } = await buildDetailByTokoId(berkas.id_toko);
         const pdfBuffer = await buildSerahTerimaPdfBuffer(
             { toko, opname_final: opnameFinal, items },
             berkas.created_at
