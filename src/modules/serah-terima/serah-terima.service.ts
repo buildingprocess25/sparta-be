@@ -165,6 +165,9 @@ const getSerahTerimaReadiness = async (idToko: number) => {
 const assertSerahTerimaReady = async (idToko: number) => {
     const readiness = await getSerahTerimaReadiness(idToko);
     if (!readiness.ready) {
+        const existingBerkas = await serahTerimaRepository.findBerkasSerahTerimaByIdToko(idToko);
+        if (existingBerkas?.link_pdf) return;
+
         throw new AppError(readiness.reason ?? "Serah Terima belum siap dibuat", 409);
     }
 };
@@ -173,15 +176,8 @@ const assertSerahTerimaReadyForUnified = async (idToko: number) => {
     const readiness = await getSerahTerimaReadiness(idToko);
     if (readiness.ready) return;
 
-    const [existingBerkas, opnameFinal] = await Promise.all([
-        serahTerimaRepository.findBerkasSerahTerimaByIdToko(idToko),
-        serahTerimaRepository.findOpnameFinalByIdToko(idToko),
-    ]);
-    const opnameItemCount = opnameFinal
-        ? await serahTerimaRepository.countOpnameItemsByOpnameFinalId(opnameFinal.id)
-        : 0;
-
-    if (existingBerkas?.link_pdf && opnameItemCount > 0) {
+    const existingBerkas = await serahTerimaRepository.findBerkasSerahTerimaByIdToko(idToko);
+    if (existingBerkas?.link_pdf) {
         return;
     }
 
@@ -437,6 +433,24 @@ export const serahTerimaService = {
 
 
     async createPdfSerahTerima(idToko: number, referenceTimestamp?: string) {
+        const readiness = await getSerahTerimaReadiness(idToko);
+        if (!readiness.ready) {
+            const bst = await serahTerimaRepository.findBerkasSerahTerimaByIdToko(idToko);
+            if (bst?.link_pdf) {
+                const toko = await serahTerimaRepository.findTokoById(idToko);
+                return {
+                    id: bst.id,
+                    id_toko: idToko,
+                    link_pdf: bst.link_pdf,
+                    opname_final_id: null as unknown as number,
+                    link_pdf_opname: null,
+                    item_count: 0,
+                    created_at: bst.created_at,
+                    toko: toko!,
+                };
+            }
+        }
+
         // Validate the required opname data before writing a serah-terima placeholder.
         // Previously, a failed generation could leave a row with link_pdf = NULL.
         await assertSerahTerimaReady(idToko);
@@ -558,25 +572,52 @@ export const serahTerimaService = {
         }> = [];
 
         for (const [index, scope] of targetScopes.entries()) {
-            await opnameFinalService.refreshDendaByTokoId(scope.id);
-            const { toko, opnameFinal, items } = await buildDetailByTokoId(scope.id);
-            const buffer = await buildSerahTerimaPdfBuffer(
-                { toko, opname_final: opnameFinal, items },
-                placeholder.created_at,
-                { unifiedPartIndex: index + 1, unifiedPartTotal: targetScopes.length }
-            );
+            const readiness = await getSerahTerimaReadiness(scope.id);
 
-            pdfBuffers.push(buffer);
-            details.push({
-                id_toko: scope.id,
-                lingkup_pekerjaan: scope.lingkup_pekerjaan,
-                opname_final_id: opnameFinal.id,
-                item_count: items.length,
-                kode_toko: toko.kode_toko,
-                nama_kontraktor: toko.nama_kontraktor,
-                nilai_opname: opnameFinal.grand_total_opname,
-                nilai_toko: calculateSerahTerimaAssessmentScore(items).nilaiToko,
-            });
+            if (readiness.ready) {
+                await opnameFinalService.refreshDendaByTokoId(scope.id);
+                const { toko, opnameFinal, items } = await buildDetailByTokoId(scope.id);
+                const buffer = await buildSerahTerimaPdfBuffer(
+                    { toko, opname_final: opnameFinal, items },
+                    placeholder.created_at,
+                    { unifiedPartIndex: index + 1, unifiedPartTotal: targetScopes.length }
+                );
+
+                pdfBuffers.push(buffer);
+                details.push({
+                    id_toko: scope.id,
+                    lingkup_pekerjaan: scope.lingkup_pekerjaan,
+                    opname_final_id: opnameFinal.id,
+                    item_count: items.length,
+                    kode_toko: toko.kode_toko,
+                    nama_kontraktor: toko.nama_kontraktor,
+                    nilai_opname: opnameFinal.grand_total_opname,
+                    nilai_toko: calculateSerahTerimaAssessmentScore(items).nilaiToko,
+                });
+            } else {
+                // Fallback to V1
+                const bst = await serahTerimaRepository.findBerkasSerahTerimaByIdToko(scope.id);
+                if (!bst?.link_pdf) {
+                    throw new AppError(`Toko (Scope: ${scope.lingkup_pekerjaan}) gagal di-generate dan tidak memiliki PDF V1: ${readiness.reason}`, 409);
+                }
+                const buffer = await downloadStoredPdfBuffer(bst.link_pdf);
+                if (!buffer) {
+                    throw new AppError(`Gagal mengunduh dokumen V1 untuk scope ${scope.lingkup_pekerjaan}`, 500);
+                }
+                pdfBuffers.push(buffer);
+                
+                const toko = await serahTerimaRepository.findTokoById(scope.id);
+                details.push({
+                    id_toko: scope.id,
+                    lingkup_pekerjaan: scope.lingkup_pekerjaan,
+                    opname_final_id: 0,
+                    item_count: 0,
+                    kode_toko: toko?.kode_toko,
+                    nama_kontraktor: toko?.nama_kontraktor,
+                    nilai_opname: 0,
+                    nilai_toko: 0,
+                });
+            }
         }
 
         if (pdfBuffers.length === 0) {
