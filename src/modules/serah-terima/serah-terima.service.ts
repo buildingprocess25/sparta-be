@@ -206,7 +206,7 @@ const assertSerahTerimaReadyForUnified = async (idToko: number) => {
 const automaticSerahTerimaInProgress = new Set<number>();
 const automaticUnifiedSerahTerimaInProgress = new Set<string>();
 
-const scheduleAutomaticUnifiedSerahTerimaIfReady = async (nomorUlok?: string | null): Promise<void> => {
+export const scheduleAutomaticUnifiedSerahTerimaIfReady = async (nomorUlok?: string | null): Promise<void> => {
     const key = String(nomorUlok || "").trim();
     if (!key || automaticUnifiedSerahTerimaInProgress.has(key)) return;
 
