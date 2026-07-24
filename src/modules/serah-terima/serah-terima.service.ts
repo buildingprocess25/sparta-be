@@ -137,12 +137,12 @@ const getSerahTerimaReadiness = async (idToko: number) => {
         };
     }
 
-    const workspace = await ganttRepository.findSupervisionWorkspace(toko.nomor_ulok);
-    if (!workspace) {
+    const scopes = await ganttRepository.findSupervisionWorkspace(toko.nomor_ulok);
+    if (!scopes || scopes.length === 0) {
         return { ready: false, reason: "Gantt chart belum tersedia untuk toko ini" };
     }
 
-    const activeScopes = workspace.scopes.filter(s => Number(s.gantt_id) > 0);
+    const activeScopes = scopes.filter((s: any) => Number(s.gantt_id) > 0);
     if (activeScopes.length === 0) {
         return { ready: false, reason: "Belum ada pekerjaan pengawasan yang diaktifkan untuk toko ini" };
     }
@@ -158,7 +158,7 @@ const getSerahTerimaReadiness = async (idToko: number) => {
             };
         }
 
-        const readyOpnameItems = (scope.checkpoints || []).reduce((sum, cp) => sum + Number(cp.ready_opname_items || 0), 0);
+        const readyOpnameItems = (scope.checkpoints || []).reduce((sum: number, cp: any) => sum + Number(cp.ready_opname_items || 0), 0);
         if (readyOpnameItems > 0) {
             return {
                 ready: false,
@@ -166,7 +166,7 @@ const getSerahTerimaReadiness = async (idToko: number) => {
             };
         }
 
-        const opnameItems = (scope.checkpoints || []).reduce((sum, cp) => sum + Number(cp.opname_items || 0), 0);
+        const opnameItems = (scope.checkpoints || []).reduce((sum: number, cp: any) => sum + Number(cp.opname_items || 0), 0);
         if (opnameItems === 0) {
             return {
                 ready: false,
