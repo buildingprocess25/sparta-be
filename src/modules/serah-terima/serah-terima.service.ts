@@ -12,6 +12,8 @@ import {
     calculateSerahTerimaAssessmentScore
 } from "./serah-terima.pdf";
 import { serahTerimaRepository } from "./serah-terima.repository";
+import { ganttRepository } from "../gantt/gantt.repository";
+import { tokoRepository } from "../toko/toko.repository";
 import { PDFDocument } from "pdf-lib";
 
 const sanitizeFilenamePart = (value: string | undefined, fallback: string): string => {
@@ -122,6 +124,11 @@ const mergePdfBuffers = async (buffers: Buffer[]): Promise<Buffer> => {
 };
 
 const getSerahTerimaReadiness = async (idToko: number) => {
+    const toko = await tokoRepository.findById(idToko);
+    if (!toko) {
+        return { ready: false, reason: "Data toko tidak ditemukan" };
+    }
+
     const opnameFinal = await serahTerimaRepository.findOpnameFinalByIdToko(idToko);
     if (!opnameFinal) {
         return {
@@ -130,30 +137,42 @@ const getSerahTerimaReadiness = async (idToko: number) => {
         };
     }
 
-    const completion = await serahTerimaRepository.getSupervisionCompletionByTokoId(idToko);
-    if (!completion.gantt_id || Number(completion.total_checkpoints) === 0) {
-        const opnameItemCount = await serahTerimaRepository.countOpnameItemsByOpnameFinalId(opnameFinal.id);
-
-        return {
-            ready: false,
-            reason: completion.gantt_id && opnameItemCount > 0
-                ? "Belum ada latest pengawasan selesai untuk toko ini"
-                : "Belum ada pekerjaan pengawasan selesai untuk toko ini",
-        };
+    const workspace = await ganttRepository.findSupervisionWorkspace(toko.nomor_ulok);
+    if (!workspace) {
+        return { ready: false, reason: "Gantt chart belum tersedia untuk toko ini" };
     }
 
-    if (Number(completion.incomplete_checkpoints) > 0) {
-        return {
-            ready: false,
-            reason: `Masih ada ${completion.incomplete_checkpoints} pekerjaan pengawasan yang belum selesai`,
-        };
+    const activeScopes = workspace.scopes.filter(s => Number(s.gantt_id) > 0);
+    if (activeScopes.length === 0) {
+        return { ready: false, reason: "Belum ada pekerjaan pengawasan yang diaktifkan untuk toko ini" };
     }
 
-    if (Number(completion.missing_checkpoints) > 0) {
-        return {
-            ready: false,
-            reason: `Masih ada ${completion.missing_checkpoints} pekerjaan selesai yang belum masuk Opname`,
-        };
+    for (const scope of activeScopes) {
+        if (scope.status_opname_final === 'APPROVED') continue;
+        
+        const missingPengawasan = Number(scope.missing_pengawasan_checkpoints || 0);
+        if (missingPengawasan > 0) {
+            return {
+                ready: false,
+                reason: `Masih ada ${missingPengawasan} pekerjaan pengawasan yang belum selesai pada lingkup ${scope.lingkup_pekerjaan}`,
+            };
+        }
+
+        const readyOpnameItems = (scope.checkpoints || []).reduce((sum, cp) => sum + Number(cp.ready_opname_items || 0), 0);
+        if (readyOpnameItems > 0) {
+            return {
+                ready: false,
+                reason: `Masih ada ${readyOpnameItems} pekerjaan selesai yang belum masuk Opname pada lingkup ${scope.lingkup_pekerjaan}`,
+            };
+        }
+
+        const opnameItems = (scope.checkpoints || []).reduce((sum, cp) => sum + Number(cp.opname_items || 0), 0);
+        if (opnameItems === 0) {
+            return {
+                ready: false,
+                reason: `Belum ada pengawasan yang selesai untuk masuk ke opname pada lingkup ${scope.lingkup_pekerjaan}`,
+            };
+        }
     }
 
     return {
