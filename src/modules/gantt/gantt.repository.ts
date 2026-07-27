@@ -482,7 +482,7 @@ export const ganttRepository = {
                     SELECT COUNT(*)::int
                     FROM latest_overall_status los
                     WHERE los.id_gantt = s.gantt_id
-                      AND los.status != 'selesai'
+                      AND LOWER(TRIM(COALESCE(los.status, ''))) NOT IN ('selesai', 'progress', 'terlambat')
                 ) AS missing_pengawasan_checkpoints,
                 COALESCE(
                     json_agg(
