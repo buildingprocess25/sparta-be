@@ -58,7 +58,7 @@ export type DashboardExportRow = {
     tanggal_opname_final: string;
     status_opname_final: string;
     nilai_toko: number;
-    keterangan_renovasi?: string;
+    keterangan_toko?: string;
     _work_items?: string[];
     _job_items?: DashboardJobItemExportRow[];
 };
@@ -233,7 +233,7 @@ export const dashboardExportColumns: DashboardExportColumn[] = [
     { key: "tanggal_opname_final", label: "tanggal_opname_final" },
     { key: "status_opname_final", label: "Status Opname Final" },
     { key: "nilai_toko", label: "Nilai Toko" },
-    { key: "keterangan_renovasi", label: "Keterangan Renovasi" }
+    { key: "keterangan_toko", label: "Keterangan Toko" }
 ];
 
 const normalize = (value: unknown) => String(value ?? "").trim();
@@ -586,7 +586,7 @@ const identitasCols: Array<keyof DashboardExportRow> = ["timestamp", "cabang", "
 
 const dataTypeColumns: Record<string, Array<keyof DashboardExportRow>> = {
     IDENTITAS: [...identitasCols],
-    RAB: [...identitasCols, "status_rab", "pekerjaan_area_terbuka", "pekerjaan_beanspot", "total_penawaran_final", "timestamp_acc_koordinator", "timestamp_acc_manager", "keterangan_renovasi"],
+    RAB: [...identitasCols, "status_rab", "pekerjaan_area_terbuka", "pekerjaan_beanspot", "total_penawaran_final", "timestamp_acc_koordinator", "timestamp_acc_manager", "keterangan_toko"],
     SPK: [...identitasCols, "status_spk", "timestamp_spk", "durasi_spk", "waktu_persetujuan_bm", "nominal_spk", "cost_m2_bangunan", "cost_m2_terbuka", "cost_m2_terbangun", "awal_spk", "akhir_spk", "tambah_spk", "akhir_spk_setelah", "real_spk"],
     OPNAME: [...identitasCols, "tanggal_serah_terima", "keterlambatan", "denda", "kerja_tambah", "kerja_kurang", "grand_total_opname_final", "tanggal_opname_final", "status_opname_final", "nilai_toko"]
 };
@@ -805,7 +805,7 @@ const buildIdentitasToko = (project: DashboardData, spk?: DashboardData["spk"][0
     kode_toko: normalize(project.toko.kode_toko),
     lingkup_pekerjaan: normalize(project.toko.lingkup_pekerjaan),
     kontraktor: normalize(spk?.nama_kontraktor ?? project.toko.nama_kontraktor),
-    keterangan_renovasi: normalize(project.toko.proyek ?? spk?.proyek)
+    keterangan_toko: normalize(project.toko.proyek ?? spk?.proyek)
 });
 
 const buildPengawasanRows = (projects: DashboardData[]): Array<Record<string, unknown>> => {
@@ -1277,7 +1277,7 @@ export const buildDashboardExportRows = (
             tanggal_opname_final: toIsoDate(opname?.created_at),
             status_opname_final: normalize(opname?.status_opname_final),
             nilai_toko: grandTotalOpname,
-            keterangan_renovasi: normalize(project.toko.proyek ?? spk?.proyek),
+            keterangan_toko: normalize(project.toko.proyek ?? spk?.proyek),
             _work_items: [...collectProjectWorkItems(project)],
             _job_items: collectProjectJobItems(project)
         };
