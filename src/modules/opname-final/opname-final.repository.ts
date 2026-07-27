@@ -797,12 +797,20 @@ export const opnameFinalRepository = {
         `, [opnameFinalId]);
 
         const ilResult = await pool.query<{ total: string }>(`
-            SELECT COALESCE(SUM(ili.total_harga), 0)::text AS total
+            SELECT COALESCE(SUM(
+                CASE
+                    WHEN oi.id IS NOT NULL THEN oi.total_harga_opname
+                    ELSE ili.total_harga
+                END
+            ), 0)::text AS total
             FROM instruksi_lapangan_item ili
             JOIN instruksi_lapangan il ON il.id = ili.id_instruksi_lapangan
+            LEFT JOIN opname_item oi
+                ON oi.id_instruksi_lapangan_item = ili.id
+               AND oi.id_opname_final = $2
             WHERE il.id_toko = $1
               AND il.status IN ('Disetujui', 'Approved')
-        `, [row.id_toko]);
+        `, [row.id_toko, opnameFinalId]);
 
         let rabTotal = 0;
         const ilTotal = Number(ilResult.rows[0]?.total || 0);

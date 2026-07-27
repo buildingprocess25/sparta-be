@@ -6,7 +6,11 @@ import { calculateDendaByTokoId } from "../denda/denda-keterlambatan";
 import { instruksiLapanganRepository } from "../instruksi-lapangan/instruksi-lapangan.repository";
 import { rabRepository } from "../rab/rab.repository";
 import { buildOpnameFinalPdfBuffer } from "./opname-final.pdf";
-import { calculateOpnameFinalFinancials, isNoPpnArea } from "./opname-final.financial";
+import {
+    calculateEffectiveInstruksiLapanganAmount,
+    calculateOpnameFinalFinancials,
+    isNoPpnArea,
+} from "./opname-final.financial";
 import { OPNAME_FINAL_STATUS, type OpnameFinalStatus } from "./opname-final.constants";
 import { opnameFinalRepository } from "./opname-final.repository";
 import type { OpnameFinalDetail, OpnameFinalIdRow } from "./opname-final.repository";
@@ -218,6 +222,22 @@ const loadInstruksiLapanganItems = async (idToko: number) => {
     return itemGroups.flat();
 };
 
+const sumEffectiveInstruksiLapanganTotal = (
+    instruksiLapanganItems: Awaited<ReturnType<typeof loadInstruksiLapanganItems>>,
+    opnameItems: OpnameFinalDetail["items"] = []
+): number => {
+    const opnameByInstruksiId = new Map<number, OpnameFinalDetail["items"][number]>();
+    for (const item of opnameItems) {
+        const instruksiId = Number(item.id_instruksi_lapangan_item ?? 0);
+        if (instruksiId > 0) opnameByInstruksiId.set(instruksiId, item);
+    }
+
+    return instruksiLapanganItems.reduce((acc, item) => {
+        const opnameItem = opnameByInstruksiId.get(Number(item.id));
+        return acc + calculateEffectiveInstruksiLapanganAmount(item, opnameItem).totalHarga;
+    }, 0);
+};
+
 const loadRabData = async (opnameFinalId: number) => {
     const items = await rabRepository.listItemsByOpnameFinalId(opnameFinalId);
     if (items.length === 0) {
@@ -240,7 +260,7 @@ const calculateOpnameKtkTotal = (
     const kerjaTambahItems = opnameItems.filter((item) => toNumber(item.total_selisih) > 0);
     const kerjaKurangItems = opnameItems.filter((item) => toNumber(item.total_selisih) < 0);
     const totalRabItems = rabItems.reduce((acc, item) => acc + toNumber(item.total_harga), 0);
-    const totalIl = instruksiLapanganItems.reduce((acc, item) => acc + toNumber(item.total_harga), 0);
+    const totalIl = sumEffectiveInstruksiLapanganTotal(instruksiLapanganItems, opnameItems);
     const totalKerjaTambah = kerjaTambahItems.reduce((acc, item) => acc + toNumber(item.total_selisih), 0);
     const totalKerjaKurang = kerjaKurangItems.reduce((acc, item) => acc + toNumber(item.total_selisih), 0);
     const nilaiDenda = toNumber(detail.opname_final.nilai_denda);

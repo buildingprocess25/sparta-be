@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { calculateOpnameFinalFinancials } from "./opname-final.financial";
+import {
+    calculateEffectiveInstruksiLapanganAmount,
+    calculateOpnameFinalFinancials,
+} from "./opname-final.financial";
 
 test("menghitung RAB + IL + tambah - kurang - denda dengan aturan PPN", () => {
     const result = calculateOpnameFinalFinancials({
@@ -27,4 +30,38 @@ test("area tanpa PPN tidak menambahkan sebelas persen", () => {
     });
 
     assert.equal(result.totalFinal, 30_430_000);
+});
+
+test("nilai instruksi lapangan di opname mengikuti volume akhir opname", () => {
+    const result = calculateEffectiveInstruksiLapanganAmount(
+        {
+            volume: 101.34,
+            harga_material: 33_000,
+            harga_upah: 9_500,
+            total_harga: 4_306_950,
+        },
+        {
+            volume_akhir: 0,
+            total_harga_opname: 0,
+        }
+    );
+
+    assert.equal(result.volume, 0);
+    assert.equal(result.totalMaterial, 0);
+    assert.equal(result.totalUpah, 0);
+    assert.equal(result.totalHarga, 0);
+});
+
+test("nilai instruksi lapangan tanpa opname tetap memakai nominal IL asli", () => {
+    const result = calculateEffectiveInstruksiLapanganAmount({
+        volume: 18,
+        harga_material: 10_900,
+        harga_upah: 4_500,
+        total_harga: 277_200,
+    });
+
+    assert.equal(result.volume, 18);
+    assert.equal(result.totalMaterial, 196_200);
+    assert.equal(result.totalUpah, 81_000);
+    assert.equal(result.totalHarga, 277_200);
 });

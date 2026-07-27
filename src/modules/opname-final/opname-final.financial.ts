@@ -18,6 +18,44 @@ export type OpnameFinalFinancialInput = {
 
 const finiteNumber = (value: number): number => Number.isFinite(value) ? value : 0;
 
+const numericValue = (value: string | number | null | undefined): number => {
+    const parsed = Number(value ?? 0);
+    return Number.isFinite(parsed) ? parsed : 0;
+};
+
+export type EffectiveInstruksiLapanganSource = {
+    volume?: string | number | null;
+    harga_material?: string | number | null;
+    harga_upah?: string | number | null;
+    total_harga?: string | number | null;
+};
+
+export type EffectiveInstruksiLapanganOpname = {
+    volume_akhir?: string | number | null;
+    total_harga_opname?: string | number | null;
+};
+
+export const calculateEffectiveInstruksiLapanganAmount = (
+    source: EffectiveInstruksiLapanganSource,
+    opname?: EffectiveInstruksiLapanganOpname
+) => {
+    const volume = opname ? numericValue(opname.volume_akhir) : numericValue(source.volume);
+    const hargaMaterial = numericValue(source.harga_material);
+    const hargaUpah = numericValue(source.harga_upah);
+    const totalMaterial = Math.round(volume * hargaMaterial);
+    const totalUpah = Math.round(volume * hargaUpah);
+    const totalHarga = opname
+        ? numericValue(opname.total_harga_opname)
+        : numericValue(source.total_harga);
+
+    return {
+        volume,
+        totalMaterial,
+        totalUpah,
+        totalHarga,
+    };
+};
+
 export const buildFinancialSummary = (
     rawTotal: number,
     direction: FinancialDirection,

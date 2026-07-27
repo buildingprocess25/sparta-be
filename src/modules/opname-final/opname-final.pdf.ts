@@ -7,6 +7,7 @@ import type { OpnameFinalDetail, OpnameFinalItemRow } from "./opname-final.repos
 import type { RabItemRow, RabRow } from "../rab/rab.repository";
 import {
     buildFinancialSummary as buildSharedFinancialSummary,
+    calculateEffectiveInstruksiLapanganAmount,
     calculateOpnameFinalFinancials,
     isNoPpnArea,
 } from "./opname-final.financial";
@@ -91,6 +92,16 @@ const sumRabTotalHarga = (items: RabItemRow[]): number => {
 
 const sumInstruksiLapanganTotalHarga = (items: InstruksiLapanganItemRow[]): number => {
     return items.reduce((acc, item) => acc + toNumber(item.total_harga), 0);
+};
+
+const mapOpnameItemsByInstruksiLapanganId = (opnameItems: OpnameFinalItemRow[]): Map<number, OpnameFinalItemRow> => {
+    const opnameByInstruksiId = new Map<number, OpnameFinalItemRow>();
+    for (const opnameItem of opnameItems) {
+        const instruksiId = Number(opnameItem.id_instruksi_lapangan_item ?? 0);
+        if (instruksiId > 0) opnameByInstruksiId.set(instruksiId, opnameItem);
+    }
+
+    return opnameByInstruksiId;
 };
 
 type OpnameItemView = {
@@ -199,30 +210,25 @@ const buildInstruksiLapanganGroups = async (
 ): Promise<GroupedItems<InstruksiLapanganItemView>> => {
     const grouped = new Map<string, InstruksiLapanganItemView[]>();
     const totals = new Map<string, number>();
-    const opnameByInstruksiId = new Map<number, OpnameFinalItemRow>();
-
-    for (const opnameItem of opnameItems) {
-        const instruksiId = Number(opnameItem.id_instruksi_lapangan_item ?? 0);
-        if (instruksiId > 0) opnameByInstruksiId.set(instruksiId, opnameItem);
-    }
+    const opnameByInstruksiId = mapOpnameItemsByInstruksiLapanganId(opnameItems);
 
     const preparedItems = await mapWithConcurrency(items, 4, async (item) => {
         const category = String(item.kategori_pekerjaan ?? "").trim().toUpperCase() || "LAIN-LAIN";
-        const totalHarga = toNumber(item.total_harga);
         const opnameItem = opnameByInstruksiId.get(Number(item.id));
+        const effectiveAmount = calculateEffectiveInstruksiLapanganAmount(item, opnameItem);
         return {
             category,
-            totalHarga,
+            totalHarga: effectiveAmount.totalHarga,
             view: {
                 id: Number(item.id),
                 jenis_pekerjaan: String(item.jenis_pekerjaan ?? "").trim() || "-",
                 satuan: String(item.satuan ?? "").trim() || "-",
-                volume: formatVolume(opnameItem ? opnameItem.volume_akhir : item.volume),
+                volume: formatVolume(effectiveAmount.volume),
                 harga_material_formatted: rupiah(toNumber(item.harga_material)),
                 harga_upah_formatted: rupiah(toNumber(item.harga_upah)),
-                total_material_formatted: rupiah(toNumber(item.total_material)),
-                total_upah_formatted: rupiah(toNumber(item.total_upah)),
-                total_harga_formatted: rupiah(totalHarga),
+                total_material_formatted: rupiah(effectiveAmount.totalMaterial),
+                total_upah_formatted: rupiah(effectiveAmount.totalUpah),
+                total_harga_formatted: rupiah(effectiveAmount.totalHarga),
                 foto_data_url: await resolvePhoto(opnameItem?.foto),
             }
         };
@@ -375,7 +381,16 @@ export const buildOpnameFinalPdfBuffer = async (
         : rabItems.reduce((acc, item) => acc + toNumber(item.total_harga), 0);
     const totalOpnameSelisih = sumOpnameTotalSelisih(opnameItems);
     const totalRabItems = sumRabTotalHarga(rabItems);
-    const grandTotalIl = sumInstruksiLapanganTotalHarga(instruksiLapanganItems);
+    const opnameByInstruksiId = mapOpnameItemsByInstruksiLapanganId(allOpnameItems);
+    const grandTotalIl = sumInstruksiLapanganTotalHarga(instruksiLapanganItems.map((item) => {
+        const opnameItem = opnameByInstruksiId.get(Number(item.id));
+        const effectiveAmount = calculateEffectiveInstruksiLapanganAmount(item, opnameItem);
+
+        return {
+            ...item,
+            total_harga: effectiveAmount.totalHarga,
+        };
+    }));
     const grandTotalKerjaTambah = sumOpnameTotalSelisih(kerjaTambahItems);
     const grandTotalKerjaKurang = sumOpnameTotalSelisih(kerjaKurangItems);
     const nilaiDenda = toNumber(detail.opname_final.nilai_denda);
