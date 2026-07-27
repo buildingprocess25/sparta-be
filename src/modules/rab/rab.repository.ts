@@ -270,8 +270,9 @@ export const rabRepository = {
             `SELECT EXISTS(
                 SELECT 1 FROM rab
                 WHERE id_toko = $1
+                  AND status = ANY($2::text[])
             )`,
-            [tokoId]
+            [tokoId, ACTIVE_RAB_STATUSES]
         );
         return result.rows[0]?.exists ?? false;
     },
@@ -701,9 +702,10 @@ export const rabRepository = {
                 `SELECT id, status
                  FROM rab
                  WHERE id_toko = $1
+                   AND status = ANY($2::text[])
                  LIMIT 1
                  FOR UPDATE`,
-                [tokoId]
+                [tokoId, ACTIVE_RAB_STATUSES]
             );
             console.log('[RAB DEBUG] Hasil cek RAB aktif:', {
                 tokoId,
