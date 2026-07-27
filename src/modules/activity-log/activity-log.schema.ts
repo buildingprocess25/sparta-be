@@ -14,6 +14,7 @@ export const activityLogEntityTypeSchema = z.enum([
     "DOKUMENTASI_BANGUNAN",
     "PENYIMPANAN_DOKUMEN",
     "SURAT_PERINGATAN",
+    "INTERVENSI",
     "DC_DEVELOPMENT"
 ]);
 

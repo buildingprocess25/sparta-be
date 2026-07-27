@@ -537,6 +537,57 @@ const findDendaActionApproval = async (user: AuthenticatedUser): Promise<Notific
     `, values);
 };
 
+const findRequestIntervensiApproval = async (user: AuthenticatedUser): Promise<NotificationRow[]> => {
+    const values: SqlValue[] = [];
+    const normalizedRole = normalize(user.jabatan);
+    let statuses: string[] = [];
+
+    if (isSuperHuman(user)) {
+        statuses = ["WAITING_BM_APPROVAL", "WAITING_SBCS_APPROVAL", "WAITING_REGIONAL_MANAGER_APPROVAL"];
+    } else if (
+        normalizedRole.includes("BRANCH BUILDING & MAINTENANCE MANAGER") ||
+        normalizedRole.includes("B&M MANAGER") ||
+        normalizedRole === "MANAGER"
+    ) {
+        statuses = ["WAITING_BM_APPROVAL"];
+    } else if (normalizedRole.includes("STORE & BRANCH CONTROLLING")) {
+        statuses = ["WAITING_SBCS_APPROVAL"];
+    } else if (
+        normalizedRole.includes("BUILDING & MAINTENANCE REGIONAL MANAGER") ||
+        normalizedRole.includes("B&M REGIONAL") ||
+        normalizedRole.includes("REGIONAL MANAGER")
+    ) {
+        statuses = ["WAITING_REGIONAL_MANAGER_APPROVAL"];
+    }
+
+    if (statuses.length === 0) return [];
+
+    values.push(statuses);
+    const branchWhere = addApprovalBranchScope(user, values, "ri.cabang");
+    values.push(ITEM_LIMIT);
+
+    return queryNotificationRows(`
+        SELECT
+            'INTERVENSI' AS entity_type,
+            ri.id AS entity_id,
+            ri.id_toko,
+            COALESCE(ri.nama_toko, ri.nomor_ulok, ri.nomor_request) AS title,
+            ri.nomor_ulok,
+            ri.lingkup_pekerjaan,
+            ri.cabang,
+            ri.status_request AS status,
+            'Request intervensi menunggu persetujuan role Anda.' AS description,
+            'Buka Approval Intervensi' AS action_label,
+            '/approval?type=INTERVENSI&id=' || ri.id AS action_url,
+            COUNT(*) OVER() AS total_count
+        FROM request_intervensi ri
+        WHERE ri.status_request = ANY($1::text[])
+          ${branchWhere}
+        ORDER BY ri.created_at DESC, ri.id DESC
+        LIMIT $${values.length}
+    `, values);
+};
+
 const findDendaActionToAcknowledge = async (user: AuthenticatedUser): Promise<NotificationRow[]> => {
     // Only Contractor sees the approved SP for acknowledgement
     if (!hasActiveRole(user, "KONTRAKTOR") && !isSuperHuman(user)) return [];
@@ -726,6 +777,38 @@ const findRevisionRequired = async (user: AuthenticatedUser): Promise<Notificati
             WHERE p.status = 'SPK_REJECTED'
               ${branchWhere}
             ORDER BY p.created_at DESC, p.id DESC
+            LIMIT $${values.length}
+        `, values));
+    }
+
+    if (isSuperHuman(user) || hasActiveRole(user, "BRANCH BUILDING COORDINATOR")) {
+        const values: SqlValue[] = [];
+        const branchWhere = addBranchScope(user, values, "ri.cabang");
+        let ownerCondition = "TRUE";
+        if (!isSuperHuman(user)) {
+            values.push(userEmail);
+            ownerCondition = "UPPER(TRIM(COALESCE(ri.submitted_by, ''))) = UPPER(TRIM($" + values.length + "))";
+        }
+        values.push(ITEM_LIMIT);
+        rows.push(await queryNotificationRows(`
+            SELECT
+                'INTERVENSI_REVISION' AS entity_type,
+                ri.id AS entity_id,
+                ri.id_toko,
+                COALESCE(ri.nama_toko, ri.nomor_ulok, ri.nomor_request) AS title,
+                ri.nomor_ulok,
+                ri.lingkup_pekerjaan,
+                ri.cabang,
+                ri.status_request AS status,
+                COALESCE('Alasan: ' || NULLIF(ri.rejection_reason, ''), 'Request intervensi perlu direvisi dan diajukan ulang.') AS description,
+                'Revisi Intervensi' AS action_label,
+                '/request-intervensi?id=' || ri.id AS action_url,
+                COUNT(*) OVER() AS total_count
+            FROM request_intervensi ri
+            WHERE ri.status_request = 'REVISION_REQUESTED'
+              ${branchWhere}
+              AND ${ownerCondition}
+            ORDER BY ri.updated_at DESC, ri.id DESC
             LIMIT $${values.length}
         `, values));
     }
@@ -950,6 +1033,7 @@ export const taskNotificationRepository = {
             instruksiLapanganApproval,
             projectPlanningApproval,
             dendaActionApproval,
+            requestIntervensiApproval,
             dendaActionToAcknowledge,
             supportKtkReady,
             revisionRequired,
@@ -963,6 +1047,7 @@ export const taskNotificationRepository = {
             findInstruksiLapanganApproval(user),
             findProjectPlanningApproval(user),
             findDendaActionApproval(user),
+            findRequestIntervensiApproval(user),
             findDendaActionToAcknowledge(user),
             findSupportKtkReady(user),
             findRevisionRequired(user),
@@ -1021,6 +1106,13 @@ export const taskNotificationRepository = {
                 dendaActionApproval
             ),
             makeGroup(
+                "approval_intervensi",
+                "approval",
+                "Approval Intervensi",
+                "Request intervensi yang menunggu persetujuan role Anda.",
+                requestIntervensiApproval
+            ),
+            makeGroup(
                 "input_surat_peringatan",
                 "input",
                 "Surat Peringatan Baru",
@@ -1075,6 +1167,13 @@ export const taskNotificationRepository = {
                 "Revisi KTK",
                 "KTK yang ditolak dan perlu diperbaiki.",
                 revisionRequired.filter(row => row.entity_type === "OPNAME_FINAL_REJECTED")
+            ),
+            makeGroup(
+                "revision_intervensi",
+                "revision",
+                "Revisi Request Intervensi",
+                "Request intervensi yang dikembalikan dan perlu diajukan ulang.",
+                revisionRequired.filter(row => row.entity_type === "INTERVENSI_REVISION")
             ),
             makeGroup(
                 "pic_pengawasan_missing",
