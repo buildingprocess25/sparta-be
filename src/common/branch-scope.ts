@@ -60,6 +60,16 @@ export const getBranchScopeCandidates = (branch?: string | null): string[] => {
     return result;
 };
 
+export const getRabPriceBranch = (branch?: string | null): string => {
+    const normalized = normalizeBranchScopeName(branch);
+    if (!normalized) return "";
+
+    if (BRANCH_GROUPS.CIKOKOL.includes(normalized)) return "CIKOKOL";
+    if (BRANCH_GROUPS.CILEUNGSI.includes(normalized)) return "CILEUNGSI";
+
+    return normalized;
+};
+
 export const isSameBranchScope = (left?: string | null, right?: string | null): boolean => {
     const normalizedLeft = normalizeBranchScopeName(left);
     const normalizedRight = normalizeBranchScopeName(right);

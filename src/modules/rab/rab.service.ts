@@ -1,5 +1,5 @@
 import { AppError } from "../../common/app-error";
-import { BRANCH_GROUPS, getBranchScopeCandidates, isSameBranchScope, normalizeBranchScopeName } from "../../common/branch-scope";
+import { getBranchScopeCandidates, getRabPriceBranch, isSameBranchScope, normalizeBranchScopeName } from "../../common/branch-scope";
 import { GoogleProvider } from "../../common/google";
 import { normalizeProjectByUlok } from "../../common/project-type";
 import { env } from "../../config/env";
@@ -393,9 +393,10 @@ const normalizeCabangForPrice = (value?: string | null): string => {
         .trim();
 };
 
-const isCikokolBranchGroup = (cabang?: string | null): boolean => {
+const usesRabParentPrice = (cabang?: string | null): boolean => {
     const normalized = normalizeBranchScopeName(cabang);
-    return normalized === "CIKOKOL" || BRANCH_GROUPS.CIKOKOL.includes(normalized);
+    const priceBranch = getRabPriceBranch(normalized);
+    return priceBranch === "CIKOKOL" || priceBranch === "CILEUNGSI";
 };
 
 const findUserCabangByEmailAndBranchScope = async (email: string, branch: string) => {
@@ -630,7 +631,8 @@ export const syncDetailItemsWithBranchPrices = async (
     requirePriceSync = false,
     requireEveryItemMatch = false
 ): Promise<DetailItemInput[]> => {
-    const cabangKey = normalizeCabangForPrice(cabang);
+    const requestedCabangKey = normalizeCabangForPrice(cabang);
+    const cabangKey = getRabPriceBranch(requestedCabangKey);
     const lingkup = normalizeLingkupForPrice(lingkupPekerjaan);
 
     if (!cabangKey || !lingkup) {
@@ -678,6 +680,7 @@ export const syncDetailItemsWithBranchPrices = async (
         });
 
         logRab("PRICE_SYNC", "Harga item diselaraskan dengan cabang", {
+            requested_cabang: requestedCabangKey,
             cabang: cabangKey,
             lingkup,
             total_items: detailItems.length,
@@ -1492,7 +1495,7 @@ export const rabService = {
             rejectedRabExistingCabang.trim().toUpperCase() !== revisionPriceCabang.trim().toUpperCase()
         );
         
-        const shouldSyncRevisionPrices = isRevisionSubmit && (branchChanged || isCikokolBranchGroup(revisionPriceCabang));
+        const shouldSyncRevisionPrices = isRevisionSubmit && (branchChanged || usesRabParentPrice(revisionPriceCabang));
 
         const detailItems = shouldSyncRevisionPrices
             ? await syncDetailItemsWithBranchPrices(

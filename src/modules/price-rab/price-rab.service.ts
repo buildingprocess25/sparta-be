@@ -1,5 +1,6 @@
 import type { sheets_v4 } from "googleapis";
 import { AppError } from "../../common/app-error";
+import { getRabPriceBranch } from "../../common/branch-scope";
 import { GoogleProvider } from "../../common/google";
 import { BRANCH_TO_ULOK_MAP, SBO_SPREADSHEET_ID, SPREADSHEET_IDS } from "./price-rab.constants";
 
@@ -314,7 +315,8 @@ function processSboSheet(records: Record<string, string>[], cabangKode: string, 
 
 export const priceRabService = {
     async getData(cabangRaw: string, lingkupRaw: string): Promise<PriceResult> {
-        const cabang = normalizeCabangInput(cabangRaw);
+        const requestedCabang = normalizeCabangInput(cabangRaw);
+        const cabang = getRabPriceBranch(requestedCabang);
         const lingkup = normalizeLingkupInput(lingkupRaw);
 
         if (!SPREADSHEET_IDS[cabang] || !SPREADSHEET_IDS[cabang][lingkup]) {
