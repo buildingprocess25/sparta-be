@@ -35,6 +35,7 @@ import { taskNotificationRouter } from "./modules/task-notification/task-notific
 import { systemMaintenanceRouter } from "./modules/system-maintenance/system-maintenance.routes";
 import systemAccessScheduleRouter from "./modules/system-access-schedule/system-access-schedule.routes";
 import { spkBackdatePolicyRouter } from "./modules/spk-backdate-policy/spk-backdate-policy.routes";
+// import { requestIntervensiRouter } from "./modules/request-intervensi/request-intervensi.routes";
 
 
 
@@ -211,6 +212,7 @@ app.use("/api/task-notifications", taskNotificationRouter);
 app.use("/api/system-maintenance", systemMaintenanceRouter);
 app.use("/api/system-access-schedule", systemAccessScheduleRouter);
 app.use("/api/spk-backdate-policy", spkBackdatePolicyRouter);
+// app.use("/api/request-intervensi", requestIntervensiRouter);
 app.use("/api", emailNotificationRouter);
 app.use("/api", emailResendRouter);
 app.use("/api", serahTerimaRouter);
