@@ -2,6 +2,7 @@ import { AppError } from "../../common/app-error";
 import { authOtpService } from "../auth/auth-otp.service";
 import { authSessionService } from "../auth/auth-session.service";
 import { userBranchCoverageRepository } from "../user-branch-coverage/user-branch-coverage.repository";
+import { userCabangRepository } from "../user-cabang/user-cabang.repository";
 import { tokoRepository } from "./toko.repository";
 import type { UserCabangRow } from "./toko.repository";
 import type {
@@ -32,6 +33,7 @@ const buildLoginResponse = async (input: {
         roles: [input.matchedUser.jabatan],
         nama_pt: input.matchedUser.nama_pt
     });
+    await userCabangRepository.updateLastLoginById(input.matchedUser.id);
 
     return { ...input.matchedUser, coverage, alamat_cabang, ...session };
 };

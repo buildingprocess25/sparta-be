@@ -33,6 +33,21 @@ const hydrateExportProjects = async (projects: Awaited<ReturnType<typeof dashboa
     return filterDashboardExportAccess(hydrated, query);
 };
 
+const parseExportSelection = (value?: string): Set<string> => new Set(
+    String(value ?? "")
+        .split(",")
+        .map((item) => item.trim().toUpperCase())
+        .filter(Boolean)
+);
+
+const isUserOnlyExport = (dataTypes?: string, jobTypes?: string): boolean => {
+    const selectedDataTypes = parseExportSelection(dataTypes);
+    const selectedJobTypes = parseExportSelection(jobTypes);
+    return selectedDataTypes.size === 1 && selectedDataTypes.has("USER") && selectedJobTypes.size === 0;
+};
+
+const includesUserExport = (dataTypes?: string): boolean => parseExportSelection(dataTypes).has("USER");
+
 export const dashboardService = {
     async getDashboard(query: DashboardQueryInput) {
         const toko = await dashboardRepository.findTokoByQuery(query);
@@ -130,12 +145,28 @@ export const dashboardService = {
     },
 
     async exportDashboard(query: DashboardExportQueryInput) {
+        if (query.actor_role.toUpperCase().includes("KONTRAKTOR")) {
+            throw new AppError("Role kontraktor tidak diizinkan mengunduh export dashboard", 403);
+        }
+
+        const userRows = includesUserExport(query.data_types)
+            ? await dashboardRepository.findUserExportRows(query)
+            : undefined;
+
+        const cabangLabel = query.cabang && query.cabang !== "ALL"
+            ? query.cabang
+            : (query.actor_cabang.toUpperCase() === "HEAD OFFICE" ? "Semua Cabang" : query.actor_cabang);
+
+        if (isUserOnlyExport(query.data_types, query.job_types)) {
+            return buildDashboardExportFile(query.format, [], {
+                cabang: cabangLabel,
+                generatedBy: query.actor_role
+            }, query.data_types, query.job_types, [], userRows);
+        }
+
         if (isKtkOpnameFinalOnlyExport(query.data_types, query.job_types)) {
             const projects = await dashboardRepository.findKtkOpnameFinalDashboard(query);
             const scopedProjects = await hydrateExportProjects(projects, query);
-            const cabangLabel = query.cabang && query.cabang !== "ALL"
-                ? query.cabang
-                : (query.actor_cabang.toUpperCase() === "HEAD OFFICE" ? "Semua Cabang" : query.actor_cabang);
 
             return buildKtkOpnameFinalExportFile(query.format, scopedProjects, {
                 cabang: cabangLabel,
@@ -147,13 +178,10 @@ export const dashboardService = {
         const scopedProjects = await hydrateExportProjects(projects, query);
         const dokumentasiRows = await dashboardRepository.findDokumentasiBangunanForExport();
         const rows = buildDashboardExportRows(scopedProjects, buildDokumentasiIndex(dokumentasiRows));
-        const cabangLabel = query.cabang && query.cabang !== "ALL"
-            ? query.cabang
-            : (query.actor_cabang.toUpperCase() === "HEAD OFFICE" ? "Semua Cabang" : query.actor_cabang);
 
         return buildDashboardExportFile(query.format, rows, {
             cabang: cabangLabel,
             generatedBy: query.actor_role
-        }, query.data_types, query.job_types, scopedProjects);
+        }, query.data_types, query.job_types, scopedProjects, userRows);
     }
 };

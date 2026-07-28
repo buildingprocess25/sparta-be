@@ -4,7 +4,7 @@ import { isSameBranchScope } from "../../common/branch-scope";
 import { renderPdfFromHtml } from "../../common/html-pdf";
 import { calculateDendaNominal, isHeadOfficeCabang } from "../denda/denda-keterlambatan";
 import { PP_STATUS_LABEL } from "../project-planning/project-planning.constants";
-import type { DashboardData, DashboardProjectPlanningRow } from "./dashboard.repository";
+import type { DashboardData, DashboardProjectPlanningRow, DashboardUserExportRow as DashboardUserSourceRow } from "./dashboard.repository";
 import type { DashboardExportQueryInput } from "./dashboard.schema";
 
 export type DashboardExportColumn = {
@@ -185,6 +185,16 @@ export type DashboardProjectPlanningExportRow = {
     status: string;
     tanggal_pengajuan: string;
     tanggal_persetujuan_bm: string;
+};
+
+export type DashboardUserExportRow = {
+    nama_user: string;
+    email_user: string;
+    role: string;
+    cabang: string;
+    tanggal_login_terakhir: number | string;
+    bulan_login_terakhir: string;
+    tahun_login_terakhir: number | string;
 };
 
 export const dashboardExportColumns: DashboardExportColumn[] = [
@@ -715,6 +725,16 @@ const projectPlanningExportColumns: DashboardExportColumn[] = [
     { key: "tanggal_persetujuan_bm", label: "Tanggal Persetujuan BM" }
 ];
 
+const userExportColumns: DashboardExportColumn[] = [
+    { key: "nama_user", label: "Nama User" },
+    { key: "email_user", label: "Email User" },
+    { key: "role", label: "Role" },
+    { key: "cabang", label: "Cabang" },
+    { key: "tanggal_login_terakhir", label: "Tanggal Login Terakhir" },
+    { key: "bulan_login_terakhir", label: "Bulan Login Terakhir" },
+    { key: "tahun_login_terakhir", label: "Tahun Login Terakhir" }
+];
+
 const dataTypeLabels: Record<string, string> = {
     IDENTITAS: "Identitas Toko",
     RAB: "RAB & Luasan",
@@ -725,7 +745,8 @@ const dataTypeLabels: Record<string, string> = {
     INSTRUKSI_LAPANGAN: "Instruksi Lapangan",
     SERAH_TERIMA: "Serah Terima",
     KTK_OPNAME_FINAL: "KTK (Opname Final)",
-    PROJECT_PLANNING: "Project Planning"
+    PROJECT_PLANNING: "Project Planning",
+    USER: "Data User"
 };
 
 const addJobTypeColumns = (keys: Set<keyof DashboardExportRow>, jobTypes?: string) => {
@@ -996,6 +1017,36 @@ const buildProjectPlanningRows = (projects: DashboardData[]): Array<Record<strin
     return rows;
 };
 
+const monthName = (date: Date): string => new Intl.DateTimeFormat("id-ID", {
+    month: "long",
+    timeZone: "Asia/Jakarta"
+}).format(date);
+
+const splitLoginDate = (value: unknown): Pick<DashboardUserExportRow, "tanggal_login_terakhir" | "bulan_login_terakhir" | "tahun_login_terakhir"> => {
+    const date = toDate(value);
+    if (!date) {
+        return {
+            tanggal_login_terakhir: "",
+            bulan_login_terakhir: "",
+            tahun_login_terakhir: ""
+        };
+    }
+
+    return {
+        tanggal_login_terakhir: Number(new Intl.DateTimeFormat("id-ID", { day: "numeric", timeZone: "Asia/Jakarta" }).format(date)),
+        bulan_login_terakhir: monthName(date),
+        tahun_login_terakhir: Number(new Intl.DateTimeFormat("id-ID", { year: "numeric", timeZone: "Asia/Jakarta" }).format(date))
+    };
+};
+
+const buildUserRows = (users: DashboardUserSourceRow[]): DashboardUserExportRow[] => users.map((user) => ({
+    nama_user: normalize(user.nama_user),
+    email_user: normalize(user.email_user),
+    role: normalize(user.role),
+    cabang: normalize(user.cabang),
+    ...splitLoginDate(user.last_login_at)
+}));
+
 export const ktkOpnameFinalExportSection = (projects: DashboardData[]): DashboardExportSection => ({
     title: dataTypeLabels.KTK_OPNAME_FINAL,
     filenamePart: `jenis_data_${normalizeFilePart(dataTypeLabels.KTK_OPNAME_FINAL, "KTK_OPNAME_FINAL")}`,
@@ -1011,7 +1062,8 @@ const buildDashboardExportSections = (
     rows: DashboardExportRow[],
     dataTypes?: string,
     jobTypes?: string,
-    projects?: DashboardData[]
+    projects?: DashboardData[],
+    userRows?: DashboardUserSourceRow[]
 ): DashboardExportSection[] => {
     const selectedDataTypes = [...parseCsvSet(dataTypes)];
     const selectedJobTypes = [...parseCsvSet(jobTypes)];
@@ -1028,6 +1080,16 @@ const buildDashboardExportSections = (
     };
 
     selectedDataTypes.forEach((type) => {
+        if (type === "USER") {
+            sections.push({
+                title: dataTypeLabels.USER,
+                filenamePart: `jenis_data_${normalizeFilePart(dataTypeLabels.USER, "USER")}`,
+                rows: buildUserRows(userRows ?? []),
+                columns: userExportColumns
+            });
+            return;
+        }
+
         // Jenis data lama yang masih menggunakan DashboardExportRow
         if (["RAB", "SPK", "OPNAME", "IDENTITAS"].includes(type)) {
             sections.push({
@@ -1557,10 +1619,11 @@ export const buildDashboardExportFile = async (
     meta: { cabang: string; generatedBy: string },
     dataTypes?: string,
     jobTypes?: string,
-    projects?: DashboardData[]
+    projects?: DashboardData[],
+    userRows?: DashboardUserSourceRow[]
 ): Promise<{ buffer: Buffer; filename: string; contentType: string }> => {
     const columns = resolveDashboardExportColumns(dataTypes, jobTypes);
-    const sections = buildDashboardExportSections(rows, dataTypes, jobTypes, projects);
+    const sections = buildDashboardExportSections(rows, dataTypes, jobTypes, projects, userRows);
     const hasSegmentedSelection = parseCsvSet(dataTypes).size > 0 || parseCsvSet(jobTypes).size > 0;
     const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     const cabang = normalizeUpper(meta.cabang || "ALL").replace(/[^A-Z0-9]+/g, "_") || "ALL";

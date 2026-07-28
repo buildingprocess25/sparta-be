@@ -13,6 +13,15 @@ export type DashboardTokoRow = {
     nama_kontraktor: string | null;
 };
 
+export type DashboardUserExportRow = {
+    id: number;
+    nama_user: string | null;
+    email_user: string;
+    role: string | null;
+    cabang: string | null;
+    last_login_at: string | null;
+};
+
 export type DashboardRabRow = {
     id: number;
     id_toko: number;
@@ -1575,6 +1584,58 @@ export const dashboardRepository = {
             berkas_serah_terima: berkasSerahByTokoId.get(toko.id) ?? [],
             project_planning: []
         }));
+    },
+
+    async findUserExportRows(query: DashboardExportQueryInput): Promise<DashboardUserExportRow[]> {
+        const filters: string[] = [];
+        const values: Array<string | string[]> = [];
+
+        const cabangs = parseTextCsv(query.cabangs);
+        if (cabangs.length > 0) {
+            values.push(cabangs);
+            filters.push(`UPPER(COALESCE(uc.cabang, '')) = ANY($${values.length}::text[])`);
+        }
+
+        if (query.cabang_array && query.cabang_array.length > 0) {
+            values.push(query.cabang_array.map((item) => item.toUpperCase()));
+            filters.push(`UPPER(COALESCE(uc.cabang, '')) = ANY($${values.length}::text[])`);
+        }
+
+        if (query.cabang && query.cabang.toUpperCase() !== "ALL") {
+            values.push(query.cabang.toUpperCase());
+            filters.push(`UPPER(COALESCE(uc.cabang, '')) = $${values.length}`);
+        }
+
+        if (query.search) {
+            values.push(`%${query.search}%`);
+            const idx = values.length;
+            filters.push(`(
+                uc.nama_lengkap ILIKE $${idx}
+                OR uc.email_sat ILIKE $${idx}
+                OR uc.jabatan ILIKE $${idx}
+                OR uc.cabang ILIKE $${idx}
+                OR uc.nama_pt ILIKE $${idx}
+            )`);
+        }
+
+        const whereClause = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
+        const result = await pool.query<DashboardUserExportRow>(
+            `
+            SELECT
+                uc.id,
+                uc.nama_lengkap AS nama_user,
+                uc.email_sat AS email_user,
+                uc.jabatan AS role,
+                uc.cabang,
+                uc.last_login_at::text
+            FROM user_cabang uc
+            ${whereClause}
+            ORDER BY uc.cabang ASC, uc.nama_lengkap ASC NULLS LAST, uc.email_sat ASC
+            `,
+            values
+        );
+
+        return result.rows;
     },
 
     async findDokumentasiBangunanForExport(): Promise<DashboardDokumentasiBangunanRow[]> {

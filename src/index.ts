@@ -3,6 +3,7 @@ import { env } from "./config/env";
 import { GoogleProvider } from "./common/google";
 import { authOtpRepository } from "./modules/auth/auth-otp.repository";
 import { authSessionRepository } from "./modules/auth/auth-session.repository";
+import { userCabangRepository } from "./modules/user-cabang/user-cabang.repository";
 import { systemMaintenanceService } from "./modules/system-maintenance/system-maintenance.service";
 import { systemAccessScheduleService } from "./modules/system-access-schedule/system-access-schedule.service";
 import { serahTerimaService } from "./modules/serah-terima/serah-terima.service";
@@ -79,6 +80,7 @@ const bootstrap = async () => {
     await GoogleProvider.initialize();
     await authSessionRepository.ensureSchema();
     await authOtpRepository.ensureSchema();
+    await userCabangRepository.ensureLoginTrackingSchema();
     await systemMaintenanceService.ensureSchema();
     await systemAccessScheduleService.ensureSchema();
     await spkBackdatePolicyService.ensureSchema();

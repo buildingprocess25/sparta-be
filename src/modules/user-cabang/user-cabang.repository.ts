@@ -23,10 +23,32 @@ export type UserCabangRow = {
     jabatan: string | null;
     email_sat: string;
     nama_pt: string | null;
+    last_login_at?: string | null;
     coverage?: string[];
 };
 
 export const userCabangRepository = {
+    async ensureLoginTrackingSchema(): Promise<void> {
+        await pool.query(`
+            ALTER TABLE user_cabang
+                ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ DEFAULT NULL;
+
+            CREATE INDEX IF NOT EXISTS idx_user_cabang_last_login_at
+                ON user_cabang (last_login_at DESC);
+        `);
+    },
+
+    async updateLastLoginById(id: number): Promise<void> {
+        await pool.query(
+            `
+            UPDATE user_cabang
+            SET last_login_at = now()
+            WHERE id = $1
+            `,
+            [id]
+        );
+    },
+
     async create(input: CreateUserCabangInput): Promise<UserCabangRow> {
         const result = await pool.query<UserCabangRow>(
             `
