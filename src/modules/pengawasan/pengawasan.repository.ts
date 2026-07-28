@@ -16,6 +16,7 @@ export type PengawasanRow = {
     dokumentasi_base64: string | null;
     status: string;
     created_at: string;
+    tanggal_pengawasan?: string;
 };
 
 export type BerkasPengawasanRow = {
@@ -251,9 +252,11 @@ export const pengawasanRepository = {
                 bp.id AS bp_id,
                 bp.id_pengawasan_gantt AS bp_id_pengawasan_gantt,
                 bp.link_pdf_pengawasan AS bp_link_pdf_pengawasan,
-                bp.created_at AS bp_created_at
+                bp.created_at AS bp_created_at,
+                pg.tanggal_pengawasan
             FROM pengawasan p
             LEFT JOIN berkas_pengawasan bp ON bp.id_pengawasan_gantt = p.id_pengawasan_gantt
+            LEFT JOIN pengawasan_gantt pg ON pg.id = p.id_pengawasan_gantt
             JOIN gantt_chart g ON g.id = p.id_gantt
             JOIN toko t ON t.id = g.id_toko
             ${whereClause}
