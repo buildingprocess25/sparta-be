@@ -4,6 +4,7 @@ import { env } from "../../config/env";
 import type { AuthenticatedUser } from "../auth/auth-session.service";
 import { spRepository } from "./sp.repository";
 import type { CreateDendaActionInput, ListDendaActionsQuery, RejectDendaActionInput } from "./sp.schema";
+import { getBranchScopeCandidates } from "../../common/branch-scope";
 // Threshold for Takeover action (in days of denda)
 export const DENDA_ACTION_THRESHOLD_DAYS = 8;
 
@@ -310,7 +311,9 @@ export const spService = {
         // - ULOK-based          → cek per toko (id_toko)
         let stats: { active_sp_count: number; pending_approval_count: number; highest_active_sp_level: number };
         if (input.action_type === "SP" && effectiveKontraktor) {
-            stats = await spRepository.getActionStatsByKontraktor(effectiveKontraktor);
+            const effectiveCabang = target?.cabang ?? (input.actor as any)?.cabang ?? null;
+            const cabang_array = getBranchScopeCandidates(effectiveCabang);
+            stats = await spRepository.getActionStatsByKontraktor(effectiveKontraktor, cabang_array);
         } else if (tokoId) {
             stats = await spRepository.getActionStatsByTokoId(tokoId);
         } else {

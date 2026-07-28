@@ -632,11 +632,20 @@ export const spRepository = {
         };
     },
 
-    async getActionStatsByKontraktor(namaKontraktor: string): Promise<{
+    async getActionStatsByKontraktor(namaKontraktor: string, cabang_array?: string[]): Promise<{
         active_sp_count: number;
         pending_approval_count: number;
         highest_active_sp_level: number;
     }> {
+        let cabangFilter = "";
+        const queryArgs: any[] = [namaKontraktor];
+
+        if (cabang_array && cabang_array.length > 0) {
+            const normalizedBranches = cabang_array.map(b => b.trim().toUpperCase());
+            queryArgs.push(normalizedBranches);
+            cabangFilter = `AND UPPER(cabang) = ANY($2)`;
+        }
+
         const result = await pool.query<{ active_sp_count: string; pending_approval_count: string; highest_active_sp_level: string }>(
             `
             SELECT
@@ -653,8 +662,9 @@ export const spRepository = {
                 ) AS highest_active_sp_level
             FROM denda_keterlambatan_action
             WHERE LOWER(TRIM(COALESCE(nama_kontraktor, ''))) = LOWER(TRIM($1))
+            ${cabangFilter}
             `,
-            [namaKontraktor]
+            queryArgs
         );
 
         return {
