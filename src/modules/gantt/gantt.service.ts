@@ -124,15 +124,12 @@ const isScopeReadyForSerahTerima = (scope: any) => {
         return true;
     }
 
-    const hasOpnameItems = (
-        Array.isArray(scope.checkpoints)
-        && scope.checkpoints.reduce((sum: number, checkpoint: any) => sum + Number(checkpoint?.opname_items || 0), 0) > 0
-        && scope.checkpoints.reduce((sum: number, checkpoint: any) => sum + Number(checkpoint?.ready_opname_items || 0), 0) === 0
-    ) || Number(scope.opname_item_count || 0) > 0;
-
+    const checkpoints = Array.isArray(scope.checkpoints) ? scope.checkpoints : [];
+    const opnameItems = checkpoints.reduce((sum: number, checkpoint: any) => sum + Number(checkpoint?.opname_items || 0), 0);
+    const readyOpnameItems = checkpoints.reduce((sum: number, checkpoint: any) => sum + Number(checkpoint?.ready_opname_items || 0), 0);
     const missingPengawasan = Number(scope.missing_pengawasan_checkpoints || 0);
 
-    return hasOpnameItems && missingPengawasan === 0;
+    return opnameItems > 0 && readyOpnameItems === 0 && missingPengawasan === 0;
 };
 
 const normalizePengawasanDate = (value: any): string => {
