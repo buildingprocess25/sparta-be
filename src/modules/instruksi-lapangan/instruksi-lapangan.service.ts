@@ -13,6 +13,8 @@ import {
     mergePdfBuffers
 } from "./instruksi-lapangan.pdf";
 
+const MailComposer = require("nodemailer/lib/mail-composer");
+
 const saveUploadToTemp = async (file: { originalname: string; buffer: Buffer }): Promise<string> => {
     const ext = path.extname(file.originalname);
     const filename = `${crypto.randomUUID()}${ext}`;
@@ -69,6 +71,75 @@ const generateInstruksiLapanganPdfInBackground = (idIL: number | string): void =
         });
     });
 };
+
+async function sendILApprovalEmail(data: any, pdfBuffer: Buffer, pdfFilename: string) {
+    if (!env.EMAIL_USER) {
+        console.warn("[IL][EMAIL] EMAIL_USER belum diset, melewati pengiriman email.");
+        return;
+    }
+
+    const gmail = GoogleProvider.instance.spartaGmail;
+    if (!gmail) {
+        console.warn("[IL][EMAIL] Google Gmail belum terkonfigurasi, melewati pengiriman email.");
+        return;
+    }
+
+    const recipient = data.instruksiLapangan.email_pembuat;
+    if (!recipient) {
+        console.warn("[IL][EMAIL] Tidak ada email pembuat (kontraktor) untuk IL ini.");
+        return;
+    }
+
+    const htmlBody = `
+Yth. Bapak/Ibu Kontraktor,
+<br><br>
+Bersama email ini, kami informasikan bahwa pengajuan Instruksi Lapangan (IL) untuk proyek <b>${data.toko.nama_toko}</b> dengan Nomor ULOK <b>${data.toko.nomor_ulok}</b> telah <b>DISETUJUI</b> secara keseluruhan.
+<br><br>
+Sebagai acuan resmi pelaksanaan pekerjaan di lapangan, kami telah melampirkan dokumen PDF Instruksi Lapangan final bersama email ini.
+<br><br>
+Untuk melihat detail persetujuan dan rincian pekerjaan lebih lanjut, silakan akses portal resmi SPARTA melalui tautan berikut:<br>
+<a href="https://building.sparta-alfamart.web.id/">https://building.sparta-alfamart.web.id/</a>
+<br><br>
+Demikian informasi ini kami sampaikan. Atas perhatian dan kerja samanya, kami ucapkan terima kasih.
+<br><br>
+Hormat kami,
+<br><br>
+<b>Tim SPARTA Alfamart</b>
+<hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+<span style="font-size: 12px; color: #666;">(Email ini dibuat secara otomatis oleh sistem, mohon untuk tidak membalas ke alamat email ini)</span>
+    `;
+
+    const options = {
+        from: `"Tim SPARTA Alfamart" <${env.EMAIL_USER}>`,
+        to: recipient,
+        subject: `[DISETUJUI] Instruksi Lapangan (IL) Proyek ${data.toko.nama_toko} - ${data.toko.nomor_ulok}`,
+        html: htmlBody,
+        attachments: [
+            {
+                filename: pdfFilename,
+                content: pdfBuffer,
+            }
+        ]
+    };
+
+    try {
+        const mail = new MailComposer(options);
+        const messageBuffer = await mail.compile().build();
+        const encodedMessage = messageBuffer
+            .toString("base64")
+            .replace(/\+/g, "-")
+            .replace(/\//g, "_")
+            .replace(/=+$/, "");
+
+        await gmail.users.messages.send({
+            userId: "me",
+            requestBody: { raw: encodedMessage },
+        });
+        console.log(`[IL][EMAIL] Email persetujuan IL berhasil dikirim ke ${recipient}`);
+    } catch (err: any) {
+        console.error(`[IL][EMAIL] Gagal mengirim email persetujuan IL ke ${recipient}:`, err?.message || err);
+    }
+}
 
 export const instruksiLapanganService = {
     async submit(
@@ -351,6 +422,20 @@ export const instruksiLapanganService = {
 
         // Regenerate PDF after status change
         await this.generateAndStorePdf(id);
+
+        if (action.tindakan === "APPROVE" && currentStatus === "Menunggu Persetujuan Manager") {
+            try {
+                const pdfPayload = await this.getPdfDownloadPayload(id);
+                const updatedData = await instruksiLapanganRepository.getHeaderAndToko(id);
+                if (updatedData) {
+                    sendILApprovalEmail(updatedData, pdfPayload.pdfBuffer, pdfPayload.filename).catch(e => {
+                        console.error("[IL][EMAIL_BACKGROUND] Error:", e);
+                    });
+                }
+            } catch (err: any) {
+                console.error("[IL][EMAIL] Gagal mendapatkan PDF untuk dilampirkan:", err?.message || err);
+            }
+        }
 
         return await instruksiLapanganRepository.getById(id);
     }
