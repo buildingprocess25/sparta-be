@@ -43,6 +43,9 @@ export interface InstruksiLapanganItemRow {
     total_upah: number | string;
     total_harga: number | string;
     catatan: string | null;
+    il_tanggal_mulai?: string | null;
+    il_tanggal_selesai?: string | null;
+    il_created_at?: string | null;
 }
 
 export interface TokoRow {
@@ -257,7 +260,11 @@ export const instruksiLapanganRepository = {
 
     async getApprovedItemsByTokoId(idToko: number): Promise<InstruksiLapanganItemRow[]> {
         const res = await pool.query(`
-            SELECT ili.*
+            SELECT
+                ili.*,
+                il.tanggal_mulai AS il_tanggal_mulai,
+                il.tanggal_selesai AS il_tanggal_selesai,
+                il.created_at AS il_created_at
             FROM instruksi_lapangan_item ili
             JOIN instruksi_lapangan il ON il.id = ili.id_instruksi_lapangan
             WHERE il.id_toko = $1
