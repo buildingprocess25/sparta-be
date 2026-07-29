@@ -266,28 +266,6 @@ const effectiveSpkExpression = `
                   AND parsed_end > p.waktu_selesai::date
             ),
             p.waktu_selesai::date
-        ),
-        COALESCE(
-            (
-                SELECT MAX(
-                    CASE
-                        WHEN TRIM(COALESCE(d.h_akhir,'')) ~ '^[0-9]+$'
-                            THEN p.waktu_mulai::date
-                                + ((
-                                    TRIM(d.h_akhir)::int
-                                    + CASE WHEN TRIM(COALESCE(d.keterlambatan, '')) ~ '^[0-9]+$' THEN TRIM(d.keterlambatan)::int ELSE 0 END
-                                    - 1
-                                ) * INTERVAL '1 day')
-                        WHEN TRIM(COALESCE(d.h_akhir,'')) ~ '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$'
-                            THEN to_date(TRIM(d.h_akhir), 'DD/MM/YYYY')
-                                + (CASE WHEN TRIM(COALESCE(d.keterlambatan, '')) ~ '^[0-9]+$' THEN TRIM(d.keterlambatan)::int ELSE 0 END * INTERVAL '1 day')
-                        ELSE NULL
-                    END
-                )::date
-                FROM day_gantt_chart d
-                WHERE d.id_gantt = latest_gantt.id
-            ),
-            p.waktu_selesai::date
         )
     )
 `;
@@ -525,10 +503,37 @@ export const ganttRepository = {
             [nomorUlok]
         );
 
-        return result.rows.map((row: any) => ({
-            ...row,
-            ...buildStTargetInfo(row.spk_effective_end_date)
-        }));
+        return result.rows.map((row: any) => {
+            const stInfo = buildStTargetInfo(row.spk_effective_end_date);
+            const normalStTarget = parseDateOnly(stInfo.st_target_date);
+            const latestCheckpoint = Array.isArray(row.checkpoints)
+                ? row.checkpoints
+                    .map((checkpoint: any) => parseDateOnly(checkpoint?.tanggal_pengawasan))
+                    .filter((date: Date | null): date is Date => Boolean(date))
+                    .sort((left: Date, right: Date) => right.getTime() - left.getTime())[0] ?? null
+                : null;
+
+            if (latestCheckpoint && normalStTarget && latestCheckpoint > normalStTarget) {
+                const spkEnd = parseDateOnly(row.spk_effective_end_date);
+                const offsetDays = spkEnd
+                    ? Math.max(1, Math.round((latestCheckpoint.getTime() - spkEnd.getTime()) / (24 * 60 * 60 * 1000)))
+                    : stInfo.st_offset_days;
+
+                return {
+                    ...row,
+                    ...stInfo,
+                    st_target_date: toIsoDateString(latestCheckpoint),
+                    st_offset_days: offsetDays,
+                    st_offset_label: `Denda ${offsetDays} hari`,
+                    st_offset_explanation: `ST baru ${toIsoDateString(latestCheckpoint)} karena keterlambatan`
+                };
+            }
+
+            return {
+                ...row,
+                ...stInfo
+            };
+        });
     },
     async findLatestActiveByTokoId(tokoId: number): Promise<GanttRow | null> {
         const result = await pool.query<GanttRow>(
@@ -1290,7 +1295,7 @@ export const ganttRepository = {
         }
 
         const stTargetDate = requestedTanggalPengawasan
-            ? null
+            ? requestedTanggalPengawasan
             : buildStTargetInfo(effectiveEnd).st_target_date ?? effectiveEnd;
         const dateToInsert = requestedTanggalPengawasan || stTargetDate;
         if (!dateToInsert) {

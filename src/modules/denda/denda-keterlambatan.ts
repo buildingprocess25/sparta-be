@@ -218,36 +218,6 @@ export const calculateSingleTokoDenda = async (idToko: number): Promise<DendaKet
                           AND parsed_end > ps.waktu_selesai::date
                     ),
                     ps.waktu_selesai::date
-                ),
-                COALESCE(
-                    (
-                        SELECT MAX(
-                            CASE
-                                WHEN TRIM(COALESCE(d.h_akhir,'')) ~ '^[0-9]+$'
-                                    THEN ps.waktu_mulai::date
-                                        + ((
-                                            TRIM(d.h_akhir)::int
-                                            + CASE WHEN TRIM(COALESCE(d.keterlambatan, '')) ~ '^[0-9]+$' THEN TRIM(d.keterlambatan)::int ELSE 0 END
-                                            - 1
-                                        ) * INTERVAL '1 day')
-                                WHEN TRIM(COALESCE(d.h_akhir,'')) ~ '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$'
-                                    THEN to_date(TRIM(d.h_akhir), 'DD/MM/YYYY')
-                                        + (CASE WHEN TRIM(COALESCE(d.keterlambatan, '')) ~ '^[0-9]+$' THEN TRIM(d.keterlambatan)::int ELSE 0 END * INTERVAL '1 day')
-                                ELSE NULL
-                            END
-                        )::date
-                        FROM gantt_chart g
-                        JOIN day_gantt_chart d ON d.id_gantt = g.id
-                        WHERE g.id_toko = ps.id_toko
-                          AND g.id = (
-                              SELECT g_latest.id
-                              FROM gantt_chart g_latest
-                              WHERE g_latest.id_toko = ps.id_toko
-                              ORDER BY g_latest.id DESC
-                              LIMIT 1
-                          )
-                    ),
-                    ps.waktu_selesai::date
                 )
             )::text AS tanggal_akhir_efektif
         FROM pengajuan_spk ps
