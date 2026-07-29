@@ -148,6 +148,9 @@ const getSerahTerimaReadiness = async (idToko: number) => {
     }
 
     for (const scope of activeScopes) {
+        // Escape hatch untuk data migrasi V1: opname_final APPROVED dianggap sudah final.
+        if (scope.status_opname_final === 'APPROVED') continue;
+
         const missingPengawasan = Number(scope.missing_pengawasan_checkpoints || 0);
         if (missingPengawasan > 0) {
             return {

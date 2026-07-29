@@ -119,6 +119,11 @@ const isScopeReadyForSerahTerima = (scope: any) => {
     const hasGanttAndOpname = Boolean(scope.gantt_id) && Boolean(scope.opname_final_id);
     if (!hasGanttAndOpname) return false;
 
+    // Escape hatch untuk data migrasi V1: opname_final APPROVED dianggap sudah final.
+    if (scope.status_opname_final === "APPROVED") {
+        return true;
+    }
+
     const checkpoints = Array.isArray(scope.checkpoints) ? scope.checkpoints : [];
     const opnameItems = checkpoints.reduce((sum: number, checkpoint: any) => sum + Number(checkpoint?.opname_items || 0), 0);
     const readyOpnameItems = checkpoints.reduce((sum: number, checkpoint: any) => sum + Number(checkpoint?.ready_opname_items || 0), 0);
