@@ -242,6 +242,56 @@ const buildStTargetInfo = (effectiveEnd?: string | null) => {
     };
 };
 
+const effectiveSpkExpression = `
+    GREATEST(
+        p.waktu_selesai::date,
+        COALESCE(
+            (
+                SELECT MAX(parsed_end)
+                FROM (
+                    SELECT
+                        CASE
+                            WHEN TRIM(COALESCE(pt.tanggal_spk_akhir_setelah_perpanjangan,'')) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+                                THEN to_date(LEFT(TRIM(pt.tanggal_spk_akhir_setelah_perpanjangan),10),'YYYY-MM-DD')
+                            WHEN TRIM(COALESCE(pt.tanggal_spk_akhir_setelah_perpanjangan,'')) ~ '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$'
+                                THEN to_date(TRIM(pt.tanggal_spk_akhir_setelah_perpanjangan),'DD/MM/YYYY')
+                            ELSE NULL
+                        END AS parsed_end
+                    FROM pertambahan_spk pt
+                    JOIN pengajuan_spk ps_scope ON ps_scope.id = pt.id_spk
+                    WHERE ps_scope.nomor_ulok = p.nomor_ulok
+                      AND UPPER(TRIM(COALESCE(pt.status_persetujuan,''))) IN ('APPROVED','DISETUJUI','DISETUJUI BM')
+                ) safe_ext
+                WHERE parsed_end IS NOT NULL
+                  AND parsed_end > p.waktu_selesai::date
+            ),
+            p.waktu_selesai::date
+        ),
+        COALESCE(
+            (
+                SELECT MAX(
+                    CASE
+                        WHEN TRIM(COALESCE(d.h_akhir,'')) ~ '^[0-9]+$'
+                            THEN p.waktu_mulai::date
+                                + ((
+                                    TRIM(d.h_akhir)::int
+                                    + CASE WHEN TRIM(COALESCE(d.keterlambatan, '')) ~ '^[0-9]+$' THEN TRIM(d.keterlambatan)::int ELSE 0 END
+                                    - 1
+                                ) * INTERVAL '1 day')
+                        WHEN TRIM(COALESCE(d.h_akhir,'')) ~ '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$'
+                            THEN to_date(TRIM(d.h_akhir), 'DD/MM/YYYY')
+                                + (CASE WHEN TRIM(COALESCE(d.keterlambatan, '')) ~ '^[0-9]+$' THEN TRIM(d.keterlambatan)::int ELSE 0 END * INTERVAL '1 day')
+                        ELSE NULL
+                    END
+                )::date
+                FROM day_gantt_chart d
+                WHERE d.id_gantt = latest_gantt.id
+            ),
+            p.waktu_selesai::date
+        )
+    )
+`;
+
 // ---------------------------------------------------------------------------
 // Repository
 // ---------------------------------------------------------------------------
@@ -316,50 +366,8 @@ export const ganttRepository = {
                     SELECT
                         p.waktu_mulai,
                         p.durasi,
-                        COALESCE(
-                            (
-                                SELECT (MAX(parsed_end) - p.waktu_mulai::date + 1)::int
-                                FROM (
-                                    SELECT
-                                        CASE
-                                            WHEN TRIM(COALESCE(pt.tanggal_spk_akhir_setelah_perpanjangan,'')) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
-                                                THEN to_date(LEFT(TRIM(pt.tanggal_spk_akhir_setelah_perpanjangan),10),'YYYY-MM-DD')
-                                            WHEN TRIM(COALESCE(pt.tanggal_spk_akhir_setelah_perpanjangan,'')) ~ '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$'
-                                                THEN to_date(TRIM(pt.tanggal_spk_akhir_setelah_perpanjangan),'DD/MM/YYYY')
-                                            ELSE NULL
-                                        END AS parsed_end
-                                    FROM pertambahan_spk pt
-                                    JOIN pengajuan_spk ps_scope ON ps_scope.id = pt.id_spk
-                                    WHERE ps_scope.nomor_ulok = p.nomor_ulok
-                                      AND UPPER(TRIM(COALESCE(pt.status_persetujuan,''))) IN ('APPROVED','DISETUJUI','DISETUJUI BM')
-                                ) safe_ext
-                                WHERE parsed_end IS NOT NULL
-                                  AND parsed_end > p.waktu_selesai::date
-                            ),
-                            p.durasi
-                        ) AS durasi_efektif,
-                        COALESCE(
-                            (
-                                SELECT MAX(parsed_end)::text
-                                FROM (
-                                    SELECT
-                                        CASE
-                                            WHEN TRIM(COALESCE(pt.tanggal_spk_akhir_setelah_perpanjangan,'')) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
-                                                THEN to_date(LEFT(TRIM(pt.tanggal_spk_akhir_setelah_perpanjangan),10),'YYYY-MM-DD')
-                                            WHEN TRIM(COALESCE(pt.tanggal_spk_akhir_setelah_perpanjangan,'')) ~ '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$'
-                                                THEN to_date(TRIM(pt.tanggal_spk_akhir_setelah_perpanjangan),'DD/MM/YYYY')
-                                            ELSE NULL
-                                        END AS parsed_end
-                                    FROM pertambahan_spk pt
-                                    JOIN pengajuan_spk ps_scope ON ps_scope.id = pt.id_spk
-                                    WHERE ps_scope.nomor_ulok = p.nomor_ulok
-                                      AND UPPER(TRIM(COALESCE(pt.status_persetujuan,''))) IN ('APPROVED','DISETUJUI','DISETUJUI BM')
-                                ) safe_ext
-                                WHERE parsed_end IS NOT NULL
-                                  AND parsed_end > p.waktu_selesai::date
-                            ),
-                            p.waktu_selesai::text
-                        ) AS tanggal_akhir_efektif
+                        (${effectiveSpkExpression} - p.waktu_mulai::date + 1)::int AS durasi_efektif,
+                        (${effectiveSpkExpression})::text AS tanggal_akhir_efektif
                     FROM pengajuan_spk p
                     WHERE p.id_toko = t.id
                     ORDER BY p.id DESC
@@ -1216,6 +1224,129 @@ export const ganttRepository = {
         }
 
         return { inserted: ids.length, ids };
+    },
+
+    async ensureDelayTargetPengawasan(
+        sourceGanttId: string,
+        requestedTanggalPengawasan?: string | null
+    ): Promise<{
+        nomor_ulok: string | null;
+        tanggal_pengawasan: string | null;
+        effective_end_date: string | null;
+        st_target_date: string | null;
+        inserted_count: number;
+    }> {
+        const effectiveEndResult = await pool.query<{
+            nomor_ulok: string | null;
+            effective_end: string | null;
+        }>(
+            `
+            WITH target_ulok AS (
+                SELECT t.nomor_ulok
+                FROM gantt_chart g
+                JOIN toko t ON t.id = g.id_toko
+                WHERE g.id = $1
+                LIMIT 1
+            ),
+            scope AS (
+                SELECT
+                    t.nomor_ulok,
+                    (${effectiveSpkExpression})::date AS effective_end
+                FROM toko t
+                JOIN target_ulok tu ON tu.nomor_ulok = t.nomor_ulok
+                LEFT JOIN LATERAL (
+                    SELECT g.id, g.status
+                    FROM gantt_chart g
+                    WHERE g.id_toko = t.id
+                    ORDER BY g.id DESC
+                    LIMIT 1
+                ) latest_gantt ON true
+                LEFT JOIN LATERAL (
+                    SELECT p.*
+                    FROM pengajuan_spk p
+                    WHERE p.id_toko = t.id
+                    ORDER BY p.id DESC
+                    LIMIT 1
+                ) p ON true
+                WHERE p.id IS NOT NULL
+            )
+            SELECT nomor_ulok, MAX(effective_end)::text AS effective_end
+            FROM scope
+            GROUP BY nomor_ulok
+            `,
+            [sourceGanttId]
+        );
+
+        const nomorUlok = effectiveEndResult.rows[0]?.nomor_ulok ?? null;
+        const effectiveEnd = effectiveEndResult.rows[0]?.effective_end ?? null;
+        if (!nomorUlok || !effectiveEnd) {
+            return {
+                nomor_ulok: nomorUlok,
+                tanggal_pengawasan: null,
+                effective_end_date: effectiveEnd,
+                st_target_date: null,
+                inserted_count: 0
+            };
+        }
+
+        const stTargetDate = requestedTanggalPengawasan
+            ? null
+            : buildStTargetInfo(effectiveEnd).st_target_date ?? effectiveEnd;
+        const dateToInsert = requestedTanggalPengawasan || stTargetDate;
+        if (!dateToInsert) {
+            return {
+                nomor_ulok: nomorUlok,
+                tanggal_pengawasan: null,
+                effective_end_date: effectiveEnd,
+                st_target_date: stTargetDate,
+                inserted_count: 0
+            };
+        }
+
+        const formattedDate = await pool.query<{ tanggal_pengawasan: string }>(
+            `
+            SELECT CASE
+                WHEN TRIM($1::text) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+                    THEN to_char(to_date(LEFT(TRIM($1::text), 10), 'YYYY-MM-DD'), 'DD/MM/YYYY')
+                WHEN TRIM($1::text) ~ '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$'
+                    THEN to_char(to_date(TRIM($1::text), 'DD/MM/YYYY'), 'DD/MM/YYYY')
+                ELSE TRIM($1::text)
+            END AS tanggal_pengawasan
+            `,
+            [dateToInsert]
+        );
+        const tanggalPengawasan = formattedDate.rows[0].tanggal_pengawasan;
+
+        const insertResult = await pool.query(
+            `
+            INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan)
+            SELECT latest_gantt.id, $2::text
+            FROM toko t
+            JOIN LATERAL (
+                SELECT g.id
+                FROM gantt_chart g
+                WHERE g.id_toko = t.id
+                ORDER BY g.id DESC
+                LIMIT 1
+            ) latest_gantt ON true
+            WHERE t.nomor_ulok = $1
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM pengawasan_gantt pg
+                  WHERE pg.id_gantt = latest_gantt.id
+                    AND pg.tanggal_pengawasan = $2::text
+              )
+            `,
+            [nomorUlok, tanggalPengawasan]
+        );
+
+        return {
+            nomor_ulok: nomorUlok,
+            tanggal_pengawasan: tanggalPengawasan,
+            effective_end_date: effectiveEnd,
+            st_target_date: stTargetDate,
+            inserted_count: insertResult.rowCount ?? 0
+        };
     },
 
     /** Hapus pengawasan berdasarkan tanggal pengawasan */

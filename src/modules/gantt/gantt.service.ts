@@ -584,13 +584,19 @@ export const ganttService = {
             throw new AppError("Kategori pekerjaan tidak ditemukan pada gantt ini", 404);
         }
 
+        const delayTargetPengawasan = await ganttRepository.ensureDelayTargetPengawasan(
+            id,
+            payload.next_tanggal_pengawasan
+        );
+
         return {
             total_rows_updated: updatedCategories.reduce(
                 (sum, item) => sum + item.day_ids.length,
                 0
             ),
             updated_categories: updatedCategories,
-            not_found_categories: notFoundCategories
+            not_found_categories: notFoundCategories,
+            delay_target_pengawasan: delayTargetPengawasan
         };
     },
 

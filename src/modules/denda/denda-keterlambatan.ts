@@ -15,6 +15,7 @@ export type DendaKeterlambatanResult = {
 type SpkPenaltySourceRow = {
     waktu_selesai: string | null;
     tanggal_spk_akhir_setelah_perpanjangan: string | null;
+    tanggal_akhir_efektif: string | null;
 };
 
 type SerahTerimaPenaltyRow = {
@@ -191,7 +192,64 @@ export const calculateSingleTokoDenda = async (idToko: number): Promise<DendaKet
                 JOIN toko t_target ON t_target.nomor_ulok = t_source.nomor_ulok
                 WHERE t_target.id = ps.id_toko
                   AND UPPER(TRIM(COALESCE(pt.status_persetujuan, ''))) IN ('APPROVED', 'DISETUJUI', 'DISETUJUI BM')
-            ) AS tanggal_spk_akhir_setelah_perpanjangan
+            ) AS tanggal_spk_akhir_setelah_perpanjangan,
+            GREATEST(
+                ps.waktu_selesai::date,
+                COALESCE(
+                    (
+                        SELECT MAX(parsed_end)
+                        FROM (
+                            SELECT
+                                CASE
+                                    WHEN TRIM(COALESCE(pt.tanggal_spk_akhir_setelah_perpanjangan,'')) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+                                        THEN to_date(LEFT(TRIM(pt.tanggal_spk_akhir_setelah_perpanjangan),10),'YYYY-MM-DD')
+                                    WHEN TRIM(COALESCE(pt.tanggal_spk_akhir_setelah_perpanjangan,'')) ~ '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$'
+                                        THEN to_date(TRIM(pt.tanggal_spk_akhir_setelah_perpanjangan),'DD/MM/YYYY')
+                                    ELSE NULL
+                                END AS parsed_end
+                            FROM pertambahan_spk pt
+                            JOIN pengajuan_spk ps_source ON ps_source.id = pt.id_spk
+                            JOIN toko t_source ON t_source.id = ps_source.id_toko
+                            JOIN toko t_target ON t_target.nomor_ulok = t_source.nomor_ulok
+                            WHERE t_target.id = ps.id_toko
+                              AND UPPER(TRIM(COALESCE(pt.status_persetujuan, ''))) IN ('APPROVED', 'DISETUJUI', 'DISETUJUI BM')
+                        ) safe_ext
+                        WHERE parsed_end IS NOT NULL
+                          AND parsed_end > ps.waktu_selesai::date
+                    ),
+                    ps.waktu_selesai::date
+                ),
+                COALESCE(
+                    (
+                        SELECT MAX(
+                            CASE
+                                WHEN TRIM(COALESCE(d.h_akhir,'')) ~ '^[0-9]+$'
+                                    THEN ps.waktu_mulai::date
+                                        + ((
+                                            TRIM(d.h_akhir)::int
+                                            + CASE WHEN TRIM(COALESCE(d.keterlambatan, '')) ~ '^[0-9]+$' THEN TRIM(d.keterlambatan)::int ELSE 0 END
+                                            - 1
+                                        ) * INTERVAL '1 day')
+                                WHEN TRIM(COALESCE(d.h_akhir,'')) ~ '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$'
+                                    THEN to_date(TRIM(d.h_akhir), 'DD/MM/YYYY')
+                                        + (CASE WHEN TRIM(COALESCE(d.keterlambatan, '')) ~ '^[0-9]+$' THEN TRIM(d.keterlambatan)::int ELSE 0 END * INTERVAL '1 day')
+                                ELSE NULL
+                            END
+                        )::date
+                        FROM gantt_chart g
+                        JOIN day_gantt_chart d ON d.id_gantt = g.id
+                        WHERE g.id_toko = ps.id_toko
+                          AND g.id = (
+                              SELECT g_latest.id
+                              FROM gantt_chart g_latest
+                              WHERE g_latest.id_toko = ps.id_toko
+                              ORDER BY g_latest.id DESC
+                              LIMIT 1
+                          )
+                    ),
+                    ps.waktu_selesai::date
+                )
+            )::text AS tanggal_akhir_efektif
         FROM pengajuan_spk ps
         WHERE ps.id_toko = $1
           AND UPPER(TRIM(COALESCE(ps.status, ''))) IN ('SPK_APPROVED', 'APPROVED', 'DISETUJUI', 'AKTIF', 'ACTIVE', 'SELESAI')
@@ -200,7 +258,7 @@ export const calculateSingleTokoDenda = async (idToko: number): Promise<DendaKet
     );
 
     const latestAkhirSpk = spkResult.rows
-        .map((row) => parseDateValue(row.tanggal_spk_akhir_setelah_perpanjangan) ?? parseDateValue(row.waktu_selesai))
+        .map((row) => parseDateValue(row.tanggal_akhir_efektif) ?? parseDateValue(row.tanggal_spk_akhir_setelah_perpanjangan) ?? parseDateValue(row.waktu_selesai))
         .filter((date): date is Date => Boolean(date))
         .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
 

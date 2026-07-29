@@ -214,6 +214,7 @@ export const addDayItemsSchema = z.object({
 export const updateKeterlambatanSchema = z.object({
     kategori_pekerjaan: z.string().min(1).optional(),
     keterlambatan: z.string().optional(),
+    next_tanggal_pengawasan: z.string().trim().min(1).optional(),
     updates: z.array(
         z.object({
             kategori_pekerjaan: z.string().min(1),
