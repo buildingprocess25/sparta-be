@@ -580,7 +580,7 @@ export const ganttService = {
             });
         }
 
-        if (updatedCategories.length === 0) {
+        if (updatedCategories.length === 0 && !payload.next_tanggal_pengawasan) {
             throw new AppError("Kategori pekerjaan tidak ditemukan pada gantt ini", 404);
         }
 
