@@ -148,8 +148,6 @@ const getSerahTerimaReadiness = async (idToko: number) => {
     }
 
     for (const scope of activeScopes) {
-        if (scope.status_opname_final === 'APPROVED') continue;
-        
         const missingPengawasan = Number(scope.missing_pengawasan_checkpoints || 0);
         if (missingPengawasan > 0) {
             return {
@@ -184,9 +182,6 @@ const getSerahTerimaReadiness = async (idToko: number) => {
 const assertSerahTerimaReady = async (idToko: number) => {
     const readiness = await getSerahTerimaReadiness(idToko);
     if (!readiness.ready) {
-        const existingBerkas = await serahTerimaRepository.findBerkasSerahTerimaByIdToko(idToko);
-        if (existingBerkas?.link_pdf) return;
-
         throw new AppError(readiness.reason ?? "Serah Terima belum siap dibuat", 409);
     }
 };
@@ -454,20 +449,7 @@ export const serahTerimaService = {
     async createPdfSerahTerima(idToko: number, referenceTimestamp?: string) {
         const readiness = await getSerahTerimaReadiness(idToko);
         if (!readiness.ready) {
-            const bst = await serahTerimaRepository.findBerkasSerahTerimaByIdToko(idToko);
-            if (bst?.link_pdf) {
-                const toko = await serahTerimaRepository.findTokoById(idToko);
-                return {
-                    id: bst.id,
-                    id_toko: idToko,
-                    link_pdf: bst.link_pdf,
-                    opname_final_id: null as unknown as number,
-                    link_pdf_opname: null,
-                    item_count: 0,
-                    created_at: bst.created_at,
-                    toko: toko!,
-                };
-            }
+            throw new AppError(readiness.reason ?? "Serah Terima belum siap dibuat", 409);
         }
 
         // Validate the required opname data before writing a serah-terima placeholder.
