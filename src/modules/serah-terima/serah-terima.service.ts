@@ -397,9 +397,17 @@ export const serahTerimaService = {
                 });
             }, 10_000);
 
-            Promise.allSettled(updatedRows.map((row) => serahTerimaService.regeneratePdfByBerkasId(row.id)))
+            const hasUnifiedScopes = updatedRows.length > 1;
+            const regenerateJob = hasUnifiedScopes
+                ? serahTerimaService.createPdfSerahTerimaUnified(input.nomor_ulok, {
+                    createdAt: updatedRows[0]?.created_at ?? input.tanggal_serah_terima,
+                })
+                : Promise.allSettled(updatedRows.map((row) => serahTerimaService.regeneratePdfByBerkasId(row.id)));
+
+            Promise.resolve(regenerateJob)
                 .then((results) => {
-                    const failed = results.filter((result) => result.status === "rejected");
+                    const settledResults = Array.isArray(results) ? results : [];
+                    const failed = settledResults.filter((result) => result.status === "rejected");
                     if (failed.length > 0) {
                         console.error(`[ST][DATE_CORRECTION] ${failed.length} PDF gagal diregenerasi`, {
                             nomorUlok: input.nomor_ulok,
@@ -544,7 +552,7 @@ export const serahTerimaService = {
         };
     },
 
-    async createPdfSerahTerimaUnified(nomorUlok: string) {
+    async createPdfSerahTerimaUnified(nomorUlok: string, options?: { createdAt?: string | null }) {
         const scopes = await serahTerimaRepository.findTokoScopesByNomorUlok(nomorUlok);
         if (scopes.length === 0) {
             throw new AppError("ULOK tidak ditemukan", 404);
@@ -563,6 +571,14 @@ export const serahTerimaService = {
         }
 
         const placeholder = await serahTerimaRepository.ensureBerkasSerahTerima(masterScope.id);
+        const existingScopeBerkas = await Promise.all(
+            targetScopes.map((scope) => serahTerimaRepository.findBerkasSerahTerimaByIdToko(scope.id))
+        );
+        const existingCreatedAt = existingScopeBerkas
+            .map((row) => dateOnlyKey(row?.created_at) ? row?.created_at : null)
+            .filter((value): value is string => Boolean(value))
+            .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())[0] ?? null;
+        const effectiveCreatedAt = options?.createdAt ?? existingCreatedAt ?? placeholder.created_at;
         const pdfBuffers: Buffer[] = [];
         const details: Array<{
             id_toko: number;
@@ -583,7 +599,7 @@ export const serahTerimaService = {
                 const { toko, opnameFinal, items } = await buildDetailByTokoId(scope.id);
                 const buffer = await buildSerahTerimaPdfBuffer(
                     { toko, opname_final: opnameFinal, items },
-                    placeholder.created_at,
+                    effectiveCreatedAt,
                     { unifiedPartIndex: index + 1, unifiedPartTotal: targetScopes.length }
                 );
 
@@ -633,13 +649,13 @@ export const serahTerimaService = {
             nama_toko: masterScope.nama_toko,
             cabang: masterScope.cabang,
             proyek: masterScope.proyek,
-            created_at: placeholder.created_at,
+            created_at: effectiveCreatedAt,
             scopes: details,
         });
         const assessmentBuffer = await buildSerahTerimaUnifiedAssessmentPdfBuffer({
             nomor_ulok: nomorUlok,
             nama_toko: masterScope.nama_toko,
-            created_at: placeholder.created_at,
+            created_at: effectiveCreatedAt,
             scopes: details.map((detail) => ({
                 lingkup_pekerjaan: detail.lingkup_pekerjaan,
                 nilai_toko: detail.nilai_toko,
@@ -661,7 +677,7 @@ export const serahTerimaService = {
                 return serahTerimaRepository.updateBerkasSerahTerimaLinkAndDate({
                     id: row.id,
                     linkPdf,
-                    createdAt: placeholder.created_at,
+                    createdAt: effectiveCreatedAt,
                 });
             })
         );
