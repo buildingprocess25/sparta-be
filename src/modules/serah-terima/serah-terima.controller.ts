@@ -95,11 +95,11 @@ export const downloadBerkasSerahTerimaPdf = asyncHandler(async (req: Request, re
 
 export const regenerateBerkasSerahTerimaPdf = asyncHandler(async (req: Request, res: Response) => {
     const id = Number(req.params.id);
-    const data = await serahTerimaService.regeneratePdfByBerkasId(id);
+    const data = await serahTerimaService.queueRegeneratePdfByBerkasId(id);
 
     res.json({
         status: "success",
-        message: "PDF Serah Terima berhasil digenerate ulang",
+        message: data.message,
         data,
     });
 });

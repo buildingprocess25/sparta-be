@@ -203,6 +203,7 @@ const assertSerahTerimaReadyForUnified = async (idToko: number) => {
 
 const automaticSerahTerimaInProgress = new Set<number>();
 const automaticUnifiedSerahTerimaInProgress = new Set<string>();
+const runningBerkasRegenerateJobs = new Set<number>();
 
 export const scheduleAutomaticUnifiedSerahTerimaIfReady = async (nomorUlok?: string | null): Promise<void> => {
     const key = String(nomorUlok || "").trim();
@@ -883,6 +884,47 @@ export const serahTerimaService = {
             ...updated,
             opname_final_id: opnameFinal.id,
             item_count: items.length,
+        };
+    },
+
+    async queueRegeneratePdfByBerkasId(id: number) {
+        const berkas = await serahTerimaRepository.findBerkasSerahTerimaById(id);
+        if (!berkas) {
+            throw new AppError("Berkas serah terima tidak ditemukan", 404);
+        }
+
+        if (runningBerkasRegenerateJobs.has(id)) {
+            return {
+                id,
+                queued: false,
+                message: "Generate ulang PDF Serah Terima sudah berjalan",
+            };
+        }
+
+        runningBerkasRegenerateJobs.add(id);
+        setImmediate(() => {
+            serahTerimaService
+                .regeneratePdfByBerkasId(id)
+                .then((result) => {
+                    console.log(`[ST][PDF_BACKGROUND] Berhasil regenerate berkas id=${id}`, {
+                        link_pdf: result?.link_pdf,
+                    });
+                })
+                .catch((error) => {
+                    console.error("[ST][PDF_BACKGROUND] Gagal regenerate berkas", {
+                        id,
+                        error: error instanceof Error ? error.message : String(error),
+                    });
+                })
+                .finally(() => {
+                    runningBerkasRegenerateJobs.delete(id);
+                });
+        });
+
+        return {
+            id,
+            queued: true,
+            message: "Generate ulang PDF Serah Terima sedang diproses di background",
         };
     },
 };
