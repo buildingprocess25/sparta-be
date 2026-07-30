@@ -1793,14 +1793,12 @@ export const rabService = {
         });
 
         const links = await this.regeneratePdf(id, hideCoordinatorInfo);
-        const downloaded = await fetchFileBufferByLink(links.link_pdf_gabungan);
+        const downloaded = await fetchFileBufferByLink(links.link_pdf_non_sbo);
         if (!downloaded?.buffer?.length) {
             throw new AppError("PDF hasil generate tidak bisa diambil dari Drive", 502);
         }
 
-        const filename = links.has_materai_pdf
-            ? `RAB_GABUNGAN_MATERAI_${data.toko.nomor_ulok}_${data.rab.id}.pdf`
-            : `RAB_GABUNGAN_${data.toko.nomor_ulok}_${data.rab.id}.pdf`;
+        const filename = `RAB_${data.toko.nomor_ulok}_${data.rab.id}.pdf`;
 
         return {
             filename,
@@ -1936,7 +1934,7 @@ export const rabService = {
     },
 
     async getPdfDownloadPayload(id: string, user?: any) {
-        logRab("DOWNLOAD", "Request PDF gabungan", { rabId: id, userRoles: user?.roles });
+        logRab("DOWNLOAD", "Request PDF RAB", { rabId: id, userRoles: user?.roles });
         const data = await rabRepository.findById(id);
         if (!data) {
             throw new AppError("Pengajuan RAB tidak ditemukan", 404);
@@ -1958,7 +1956,7 @@ export const rabService = {
             hideCoordinatorInfo 
         });
 
-        let rawLink = data.rab.link_pdf_gabungan?.trim();
+        let rawLink = data.rab.link_pdf_non_sbo?.trim();
         try {
             if (!hasRenderableRabValue(data)) {
                 logRab("DOWNLOAD", "Regenerate PDF dilewati karena item dan nilai header kosong", { rabId: id });
@@ -1981,18 +1979,18 @@ export const rabService = {
                     await rabRepository.updateSphPdfLink(id, links.link_pdf_sph);
                 }
 
-                rawLink = links.link_pdf_gabungan.trim();
-                logRab("DOWNLOAD", `PDF gabungan diregenerate sebelum download${hideCoordinatorInfo ? ' (tanpa info koordinator)' : ''}`, { rabId: id });
+                rawLink = links.link_pdf_non_sbo.trim();
+                logRab("DOWNLOAD", `PDF RAB diregenerate sebelum download${hideCoordinatorInfo ? ' (tanpa info koordinator)' : ''}`, { rabId: id });
             }
         } catch (err) {
-            console.error("Warning: Gagal regenerate PDF RAB sebelum download, memakai link lama:", err);
+            console.error("Warning: Gagal regenerate PDF RAB sebelum download, memakai link RAB lama:", err);
         }
 
         if (!rawLink) {
-            throw new AppError("Link PDF gabungan belum tersedia", 404);
+            throw new AppError("Link PDF RAB belum tersedia", 404);
         }
 
-        const filename = `RAB_GABUNGAN_${data.toko.nomor_ulok}_${data.rab.id}.pdf`;
+        const filename = `RAB_${data.toko.nomor_ulok}_${data.rab.id}.pdf`;
 
         const fileId = extractDriveFileId(rawLink);
         const gp = GoogleProvider.instance;
@@ -2000,7 +1998,7 @@ export const rabService = {
         if (fileId && gp.spartaDrive) {
             const pdfBuffer = await gp.getFileBufferById(gp.spartaDrive, fileId);
             if (pdfBuffer) {
-                logRab("DOWNLOAD", "PDF gabungan diambil dari Drive", { rabId: id });
+                logRab("DOWNLOAD", "PDF RAB diambil dari Drive", { rabId: id });
                 return { filename, pdfBuffer };
             }
         }
@@ -2011,14 +2009,14 @@ export const rabService = {
 
         const response = await fetch(downloadUrl);
         if (!response.ok) {
-            throw new AppError("Gagal mengambil file PDF gabungan", 502);
+            throw new AppError("Gagal mengambil file PDF RAB", 502);
         }
 
         const pdfBuffer = Buffer.from(await response.arrayBuffer());
         if (!pdfBuffer.length) {
-            throw new AppError("File PDF gabungan kosong", 502);
+            throw new AppError("File PDF RAB kosong", 502);
         }
-        logRab("DOWNLOAD", "PDF gabungan diambil via HTTP", { rabId: id });
+        logRab("DOWNLOAD", "PDF RAB diambil via HTTP", { rabId: id });
 
         return { filename, pdfBuffer };
     },
