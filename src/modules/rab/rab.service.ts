@@ -1326,6 +1326,7 @@ async function regenerateRabPdfs(
         logoOverride: logoDataUri,
         alamat_cabang: alamatCabang
     });
+    pdfBuffersToMerge.push(pdfSph);
     logRab("PDF", "PDF SPH selesai dibuat", { rabId });
 
     linkSph = await uploadPdfToDrive(
