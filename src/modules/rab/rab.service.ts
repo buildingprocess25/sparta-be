@@ -1232,6 +1232,18 @@ async function resolveMateraiCoverPageForMerge(input: {
                 continue;
             }
 
+            const isSuratPeringatanPdf = await isKnownSuratPeringatanPdfLink(candidate.link)
+                || bufferLooksLikeSuratPeringatanPdf(materaiFile.buffer);
+            if (isSuratPeringatanPdf) {
+                logRab("PDF", "PDF materai dilewati karena terdeteksi Surat Peringatan", {
+                    rabId: input.rabId,
+                    candidateRabId: candidate.rabId,
+                    source: candidate.source,
+                    lingkup: candidate.lingkup ?? "-"
+                });
+                continue;
+            }
+
             const materaiPage = await extractMateraiCoverPageBuffer(materaiFile.buffer);
             if (!materaiPage) {
                 logRab("PDF", "PDF materai tidak punya halaman untuk merge, coba kandidat berikutnya", {
