@@ -1,5 +1,17 @@
 import { z } from "zod";
 
+const nonNegativeNumericText = z.string().trim().regex(/^\d+(\.\d+)?$/, {
+    message: "Nilai harus berupa angka non-negatif"
+});
+
+const positiveNumericText = z.string().trim().regex(/^(?=.*[1-9])\d+(\.\d+)?$/, {
+    message: "Nilai harus berupa angka lebih dari 0"
+});
+
+const positiveIntegerText = z.string().trim().regex(/^[1-9]\d*$/, {
+    message: "Nilai harus berupa bilangan bulat lebih dari 0"
+});
+
 export const detailItemSchema = z.object({
     kategori_pekerjaan: z.string().min(1),
     jenis_pekerjaan: z.string().min(1),
@@ -27,7 +39,7 @@ export const submitRabSchema = z.object({
     // --- field rab ---
     email_pembuat: z.string().email(),
     nama_pt: z.string().min(1),
-    durasi_pekerjaan: z.string().min(1),
+    durasi_pekerjaan: positiveIntegerText,
     logo: z.string().optional(),
     rev_logo: z.string().optional(),
     is_revisi: z
@@ -42,12 +54,12 @@ export const submitRabSchema = z.object({
     berlaku_polis: z.string().optional(),
     file_asuransi: z.string().optional(),
     rev_file_asuransi: z.string().optional(),
-    luas_bangunan: z.string().optional(),
-    luas_terbangun: z.string().optional(),
-    luas_area_terbuka: z.string().optional(),
-    luas_area_parkir: z.string().optional(),
-    luas_area_sales: z.string().optional(),
-    luas_gudang: z.string().optional(),
+    luas_bangunan: nonNegativeNumericText.optional(),
+    luas_terbangun: positiveNumericText.optional(),
+    luas_area_terbuka: nonNegativeNumericText.optional(),
+    luas_area_parkir: nonNegativeNumericText.optional(),
+    luas_area_sales: nonNegativeNumericText.optional(),
+    luas_gudang: nonNegativeNumericText.optional(),
     alamat_cabang: z.string().nullable().optional(),
 
     // --- field rab_item ---
