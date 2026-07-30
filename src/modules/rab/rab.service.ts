@@ -1,4 +1,5 @@
 import { AppError } from "../../common/app-error";
+import { PDFParse } from "pdf-parse";
 import { getBranchScopeCandidates, getRabPriceBranch, isSameBranchScope, normalizeBranchScopeName } from "../../common/branch-scope";
 import { GoogleProvider } from "../../common/google";
 import { normalizeProjectByUlok } from "../../common/project-type";
@@ -863,6 +864,21 @@ const bufferLooksLikeSuratPeringatanPdf = (buffer: Buffer): boolean => {
     return sample.includes("SURAT PERINGATAN") || sample.includes("ISI PERINGATAN");
 };
 
+const pdfLooksLikeSuratPeringatan = async (buffer: Buffer): Promise<boolean> => {
+    if (bufferLooksLikeSuratPeringatanPdf(buffer)) return true;
+
+    const parser = new PDFParse({ data: buffer });
+    try {
+        const result = await parser.getText({ partial: [1] });
+        const text = (result.text ?? "").toUpperCase().replace(/\s+/g, " ");
+        return text.includes("SURAT PERINGATAN") || text.includes("ISI PERINGATAN");
+    } catch {
+        return false;
+    } finally {
+        await parser.destroy();
+    }
+};
+
 const isKnownSuratPeringatanPdfLink = async (rawLink: string): Promise<boolean> => {
     const trimmed = rawLink.trim();
     if (!trimmed) return false;
@@ -1233,7 +1249,7 @@ async function resolveMateraiCoverPageForMerge(input: {
             }
 
             const isSuratPeringatanPdf = await isKnownSuratPeringatanPdfLink(candidate.link)
-                || bufferLooksLikeSuratPeringatanPdf(materaiFile.buffer);
+                || await pdfLooksLikeSuratPeringatan(materaiFile.buffer);
             if (isSuratPeringatanPdf) {
                 logRab("PDF", "PDF materai dilewati karena terdeteksi Surat Peringatan", {
                     rabId: input.rabId,
@@ -1389,7 +1405,7 @@ async function regenerateRabPdfs(
                     || isPdfBuffer(insuranceFile.buffer);
                 if (isPdf) {
                     const isSuratPeringatanPdf = await isKnownSuratPeringatanPdfLink(insuranceLink)
-                        || bufferLooksLikeSuratPeringatanPdf(insuranceFile.buffer);
+                        || await pdfLooksLikeSuratPeringatan(insuranceFile.buffer);
                     if (isSuratPeringatanPdf) {
                         logRab("PDF", "File asuransi PDF dilewati karena terdeteksi Surat Peringatan", { rabId });
                     } else {
