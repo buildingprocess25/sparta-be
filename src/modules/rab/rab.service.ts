@@ -7,6 +7,7 @@ import { tokoRepository } from "../toko/toko.repository";
 import { userCabangRepository } from "../user-cabang/user-cabang.repository";
 import type { ApprovalActionInput } from "../approval/approval.schema";
 import { activityLogRepository } from "../activity-log/activity-log.repository";
+import { pool } from "../../db/pool";
 import { priceRabService, type PriceResult } from "../price-rab/price-rab.service";
 import { projekPlanningRepository } from "../project-planning/project-planning.repository";
 import type { ProjekPlanningRow } from "../project-planning/project-planning.repository";
@@ -857,6 +858,36 @@ const isPdfBuffer = (buffer: Buffer): boolean => {
     return buffer.subarray(0, 4).toString() === "%PDF";
 };
 
+const bufferLooksLikeSuratPeringatanPdf = (buffer: Buffer): boolean => {
+    const sample = buffer.subarray(0, Math.min(buffer.length, 2_000_000)).toString("latin1").toUpperCase();
+    return sample.includes("SURAT PERINGATAN") || sample.includes("ISI PERINGATAN");
+};
+
+const isKnownSuratPeringatanPdfLink = async (rawLink: string): Promise<boolean> => {
+    const trimmed = rawLink.trim();
+    if (!trimmed) return false;
+
+    const fileId = extractDriveFileId(trimmed);
+    const result = await pool.query<{ exists: boolean }>(
+        `
+        SELECT EXISTS (
+            SELECT 1
+            FROM denda_keterlambatan_action
+            WHERE action_type = 'SP'
+              AND link_pdf IS NOT NULL
+              AND TRIM(link_pdf) <> ''
+              AND (
+                    TRIM(link_pdf) = $1
+                    OR ($2::text IS NOT NULL AND link_pdf ILIKE '%' || $2 || '%')
+              )
+        ) AS exists
+        `,
+        [trimmed, fileId ?? null]
+    );
+
+    return Boolean(result.rows[0]?.exists);
+};
+
 const fetchFileBufferByLink = async (
     rawLink: string,
 ): Promise<{ buffer: Buffer; mimeType?: string } | null> => {
@@ -1345,8 +1376,14 @@ async function regenerateRabPdfs(
                 const isPdf = (insuranceFile.mimeType ?? "").toLowerCase() === "application/pdf"
                     || isPdfBuffer(insuranceFile.buffer);
                 if (isPdf) {
-                    pdfBuffersToMerge.push(insuranceFile.buffer);
-                    logRab("PDF", "File asuransi PDF ditambahkan ke merge", { rabId });
+                    const isSuratPeringatanPdf = await isKnownSuratPeringatanPdfLink(insuranceLink)
+                        || bufferLooksLikeSuratPeringatanPdf(insuranceFile.buffer);
+                    if (isSuratPeringatanPdf) {
+                        logRab("PDF", "File asuransi PDF dilewati karena terdeteksi Surat Peringatan", { rabId });
+                    } else {
+                        pdfBuffersToMerge.push(insuranceFile.buffer);
+                        logRab("PDF", "File asuransi PDF ditambahkan ke merge", { rabId });
+                    }
                 }
             }
         } catch (err) {
