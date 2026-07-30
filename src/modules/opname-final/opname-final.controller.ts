@@ -3,7 +3,7 @@ import { AppError } from "../../common/app-error";
 import { asyncHandler } from "../../common/async-handler";
 import { injectBranchFilter } from "../../common/branch-filter-helper";
 import { approvalActionSchema } from "../approval/approval.schema";
-import { lockOpnameFinalSchema, opnameFinalListQuerySchema } from "./opname-final.schema";
+import { lockOpnameFinalSchema, opnameFinalInterventionSchema, opnameFinalListQuerySchema } from "./opname-final.schema";
 import { opnameFinalService } from "./opname-final.service";
 
 export const listOpnameFinal = asyncHandler(async (req: Request, res: Response) => {
@@ -44,6 +44,17 @@ export const handleOpnameFinalApproval = asyncHandler(async (req: Request, res: 
     res.json({
         status: "success",
         message: "Approval opname_final berhasil diproses",
+        data
+    });
+});
+
+export const handleOpnameFinalIntervention = asyncHandler(async (req: Request, res: Response) => {
+    const action = opnameFinalInterventionSchema.parse(req.body);
+    const data = await opnameFinalService.intervene(req.params.id, action);
+
+    res.json({
+        status: "success",
+        message: "Intervensi KTK berhasil diproses",
         data
     });
 });

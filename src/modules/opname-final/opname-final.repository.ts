@@ -745,6 +745,47 @@ export const opnameFinalRepository = {
         );
     },
 
+    async interveneStatus(opnameFinalId: string, newStatus: OpnameFinalStatus, reason: string): Promise<void> {
+        await withTransaction(async (client) => {
+            await client.query(
+                `
+                UPDATE opname_final
+                SET status_opname_final = $1,
+                    alasan_penolakan = CASE
+                        WHEN $1::text LIKE 'Ditolak%' THEN $2::text
+                        ELSE NULL
+                    END,
+                    catatan_penolakan = CASE
+                        WHEN $1::text LIKE 'Ditolak%' THEN $2::text
+                        ELSE NULL
+                    END,
+                    pemberi_persetujuan_koordinator = NULL,
+                    waktu_persetujuan_koordinator = NULL,
+                    pemberi_persetujuan_manager = NULL,
+                    waktu_persetujuan_manager = NULL,
+                    pemberi_persetujuan_direktur = NULL,
+                    waktu_persetujuan_direktur = NULL,
+                    catatan_persetujuan_koordinator = NULL,
+                    catatan_persetujuan_manager = NULL,
+                    catatan_persetujuan_direktur = NULL
+                WHERE id = $3
+                `,
+                [newStatus, reason, opnameFinalId]
+            );
+
+            if (newStatus.startsWith("Ditolak")) {
+                await client.query(
+                    `
+                    UPDATE opname_item
+                    SET status = 'ditolak'
+                    WHERE id_opname_final = $1
+                    `,
+                    [opnameFinalId]
+                );
+            }
+        });
+    },
+
     async updatePdfLink(opnameFinalId: string, linkPdf: string): Promise<void> {
         await pool.query(
             `UPDATE opname_final SET link_pdf_opname = $1 WHERE id = $2`,

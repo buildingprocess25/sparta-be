@@ -1,6 +1,7 @@
 import { AppError } from "../../common/app-error";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
+import { activityLogRepository } from "../activity-log/activity-log.repository";
 import type { ApprovalActionInput } from "../approval/approval.schema";
 import { calculateDendaByTokoId } from "../denda/denda-keterlambatan";
 import { instruksiLapanganRepository } from "../instruksi-lapangan/instruksi-lapangan.repository";
@@ -14,7 +15,7 @@ import {
 import { OPNAME_FINAL_STATUS, type OpnameFinalStatus } from "./opname-final.constants";
 import { opnameFinalRepository } from "./opname-final.repository";
 import type { OpnameFinalDetail, OpnameFinalIdRow } from "./opname-final.repository";
-import type { LockOpnameFinalInput, OpnameFinalListQueryInput } from "./opname-final.schema";
+import type { LockOpnameFinalInput, OpnameFinalInterventionInput, OpnameFinalListQueryInput } from "./opname-final.schema";
 
 type PgError = {
     code?: string;
@@ -474,6 +475,54 @@ export const opnameFinalService = {
             old_status: currentStatus,
             new_status: newStatus,
             link_pdf_opname: linkPdf
+        };
+    },
+
+    async intervene(id: string, action: OpnameFinalInterventionInput) {
+        const role = action.actor_role.toUpperCase();
+        const isAllowed = role.includes("SUPER HUMAN")
+            || role.includes("STORE & BRANCH CONTROLLING");
+        if (!isAllowed) {
+            throw new AppError("Hanya Super Human atau Store & Branch Controlling Specialist yang dapat melakukan intervensi KTK", 403);
+        }
+
+        const detail = await opnameFinalRepository.findById(id);
+        if (!detail) {
+            throw new AppError("Data opname_final tidak ditemukan", 404);
+        }
+
+        const currentStatus = detail.opname_final.status_opname_final;
+        const targetStatus = action.target_status as OpnameFinalStatus;
+
+        if (currentStatus === targetStatus) {
+            throw new AppError("Status KTK sudah sama dengan target intervensi", 409);
+        }
+
+        await opnameFinalRepository.interveneStatus(id, targetStatus, action.alasan_intervensi);
+        await refreshDendaAllocation(id, detail.toko.id);
+        await opnameFinalRepository.updateTotals(id);
+
+        await activityLogRepository.insert({
+            entity_type: "OPNAME_FINAL",
+            entity_id: Number(id),
+            actor_email: action.actor_email,
+            actor_role: action.actor_role,
+            action: "INTERVENTION",
+            status_before: currentStatus,
+            status_after: targetStatus,
+            reason: action.alasan_intervensi,
+            metadata: {
+                id_toko: detail.toko.id,
+                nomor_ulok: detail.toko.nomor_ulok,
+                lingkup_pekerjaan: detail.toko.lingkup_pekerjaan,
+                source: "super_human_intervention",
+            },
+        });
+
+        return {
+            id: Number(id),
+            old_status: currentStatus,
+            new_status: targetStatus,
         };
     },
 

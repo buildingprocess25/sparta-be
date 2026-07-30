@@ -3,6 +3,7 @@ import {
     downloadOpnameFinalPdf,
     getOpnameFinalById,
     handleOpnameFinalApproval,
+    handleOpnameFinalIntervention,
     lockOpnameFinal,
     listOpnameFinal,
     regenerateOpnameFinalPdf
@@ -26,6 +27,7 @@ opnameFinalRouter.get("/:id", getOpnameFinalById);
 opnameFinalRouter.get("/:id/pdf", downloadOpnameFinalPdf);
 opnameFinalRouter.post("/:id/pdf/regenerate", regenerateOpnameFinalPdf);
 opnameFinalRouter.post("/:id/kunci_opname_final", lockOpnameFinal);
+opnameFinalRouter.post("/:id/intervensi", handleOpnameFinalIntervention);
 opnameFinalRouter.post("/:id/approval", handleOpnameFinalApproval);
 opnameFinalRouter.post("/approval/:id", handleOpnameFinalApproval);
 

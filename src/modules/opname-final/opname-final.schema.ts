@@ -40,6 +40,21 @@ export const lockOpnameFinalSchema = z.object({
     opname_item: z.array(lockOpnameFinalItemSchema).min(1)
 });
 
+export const opnameFinalInterventionSchema = z.object({
+    actor_email: z.string().email(),
+    actor_role: z.string().trim().min(1),
+    target_status: z.enum([
+        "Menunggu Persetujuan Koordinator",
+        "Menunggu Persetujuan Manajer",
+        "Menunggu Persetujuan Direktur Kontraktor",
+        "Ditolak oleh Koordinator",
+        "Ditolak oleh Manajer",
+        "Ditolak oleh Direktur Kontraktor",
+    ]),
+    alasan_intervensi: z.string().trim().min(5, "alasan_intervensi minimal 5 karakter"),
+});
+
 export type OpnameFinalListQueryInput = z.infer<typeof opnameFinalListQuerySchema>;
 export type LockOpnameFinalInput = z.infer<typeof lockOpnameFinalSchema>;
 export type LockOpnameFinalItemInput = z.infer<typeof lockOpnameFinalItemSchema>;
+export type OpnameFinalInterventionInput = z.infer<typeof opnameFinalInterventionSchema>;
