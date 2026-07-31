@@ -33,6 +33,8 @@ export type DendaActionRow = {
     id_opname_final: number | null;
     nomor_ulok: string | null;
     lingkup_pekerjaan: string | null;
+    nama_toko: string | null;
+    kode_toko: string | null;
     cabang: string | null;
     nama_kontraktor: string | null;
     nomor_spk: string | null;
@@ -81,6 +83,8 @@ export type DendaActionTargetRow = {
     id_toko: number;
     nomor_ulok: string | null;
     lingkup_pekerjaan: string | null;
+    nama_toko: string | null;
+    kode_toko: string | null;
     cabang: string | null;
     nama_kontraktor: string | null;
     nomor_spk: string | null;
@@ -89,7 +93,7 @@ export type DendaActionTargetRow = {
 };
 
 const ACTION_SELECT = `
-    id, id_toko, id_opname_final, nomor_ulok, lingkup_pekerjaan, cabang, nama_kontraktor, nomor_spk,
+    id, id_toko, id_opname_final, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, cabang, nama_kontraktor, nomor_spk,
     action_type, status, sp_level, hari_denda, nilai_denda, alasan_sp, alasan_lainnya, catatan,
     instruksi_tindak_lanjut, deadline_tindak_lanjut, lampiran_1_url, lampiran_2_url,
     nomor_surat, link_pdf, submitted_by_email, submitted_by_name, submitted_by_role, submitted_at,
@@ -126,6 +130,8 @@ export const spRepository = {
                 id_opname_final INTEGER REFERENCES opname_final(id) ON DELETE CASCADE,
                 nomor_ulok TEXT,
                 lingkup_pekerjaan TEXT,
+                nama_toko TEXT,
+                kode_toko TEXT,
                 cabang TEXT,
                 nama_kontraktor TEXT,
                 nomor_spk TEXT,
@@ -173,6 +179,8 @@ export const spRepository = {
                 ALTER COLUMN id_opname_final DROP NOT NULL,
                 ADD COLUMN IF NOT EXISTS alasan_lainnya TEXT,
                 ADD COLUMN IF NOT EXISTS sp_level INTEGER,
+                ADD COLUMN IF NOT EXISTS nama_toko TEXT,
+                ADD COLUMN IF NOT EXISTS kode_toko TEXT,
                 ADD COLUMN IF NOT EXISTS nama_kontraktor TEXT,
                 ADD COLUMN IF NOT EXISTS nomor_spk TEXT,
                 ADD COLUMN IF NOT EXISTS alasan_sp TEXT,
@@ -231,6 +239,7 @@ export const spRepository = {
     async listCandidates(cabang_array?: string[]): Promise<DendaActionCandidateRow[]> {
         const conditions = [
             `st.id IS NULL`,
+            `spk.nomor_spk IS NOT NULL`,
             `NULLIF(TRIM(COALESCE(spk.nama_kontraktor, t.nama_kontraktor, '')), '') IS NOT NULL`
         ];
         const values: any[] = [];
@@ -273,7 +282,8 @@ export const spRepository = {
                 COALESCE(sp_stats.active_sp_count, 0)::int AS active_sp_count,
                 CASE
                     WHEN COALESCE(sp_stats.active_sp_count, 0) >= 3 THEN NULL
-                    ELSE (COALESCE(sp_stats.active_sp_count, 0) + 1)::int
+                    WHEN COALESCE(sp_stats.highest_active_sp_level, 0) >= 3 THEN NULL
+                    ELSE (COALESCE(sp_stats.highest_active_sp_level, 0) + 1)::int
                 END AS next_sp_level,
                 COALESCE(sp_stats.pending_approval_count, 0) > 0 AS has_pending_approval,
                 latest_action.action_type AS latest_action_type,
@@ -308,6 +318,7 @@ export const spRepository = {
                     ) parsed
                 ) extension ON TRUE
                 WHERE ps.id_toko = t.id
+                  AND UPPER(TRIM(COALESCE(ps.status, ''))) IN ('SPK_APPROVED', 'APPROVED', 'DISETUJUI', 'AKTIF', 'ACTIVE', 'SELESAI')
                 ORDER BY ps.created_at DESC NULLS LAST, ps.id DESC
                 LIMIT 1
             ) spk ON TRUE
@@ -359,7 +370,12 @@ export const spRepository = {
                           AND status IN ('APPROVED', 'SENT_TO_CONTRACTOR', 'VIEWED_BY_CONTRACTOR', 'ACKNOWLEDGED_BY_CONTRACTOR')
                           AND (expires_at IS NULL OR expires_at >= timezone('Asia/Jakarta', now()))
                     ) AS active_sp_count,
-                    COUNT(*) FILTER (WHERE status = 'WAITING_MANAGER') AS pending_approval_count
+                    COUNT(*) FILTER (WHERE status = 'WAITING_MANAGER') AS pending_approval_count,
+                    MAX(sp_level) FILTER (
+                        WHERE action_type = 'SP'
+                          AND status IN ('APPROVED', 'SENT_TO_CONTRACTOR', 'VIEWED_BY_CONTRACTOR', 'ACKNOWLEDGED_BY_CONTRACTOR')
+                          AND (expires_at IS NULL OR expires_at >= timezone('Asia/Jakarta', now()))
+                    ) AS highest_active_sp_level
                 FROM denda_keterlambatan_action action
                 WHERE LOWER(TRIM(COALESCE(action.nama_kontraktor, ''))) = LOWER(TRIM(COALESCE(spk.nama_kontraktor, t.nama_kontraktor, '')))
             ) sp_stats ON TRUE
@@ -443,6 +459,8 @@ export const spRepository = {
                 ofn.id_toko,
                 t.nomor_ulok,
                 t.lingkup_pekerjaan,
+                t.nama_toko,
+                t.kode_toko,
                 t.cabang,
                 t.nama_kontraktor,
                 spk.nomor_spk,
@@ -475,6 +493,8 @@ export const spRepository = {
                 t.id AS id_toko,
                 t.nomor_ulok,
                 t.lingkup_pekerjaan,
+                t.nama_toko,
+                t.kode_toko,
                 t.cabang,
                 COALESCE(NULLIF(TRIM(spk.nama_kontraktor), ''), NULLIF(TRIM(t.nama_kontraktor), '')) AS nama_kontraktor,
                 spk.nomor_spk,
@@ -513,6 +533,7 @@ export const spRepository = {
                     ) parsed
                 ) extension ON TRUE
                 WHERE ps.id_toko = t.id
+                  AND UPPER(TRIM(COALESCE(ps.status, ''))) IN ('SPK_APPROVED', 'APPROVED', 'DISETUJUI', 'AKTIF', 'ACTIVE', 'SELESAI')
                 ORDER BY ps.created_at DESC NULLS LAST, ps.id DESC
                 LIMIT 1
             ) spk ON TRUE
@@ -559,6 +580,7 @@ export const spRepository = {
             ) st ON TRUE
             WHERE t.id = $1
               AND st.id IS NULL
+              AND spk.nomor_spk IS NOT NULL
               AND NULLIF(TRIM(COALESCE(spk.nama_kontraktor, t.nama_kontraktor, '')), '') IS NOT NULL
             LIMIT 1
             `,
@@ -674,6 +696,29 @@ export const spRepository = {
         };
     },
 
+    async getNextMonthlySpSequence(referenceDate = new Date()): Promise<number> {
+        const monthStart = new Date(referenceDate);
+        monthStart.setDate(1);
+        monthStart.setHours(0, 0, 0, 0);
+
+        const nextMonthStart = new Date(monthStart);
+        nextMonthStart.setMonth(nextMonthStart.getMonth() + 1);
+
+        const result = await pool.query<{ count: string }>(
+            `
+            SELECT COUNT(*) AS count
+            FROM denda_keterlambatan_action
+            WHERE action_type = 'SP'
+              AND nomor_surat IS NOT NULL
+              AND COALESCE(manager_approved_at, created_at) >= $1
+              AND COALESCE(manager_approved_at, created_at) < $2
+            `,
+            [monthStart, nextMonthStart]
+        );
+
+        return Number(result.rows[0]?.count ?? 0) + 1;
+    },
+
     async createAction(input: {
         target?: DendaActionTargetRow;
         id_toko?: number;
@@ -699,6 +744,8 @@ export const spRepository = {
                 id_opname_final,
                 nomor_ulok,
                 lingkup_pekerjaan,
+                nama_toko,
+                kode_toko,
                 cabang,
                 nama_kontraktor,
                 nomor_spk,
@@ -722,7 +769,7 @@ export const spRepository = {
                 actor_role
             )
             VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, 'WAITING_MANAGER', $9, $10, $11, $12, $13, $14, $15, $16::date, $17, $18, $19, $20, $21, timezone('Asia/Jakarta', now()), $19, $21
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'WAITING_MANAGER', $11, $12, $13, $14, $15, $16, $17, $18::date, $19, $20, $21, $22, $23, timezone('Asia/Jakarta', now()), $21, $23
             )
             RETURNING id
             `,
@@ -731,23 +778,25 @@ export const spRepository = {
                 input.target?.id_opname_final ?? null,              // $2  id_opname_final
                 input.target?.nomor_ulok ?? null,                   // $3  nomor_ulok
                 input.target?.lingkup_pekerjaan ?? null,            // $4  lingkup_pekerjaan
-                input.target?.cabang ?? input.cabang ?? null,       // $5  cabang
-                input.nama_kontraktor ?? input.target?.nama_kontraktor ?? null, // $6 nama_kontraktor
-                input.target?.nomor_spk ?? null,                    // $7  nomor_spk
-                input.action_type,                                  // $8  action_type
-                input.sp_level ?? null,                             // $9  sp_level
-                input.target?.hari_denda ?? 0,                      // $10 hari_denda
-                input.target?.nilai_denda ?? '0',                   // $11 nilai_denda
-                input.alasan_sp ?? null,                            // $12 alasan_sp
-                input.alasan_lainnya ?? null,                       // $13 alasan_lainnya
-                input.catatan,                                      // $14 catatan
-                input.instruksi_tindak_lanjut ?? null,              // $15 instruksi_tindak_lanjut
-                input.deadline_tindak_lanjut ?? null,               // $16 deadline_tindak_lanjut (::date cast in query)
-                input.lampiran_1_url ?? null,                       // $17 lampiran_1_url
-                input.lampiran_2_url ?? null,                       // $18 lampiran_2_url
-                input.actor_email ?? null,                          // $19 actor_email = submitted_by_email (reused)
-                input.actor_name ?? null,                           // $20 submitted_by_name
-                input.actor_role ?? null,                           // $21 actor_role = submitted_by_role (reused)
+                input.target?.nama_toko ?? null,                    // $5  nama_toko
+                input.target?.kode_toko ?? null,                    // $6  kode_toko
+                input.target?.cabang ?? input.cabang ?? null,       // $7  cabang
+                input.nama_kontraktor ?? input.target?.nama_kontraktor ?? null, // $8 nama_kontraktor
+                input.target?.nomor_spk ?? null,                    // $9  nomor_spk
+                input.action_type,                                  // $10 action_type
+                input.sp_level ?? null,                             // $11 sp_level
+                input.target?.hari_denda ?? 0,                      // $12 hari_denda
+                input.target?.nilai_denda ?? '0',                   // $13 nilai_denda
+                input.alasan_sp ?? null,                            // $14 alasan_sp
+                input.alasan_lainnya ?? null,                       // $15 alasan_lainnya
+                input.catatan,                                      // $16 catatan
+                input.instruksi_tindak_lanjut ?? null,              // $17 instruksi_tindak_lanjut
+                input.deadline_tindak_lanjut ?? null,               // $18 deadline_tindak_lanjut (::date cast in query)
+                input.lampiran_1_url ?? null,                       // $19 lampiran_1_url
+                input.lampiran_2_url ?? null,                       // $20 lampiran_2_url
+                input.actor_email ?? null,                          // $21 actor_email = submitted_by_email (reused)
+                input.actor_name ?? null,                           // $22 submitted_by_name
+                input.actor_role ?? null,                           // $23 actor_role = submitted_by_role (reused)
             ]
         );
 
@@ -1184,9 +1233,6 @@ export const spRepository = {
         };
     },
 };
-
-
-
 
 
 

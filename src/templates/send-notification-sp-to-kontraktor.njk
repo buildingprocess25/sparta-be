@@ -53,6 +53,18 @@
                                                 <td style="font-size:14px; color:#1b1b1b; font-weight:600;">{{ nomor_ulok }}</td>
                                             </tr>
                                             {% endif %}
+                                            {% if nama_toko %}
+                                            <tr>
+                                                <td style="font-size:14px; color:#666;">Nama Toko:</td>
+                                                <td style="font-size:14px; color:#1b1b1b; font-weight:600;">{{ nama_toko }}</td>
+                                            </tr>
+                                            {% endif %}
+                                            {% if kode_toko %}
+                                            <tr>
+                                                <td style="font-size:14px; color:#666;">Kode Toko:</td>
+                                                <td style="font-size:14px; color:#1b1b1b; font-weight:600;">{{ kode_toko }}</td>
+                                            </tr>
+                                            {% endif %}
                                             <tr>
                                                 <td style="font-size:14px; color:#666;">Cabang:</td>
                                                 <td style="font-size:14px; color:#1b1b1b; font-weight:600;">{{ cabang }}</td>
@@ -84,7 +96,7 @@
                             {% endif %}
                             
                             <p style="margin:0 0 24px; font-size:15px; color:#333333; line-height:1.6;">
-                                PDF resmi Surat Peringatan kami lampirkan pada email ini. Mohon baca detailnya, lalu konfirmasi penerimaan setelah dokumen diterima dengan baik.
+                                PDF resmi Surat Peringatan kami lampirkan pada email ini.
                             </p>
                             
                             <!-- CTA Button -->

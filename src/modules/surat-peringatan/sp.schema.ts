@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const dendaActionTypeSchema = z.enum(["SP", "TAKEOVER"]);
-export const spReasonSchema = z.enum(["KETERLAMBATAN", "MENOLAK_SPK", "MANIPULASI", "LAINNYA"]);
+export const spReasonSchema = z.enum(["KETERLAMBATAN", "MENOLAK_SPK", "MANIPULASI", "KELALAIAN", "LAINNYA"]);
 export const dendaActionStatusSchema = z.enum([
     "WAITING_MANAGER",
     "REJECTED_BY_MANAGER",

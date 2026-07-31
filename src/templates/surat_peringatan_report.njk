@@ -237,6 +237,11 @@
       <td class="label">Nama Toko</td>
       <td>{{ namaToko or '-' }}</td>
     </tr>
+    <tr>
+      <td class="label">Kode Toko</td>
+      <td>{{ kodeToko or '-' }}</td>
+      <td></td><td></td>
+    </tr>
     {% endif %}
     {% if nomorSpk %}
     <tr>
@@ -262,19 +267,23 @@
   {# ---- Paragraph pembuka berbeda-beda sesuai alasan SP ---- #}
   {% if alasan == 'KETERLAMBATAN' %}
   <p class="body-text">
-    {% if nomorSpk %}Sehubungan dengan Surat Perintah Kerja No. {{ nomorSpk }}{% if lingkupPekerjaan and lingkupPekerjaan != '-' %} tentang pekerjaan {{ lingkupPekerjaan }}{% endif %}{% if nomorUlok and nomorUlok != '-' %} di Nomor ULOK {{ nomorUlok }}{% endif %}{% else %}Berdasarkan hasil evaluasi pelaksanaan pekerjaan{% if lingkupPekerjaan and lingkupPekerjaan != '-' %} {{ lingkupPekerjaan }}{% endif %}{% if nomorUlok and nomorUlok != '-' %} pada Nomor ULOK {{ nomorUlok }}{% endif %}{% endif %}, ternyata setelah dilakukan pengecekan masih ada beberapa pekerjaan yang mengalami <strong>keterlambatan penyelesaian</strong> yang tidak sesuai dengan jadwal yang telah disepakati, diantaranya sebagai berikut:
+    {% if nomorSpk %}Sehubungan dengan Surat Perintah Kerja No. {{ nomorSpk }}{% if lingkupPekerjaan and lingkupPekerjaan != '-' %} tentang pekerjaan {{ lingkupPekerjaan }}{% endif %}{% if nomorUlok and nomorUlok != '-' %} di Nomor ULOK {{ nomorUlok }}{% if namaToko and namaToko != '-' %} / Toko {{ namaToko }}{% endif %}{% if kodeToko and kodeToko != '-' %} (Kode Toko {{ kodeToko }}){% endif %}{% endif %}{% else %}Berdasarkan hasil evaluasi pelaksanaan pekerjaan{% if lingkupPekerjaan and lingkupPekerjaan != '-' %} {{ lingkupPekerjaan }}{% endif %}{% if nomorUlok and nomorUlok != '-' %} pada Nomor ULOK {{ nomorUlok }}{% if namaToko and namaToko != '-' %} / Toko {{ namaToko }}{% endif %}{% if kodeToko and kodeToko != '-' %} (Kode Toko {{ kodeToko }}){% endif %}{% endif %}{% endif %}, ternyata setelah dilakukan pengecekan masih ada beberapa pekerjaan yang mengalami <strong>keterlambatan penyelesaian</strong> yang tidak sesuai dengan jadwal yang telah disepakati, diantaranya sebagai berikut:
   </p>
   {% elif alasan == 'MENOLAK_SPK' %}
   <p class="body-text">
-    {% if nomorSpk %}Sehubungan dengan Surat Perintah Kerja No. {{ nomorSpk }}{% if lingkupPekerjaan and lingkupPekerjaan != '-' %} tentang pekerjaan {{ lingkupPekerjaan }}{% endif %}{% if nomorUlok and nomorUlok != '-' %} di Nomor ULOK {{ nomorUlok }}{% endif %}, bahwa kontraktor tersebut di atas telah <strong>menolak atau tidak bersedia melaksanakan</strong> pekerjaan sesuai dengan SPK yang telah diterbitkan{% else %}Berdasarkan hasil evaluasi pelaksanaan pekerjaan{% if lingkupPekerjaan and lingkupPekerjaan != '-' %} {{ lingkupPekerjaan }}{% endif %}{% if nomorUlok and nomorUlok != '-' %} pada Nomor ULOK {{ nomorUlok }}{% endif %}, kontraktor tersebut di atas dinilai <strong>menolak atau tidak bersedia melaksanakan</strong> pekerjaan yang menjadi tanggung jawabnya{% endif %}, diantaranya sebagai berikut:
+    {% if nomorSpk %}Sehubungan dengan Surat Perintah Kerja No. {{ nomorSpk }}{% if lingkupPekerjaan and lingkupPekerjaan != '-' %} tentang pekerjaan {{ lingkupPekerjaan }}{% endif %}{% if nomorUlok and nomorUlok != '-' %} di Nomor ULOK {{ nomorUlok }}{% if namaToko and namaToko != '-' %} / Toko {{ namaToko }}{% endif %}{% if kodeToko and kodeToko != '-' %} (Kode Toko {{ kodeToko }}){% endif %}{% endif %}, bahwa kontraktor tersebut di atas telah <strong>menolak atau tidak bersedia melaksanakan</strong> pekerjaan sesuai dengan SPK yang telah diterbitkan{% else %}Berdasarkan hasil evaluasi pelaksanaan pekerjaan{% if lingkupPekerjaan and lingkupPekerjaan != '-' %} {{ lingkupPekerjaan }}{% endif %}{% if nomorUlok and nomorUlok != '-' %} pada Nomor ULOK {{ nomorUlok }}{% if namaToko and namaToko != '-' %} / Toko {{ namaToko }}{% endif %}{% if kodeToko and kodeToko != '-' %} (Kode Toko {{ kodeToko }}){% endif %}{% endif %}, kontraktor tersebut di atas dinilai <strong>menolak atau tidak bersedia melaksanakan</strong> pekerjaan yang menjadi tanggung jawabnya{% endif %}, diantaranya sebagai berikut:
   </p>
   {% elif alasan == 'MANIPULASI' %}
   <p class="body-text">
-    Berdasarkan hasil pemeriksaan dan temuan di lapangan{% if nomorUlok and nomorUlok != '-' %} pada lokasi {{ nomorUlok }}{% if namaToko and namaToko != '-' %} ({{ namaToko }}){% endif %}{% endif %}, kontraktor <strong>{{ namaKontraktor }}</strong> terbukti telah melakukan <strong>tindakan manipulasi dan/atau pelanggaran berat</strong> yang bertentangan dengan ketentuan yang berlaku, diantaranya sebagai berikut:
+    Berdasarkan hasil pemeriksaan dan temuan di lapangan{% if nomorUlok and nomorUlok != '-' %} pada lokasi {{ nomorUlok }}{% if namaToko and namaToko != '-' %} / Toko {{ namaToko }}{% endif %}{% if kodeToko and kodeToko != '-' %} (Kode Toko {{ kodeToko }}){% endif %}{% endif %}, kontraktor <strong>{{ namaKontraktor }}</strong> terbukti telah melakukan <strong>tindakan manipulasi dan/atau pelanggaran berat</strong> yang bertentangan dengan ketentuan yang berlaku, diantaranya sebagai berikut:
+  </p>
+  {% elif alasan == 'KELALAIAN' %}
+  <p class="body-text">
+    Berdasarkan hasil evaluasi dan/atau pemeriksaan pekerjaan{% if lingkupPekerjaan and lingkupPekerjaan != '-' %} {{ lingkupPekerjaan }}{% endif %}{% if nomorUlok and nomorUlok != '-' %} pada Nomor ULOK {{ nomorUlok }}{% if namaToko and namaToko != '-' %} / Toko {{ namaToko }}{% endif %}{% if kodeToko and kodeToko != '-' %} (Kode Toko {{ kodeToko }}){% endif %}{% endif %}, kontraktor <strong>{{ namaKontraktor }}</strong> dinilai melakukan <strong>kelalaian</strong> yang perlu segera ditindaklanjuti, diantaranya sebagai berikut:
   </p>
   {% else %}
   <p class="body-text">
-    Sehubungan dengan hasil evaluasi kinerja kontraktor <strong>{{ namaKontraktor }}</strong>{% if nomorUlok and nomorUlok != '-' %} pada lokasi {{ nomorUlok }}{% if namaToko and namaToko != '-' %} ({{ namaToko }}){% endif %}{% endif %}, ditemukan adanya hal-hal yang perlu mendapat perhatian serius dan tindak lanjut segera, diantaranya sebagai berikut:
+    Sehubungan dengan hasil evaluasi kinerja kontraktor <strong>{{ namaKontraktor }}</strong>{% if nomorUlok and nomorUlok != '-' %} pada lokasi {{ nomorUlok }}{% if namaToko and namaToko != '-' %} / Toko {{ namaToko }}{% endif %}{% if kodeToko and kodeToko != '-' %} (Kode Toko {{ kodeToko }}){% endif %}{% endif %}, ditemukan adanya hal-hal yang perlu mendapat perhatian serius dan tindak lanjut segera, diantaranya sebagai berikut:
   </p>
   {% endif %}
 
@@ -300,7 +309,7 @@
   {% endif %}
 
   <p class="body-text">
-    Kami menghimbau kepada Bapak/Ibu untuk menindaklanjuti perihal ketidaksesuaian diatas. Jika Bapak/Ibu tidak dapat memenuhi kewajiban tersebut, maka kami akan memberikan sanksi/denda sesuai dengan ketentuan yang sudah tertulis di dalam RKS.
+    Kami menghimbau kepada Bapak/Ibu untuk menindaklanjuti perihal ketidaksesuaian diatas. Jika Bapak/Ibu tidak dapat memenuhi kewajiban tersebut, maka kami akan memberikan sanksi/denda sesuai dengan ketentuan yang sudah tertulis di dalam Perjanjian.
   </p>
 
   <p class="body-text">

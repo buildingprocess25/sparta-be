@@ -32,6 +32,12 @@ const wrapBase64 = (value: string): string => value.match(/.{1,76}/g)?.join("\r\
 
 const escapeMailHeaderValue = (value: string): string => value.replace(/["\r\n]/g, "_");
 
+const formatSpNomorSurat = (sequence: number, referenceDate = new Date()): string => {
+    const month = String(referenceDate.getMonth() + 1).padStart(2, "0");
+    const year = String(referenceDate.getFullYear());
+    return `${String(sequence).padStart(3, "0")}/SAT/${month}/${year}`;
+};
+
 const extractDriveFileId = (value?: string | null): string | null => {
     const trimmed = String(value ?? "").trim();
     if (!trimmed) return null;
@@ -121,7 +127,7 @@ const buildAndUploadSpPdf = async (input: {
     const { buildSuratPeringatanPdfBuffer } = await import("./sp.pdf");
     const pdfBuffer = await buildSuratPeringatanPdfBuffer({
         action: { ...input.action, nomor_surat: input.nomorSurat, manager_approved_at: input.approvedAt ?? input.action.manager_approved_at },
-        tokoNama: "Toko",
+        tokoNama: input.action.nama_toko ?? null,
         approvedBy: input.approvedBy ?? null,
         approvedRole: input.approvedRole ?? null,
         approvedAt: input.approvedAt ?? null,
@@ -226,6 +232,30 @@ const lookupNamaLengkap = async (email: string | null | undefined): Promise<stri
     } catch (err: any) {
         console.warn(`[SP Service] lookupNamaLengkap error for "${email}":`, err?.message);
         return null;
+    }
+};
+
+const lookupSpCcEmails = async (): Promise<string[]> => {
+    try {
+        const { pool } = await import("../../db/pool");
+        const res = await pool.query<{ email_sat: string }>(
+            `
+            SELECT DISTINCT TRIM(email_sat) AS email_sat
+            FROM user_cabang
+            WHERE NULLIF(TRIM(COALESCE(email_sat, '')), '') IS NOT NULL
+              AND (
+                    UPPER(TRIM(COALESCE(jabatan, ''))) = 'BUILDING & MAINTENANCE REGIONAL MANAGER'
+                 OR UPPER(TRIM(COALESCE(jabatan, ''))) = 'STORE & BRANCH CONTROLLING SPECIALIST'
+                 OR UPPER(TRIM(COALESCE(jabatan, ''))) LIKE '%REGIONAL MANAGER%'
+                 OR UPPER(TRIM(COALESCE(jabatan, ''))) LIKE '%STORE & BRANCH CONTROLLING%'
+              )
+            ORDER BY email_sat ASC
+            `
+        );
+        return res.rows.map(row => row.email_sat).filter(Boolean);
+    } catch (err: any) {
+        console.warn("[SP Service] lookupSpCcEmails error:", err?.message);
+        return [];
     }
 };
 
@@ -340,17 +370,18 @@ export const spService = {
                 );
             }
 
-            // Auto-determine SP level:
-            // Jika tidak ada SP aktif, user bebas pilih SP ke-berapa (dari input FE)
-            // Jika ada SP aktif, SP berikutnya adalah (highest_active_sp_level + 1)
-            let autoSpLevel = stats.active_sp_count === 0
-                ? (input.sp_level ?? 1)
-                : (stats.highest_active_sp_level + 1);
+            const selectedSpLevel = input.sp_level ?? 1;
 
-            // Validasi maksimal tingkat SP adalah 3
-            if (autoSpLevel > 3) {
+            if (selectedSpLevel <= stats.highest_active_sp_level) {
                 throw new AppError(
-                    `SP berikutnya (SP ${autoSpLevel}) melebihi batas maksimum SP 3.`,
+                    `Kontraktor ini sudah memiliki SP ${stats.highest_active_sp_level} aktif. Pilih SP di atas level tersebut.`,
+                    409
+                );
+            }
+
+            if (selectedSpLevel > 3) {
+                throw new AppError(
+                    `SP ${selectedSpLevel} melebihi batas maksimum SP 3.`,
                     409
                 );
             }
@@ -359,7 +390,7 @@ export const spService = {
                 ? await uploadSpAttachmentToDrive(input.attachment, {
                     nomor_ulok: target?.nomor_ulok ?? input.alasan_sp ?? "MANIPULASI",
                     nama_kontraktor: effectiveKontraktor,
-                    sp_level: autoSpLevel,
+                    sp_level: selectedSpLevel,
                 })
                 : null;
             const lampiranUrl = uploadedUrl ?? input.lampiran_1_url?.trim() ?? null;
@@ -372,7 +403,7 @@ export const spService = {
                 id_toko: input.id_toko ?? undefined,
                 nama_kontraktor: effectiveKontraktor ?? undefined,
                 action_type: input.action_type,
-                sp_level: autoSpLevel,
+                sp_level: selectedSpLevel,
                 alasan_sp: input.alasan_sp,
                 alasan_lainnya: input.alasan_lainnya,
                 catatan: input.catatan,
@@ -415,7 +446,7 @@ export const spService = {
         let nomorSurat: string | null = null;
 
         if (current.action_type === "SP") {
-            nomorSurat = `SP-${current.sp_level}/${current.cabang || 'HO'}/${new Date().getFullYear()}/${current.id}`;
+            nomorSurat = formatSpNomorSurat(await spRepository.getNextMonthlySpSequence());
 
             const approvedAt = new Date().toISOString();
             // Resolve nama lengkap approver (prioritaskan nama_lengkap dari session, fallback ke lookup DB)
@@ -471,7 +502,7 @@ export const spService = {
             throw new AppError("SP ditolak atau sudah tidak valid.", 400);
         }
 
-        let nomorSurat = current.nomor_surat || `SP-${current.sp_level}/${current.cabang || 'HO'}/${new Date().getFullYear()}/${current.id}`;
+        let nomorSurat = current.nomor_surat || formatSpNomorSurat(await spRepository.getNextMonthlySpSequence());
 
         // Resolve nama lengkap untuk regenerate PDF
         const hasManagerApproval = Boolean(current.manager_approved_at);
@@ -547,6 +578,7 @@ export const spService = {
             if (alasan === 'KETERLAMBATAN') return "Keterlambatan Pekerjaan";
             if (alasan === 'MENOLAK_SPK') return "Menolak SPK / Pekerjaan";
             if (alasan === 'MANIPULASI') return "Tindakan Manipulasi / Pelanggaran Berat";
+            if (alasan === 'KELALAIAN') return "Kelalaian";
             return alasan ?? "-";
         };
 
@@ -570,8 +602,8 @@ export const spService = {
             return "Selamat malam";
         };
 
-        const frontendUrl = env.FRONTEND_URL || "https://building.sparta-alfamart.web.id";
-        const acknowledgeUrl = `${frontendUrl}/surat-peringatan`;
+        const frontendUrl = (env.FRONTEND_URL || "https://building.sparta-alfamart.web.id").replace(/\/$/, "");
+        const acknowledgeUrl = `${frontendUrl}/`;
         const pdfFileId = extractDriveFileId(action.link_pdf);
         const pdfBuffer = pdfFileId && GoogleProvider.instance.spartaDrive
             ? await GoogleProvider.instance.getFileBufferById(GoogleProvider.instance.spartaDrive, pdfFileId)
@@ -585,6 +617,8 @@ export const spService = {
             nama_kontraktor: action.nama_kontraktor,
             nomor_surat: action.nomor_surat || "-",
             nomor_ulok: action.nomor_ulok,
+            nama_toko: action.nama_toko,
+            kode_toko: action.kode_toko,
             cabang: action.cabang || "-",
             nomor_spk: action.nomor_spk,
             sp_level_romawi: getSpLevelRomawi(action.sp_level),
@@ -616,11 +650,13 @@ export const spService = {
         
         const subject = `Surat Peringatan ${getSpLevelRomawi(action.sp_level)} - ${action.nama_kontraktor} - ${action.cabang}`;
         const toEmail = kontraktorEmail;
+        const ccEmails = (await lookupSpCcEmails()).filter((email) => email.toLowerCase() !== toEmail.toLowerCase());
         const boundary = `sparta_sp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
         const safeFilename = escapeMailHeaderValue(`Surat_Peringatan_${getSpLevelRomawi(action.sp_level)}_${sanitizeFilenamePart(action.nomor_ulok, "ULOK")}.pdf`);
         const messageParts = [
             `From: SPARTA Building <no-reply@sparta-building.com>`,
             `To: ${toEmail}`,
+            ccEmails.length > 0 ? `Cc: ${ccEmails.join(", ")}` : null,
             `Subject: ${subject}`,
             `MIME-Version: 1.0`,
             `Content-Type: multipart/mixed; boundary="${boundary}"`,
@@ -630,7 +666,7 @@ export const spService = {
             `Content-Transfer-Encoding: base64`,
             ``,
             wrapBase64(Buffer.from(htmlBody, "utf8").toString("base64")),
-        ];
+        ].filter((part): part is string => part !== null);
         if (pdfBuffer) {
             messageParts.push(
                 ``,

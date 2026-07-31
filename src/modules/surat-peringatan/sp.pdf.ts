@@ -80,6 +80,7 @@ const getAlasanSpText = (alasan?: string | null): string => {
     if (a === 'KETERLAMBATAN') return "Keterlambatan Pekerjaan";
     if (a === 'MENOLAK_SPK') return "Menolak SPK / Pekerjaan";
     if (a === 'MANIPULASI') return "Tindakan Manipulasi / Pelanggaran Berat";
+    if (a === 'KELALAIAN') return "Kelalaian";
     if (a === 'LAINNYA') return alasan ?? "Lainnya"; // return the raw alasan which may contain custom text
     return alasan ?? "-";
 };
@@ -102,6 +103,7 @@ export async function buildSuratPeringatanPdfBuffer(input: BuildSpPdfInput): Pro
         idToko: input.action.id_toko,
         nomorUlok: input.action.nomor_ulok ?? "-",
         namaToko: input.tokoNama && input.tokoNama.trim().toUpperCase() !== "TOKO" ? input.tokoNama : "-",
+        kodeToko: input.action.kode_toko ?? "-",
         lingkupPekerjaan: input.action.lingkup_pekerjaan ?? "-",
         nomorSpk: input.action.nomor_spk?.trim() || null,
         tanggalSurat: formatTanggal(input.action.manager_approved_at ?? input.action.submitted_at ?? input.action.created_at ?? new Date().toISOString()),
