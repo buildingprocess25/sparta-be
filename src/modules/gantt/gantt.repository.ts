@@ -399,12 +399,12 @@ export const ganttRepository = {
                     tpg.id_pengawasan_gantt,
                     tpg.tanggal_pengawasan,
                     COUNT(p.id)::int AS total_items,
-                    COUNT(p.id) FILTER (WHERE p.status = 'selesai')::int AS selesai_items,
+                    COUNT(p.id) FILTER (WHERE LOWER(TRIM(p.status)) = 'selesai')::int AS selesai_items,
                     COUNT(p.id) FILTER (
-                        WHERE p.status IN ('selesai', 'progress', 'terlambat')
+                        WHERE LOWER(TRIM(p.status)) IN ('selesai', 'progress', 'terlambat')
                     )::int AS filled_items,
                     COUNT(p.id) FILTER (
-                        WHERE p.status = 'selesai'
+                        WHERE LOWER(TRIM(p.status)) = 'selesai'
                           AND EXISTS (
                             SELECT 1
                             FROM rab r
@@ -439,7 +439,7 @@ export const ganttRepository = {
                           )
                     )::int AS ready_opname_items,
                     COUNT(p.id) FILTER (
-                        WHERE p.status = 'selesai'
+                        WHERE LOWER(TRIM(p.status)) = 'selesai'
                           AND EXISTS (
                             SELECT 1
                             FROM opname_item oi
