@@ -471,8 +471,38 @@ export const ganttRepository = {
                     SELECT COUNT(*)::int
                     FROM latest_overall_status los
                     WHERE los.id_gantt = s.gantt_id
-                      AND LOWER(TRIM(COALESCE(los.status, ''))) NOT IN ('selesai', 'progress', 'terlambat')
+                      AND LOWER(TRIM(COALESCE(los.status, ''))) != 'selesai'
                 ) AS missing_pengawasan_checkpoints,
+                (
+                    SELECT COUNT(*)::int
+                    FROM latest_overall_status los
+                    WHERE los.id_gantt = s.gantt_id
+                      AND LOWER(TRIM(COALESCE(los.status, ''))) = 'selesai'
+                ) AS total_selesai_items,
+                (
+                    SELECT COUNT(*)::int
+                    FROM (
+                        SELECT ri.id
+                        FROM rab_item ri
+                        JOIN rab r ON r.id = ri.id_rab
+                        WHERE r.id_toko = s.id_toko
+                          AND UPPER(TRIM(COALESCE(ri.kategori_pekerjaan, ''))) IN (
+                              SELECT UPPER(TRIM(jsonb_array_elements(g.day_items::jsonb) ->> 'kategori_pekerjaan'))
+                              FROM gantt_chart g
+                              WHERE g.id = s.gantt_id
+                          )
+                        UNION ALL
+                        SELECT ili.id
+                        FROM instruksi_lapangan_item ili
+                        JOIN instruksi_lapangan il ON il.id = ili.id_instruksi_lapangan
+                        WHERE il.id_toko = s.id_toko
+                          AND UPPER(TRIM(COALESCE(ili.kategori_pekerjaan, ''))) IN (
+                              SELECT UPPER(TRIM(jsonb_array_elements(g.day_items::jsonb) ->> 'kategori_pekerjaan'))
+                              FROM gantt_chart g
+                              WHERE g.id = s.gantt_id
+                          )
+                    ) AS expected_items
+                ) AS total_expected_items,
                 COALESCE(
                     json_agg(
                         json_build_object(
