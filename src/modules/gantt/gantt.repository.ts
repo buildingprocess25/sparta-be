@@ -487,9 +487,9 @@ export const ganttRepository = {
                         JOIN rab r ON r.id = ri.id_rab
                         WHERE r.id_toko = s.id_toko
                           AND UPPER(TRIM(COALESCE(ri.kategori_pekerjaan, ''))) IN (
-                              SELECT UPPER(TRIM(jsonb_array_elements(g.day_items::jsonb) ->> 'kategori_pekerjaan'))
-                              FROM gantt_chart g
-                              WHERE g.id = s.gantt_id
+                              SELECT UPPER(TRIM(kpg.kategori_pekerjaan))
+                              FROM kategori_pekerjaan_gantt kpg
+                              WHERE kpg.id_gantt = s.gantt_id
                           )
                         UNION ALL
                         SELECT ili.id
@@ -497,9 +497,9 @@ export const ganttRepository = {
                         JOIN instruksi_lapangan il ON il.id = ili.id_instruksi_lapangan
                         WHERE il.id_toko = s.id_toko
                           AND UPPER(TRIM(COALESCE(ili.kategori_pekerjaan, ''))) IN (
-                              SELECT UPPER(TRIM(jsonb_array_elements(g.day_items::jsonb) ->> 'kategori_pekerjaan'))
-                              FROM gantt_chart g
-                              WHERE g.id = s.gantt_id
+                              SELECT UPPER(TRIM(kpg.kategori_pekerjaan))
+                              FROM kategori_pekerjaan_gantt kpg
+                              WHERE kpg.id_gantt = s.gantt_id
                           )
                     ) AS expected_items
                 ) AS total_expected_items,
