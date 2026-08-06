@@ -368,7 +368,8 @@ export const ganttRepository = {
                     UPPER(TRIM(COALESCE(p.kategori_pekerjaan, ''))),
                     UPPER(TRIM(COALESCE(p.jenis_pekerjaan, '')))
                 )
-                    p.*
+                    p.*,
+                    tpg.tanggal_pengawasan AS tpg_tanggal_pengawasan
                 FROM pengawasan p
                 JOIN target_pengawasan_gantt tpg ON tpg.id_pengawasan_gantt = p.id_pengawasan_gantt
                 ORDER BY
@@ -391,6 +392,7 @@ export const ganttRepository = {
                     id_gantt,
                     UPPER(TRIM(COALESCE(kategori_pekerjaan, ''))),
                     UPPER(TRIM(COALESCE(jenis_pekerjaan, ''))),
+                    to_date(tpg_tanggal_pengawasan, 'DD/MM/YYYY') DESC,
                     id DESC
             ),
             checkpoint AS (
