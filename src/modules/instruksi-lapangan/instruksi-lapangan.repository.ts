@@ -401,5 +401,149 @@ export const instruksiLapanganRepository = {
 
         const res = await pool.query(sql, params);
         return res.rows;
+    },
+
+    /**
+     * Setelah IL disetujui Manager, injeksi otomatis kategori IL yang belum ada
+     * ke kategori_pekerjaan_gantt + day_gantt_chart.
+     *
+     * Referensi hari ke-1 = pengajuan_spk.waktu_mulai
+     * h_awal  = (il.tanggal_mulai  - spk.waktu_mulai) + 1
+     * h_akhir = (il.tanggal_selesai - spk.waktu_mulai) + 1
+     */
+    async injectApprovedIlToGantt(idIL: number | string): Promise<{ injected: number; skipped: number }> {
+        const client = await pool.connect();
+        const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+        try {
+            await client.query("BEGIN");
+
+            // 1. Ambil data IL (header) + toko + gantt_chart + SPK
+            const dataRes = await client.query<{
+                il_id: number;
+                id_toko: number;
+                tanggal_mulai: Date | null;
+                tanggal_selesai: Date | null;
+                gantt_id: number | null;
+                spk_mulai: Date | null;
+            }>(`
+                SELECT
+                    il.id          AS il_id,
+                    il.id_toko,
+                    il.tanggal_mulai,
+                    il.tanggal_selesai,
+                    g.id           AS gantt_id,
+                    spk.waktu_mulai AS spk_mulai
+                FROM instruksi_lapangan il
+                JOIN toko t ON t.id = il.id_toko
+                LEFT JOIN LATERAL (
+                    SELECT id FROM gantt_chart
+                    WHERE id_toko = t.id
+                    ORDER BY id DESC LIMIT 1
+                ) g ON true
+                LEFT JOIN LATERAL (
+                    SELECT waktu_mulai FROM pengajuan_spk
+                    WHERE id_toko = t.id
+                    ORDER BY id DESC LIMIT 1
+                ) spk ON true
+                WHERE il.id = $1
+            `, [idIL]);
+
+            if (dataRes.rows.length === 0) {
+                console.warn(`[IL][GANTT_INJECT] IL id=${idIL} tidak ditemukan`);
+                await client.query("ROLLBACK");
+                return { injected: 0, skipped: 0 };
+            }
+
+            const { id_toko, tanggal_mulai, tanggal_selesai, gantt_id, spk_mulai } = dataRes.rows[0];
+
+            if (!gantt_id) {
+                console.warn(`[IL][GANTT_INJECT] Tidak ada Gantt Chart untuk id_toko=${id_toko}, skip inject.`);
+                await client.query("ROLLBACK");
+                return { injected: 0, skipped: 0 };
+            }
+
+            if (!tanggal_mulai || !tanggal_selesai) {
+                console.warn(`[IL][GANTT_INJECT] IL id=${idIL} tidak memiliki tanggal_mulai/selesai, skip inject.`);
+                await client.query("ROLLBACK");
+                return { injected: 0, skipped: 0 };
+            }
+
+            if (!spk_mulai) {
+                console.warn(`[IL][GANTT_INJECT] Tidak ada data SPK untuk id_toko=${id_toko}, skip inject.`);
+                await client.query("ROLLBACK");
+                return { injected: 0, skipped: 0 };
+            }
+
+            // 2. Hitung h_awal/h_akhir: referensi hari ke-1 = spk.waktu_mulai
+            const toUTC = (d: Date) => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+            const spkUTC    = toUTC(new Date(spk_mulai));
+            const ilStartUTC = toUTC(new Date(tanggal_mulai));
+            const ilEndUTC   = toUTC(new Date(tanggal_selesai));
+
+            const diffStart = Math.round((ilStartUTC - spkUTC) / MS_PER_DAY);
+            const diffEnd   = Math.round((ilEndUTC   - spkUTC) / MS_PER_DAY);
+            const hAwal  = Math.max(1, diffStart + 1);
+            const hAkhir = Math.max(hAwal, diffEnd + 1);
+
+            // 3. Ambil semua kategori unik dari item IL ini
+            const itemsRes = await client.query<{ kategori_pekerjaan: string }>(`
+                SELECT DISTINCT UPPER(TRIM(kategori_pekerjaan)) AS kategori_pekerjaan
+                FROM instruksi_lapangan_item
+                WHERE id_instruksi_lapangan = $1
+                  AND kategori_pekerjaan IS NOT NULL
+                  AND TRIM(kategori_pekerjaan) <> ''
+            `, [idIL]);
+
+            let injected = 0;
+            let skipped  = 0;
+
+            for (const { kategori_pekerjaan } of itemsRes.rows) {
+                // 4. Cek apakah kategori sudah ada di gantt (cek hanya dengan prefix [IL], agar terpisah dari item RAB)
+                const existCheck = await client.query<{ id: number; dgc_id: number | null }>(`
+                    SELECT kpg.id, dgc.id AS dgc_id
+                    FROM kategori_pekerjaan_gantt kpg
+                    LEFT JOIN day_gantt_chart dgc ON dgc.id_kategori_pekerjaan_gantt = kpg.id
+                    WHERE kpg.id_gantt = $1
+                      AND UPPER(TRIM(kpg.kategori_pekerjaan)) = '[IL] ' || $2
+                    LIMIT 1
+                `, [gantt_id, kategori_pekerjaan]);
+
+                if (existCheck.rows.length > 0) {
+                    // Kategori sudah ada — skip (tidak overwrite data yang sudah di-edit user)
+                    console.log(`[IL][GANTT_INJECT] SKIP Gantt ${gantt_id} | "${kategori_pekerjaan}" sudah ada`);
+                    skipped++;
+                    continue;
+                }
+
+                // 5. Insert kategori baru dengan prefix [IL]
+                const ilName = `[IL] ${kategori_pekerjaan}`;
+                const kpgRes = await client.query<{ id: number }>(`
+                    INSERT INTO kategori_pekerjaan_gantt (id_gantt, kategori_pekerjaan)
+                    VALUES ($1, $2) RETURNING id
+                `, [gantt_id, ilName]);
+
+                const kpgId = kpgRes.rows[0].id;
+
+                // 6. Insert balok hari
+                await client.query(`
+                    INSERT INTO day_gantt_chart (id_gantt, id_kategori_pekerjaan_gantt, h_awal, h_akhir, keterlambatan, kecepatan)
+                    VALUES ($1, $2, $3, $4, NULL, NULL)
+                `, [gantt_id, kpgId, String(hAwal), String(hAkhir)]);
+
+                console.log(`[IL][GANTT_INJECT] INSERT Gantt ${gantt_id} | "${ilName}" | h_awal=${hAwal}, h_akhir=${hAkhir}`);
+                injected++;
+            }
+
+            await client.query("COMMIT");
+            return { injected, skipped };
+
+        } catch (error) {
+            await client.query("ROLLBACK");
+            console.error(`[IL][GANTT_INJECT] Error inject IL id=${idIL}:`, error);
+            throw error;
+        } finally {
+            client.release();
+        }
     }
 };

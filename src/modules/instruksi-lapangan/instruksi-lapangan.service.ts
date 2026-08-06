@@ -424,6 +424,17 @@ export const instruksiLapanganService = {
         await this.generateAndStorePdf(id);
 
         if (action.tindakan === "APPROVE" && currentStatus === "Menunggu Persetujuan Manager") {
+            // Injeksi otomatis kategori IL ke Gantt Chart (background, non-blocking)
+            setImmediate(() => {
+                instruksiLapanganRepository.injectApprovedIlToGantt(id)
+                    .then(({ injected, skipped }) => {
+                        console.log(`[IL][GANTT_INJECT] IL id=${id}: ${injected} kategori diinjeksi, ${skipped} dilewati`);
+                    })
+                    .catch((err) => {
+                        console.error(`[IL][GANTT_INJECT] Error background inject IL id=${id}:`, err?.message || err);
+                    });
+            });
+
             try {
                 const pdfPayload = await this.getPdfDownloadPayload(id);
                 const updatedData = await instruksiLapanganRepository.getHeaderAndToko(id);
