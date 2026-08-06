@@ -482,7 +482,9 @@ export const ganttRepository = {
                 (
                     SELECT COUNT(*)::int
                     FROM (
-                        SELECT ri.id
+                        SELECT DISTINCT
+                            UPPER(TRIM(COALESCE(ri.kategori_pekerjaan, ''))) AS kat,
+                            UPPER(TRIM(COALESCE(ri.jenis_pekerjaan, ''))) AS jen
                         FROM rab_item ri
                         JOIN rab r ON r.id = ri.id_rab
                         WHERE r.id_toko = s.id_toko
@@ -491,8 +493,10 @@ export const ganttRepository = {
                               FROM kategori_pekerjaan_gantt kpg
                               WHERE kpg.id_gantt = s.gantt_id
                           )
-                        UNION ALL
-                        SELECT ili.id
+                        UNION
+                        SELECT DISTINCT
+                            UPPER(TRIM(COALESCE(ili.kategori_pekerjaan, ''))) AS kat,
+                            UPPER(TRIM(COALESCE(ili.jenis_pekerjaan, ''))) AS jen
                         FROM instruksi_lapangan_item ili
                         JOIN instruksi_lapangan il ON il.id = ili.id_instruksi_lapangan
                         WHERE il.id_toko = s.id_toko
@@ -1331,7 +1335,10 @@ export const ganttRepository = {
         const stTargetDate = requestedTanggalPengawasan
             ? requestedTanggalPengawasan
             : buildStTargetInfo(effectiveEnd).st_target_date ?? effectiveEnd;
-        const dateToInsert = requestedTanggalPengawasan || stTargetDate;
+            
+        // FIX: Saat Pertambahan SPK, tanggal pengawasan terakhir harusnya Akhir SPK (effectiveEnd),
+        // bukan Target ST (stTargetDate).
+        const dateToInsert = requestedTanggalPengawasan || effectiveEnd;
         if (!dateToInsert) {
             return {
                 nomor_ulok: nomorUlok,
