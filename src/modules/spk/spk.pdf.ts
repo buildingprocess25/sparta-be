@@ -62,10 +62,6 @@ const staticAssetPath = (filename: string): string => {
     return "";
 };
 
-const roundBeforePpn = (value: number): number => {
-    if (!Number.isFinite(value) || value <= 0) return 0;
-    return Math.floor(value / 10000) * 10000;
-};
 
 const isNoPpnArea = (cabang?: string | null): boolean => {
     const normalized = String(cabang ?? "").trim().toUpperCase();
@@ -92,11 +88,7 @@ export const buildSpkPdfBuffer = async (input: BuildSpkPdfInput): Promise<Buffer
     const p = input.pengajuan;
     const startFormatted = formatTanggal(p.waktu_mulai);
     const endFormatted = formatTanggal(p.waktu_selesai);
-    const today = formatTanggal(new Date().toISOString());
-    const displayGrandTotal = isNoPpnArea(input.tokoCabang)
-        ? roundBeforePpn(Number(p.grand_total))
-        : Number(p.grand_total);
-    const totalFormatted = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(displayGrandTotal);
+    const today = formatTanggal(new Date().toISOString());    const displayGrandTotal = Number(p.grand_total);    const totalFormatted = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(displayGrandTotal);
     const isBatam = input.tokoCabang.toUpperCase() === "BATAM";
     const initiatorRole = isBatam ? "Branch Building Coordinator" : "Branch Building & Maintenance Manager";
 
