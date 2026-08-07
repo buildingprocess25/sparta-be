@@ -384,7 +384,7 @@ const normalizeComparableText = (value?: string | null): string => {
 
 const isPlaceholderText = (value?: string | null): boolean => {
     const normalized = normalizeComparableText(value);
-    return !normalized || normalized === "-" || normalized === "N/A" || normalized === "NULL";
+    return !normalized || normalized === "-" || normalized === "N/A" || normalized === "NULL" || normalized === "NAMAPTTIDAKDITEMUKAN";
 };
 
 const normalizeCabangForPrice = (value?: string | null): string => {
