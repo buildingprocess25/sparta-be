@@ -625,6 +625,16 @@ const findSupportKtkReady = async (user: AuthenticatedUser): Promise<Notificatio
 
     const values: SqlValue[] = [];
     const branchWhere = addBranchScope(user, values, "t.cabang");
+    
+    let picJoin = "";
+    if (!isSuperHuman(user)) {
+        values.push(user.nama_lengkap ?? "");
+        picJoin = `
+        JOIN pic_pengawasan pic ON pic.id_toko = laf.id_toko
+          AND UPPER(TRIM(COALESCE(pic.plc_building_support, ''))) = UPPER(TRIM($${values.length}))
+        `;
+    }
+
     values.push(ITEM_LIMIT);
 
     return queryNotificationRows(`
@@ -704,7 +714,7 @@ const findSupportKtkReady = async (user: AuthenticatedUser): Promise<Notificatio
         FROM latest_active_final laf
         JOIN toko t ON t.id = laf.id_toko
         JOIN expected_total et ON et.id_toko = laf.id_toko
-        JOIN approved_latest_items ali ON ali.id_opname_final = laf.id
+        JOIN approved_latest_items ali ON ali.id_opname_final = laf.id${picJoin}
         WHERE COALESCE(et.expected_count, 0) > 0
           AND COALESCE(ali.approved_count, 0) >= COALESCE(et.expected_count, 0)
           ${branchWhere}
