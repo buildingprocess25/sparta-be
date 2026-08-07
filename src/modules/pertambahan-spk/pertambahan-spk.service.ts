@@ -232,6 +232,17 @@ export const pertambahanSpkService = {
             );
         }
 
+        // Validate that no active or approved Pertambahan SPK exists for this ULOK
+        const existingForUlok = await pertambahanSpkRepository.list({ nomor_ulok: spk.pengajuan.nomor_ulok });
+        const hasActivePertambahan = existingForUlok.some(
+            (p) => p.status_persetujuan === PERTAMBAHAN_SPK_STATUS.WAITING_FOR_BM_APPROVAL || 
+                   p.status_persetujuan === PERTAMBAHAN_SPK_STATUS.APPROVED_BY_BM
+        );
+        
+        if (hasActivePertambahan && !targetRejectedRecord) {
+            throw new AppError("ULOK ini sudah memiliki pengajuan Tambah SPK yang aktif atau disetujui. Pengajuan ganda tidak diizinkan.", 409);
+        }
+
         const linkLampiranPendukung = uploadedLampiranPendukung
             ? await uploadLampiranPendukungToDrive(
                 uploadedLampiranPendukung,

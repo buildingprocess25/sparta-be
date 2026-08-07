@@ -76,12 +76,27 @@ async function main() {
         console.log("Initializing Google Provider...");
         await GoogleProvider.initialize();
 
-        await repairSpk(961, 805216200);
-        await repairSpk(962, 33066900);
+        const targets = [
+            { id: 966, total: 30358500 },
+            { id: 965, total: 777133200 },
+            { id: 151, total: 30303000 },
+            { id: 150, total: 916138500 },
+            { id: 964, total: 35042700 },
+            { id: 963, total: 250804500 },
+            { id: 960, total: 258285900 },
+            { id: 959, total: 43223400 },
+            { id: 958, total: 889010100 },
+            { id: 957, total: 34987200 },
+            { id: 956, total: 434254200 },
+        ];
 
-        console.log("Repair completed.");
+        for (const target of targets) {
+            await repairSpk(target.id, target.total);
+        }
+
+        console.log("Mass repair completed.");
     } catch (error) {
-        console.error("Error during repair:", error);
+        console.error("Error during mass repair:", error);
     } finally {
         await pool.end();
         process.exit(0);

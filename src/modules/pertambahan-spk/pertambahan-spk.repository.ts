@@ -208,6 +208,11 @@ export const pertambahanSpkRepository = {
             conditions.push(`p.status_persetujuan = $${values.length}`);
         }
 
+        if (query.nomor_ulok) {
+            values.push(query.nomor_ulok);
+            conditions.push(`s.nomor_ulok = $${values.length}`);
+        }
+
         // NEW: Prioritize cabang_array over cabang
         if (query.cabang_array && query.cabang_array.length > 0) {
             const normalizedBranches = query.cabang_array.map(b => b.trim().replace(/_+/g, " ").replace(/\s+/g, " ").toUpperCase());
