@@ -356,3 +356,12 @@ export const replaceRabItems = asyncHandler(async (req: Request, res: Response) 
 export const syncRabItemsWithBranchPrices = asyncHandler(async (req: Request, res: Response) => {
     throw new AppError("Sinkron harga cabang RAB dinonaktifkan agar kategori dan harga tetap sesuai input user.", 410);
 });
+
+export const exportRabExcel = asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const excelBuffer = await rabService.exportRabExcel(id);
+    
+    res.setHeader("Content-Disposition", `attachment; filename="RAB_${id}.xlsx"`);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.send(excelBuffer);
+});

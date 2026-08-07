@@ -1,5 +1,6 @@
 import { AppError } from "../../common/app-error";
 import { GoogleProvider } from "../../common/google";
+import * as XLSX from "xlsx";
 import { env } from "../../config/env";
 import { activityLogRepository } from "../activity-log/activity-log.repository";
 import type { ApprovalActionInput } from "../approval/approval.schema";
@@ -651,5 +652,60 @@ export const opnameFinalService = {
             id_toko: idToko,
             updated_count: updatedCount
         };
+    },
+
+    async exportOpnameFinalExcel(id: string): Promise<Buffer> {
+        const detail = await opnameFinalRepository.findById(id);
+        if (!detail) {
+            throw new AppError("Data opname_final tidak ditemukan", 404);
+        }
+
+        const items = detail.items;
+        
+        const excelData = items.map((item, index) => {
+            const sumber = item.id_instruksi_lapangan_item ? "Instruksi Lapangan" : "RAB";
+            const originalItem = item.id_instruksi_lapangan_item ? item.instruksi_lapangan_item : item.rab_item;
+            const hargaSatuan = originalItem ? (Number(originalItem.harga_material || 0) + Number(originalItem.harga_upah || 0)) : 0;
+            
+            return {
+                "No": index + 1,
+                "Sumber": sumber,
+                "Kategori Pekerjaan": item.kategori_pekerjaan || originalItem?.kategori_pekerjaan || "",
+                "Jenis Pekerjaan": item.jenis_pekerjaan || originalItem?.jenis_pekerjaan || "",
+                "Satuan": item.satuan || originalItem?.satuan || "",
+                "Volume Awal": Number(item.volume_rab) || 0,
+                "Volume Akhir": Number(item.volume_akhir) || 0,
+                "Selisih Volume": Number(item.selisih_volume) || 0,
+                "Harga Satuan": hargaSatuan,
+                "Total Selisih": Number(item.total_selisih) || 0,
+                "Total Harga Opname": Number(item.total_harga_opname) || 0,
+                "Status": item.status || "",
+                "Catatan": item.catatan || ""
+            };
+        });
+
+        const workbook = XLSX.utils.book_new();
+        const worksheet = XLSX.utils.json_to_sheet(excelData);
+        
+        const wscols = [
+            { wch: 5 },  // No
+            { wch: 15 }, // Sumber
+            { wch: 30 }, // Kategori
+            { wch: 40 }, // Pekerjaan
+            { wch: 10 }, // Satuan
+            { wch: 15 }, // Vol Awal
+            { wch: 15 }, // Vol Akhir
+            { wch: 15 }, // Selisih Vol
+            { wch: 15 }, // Harga Satuan
+            { wch: 15 }, // Tot Selisih
+            { wch: 15 }, // Tot Harga Opname
+            { wch: 15 }, // Status
+            { wch: 30 }  // Catatan
+        ];
+        worksheet["!cols"] = wscols;
+
+        XLSX.utils.book_append_sheet(workbook, worksheet, "KTK Items");
+        
+        return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
     }
 };

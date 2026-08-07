@@ -15,6 +15,7 @@ import {
 	submitRab,
 	updateRabItemsBulk,
 	updateRabStatus,
+    exportRabExcel,
 } from "./rab.controller";
 import { commitRabMigration, previewRabMigration } from "./rab-migration.controller";
 
@@ -71,6 +72,7 @@ rabRouter.post("/:id/pdf/regenerate-download", regenerateAndDownloadRabPdf);
 rabRouter.get("/:id/pdf", downloadRabPdf);
 rabRouter.get("/:id/logo", downloadRabLogo);
 rabRouter.get("/:id/file-asuransi", downloadRabInsuranceFile);
+rabRouter.get("/:id/excel", exportRabExcel);
 rabRouter.post("/:id/approval", handleRabApproval);
 rabRouter.put("/update-status", updateRabStatus);
 

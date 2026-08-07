@@ -89,3 +89,12 @@ export const lockOpnameFinal = asyncHandler(async (req: Request, res: Response) 
         data
     });
 });
+
+export const exportOpnameFinalExcel = asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const excelBuffer = await opnameFinalService.exportOpnameFinalExcel(id);
+    
+    res.setHeader("Content-Disposition", `attachment; filename="KTK_${id}.xlsx"`);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.send(excelBuffer);
+});

@@ -1,5 +1,6 @@
 import { AppError } from "../../common/app-error";
 import { PDFParse } from "pdf-parse";
+import * as XLSX from "xlsx";
 import { getBranchScopeCandidates, getRabPriceBranch, isSameBranchScope, normalizeBranchScopeName } from "../../common/branch-scope";
 import { GoogleProvider } from "../../common/google";
 import { normalizeProjectByUlok } from "../../common/project-type";
@@ -2518,5 +2519,48 @@ export const rabService = {
             remaining_items: refreshedItems.length,
             totals
         };
+    },
+
+    async exportRabExcel(id: string): Promise<Buffer> {
+        const rabData = await rabRepository.findById(id);
+        if (!rabData) throw new AppError("RAB tidak ditemukan", 404);
+
+        const items = await rabRepository.listItemsByRabId(id);
+        
+        const excelData = items.map((item, index) => ({
+            "No": index + 1,
+            "Kategori Pekerjaan": item.kategori_pekerjaan,
+            "Jenis Pekerjaan": item.jenis_pekerjaan,
+            "Volume": Number(item.volume) || 0,
+            "Satuan": item.satuan,
+            "Harga Material": Number(item.harga_material) || 0,
+            "Harga Upah": Number(item.harga_upah) || 0,
+            "Total Material": Number(item.total_material) || 0,
+            "Total Upah": Number(item.total_upah) || 0,
+            "Total Harga": Number(item.total_harga) || 0,
+            "Catatan": item.catatan || ""
+        }));
+
+        const workbook = XLSX.utils.book_new();
+        const worksheet = XLSX.utils.json_to_sheet(excelData);
+        
+        const wscols = [
+            { wch: 5 },  // No
+            { wch: 30 }, // Kategori
+            { wch: 40 }, // Pekerjaan
+            { wch: 10 }, // Volume
+            { wch: 10 }, // Satuan
+            { wch: 15 }, // Hrg Mat
+            { wch: 15 }, // Hrg Upah
+            { wch: 15 }, // Tot Mat
+            { wch: 15 }, // Tot Upah
+            { wch: 15 }, // Tot Harga
+            { wch: 30 }  // Catatan
+        ];
+        worksheet["!cols"] = wscols;
+
+        XLSX.utils.book_append_sheet(workbook, worksheet, "RAB Items");
+        
+        return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
     }
 };
