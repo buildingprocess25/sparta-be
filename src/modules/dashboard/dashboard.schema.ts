@@ -96,7 +96,7 @@ export const dashboardV2ScopeQuerySchema = z.object({
 
 export const dashboardV2CardRowsQuerySchema = dashboardV2ScopeQuerySchema.extend({
     page: z.coerce.number().int().positive().default(1),
-    limit: z.coerce.number().int().min(5).max(1000).default(20),
+    limit: z.coerce.number().int().min(5).max(100).default(20),
 });
 
 export const dashboardV2ChartsQuerySchema = dashboardV2ScopeQuerySchema.extend({
