@@ -1,0 +1,64 @@
+{
+  "rab": [
+    {
+      "status": "Disetujui",
+      "grand_total_final": "18492600",
+      "luas_bangunan": "172.67"
+    },
+    {
+      "status": "Disetujui",
+      "grand_total_final": "18237300",
+      "luas_bangunan": "209.35"
+    },
+    {
+      "status": "Disetujui",
+      "grand_total_final": "616693800",
+      "luas_bangunan": "254.69"
+    },
+    {
+      "status": "Disetujui",
+      "grand_total_final": "198989700",
+      "luas_bangunan": "193.4"
+    },
+    {
+      "status": "Disetujui",
+      "grand_total_final": "674669100",
+      "luas_bangunan": "252"
+    }
+  ],
+  "spk": [
+    {
+      "status": "SPK_APPROVED",
+      "durasi": 20
+    },
+    {
+      "status": "SPK_APPROVED",
+      "durasi": 20
+    },
+    {
+      "status": "SPK_APPROVED",
+      "durasi": 40
+    },
+    {
+      "status": "SPK_APPROVED",
+      "durasi": 40
+    },
+    {
+      "status": "SPK_APPROVED",
+      "durasi": 48
+    }
+  ],
+  "toko": [
+    {
+      "id": 732,
+      "nomor_ulok": "XZ01-2512-X591-R",
+      "lingkup_pekerjaan": "ME",
+      "nama_toko": "DRAMAGA CANTIK",
+      "kode_toko": null,
+      "proyek": "Renovasi",
+      "cabang": "BOGOR",
+      "alamat": "JL. RAYA DRAMGA RT.02 RW.01 DESA DRAMAGA, KEC. DRAMAGA KAB. BOGOR",
+      "nama_kontraktor": "PT SAGAR PUTRA KREASI"
+    }
+  ]
+}

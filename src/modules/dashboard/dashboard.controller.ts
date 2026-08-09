@@ -106,3 +106,31 @@ export const getDashboardV2Charts = asyncHandler(async (req: Request, res: Respo
     const data = await dashboardV2Service.getCharts(query);
     res.json({ status: "success", data });
 });
+
+import { dashboardKpiQuerySchema } from "./dashboard.schema";
+import { dashboardKpiService } from "./dashboard-kpi.service";
+
+export const getDashboardKpiPerformance = asyncHandler(async (req: Request, res: Response) => {
+    let query = dashboardKpiQuerySchema.parse(req.query);
+    query = await injectBranchFilter(req.user!, query);
+    const data = await dashboardKpiService.getKpiPerformance(query);
+    res.json({ status: "success", data });
+});
+
+export const getDashboardKpiFilters = asyncHandler(async (req: Request, res: Response) => {
+    let query = dashboardKpiQuerySchema.parse(req.query);
+    query = await injectBranchFilter(req.user!, query);
+    const data = await dashboardKpiService.getKpiFilters(query);
+    res.json({ status: "success", data });
+});
+
+export const getDashboardKpiDrilldown = asyncHandler(async (req: Request, res: Response) => {
+    // Add kpi_type to query before parse if it exists
+    let query = dashboardKpiQuerySchema.parse(req.query);
+    query = await injectBranchFilter(req.user!, query);
+    
+    // Pass the raw kpi_type along
+    const finalQuery = { ...query, kpi_type: req.query.kpi_type };
+    const { data, meta } = await dashboardKpiService.getKpiDrilldown(finalQuery);
+    res.json({ status: "success", data, meta });
+});

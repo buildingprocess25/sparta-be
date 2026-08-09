@@ -107,3 +107,10 @@ export type DashboardV2ScopeQueryInput = z.infer<typeof dashboardV2ScopeQuerySch
 export type DashboardV2CardRowsQueryInput = z.infer<typeof dashboardV2CardRowsQuerySchema>;
 export type DashboardV2ChartsQueryInput = z.infer<typeof dashboardV2ChartsQuerySchema>;
 
+export const dashboardKpiQuerySchema = z.object(dashboardScopeSchema).extend({
+    job_type: dashboardV2JobTypeSchema.optional(),
+    coordinator: z.string().trim().optional(),
+    support: z.string().trim().optional()
+});
+
+export type DashboardKpiQueryInput = z.infer<typeof dashboardKpiQuerySchema>;

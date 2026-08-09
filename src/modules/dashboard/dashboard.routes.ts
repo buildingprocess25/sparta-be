@@ -10,7 +10,10 @@ import {
     getDashboardV2Detail,
     getDashboardV2Summary,
     getDashboardV2Timeline,
-    getDashboardView
+    getDashboardView,
+    getDashboardKpiPerformance,
+    getDashboardKpiFilters,
+    getDashboardKpiDrilldown
 } from "./dashboard.controller";
 
 const dashboardRouter = Router();
@@ -24,6 +27,9 @@ dashboardRouter.get("/v2/charts", getDashboardV2Charts);
 dashboardRouter.get("/summary", getDashboardSummary);
 dashboardRouter.get("/projects", getDashboardProjects);
 dashboardRouter.get("/projects/:tokoId", getDashboardProjectDetail);
+dashboardRouter.get("/kpi-performance", getDashboardKpiPerformance);
+dashboardRouter.get("/kpi-filters", getDashboardKpiFilters);
+dashboardRouter.get("/kpi-drilldown", getDashboardKpiDrilldown);
 dashboardRouter.get("/", getDashboardView);
 dashboardRouter.get("/all", getDashboardAll);
 
