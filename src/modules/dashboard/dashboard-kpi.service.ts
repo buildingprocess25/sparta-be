@@ -1,243 +1,299 @@
 import { pool } from "../../db/pool";
-import type { DashboardKpiQueryInput } from "./dashboard.schema";
+import type { DashboardKpiDrilldownQueryInput, DashboardKpiQueryInput } from "./dashboard.schema";
+import {
+    buildDashboardKpiFacts,
+    metricValueForKpiType,
+    summarizeDashboardKpiFacts,
+} from "./dashboard-kpi.facts";
+import type { DashboardKpiDrilldownRow, DashboardKpiFact, DashboardKpiSourceRow } from "./dashboard-kpi.types";
+
+const normalize = (value: unknown) => String(value ?? "").trim();
+const normalizeUpper = (value: unknown) => normalize(value).toUpperCase();
+
+const pushParam = (params: unknown[], value: unknown): string => {
+    params.push(value);
+    return `$${params.length}`;
+};
+
+const buildScopeWhere = (query: DashboardKpiQueryInput, alias = "t") => {
+    const params: unknown[] = [];
+    const where = [`COALESCE(${alias}.nomor_ulok, '') <> ''`];
+
+    if (query.cabang_array && query.cabang_array.length > 0) {
+        where.push(`UPPER(${alias}.cabang) = ANY(${pushParam(params, query.cabang_array.map((item) => item.toUpperCase()))})`);
+    } else if (normalizeUpper(query.actor_cabang) !== "HEAD OFFICE") {
+        where.push(`UPPER(${alias}.cabang) = ${pushParam(params, normalizeUpper(query.actor_cabang))}`);
+    }
+
+    if (query.cabang && normalizeUpper(query.cabang) !== "ALL" && normalizeUpper(query.cabang) !== "SEMUA CABANG") {
+        where.push(`UPPER(${alias}.cabang) = ${pushParam(params, normalizeUpper(query.cabang))}`);
+    }
+
+    if (query.search) {
+        const search = `%${query.search}%`;
+        where.push(`(${alias}.nomor_ulok ILIKE ${pushParam(params, search)} OR ${alias}.nama_toko ILIKE ${pushParam(params, search)})`);
+    }
+
+    if (query.job_type && normalizeUpper(query.job_type) !== "ALL") {
+        where.push(`UPPER(${alias}.lingkup_pekerjaan) = ${pushParam(params, normalizeUpper(query.job_type))}`);
+    }
+
+    return { where: where.join(" AND "), params };
+};
+
+const loadKpiRows = async (query: DashboardKpiQueryInput): Promise<DashboardKpiSourceRow[]> => {
+    const scoped = buildScopeWhere(query, "t");
+    const filters = [scoped.where];
+    const params = [...scoped.params];
+
+    if (query.coordinator && normalizeUpper(query.coordinator) !== "ALL") {
+        filters.push(`EXISTS (
+            SELECT 1 FROM rab rf
+            WHERE rf.id_toko = t.id
+              AND UPPER(rf.pemberi_persetujuan_koordinator) = ${pushParam(params, normalizeUpper(query.coordinator))}
+        )`);
+    }
+
+    if (query.support && normalizeUpper(query.support) !== "ALL") {
+        filters.push(`EXISTS (
+            SELECT 1 FROM pic_pengawasan pf
+            WHERE pf.id_toko = t.id
+              AND UPPER(pf.plc_building_support) = ${pushParam(params, normalizeUpper(query.support))}
+        )`);
+    }
+
+    const sql = `
+        WITH latest_rab AS (
+            SELECT DISTINCT ON (id_toko)
+                id, id_toko, status, grand_total_final, luas_bangunan, created_at,
+                waktu_persetujuan_koordinator, waktu_persetujuan_manager, waktu_persetujuan_direktur,
+                pemberi_persetujuan_koordinator
+            FROM rab
+            WHERE UPPER(COALESCE(status, '')) IN ('DISETUJUI', 'APPROVED')
+            ORDER BY id_toko, COALESCE(waktu_persetujuan_direktur::text, waktu_persetujuan_manager::text, waktu_persetujuan_koordinator::text, created_at::text) DESC NULLS LAST, id DESC
+        ),
+        valid_spk AS (
+            SELECT DISTINCT ON (id_toko)
+                ps.id, ps.id_toko, ps.status, ps.durasi, ps.waktu_mulai, ps.waktu_selesai,
+                (
+                    SELECT MAX(pt.tanggal_spk_akhir_setelah_perpanjangan)
+                    FROM pertambahan_spk pt
+                    WHERE pt.id_spk = ps.id
+                      AND UPPER(COALESCE(pt.status_persetujuan, '')) IN ('APPROVED', 'DISETUJUI', 'DISETUJUI BM')
+                ) AS pertambahan_akhir_setelah_perpanjangan
+            FROM pengajuan_spk ps
+            WHERE UPPER(COALESCE(ps.status, '')) IN ('SPK_APPROVED', 'ACTIVE', 'SELESAI', 'APPROVED', 'DISETUJUI', 'AKTIF')
+            ORDER BY id_toko, COALESCE(waktu_selesai::text, waktu_mulai::text, created_at::text) DESC NULLS LAST, id DESC
+        ),
+        latest_opname AS (
+            SELECT DISTINCT ON (id_toko)
+                id, id_toko, status_opname_final, created_at, grand_total_final, grand_total_opname, grand_total_rab,
+                tanggal_akhir_spk_denda, tanggal_serah_terima_denda, hari_denda, nilai_denda
+            FROM opname_final
+            ORDER BY id_toko,
+                CASE WHEN UPPER(COALESCE(status_opname_final, '')) LIKE '%SETUJU%' THEN 0 ELSE 1 END,
+                COALESCE(waktu_persetujuan_direktur::text, created_at::text) DESC NULLS LAST,
+                id DESC
+        ),
+        latest_st AS (
+            SELECT DISTINCT ON (id_toko)
+                id_toko, created_at, link_pdf
+            FROM berkas_serah_terima
+            WHERE COALESCE(link_pdf, '') <> ''
+            ORDER BY id_toko, created_at DESC NULLS LAST, id DESC
+        ),
+        latest_pic AS (
+            SELECT DISTINCT ON (id_toko)
+                id_toko, plc_building_support
+            FROM pic_pengawasan
+            WHERE COALESCE(plc_building_support, '') <> ''
+            ORDER BY id_toko, id DESC
+        )
+        SELECT
+            t.id AS toko_id,
+            t.nomor_ulok,
+            t.nama_toko,
+            t.kode_toko,
+            t.cabang,
+            t.lingkup_pekerjaan,
+            r.id AS rab_id,
+            r.status AS rab_status,
+            r.grand_total_final AS rab_grand_total_final,
+            r.luas_bangunan AS rab_luas_bangunan,
+            r.created_at AS rab_created_at,
+            r.waktu_persetujuan_koordinator AS rab_waktu_persetujuan_koordinator,
+            r.waktu_persetujuan_manager AS rab_waktu_persetujuan_manager,
+            r.waktu_persetujuan_direktur AS rab_waktu_persetujuan_direktur,
+            r.pemberi_persetujuan_koordinator AS rab_pemberi_persetujuan_koordinator,
+            s.id AS spk_id,
+            s.status AS spk_status,
+            s.durasi AS spk_durasi,
+            s.waktu_mulai AS spk_waktu_mulai,
+            s.waktu_selesai AS spk_waktu_selesai,
+            s.pertambahan_akhir_setelah_perpanjangan,
+            o.id AS opname_id,
+            o.status_opname_final AS opname_status,
+            o.created_at AS opname_created_at,
+            o.grand_total_final AS opname_grand_total_final,
+            o.grand_total_opname AS opname_grand_total_opname,
+            o.grand_total_rab AS opname_grand_total_rab,
+            o.tanggal_akhir_spk_denda AS opname_tanggal_akhir_spk_denda,
+            o.tanggal_serah_terima_denda AS opname_tanggal_serah_terima_denda,
+            o.hari_denda AS opname_hari_denda,
+            o.nilai_denda AS opname_nilai_denda,
+            st.created_at AS st_created_at,
+            st.link_pdf AS st_link_pdf,
+            pic.plc_building_support
+        FROM toko t
+        LEFT JOIN latest_rab r ON r.id_toko = t.id
+        LEFT JOIN valid_spk s ON s.id_toko = t.id
+        LEFT JOIN latest_opname o ON o.id_toko = t.id
+        LEFT JOIN latest_st st ON st.id_toko = t.id
+        LEFT JOIN latest_pic pic ON pic.id_toko = t.id
+        WHERE ${filters.join(" AND ")}
+    `;
+
+    const result = await pool.query(sql, params);
+    return result.rows;
+};
+
+const formatNumber = (value: number) => new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(value);
+const rupiah = (value: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value);
+
+const labelFor = (type: string, value: number | null) => {
+    if (value === null) return "-";
+    if (["cost_m2", "denda", "kerja_tambah", "kerja_kurang"].includes(type)) return rupiah(value);
+    if (type === "total_ulok") return `${formatNumber(value)} ULOK`;
+    return `${value.toFixed(1)} hari`;
+};
+
+const toDrilldownRow = (fact: DashboardKpiFact, type: DashboardKpiDrilldownQueryInput["kpi_type"]): DashboardKpiDrilldownRow => {
+    const value = metricValueForKpiType(fact, type);
+    return {
+        nomor_ulok: fact.nomor_ulok,
+        proyek: fact.nama_toko,
+        kode_toko: fact.kode_toko,
+        cabang: fact.cabang,
+        job_types: fact.job_types,
+        value,
+        value_label: labelFor(type, value),
+        secondary_label: `${fact.job_types.join(" + ") || "-"} | ${fact.scope_breakdown.length} lingkup`,
+        coordinators: fact.coordinators,
+        building_supports: fact.building_supports,
+        data_quality_flags: fact.data_quality_flags,
+        scope_breakdown: fact.scope_breakdown,
+        detail: {
+            rab_approved_total: fact.rab_approved_total,
+            luas_bangunan: fact.luas_bangunan,
+            spk_start_date: fact.spk_start_date,
+            spk_end_date_after_extension: fact.spk_end_date_after_extension,
+            st_date: fact.st_date,
+            opname_final_date: fact.opname_final_date,
+            rab_created_date: fact.rab_created_date,
+            rab_coord_approved_date: fact.rab_coord_approved_date,
+            rab_bm_approved_date: fact.rab_bm_approved_date,
+            rab_branch_manager_approved_date: fact.rab_branch_manager_approved_date,
+            official_late_days: fact.official_late_days,
+            official_penalty_amount: fact.official_penalty_amount,
+            opname_total: fact.opname_total,
+            kerja_tambah_amount: fact.kerja_tambah_amount,
+            kerja_kurang_amount: fact.kerja_kurang_amount,
+            avg_sla_coord: fact.avg_sla_coord,
+            avg_sla_bm: fact.avg_sla_bm,
+            avg_sla_branch_manager: fact.avg_sla_branch_manager,
+            avg_sla_approval_total: fact.avg_sla_approval_total,
+        },
+    };
+};
 
 export const dashboardKpiService = {
     async getKpiPerformance(query: DashboardKpiQueryInput) {
-        // Base where clause for scoping based on roles and filters
-        const baseWhere = ["1=1"];
-        const params: any[] = [];
-        
-        // Example handling of branch and roles
-        if (query.cabang && query.cabang !== "ALL" && query.cabang !== "Semua Cabang") {
-            params.push(query.cabang);
-            baseWhere.push(`toko.cabang = $${params.length}`);
-        } else if (query.actor_cabang !== "HEAD OFFICE") {
-            params.push(query.actor_cabang);
-            baseWhere.push(`toko.cabang = $${params.length}`);
-        }
-
-        // Example handling of coordinator and support
-        // Note: toko table does not have koordinator or building_support columns. 
-        // We will need to join with another table (like rab) to filter by koordinator later.
-        // if (query.coordinator && query.coordinator !== "ALL") {
-        //     params.push(`%${query.coordinator}%`);
-        //     baseWhere.push(`toko.koordinator ILIKE $${params.length}`);
-        // }
-        // if (query.support && query.support !== "ALL") {
-        //     params.push(`%${query.support}%`);
-        //     baseWhere.push(`toko.building_support ILIKE $${params.length}`);
-        // }
-
-        const whereClause = baseWhere.join(" AND ");
-
-        // We will execute a single complex query or multiple simpler queries to get the 11 KPIs.
-        // For demonstration, let's aggregate them in a few passes.
-        
-        // Pass 1: Cost/m2, JHK, Denda, Keterlambatan, KTK
-        const kpiQuery = `
-            SELECT 
-                COALESCE(AVG(NULLIF(CASE WHEN rab.luas_bangunan ~ '^[0-9\.\,]+$' THEN CAST(REPLACE(rab.luas_bangunan, ',', '.') AS NUMERIC) ELSE 0 END, 0)), 0) as avg_luas,
-                COALESCE(AVG(NULLIF(CASE WHEN rab.grand_total_final ~ '^[0-9\.\,]+$' THEN CAST(REPLACE(rab.grand_total_final, ',', '.') AS NUMERIC) ELSE 0 END, 0) / NULLIF(CASE WHEN rab.luas_bangunan ~ '^[0-9\.\,]+$' THEN CAST(REPLACE(rab.luas_bangunan, ',', '.') AS NUMERIC) ELSE 0 END, 0)), 0) as avg_cost_m2,
-                COALESCE(AVG(NULLIF(spk.durasi, 0)), 0) as avg_jhk,
-                COALESCE(AVG(NULLIF(opname_final.nilai_denda, 0)), 0) as avg_denda,
-                COALESCE(AVG(NULLIF(opname_final.hari_denda, 0)), 0) as avg_keterlambatan,
-                
-                COALESCE(AVG(
-                    CASE 
-                        WHEN opname_final.grand_total_opname ~ '^[0-9\.\,]+$' AND opname_final.grand_total_rab ~ '^[0-9\.\,]+$'
-                        AND CAST(REPLACE(opname_final.grand_total_opname, ',', '.') AS NUMERIC) > CAST(REPLACE(opname_final.grand_total_rab, ',', '.') AS NUMERIC)
-                        THEN CAST(REPLACE(opname_final.grand_total_opname, ',', '.') AS NUMERIC) - CAST(REPLACE(opname_final.grand_total_rab, ',', '.') AS NUMERIC)
-                    ELSE 0 END
-                ), 0) as avg_kerja_tambah,
-                
-                COALESCE(AVG(
-                    CASE 
-                        WHEN opname_final.grand_total_opname ~ '^[0-9\.\,]+$' AND opname_final.grand_total_rab ~ '^[0-9\.\,]+$'
-                        AND CAST(REPLACE(opname_final.grand_total_opname, ',', '.') AS NUMERIC) < CAST(REPLACE(opname_final.grand_total_rab, ',', '.') AS NUMERIC)
-                        THEN CAST(REPLACE(opname_final.grand_total_rab, ',', '.') AS NUMERIC) - CAST(REPLACE(opname_final.grand_total_opname, ',', '.') AS NUMERIC)
-                    ELSE 0 END
-                ), 0) as avg_kerja_kurang,
-
-                COALESCE(AVG(EXTRACT(EPOCH FROM (rab.waktu_persetujuan_koordinator - rab.created_at))/86400), 0) as avg_sla_coord,
-                COALESCE(AVG(EXTRACT(EPOCH FROM (rab.waktu_persetujuan_manager - rab.waktu_persetujuan_koordinator))/86400), 0) as avg_sla_bm,
-                COALESCE(AVG(EXTRACT(EPOCH FROM (rab.waktu_persetujuan_direktur - rab.waktu_persetujuan_manager))/86400), 0) as avg_sla_branch_manager,
-                
-                COALESCE(AVG(EXTRACT(EPOCH FROM (opname_final.tanggal_serah_terima_denda::timestamp - spk.waktu_selesai))/86400), 0) as avg_ketepatan_st,
-                COALESCE(AVG(EXTRACT(EPOCH FROM (opname_final.created_at - opname_final.tanggal_serah_terima_denda::timestamp))/86400), 0) as avg_sla_ktk
-
-            FROM toko
-            LEFT JOIN rab ON rab.id_toko = toko.id AND rab.status = 'Disetujui'
-            LEFT JOIN pengajuan_spk spk ON spk.id_toko = toko.id AND spk.status IN ('SPK_APPROVED', 'ACTIVE', 'SELESAI')
-            LEFT JOIN opname_final ON opname_final.id_toko = toko.id
-            LEFT JOIN pic_pengawasan pic ON pic.id_toko = toko.id
-            WHERE ${whereClause}
-        `;
-
-        const kpiResult = await pool.query(kpiQuery, params);
-        const row = kpiResult.rows[0] || {};
-
-        // Pass 2: SLA Approvals (Assuming simple difference of dates if available, or mock if we need to parse logs)
-        // Since we don't have exact table structure for logs, we use dummy logic or extracted dates from main tables
-        // For this implementation, we will use mock values for SLA if actual logs are complex to parse in SQL without knowing table schema
-        // Ideally:
-        // avg_sla_coord = AVG(approved_by_coord_date - submitted_to_coord_date)
-        
-
-        return {
-            avg_cost_m2: Number(row.avg_cost_m2) || 0,
-            avg_jhk: Number(row.avg_jhk) || 0,
-            avg_denda: Number(row.avg_denda) || 0,
-            avg_keterlambatan: Number(row.avg_keterlambatan) || 0,
-            avg_kerja_tambah: Number(row.avg_kerja_tambah) || 0,
-            avg_kerja_kurang: Number(row.avg_kerja_kurang) || 0,
-            avg_sla_coord: Number(row.avg_sla_coord) || 0,
-            avg_sla_bm: Number(row.avg_sla_bm) || 0,
-            avg_sla_branch_manager: Number(row.avg_sla_branch_manager) || 0,
-            avg_ketepatan_st: Number(row.avg_ketepatan_st) || 0,
-            avg_sla_ktk: Number(row.avg_sla_ktk) || 0
-        };
+        const rows = await loadKpiRows(query);
+        const facts = buildDashboardKpiFacts(rows);
+        return summarizeDashboardKpiFacts(facts);
     },
 
-    async getKpiFilters(query: any) {
-        // Query distinct koordinator from rab and support from pic_pengawasan
-        // This is a simplified version, applying the same branch filter if necessary
-        const { branches } = query;
-        let whereClause = "1=1";
-        if (branches && branches.length > 0 && !branches.includes('ALL')) {
-            whereClause += ` AND t.cabang = ANY(ARRAY[${branches.map((b: string) => `'${b}'`).join(',')}])`;
+    async getKpiFilters(query: DashboardKpiQueryInput) {
+        const scoped = buildScopeWhere(query, "t");
+
+        const coordinatorParams = [...scoped.params];
+        const coordinatorFilters = [scoped.where, "COALESCE(r.pemberi_persetujuan_koordinator, '') <> ''"];
+        if (query.support && normalizeUpper(query.support) !== "ALL") {
+            coordinatorFilters.push(`EXISTS (
+                SELECT 1 FROM pic_pengawasan pf
+                WHERE pf.id_toko = t.id
+                  AND UPPER(pf.plc_building_support) = ${pushParam(coordinatorParams, normalizeUpper(query.support))}
+            )`);
         }
 
-        const coordQuery = `
-            SELECT DISTINCT r.pemberi_persetujuan_koordinator as name
-            FROM rab r
-            LEFT JOIN toko t ON t.id = r.id_toko
-            WHERE r.pemberi_persetujuan_koordinator IS NOT NULL AND r.pemberi_persetujuan_koordinator != '' AND ${whereClause}
-            ORDER BY 1
-        `;
-        const supportQuery = `
-            SELECT DISTINCT p.plc_building_support as name
-            FROM pic_pengawasan p
-            LEFT JOIN toko t ON t.id = p.id_toko
-            WHERE p.plc_building_support IS NOT NULL AND p.plc_building_support != '' AND ${whereClause}
-            ORDER BY 1
-        `;
+        const supportParams = [...scoped.params];
+        const supportFilters = [scoped.where, "COALESCE(p.plc_building_support, '') <> ''"];
+        if (query.coordinator && normalizeUpper(query.coordinator) !== "ALL") {
+            supportFilters.push(`EXISTS (
+                SELECT 1 FROM rab rf
+                WHERE rf.id_toko = t.id
+                  AND UPPER(rf.pemberi_persetujuan_koordinator) = ${pushParam(supportParams, normalizeUpper(query.coordinator))}
+            )`);
+        }
 
-        const [coordRes, supportRes] = await Promise.all([
-            pool.query(coordQuery),
-            pool.query(supportQuery)
+        const cabangParams = [...scoped.params];
+        const cabangFilters = [scoped.where, "COALESCE(t.cabang, '') <> ''"];
+        if (query.coordinator && normalizeUpper(query.coordinator) !== "ALL") {
+            cabangFilters.push(`EXISTS (
+                SELECT 1 FROM rab rf
+                WHERE rf.id_toko = t.id
+                  AND UPPER(rf.pemberi_persetujuan_koordinator) = ${pushParam(cabangParams, normalizeUpper(query.coordinator))}
+            )`);
+        }
+        if (query.support && normalizeUpper(query.support) !== "ALL") {
+            cabangFilters.push(`EXISTS (
+                SELECT 1 FROM pic_pengawasan pf
+                WHERE pf.id_toko = t.id
+                  AND UPPER(pf.plc_building_support) = ${pushParam(cabangParams, normalizeUpper(query.support))}
+            )`);
+        }
+
+        const [cabangs, coordinators, supports] = await Promise.all([
+            pool.query(`
+                SELECT DISTINCT t.cabang AS name
+                FROM toko t
+                WHERE ${cabangFilters.join(" AND ")}
+                ORDER BY 1
+            `, cabangParams),
+            pool.query(`
+                SELECT DISTINCT r.pemberi_persetujuan_koordinator AS name
+                FROM rab r
+                JOIN toko t ON t.id = r.id_toko
+                WHERE ${coordinatorFilters.join(" AND ")}
+                ORDER BY 1
+            `, coordinatorParams),
+            pool.query(`
+                SELECT DISTINCT p.plc_building_support AS name
+                FROM pic_pengawasan p
+                JOIN toko t ON t.id = p.id_toko
+                WHERE ${supportFilters.join(" AND ")}
+                ORDER BY 1
+            `, supportParams),
         ]);
 
         return {
-            coordinators: coordRes.rows.map(r => r.name),
-            supports: supportRes.rows.map(r => r.name)
+            cabangs: cabangs.rows.map((row) => row.name),
+            coordinators: coordinators.rows.map((row) => row.name),
+            supports: supports.rows.map((row) => row.name),
         };
     },
 
-    async getKpiDrilldown(query: any) {
-        const { branches, kpi_type, coordinator, support } = query;
-        const page = parseInt(query.page) || 1;
-        const limit = parseInt(query.limit) || 20;
-        const offset = (page - 1) * limit;
+    async getKpiDrilldown(query: DashboardKpiDrilldownQueryInput) {
+        const rows = await loadKpiRows(query);
+        const facts = buildDashboardKpiFacts(rows);
+        const sorted = facts
+            .map((fact) => toDrilldownRow(fact, query.kpi_type))
+            .sort((a, b) => (b.value ?? Number.NEGATIVE_INFINITY) - (a.value ?? Number.NEGATIVE_INFINITY));
 
-        let baseWhere = ["1=1"];
-        let params: any[] = [];
-        
-        if (branches && branches.length > 0 && !branches.includes('ALL')) {
-            baseWhere.push(`toko.cabang = ANY($${params.length + 1})`);
-            params.push(branches);
-        }
-        if (coordinator && coordinator !== "ALL") {
-            baseWhere.push(`rab.pemberi_persetujuan_koordinator = $${params.length + 1}`);
-            params.push(coordinator);
-        }
-        if (support && support !== "ALL") {
-            baseWhere.push(`pic.plc_building_support = $${params.length + 1}`);
-            params.push(support);
-        }
-
-        const whereClause = baseWhere.join(" AND ");
-
-        // Determine columns to select and the order by logic
-        let selectCols = `toko.id as id_toko, toko.nama_toko as proyek, toko.cabang, COUNT(*) OVER() as total_count`;
-        let orderClause = ``;
-        let extraJoins = `
-            LEFT JOIN rab ON rab.id_toko = toko.id AND rab.status = 'Disetujui'
-            LEFT JOIN pengajuan_spk spk ON spk.id_toko = toko.id AND spk.status IN ('SPK_APPROVED', 'ACTIVE', 'SELESAI')
-            LEFT JOIN opname_final ON opname_final.id_toko = toko.id
-            LEFT JOIN pic_pengawasan pic ON pic.id_toko = toko.id
-        `;
-
-        if (kpi_type === "cost_m2") {
-            selectCols += `, 
-                NULLIF(CASE WHEN rab.grand_total_final ~ '^[0-9\.\,]+$' THEN CAST(REPLACE(rab.grand_total_final, ',', '.') AS NUMERIC) ELSE 0 END, 0) as total,
-                NULLIF(CASE WHEN rab.luas_bangunan ~ '^[0-9\.\,]+$' THEN CAST(REPLACE(rab.luas_bangunan, ',', '.') AS NUMERIC) ELSE 0 END, 0) as luas,
-                (NULLIF(CASE WHEN rab.grand_total_final ~ '^[0-9\.\,]+$' THEN CAST(REPLACE(rab.grand_total_final, ',', '.') AS NUMERIC) ELSE 0 END, 0) / 
-                NULLIF(CASE WHEN rab.luas_bangunan ~ '^[0-9\.\,]+$' THEN CAST(REPLACE(rab.luas_bangunan, ',', '.') AS NUMERIC) ELSE 0 END, 0)) as info
-            `;
-            orderClause = `ORDER BY info DESC NULLS LAST`;
-        } else if (kpi_type === "jhk") {
-            selectCols += `, ROUND(CAST(NULLIF(spk.durasi, 0) AS NUMERIC), 0) as info`;
-            orderClause = `ORDER BY CAST(NULLIF(spk.durasi, 0) AS NUMERIC) DESC NULLS LAST`;
-        } else if (kpi_type === "denda") {
-            selectCols += `, opname_final.nilai_denda as info`;
-            baseWhere.push(`CAST(NULLIF(opname_final.nilai_denda, 0) AS NUMERIC) > 0`);
-            orderClause = `ORDER BY CAST(NULLIF(opname_final.nilai_denda, 0) AS NUMERIC) DESC NULLS LAST`;
-        } else if (kpi_type === "keterlambatan") {
-            selectCols += `, ROUND(CAST(NULLIF(opname_final.hari_denda, 0) AS NUMERIC), 0) as info`;
-            baseWhere.push(`CAST(NULLIF(opname_final.hari_denda, 0) AS NUMERIC) > 0`);
-            orderClause = `ORDER BY CAST(NULLIF(opname_final.hari_denda, 0) AS NUMERIC) DESC NULLS LAST`;
-        } else if (kpi_type === "ktk_nominal") {
-            selectCols += `, 
-                CASE 
-                    WHEN opname_final.grand_total_opname ~ '^[0-9\.\,]+$' AND opname_final.grand_total_rab ~ '^[0-9\.\,]+$'
-                    AND CAST(REPLACE(opname_final.grand_total_opname, ',', '.') AS NUMERIC) > CAST(REPLACE(opname_final.grand_total_rab, ',', '.') AS NUMERIC)
-                    THEN CAST(REPLACE(opname_final.grand_total_opname, ',', '.') AS NUMERIC) - CAST(REPLACE(opname_final.grand_total_rab, ',', '.') AS NUMERIC)
-                ELSE 0 END as tambah,
-                CASE 
-                    WHEN opname_final.grand_total_opname ~ '^[0-9\.\,]+$' AND opname_final.grand_total_rab ~ '^[0-9\.\,]+$'
-                    AND CAST(REPLACE(opname_final.grand_total_opname, ',', '.') AS NUMERIC) < CAST(REPLACE(opname_final.grand_total_rab, ',', '.') AS NUMERIC)
-                    THEN CAST(REPLACE(opname_final.grand_total_rab, ',', '.') AS NUMERIC) - CAST(REPLACE(opname_final.grand_total_opname, ',', '.') AS NUMERIC)
-                ELSE 0 END as kurang
-            `;
-            orderClause = `ORDER BY tambah DESC, kurang DESC NULLS LAST`;
-        } else if (kpi_type === "sla_approval") {
-            selectCols += `, 
-                ROUND(CAST(EXTRACT(EPOCH FROM (rab.waktu_persetujuan_koordinator - rab.created_at))/86400 AS NUMERIC), 0) as coord_days,
-                ROUND(CAST(EXTRACT(EPOCH FROM (rab.waktu_persetujuan_manager - rab.waktu_persetujuan_koordinator))/86400 AS NUMERIC), 0) as mgr_days,
-                ROUND(CAST(EXTRACT(EPOCH FROM (rab.waktu_persetujuan_direktur - rab.waktu_persetujuan_manager))/86400 AS NUMERIC), 0) as bm_days
-            `;
-            orderClause = `ORDER BY mgr_days DESC NULLS LAST`;
-        } else if (kpi_type === "ketepatan_st") {
-            selectCols += `, ROUND(CAST(EXTRACT(EPOCH FROM (opname_final.tanggal_serah_terima_denda::timestamp - spk.waktu_selesai))/86400 AS NUMERIC), 0) as info`;
-            orderClause = `ORDER BY info DESC NULLS LAST`;
-        } else if (kpi_type === "sla_ktk") {
-            selectCols += `, ROUND(CAST(EXTRACT(EPOCH FROM (opname_final.created_at - opname_final.tanggal_serah_terima_denda::timestamp))/86400 AS NUMERIC), 0) as info`;
-            orderClause = `ORDER BY info DESC NULLS LAST`;
-        } else {
-            selectCols += `, 'Invalid Type' as info`;
-        }
-
-        const sql = `
-            SELECT ${selectCols}
-            FROM toko
-            ${extraJoins}
-            WHERE ${whereClause}
-            ${orderClause}
-            LIMIT $${params.length + 1} OFFSET $${params.length + 2}
-        `;
-        
-        params.push(limit, offset);
-        const result = await pool.query(sql, params);
-        
-        let total = 0;
-        if (result.rows.length > 0) {
-            total = parseInt(result.rows[0].total_count) || 0;
-        }
-        
-        const data = result.rows.map((r: any) => {
-            const { total_count, ...rest } = r;
-            return rest;
-        });
+        const page = query.page;
+        const limit = query.limit;
+        const total = sorted.length;
+        const data = sorted.slice((page - 1) * limit, page * limit);
 
         return {
             data,
@@ -245,8 +301,9 @@ export const dashboardKpiService = {
                 total,
                 page,
                 limit,
-                totalPages: Math.ceil(total / limit)
-            }
+                totalPages: Math.ceil(total / limit),
+                basis: "ULOK_GABUNGAN" as const,
+            },
         };
-    }
+    },
 };
