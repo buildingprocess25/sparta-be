@@ -192,9 +192,7 @@ export type DashboardUserExportRow = {
     email_user: string;
     role: string;
     cabang: string;
-    tanggal_login_terakhir: number | string;
-    bulan_login_terakhir: string;
-    tahun_login_terakhir: number | string;
+    login_terakhir: string;
 };
 
 export const dashboardExportColumns: DashboardExportColumn[] = [
@@ -730,9 +728,7 @@ const userExportColumns: DashboardExportColumn[] = [
     { key: "email_user", label: "Email User" },
     { key: "role", label: "Role" },
     { key: "cabang", label: "Cabang" },
-    { key: "tanggal_login_terakhir", label: "Tanggal Login Terakhir" },
-    { key: "bulan_login_terakhir", label: "Bulan Login Terakhir" },
-    { key: "tahun_login_terakhir", label: "Tahun Login Terakhir" }
+    { key: "login_terakhir", label: "Login Terakhir" }
 ];
 
 const dataTypeLabels: Record<string, string> = {
@@ -1022,20 +1018,23 @@ const monthName = (date: Date): string => new Intl.DateTimeFormat("id-ID", {
     timeZone: "Asia/Jakarta"
 }).format(date);
 
-const splitLoginDate = (value: unknown): Pick<DashboardUserExportRow, "tanggal_login_terakhir" | "bulan_login_terakhir" | "tahun_login_terakhir"> => {
+const formatLoginDate = (value: unknown): Pick<DashboardUserExportRow, "login_terakhir"> => {
     const date = toDate(value);
     if (!date) {
         return {
-            tanggal_login_terakhir: "",
-            bulan_login_terakhir: "",
-            tahun_login_terakhir: ""
+            login_terakhir: ""
         };
     }
 
+    const formattedDate = new Intl.DateTimeFormat("id-ID", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        timeZone: "Asia/Jakarta"
+    }).format(date);
+
     return {
-        tanggal_login_terakhir: Number(new Intl.DateTimeFormat("id-ID", { day: "numeric", timeZone: "Asia/Jakarta" }).format(date)),
-        bulan_login_terakhir: monthName(date),
-        tahun_login_terakhir: Number(new Intl.DateTimeFormat("id-ID", { year: "numeric", timeZone: "Asia/Jakarta" }).format(date))
+        login_terakhir: formattedDate
     };
 };
 
@@ -1044,7 +1043,7 @@ const buildUserRows = (users: DashboardUserSourceRow[]): DashboardUserExportRow[
     email_user: normalize(user.email_user),
     role: normalize(user.role),
     cabang: normalize(user.cabang),
-    ...splitLoginDate(user.last_login_at)
+    ...formatLoginDate(user.last_login_at)
 }));
 
 export const ktkOpnameFinalExportSection = (projects: DashboardData[]): DashboardExportSection => ({
