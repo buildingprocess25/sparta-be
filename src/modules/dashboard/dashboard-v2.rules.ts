@@ -110,7 +110,7 @@ export const isDashboardV2PastSla = (project: DashboardData, stage = getDashboar
     const rab = project.rab?.[0];
 
     if (stage === "Approval RAB") {
-        return dayDiff(parseDashboardV2Date(rab?.created_at), parseDashboardV2Date(rab?.waktu_persetujuan_manager) || now) > 2;
+        return dayDiff(parseDashboardV2Date(rab?.created_at), parseDashboardV2Date(rab?.waktu_persetujuan_manager) || now) > 0;
     }
 
     if (stage === "Proses PJU") {
@@ -118,12 +118,12 @@ export const isDashboardV2PastSla = (project: DashboardData, stage = getDashboar
             .map((spk) => parseDashboardV2Date(spk.created_at))
             .filter((date): date is Date => Boolean(date))
             .sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
-        return dayDiff(parseDashboardV2Date(rab?.waktu_persetujuan_manager), firstSpk || now) > 10;
+        return dayDiff(parseDashboardV2Date(rab?.waktu_persetujuan_manager), firstSpk || now) > 0;
     }
 
     if (stage === "Approval SPK") {
         const spk = project.spk.find((item) => normalize(item.status) === "WAITING_FOR_BM_APPROVAL") || project.spk[0];
-        return dayDiff(parseDashboardV2Date(spk?.created_at), parseDashboardV2Date(spk?.waktu_persetujuan) || now) > 2;
+        return dayDiff(parseDashboardV2Date(spk?.created_at), parseDashboardV2Date(spk?.waktu_persetujuan) || now) > 0;
     }
 
     if (stage === "Ongoing") {
