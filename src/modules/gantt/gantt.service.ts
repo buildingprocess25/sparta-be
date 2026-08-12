@@ -586,7 +586,8 @@ export const ganttService = {
 
         const delayTargetPengawasan = await ganttRepository.ensureDelayTargetPengawasan(
             id,
-            payload.next_tanggal_pengawasan
+            payload.next_tanggal_pengawasan,
+            true // Gunakan target ST (termasuk delay keterlambatan) sebagai fallback
         );
 
         return {

@@ -1273,7 +1273,8 @@ export const ganttRepository = {
 
     async ensureDelayTargetPengawasan(
         sourceGanttId: string,
-        requestedTanggalPengawasan?: string | null
+        requestedTanggalPengawasan?: string | null,
+        useStTargetDateAsFallback: boolean = false
     ): Promise<{
         nomor_ulok: string | null;
         tanggal_pengawasan: string | null;
@@ -1339,8 +1340,8 @@ export const ganttRepository = {
             : buildStTargetInfo(effectiveEnd).st_target_date ?? effectiveEnd;
             
         // FIX: Saat Pertambahan SPK, tanggal pengawasan terakhir harusnya Akhir SPK (effectiveEnd),
-        // bukan Target ST (stTargetDate).
-        const dateToInsert = requestedTanggalPengawasan || effectiveEnd;
+        // namun untuk keterlambatan, gunakan stTargetDate.
+        const dateToInsert = requestedTanggalPengawasan || (useStTargetDateAsFallback ? stTargetDate : effectiveEnd);
         if (!dateToInsert) {
             return {
                 nomor_ulok: nomorUlok,
@@ -1364,6 +1365,25 @@ export const ganttRepository = {
             [dateToInsert]
         );
         const tanggalPengawasan = formattedDate.rows[0].tanggal_pengawasan;
+
+        // Bersihkan checkpoint ST lama (yang lebih dari effectiveEnd) yang masih kosong agar tidak menumpuk
+        if (useStTargetDateAsFallback) {
+            await pool.query(
+                `
+                DELETE FROM pengawasan_gantt pg
+                USING gantt_chart g, toko t
+                WHERE pg.id_gantt = g.id
+                  AND g.id_toko = t.id
+                  AND t.nomor_ulok = $1
+                  AND to_date(pg.tanggal_pengawasan, 'DD/MM/YYYY') > to_date($2::text, 'YYYY-MM-DD')
+                  AND pg.tanggal_pengawasan != $3::text
+                  AND NOT EXISTS (
+                      SELECT 1 FROM pengawasan p WHERE p.id_pengawasan_gantt = pg.id
+                  )
+                `,
+                [nomorUlok, effectiveEnd, tanggalPengawasan]
+            );
+        }
 
         const insertResult = await pool.query(
             `
