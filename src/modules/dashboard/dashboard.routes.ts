@@ -15,6 +15,11 @@ import {
     getDashboardKpiFilters,
     getDashboardKpiDrilldown
 } from "./dashboard.controller";
+import { 
+    getPerformanceSummary, 
+    getPerformanceDrilldown, 
+    getPerformanceTable 
+} from "./dashboard-performance.controller";
 
 const dashboardRouter = Router();
 
@@ -30,6 +35,11 @@ dashboardRouter.get("/projects/:tokoId", getDashboardProjectDetail);
 dashboardRouter.get("/kpi-performance", getDashboardKpiPerformance);
 dashboardRouter.get("/kpi-filters", getDashboardKpiFilters);
 dashboardRouter.get("/kpi-drilldown", getDashboardKpiDrilldown);
+
+// Performance V3 Routes
+dashboardRouter.get("/performance/summary", getPerformanceSummary);
+dashboardRouter.get("/performance/drilldown", getPerformanceDrilldown);
+dashboardRouter.get("/performance/table", getPerformanceTable);
 dashboardRouter.get("/", getDashboardView);
 dashboardRouter.get("/all", getDashboardAll);
 
