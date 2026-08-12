@@ -1,0 +1,437 @@
+import { pool } from "../../db/pool";
+import { avg, buildPerformanceKpiFacts, dayDiff, normalizeName, normalizeUpper } from "./performance-kpi.facts";
+import type {
+    PerformanceKpiApprovalEvent,
+    PerformanceKpiCardType,
+    PerformanceKpiDetailInput,
+    PerformanceKpiDrilldownInput,
+    PerformanceKpiFact,
+    PerformanceKpiPersonRole,
+    PerformanceKpiQueryInput,
+    PerformanceKpiRawRow,
+    PerformanceKpiTableMetric
+} from "./performance-kpi.types";
+
+const pushParam = (params: unknown[], value: unknown): string => {
+    params.push(value);
+    return `$${params.length}`;
+};
+
+const isAll = (value: unknown) => {
+    const normalized = normalizeUpper(value);
+    return !normalized || normalized === "ALL" || normalized === "SEMUA" || normalized === "SEMUA CABANG";
+};
+
+const inList = (value: string | null, items: string[]) => {
+    if (!items.length) return true;
+    return value ? items.map(normalizeUpper).includes(normalizeUpper(value)) : false;
+};
+
+const buildScopeWhere = (query: PerformanceKpiQueryInput, alias = "t") => {
+    const params: unknown[] = [];
+    const where = [`COALESCE(${alias}.nomor_ulok, '') <> ''`];
+
+    if (query.cabang_array?.length) {
+        where.push(`UPPER(${alias}.cabang) = ANY(${pushParam(params, query.cabang_array.map(normalizeUpper))}::text[])`);
+    } else if (normalizeUpper(query.actor_cabang) !== "HEAD OFFICE") {
+        where.push(`UPPER(${alias}.cabang) = ${pushParam(params, normalizeUpper(query.actor_cabang))}`);
+    }
+
+    if (!isAll(query.cabang)) {
+        where.push(`UPPER(${alias}.cabang) = ${pushParam(params, normalizeUpper(query.cabang))}`);
+    }
+
+    if (query.job_type && normalizeUpper(query.job_type) !== "ALL") {
+        where.push(`UPPER(${alias}.lingkup_pekerjaan) = ${pushParam(params, normalizeUpper(query.job_type))}`);
+    }
+
+    if (query.search) {
+        const search = `%${query.search.trim()}%`;
+        where.push(`(${alias}.nomor_ulok ILIKE ${pushParam(params, search)} OR ${alias}.nama_toko ILIKE ${pushParam(params, search)} OR ${alias}.kode_toko ILIKE ${pushParam(params, search)})`);
+    }
+
+    const period = query.period ?? "all";
+    if (period !== "all") {
+        if (period === "ytd") {
+            where.push(`COALESCE(st.created_at, ps.waktu_persetujuan, ps.created_at) >= date_trunc('year', now())`);
+        } else {
+            const monthMap: Record<string, string> = { "1m": "1 month", "3m": "3 months", "6m": "6 months", "12m": "12 months" };
+            where.push(`COALESCE(st.created_at, ps.waktu_persetujuan, ps.created_at, t.id::text::timestamp) >= now() - ${pushParam(params, monthMap[period] ?? "100 years")}::interval`);
+        }
+    }
+
+    if (!isAll(query.support)) {
+        where.push(`EXISTS (SELECT 1 FROM pic_pengawasan pfx WHERE pfx.id_toko = t.id AND UPPER(pfx.plc_building_support) = ${pushParam(params, normalizeUpper(query.support))})`);
+    }
+
+    if (!isAll(query.coordinator)) {
+        const coordParam = pushParam(params, normalizeUpper(query.coordinator));
+        where.push(`(
+            EXISTS (SELECT 1 FROM rab rx WHERE rx.id_toko = t.id AND UPPER(COALESCE(rx.nama_persetujuan_koordinator, rx.pemberi_persetujuan_koordinator, '')) = ${coordParam})
+            OR EXISTS (SELECT 1 FROM instruksi_lapangan ilx WHERE ilx.id_toko = t.id AND UPPER(COALESCE(ilx.pemberi_persetujuan_koordinator, '')) = ${coordParam})
+            OR EXISTS (SELECT 1 FROM opname_final ofx WHERE ofx.id_toko = t.id AND UPPER(COALESCE(ofx.pemberi_persetujuan_koordinator, '')) = ${coordParam})
+        )`);
+    }
+
+    return { where: where.join(" AND "), params };
+};
+
+const loadFacts = async (query: PerformanceKpiQueryInput): Promise<PerformanceKpiFact[]> => {
+    const scoped = buildScopeWhere(query, "t");
+    const sql = `
+        WITH latest_rab AS (
+            SELECT DISTINCT ON (id_toko)
+                id, id_toko, status, grand_total_final, luas_bangunan, luas_area_terbuka,
+                created_at, pemberi_persetujuan_koordinator, nama_persetujuan_koordinator,
+                waktu_persetujuan_koordinator, pemberi_persetujuan_manager, nama_persetujuan_manager,
+                waktu_persetujuan_manager, link_pdf_gabungan, link_pdf_non_sbo, link_pdf_rekapitulasi,
+                link_pdf_sph, link_pdf_materai
+            FROM rab
+            WHERE UPPER(COALESCE(status, '')) IN ('DISETUJUI', 'APPROVED')
+            ORDER BY id_toko, COALESCE(waktu_persetujuan_manager, waktu_persetujuan_koordinator, created_at) DESC NULLS LAST, id DESC
+        ),
+        latest_spk AS (
+            SELECT DISTINCT ON (id_toko)
+                id, id_toko, nomor_spk, status, grand_total, created_at, waktu_mulai, waktu_selesai,
+                durasi, approver_email, waktu_persetujuan, link_pdf
+            FROM pengajuan_spk
+            WHERE UPPER(COALESCE(status, '')) IN ('SPK_APPROVED', 'ACTIVE', 'SELESAI', 'APPROVED', 'DISETUJUI', 'AKTIF')
+            ORDER BY id_toko, COALESCE(waktu_persetujuan, waktu_selesai, created_at) DESC NULLS LAST, id DESC
+        ),
+        latest_tambah AS (
+            SELECT DISTINCT ON (ps.id_toko)
+                pt.id, ps.id_toko, pt.pertambahan_hari, pt.tanggal_spk_akhir,
+                pt.tanggal_spk_akhir_setelah_perpanjangan, pt.created_at, pt.disetujui_oleh,
+                pt.waktu_persetujuan, pt.link_pdf, pt.link_lampiran_pendukung
+            FROM pertambahan_spk pt
+            JOIN pengajuan_spk ps ON ps.id = pt.id_spk
+            WHERE UPPER(COALESCE(pt.status_persetujuan, '')) IN ('APPROVED', 'DISETUJUI', 'DISETUJUI BM', 'DISETUJUI BRANCH MANAGER')
+            ORDER BY ps.id_toko, COALESCE(pt.waktu_persetujuan, pt.created_at) DESC NULLS LAST, pt.id DESC
+        ),
+        latest_il AS (
+            SELECT DISTINCT ON (id_toko)
+                id, id_toko, status, grand_total_final, created_at,
+                pemberi_persetujuan_koordinator, waktu_persetujuan_koordinator,
+                pemberi_persetujuan_manager, waktu_persetujuan_manager,
+                link_pdf_gabungan, link_pdf_non_sbo, link_pdf_rekapitulasi, link_lampiran
+            FROM instruksi_lapangan
+            WHERE UPPER(COALESCE(status, '')) IN ('DISETUJUI', 'APPROVED')
+            ORDER BY id_toko, COALESCE(waktu_persetujuan_manager, waktu_persetujuan_koordinator, created_at) DESC NULLS LAST, id DESC
+        ),
+        latest_opname AS (
+            SELECT DISTINCT ON (id_toko)
+                id, id_toko, status_opname_final, tipe_opname, grand_total_final, grand_total_opname,
+                grand_total_rab, created_at, pemberi_persetujuan_koordinator, waktu_persetujuan_koordinator,
+                pemberi_persetujuan_manager, waktu_persetujuan_manager, pemberi_persetujuan_direktur,
+                waktu_persetujuan_direktur, hari_denda, nilai_denda, tanggal_akhir_spk_denda,
+                tanggal_serah_terima_denda, link_pdf_opname
+            FROM opname_final
+            ORDER BY id_toko,
+                CASE WHEN UPPER(COALESCE(status_opname_final, '')) LIKE '%SETUJU%' THEN 0 ELSE 1 END,
+                COALESCE(NULLIF(waktu_persetujuan_direktur, '')::timestamp, created_at) DESC NULLS LAST,
+                id DESC
+        ),
+        latest_st AS (
+            SELECT DISTINCT ON (id_toko) id_toko, created_at, link_pdf
+            FROM berkas_serah_terima
+            WHERE COALESCE(link_pdf, '') <> ''
+            ORDER BY id_toko, created_at DESC NULLS LAST, id DESC
+        ),
+        latest_pic AS (
+            SELECT DISTINCT ON (id_toko) id_toko, plc_building_support, created_at
+            FROM pic_pengawasan
+            WHERE COALESCE(plc_building_support, '') <> ''
+            ORDER BY id_toko, created_at DESC NULLS LAST, id DESC
+        )
+        SELECT
+            t.id AS toko_id, t.nomor_ulok, t.lingkup_pekerjaan, t.nama_toko, t.kode_toko,
+            t.cabang, t.alamat, t.nama_kontraktor,
+            pic.plc_building_support AS support_name, pic.created_at AS support_created_at,
+            r.id AS rab_id, r.status AS rab_status, r.grand_total_final AS rab_grand_total_final,
+            r.luas_bangunan AS rab_luas_bangunan, r.luas_area_terbuka AS rab_luas_terbuka,
+            r.created_at AS rab_created_at,
+            COALESCE(r.nama_persetujuan_koordinator, r.pemberi_persetujuan_koordinator) AS rab_coord_name,
+            r.waktu_persetujuan_koordinator AS rab_coord_at,
+            COALESCE(r.nama_persetujuan_manager, r.pemberi_persetujuan_manager) AS rab_manager_name,
+            r.waktu_persetujuan_manager AS rab_manager_at,
+            r.link_pdf_gabungan AS rab_pdf_gabungan, r.link_pdf_non_sbo AS rab_pdf_non_sbo,
+            r.link_pdf_rekapitulasi AS rab_pdf_rekap, r.link_pdf_sph AS rab_pdf_sph,
+            r.link_pdf_materai AS rab_pdf_materai,
+            ps.id AS spk_id, ps.nomor_spk AS spk_nomor, ps.status AS spk_status,
+            ps.grand_total AS spk_grand_total, ps.created_at AS spk_created_at,
+            ps.waktu_mulai AS spk_start, ps.waktu_selesai AS spk_end, ps.durasi AS spk_duration,
+            ps.approver_email AS spk_approver, ps.waktu_persetujuan AS spk_approved_at,
+            ps.link_pdf AS spk_pdf,
+            pt.id AS tambah_spk_id, pt.pertambahan_hari AS tambah_spk_days,
+            pt.tanggal_spk_akhir AS tambah_spk_old_end,
+            pt.tanggal_spk_akhir_setelah_perpanjangan AS tambah_spk_new_end,
+            pt.created_at AS tambah_spk_created_at, pt.disetujui_oleh AS tambah_spk_approver,
+            pt.waktu_persetujuan AS tambah_spk_approved_at, pt.link_pdf AS tambah_spk_pdf,
+            pt.link_lampiran_pendukung AS tambah_spk_lampiran,
+            il.id AS il_id, il.status AS il_status, il.grand_total_final AS il_grand_total_final,
+            il.created_at AS il_created_at, il.pemberi_persetujuan_koordinator AS il_coord_name,
+            il.waktu_persetujuan_koordinator AS il_coord_at,
+            il.pemberi_persetujuan_manager AS il_manager_name,
+            il.waktu_persetujuan_manager AS il_manager_at,
+            il.link_pdf_gabungan AS il_pdf_gabungan, il.link_pdf_non_sbo AS il_pdf_non_sbo,
+            il.link_pdf_rekapitulasi AS il_pdf_rekap, il.link_lampiran AS il_lampiran,
+            ofn.id AS opname_id, ofn.status_opname_final AS opname_status,
+            ofn.tipe_opname AS opname_type, ofn.grand_total_final AS opname_grand_total_final,
+            ofn.grand_total_opname AS opname_grand_total_opname, ofn.grand_total_rab AS opname_grand_total_rab,
+            ofn.created_at AS opname_created_at, ofn.pemberi_persetujuan_koordinator AS opname_coord_name,
+            ofn.waktu_persetujuan_koordinator AS opname_coord_at,
+            ofn.pemberi_persetujuan_manager AS opname_manager_name,
+            ofn.waktu_persetujuan_manager AS opname_manager_at,
+            ofn.pemberi_persetujuan_direktur AS opname_director_name,
+            ofn.waktu_persetujuan_direktur AS opname_director_at,
+            ofn.hari_denda AS opname_hari_denda, ofn.nilai_denda AS opname_nilai_denda,
+            ofn.tanggal_akhir_spk_denda AS opname_tanggal_akhir_spk_denda,
+            ofn.tanggal_serah_terima_denda AS opname_tanggal_st_denda,
+            ofn.link_pdf_opname AS opname_pdf,
+            st.created_at AS st_created_at, st.link_pdf AS st_pdf,
+            km.tanggal_notaris_start, km.tanggal_notaris_end, km.persentase_temuan, km.deviasi_pe
+        FROM toko t
+        LEFT JOIN latest_rab r ON r.id_toko = t.id
+        LEFT JOIN latest_spk ps ON ps.id_toko = t.id
+        LEFT JOIN latest_tambah pt ON pt.id_toko = t.id
+        LEFT JOIN latest_il il ON il.id_toko = t.id
+        LEFT JOIN latest_opname ofn ON ofn.id_toko = t.id
+        LEFT JOIN latest_st st ON st.id_toko = t.id
+        LEFT JOIN latest_pic pic ON pic.id_toko = t.id
+        LEFT JOIN toko_kpi_metrics km ON km.id_toko = t.id
+        WHERE ${scoped.where}
+        ORDER BY t.nomor_ulok, t.id
+    `;
+    const result = await pool.query<PerformanceKpiRawRow>(sql, scoped.params);
+    return buildPerformanceKpiFacts(result.rows);
+};
+
+const getCardValue = (fact: PerformanceKpiFact, cardType: PerformanceKpiCardType): number | null => {
+    switch (cardType) {
+        case "cost_m2": return fact.values.costM2Terbangun;
+        case "jhk": return fact.values.jhkDays;
+        case "denda": return fact.values.dendaValue;
+        case "kerja_tambah": return fact.values.kerjaTambah;
+        case "kerja_kurang": return fact.values.kerjaKurang;
+        case "ketepatan_st": return fact.values.ketepatanStDays;
+        case "sla_ktk": return fact.values.slaKtkDays;
+        case "sla_approval": return avg(fact.approvals.map((event) => event.durationDays));
+        default: return null;
+    }
+};
+
+const formatNumber = (value: number | null) => value === null ? "-" : String(Number(value.toFixed(2)));
+
+const approvalFilter = (query: Pick<PerformanceKpiDrilldownInput, "sla_role" | "sla_doc">) => (event: PerformanceKpiApprovalEvent) => {
+    if (query.sla_role && event.role !== query.sla_role) return false;
+    if (query.sla_doc && event.document !== query.sla_doc) return false;
+    return event.durationDays !== null;
+};
+
+const matchesPerson = (fact: PerformanceKpiFact, role?: PerformanceKpiPersonRole, person?: string) => {
+    if (!role || isAll(person)) return true;
+    const names = role === "support" ? fact.supports : fact.coordinators;
+    return names.some((name) => normalizeUpper(name) === normalizeUpper(person));
+};
+
+const matchesDrilldown = (fact: PerformanceKpiFact, query: PerformanceKpiDrilldownInput) => {
+    if (!matchesPerson(fact, query.person_role, query.person_name)) return false;
+    if (query.support_metric) return fact.supports.length > 0;
+    if (query.card_type === "sla_approval") return fact.approvals.some(approvalFilter(query));
+    const value = getCardValue(fact, query.card_type);
+    return value !== null && (query.card_type !== "denda" || value > 0);
+};
+
+const toDrilldownRow = (fact: PerformanceKpiFact, query: PerformanceKpiDrilldownInput) => {
+    const value = query.card_type === "sla_approval"
+        ? avg(fact.approvals.filter(approvalFilter(query)).map((event) => event.durationDays))
+        : getCardValue(fact, query.card_type);
+    return {
+        nomor_ulok: fact.nomorUlok,
+        nama_toko: fact.namaToko,
+        kode_toko: fact.kodeToko,
+        cabang: fact.cabang,
+        supports: fact.supports,
+        coordinators: fact.coordinators,
+        value,
+        value_label: formatNumber(value),
+        secondary_label: fact.dataQuality.length ? `${fact.dataQuality.length} catatan data` : "Data lengkap",
+        data_quality: fact.dataQuality
+    };
+};
+
+const metricForSupport = (fact: PerformanceKpiFact, metric: PerformanceKpiTableMetric) => {
+    const notarisStart = fact.kpiMetrics.tanggalNotarisStart;
+    const notarisEnd = fact.kpiMetrics.tanggalNotarisEnd;
+    const latestSpkStart = fact.rows.map((row) => row.spkStart).filter(Boolean).sort().at(-1) ?? null;
+    const latestSpkEnd = fact.rows.map((row) => row.spkEndWithExtension).filter(Boolean).sort().at(-1) ?? null;
+    switch (metric) {
+        case "jhk_notaris_to_end_spk": return notarisStart && latestSpkEnd ? dayDiff(notarisStart, latestSpkEnd) : null;
+        case "jhk_notaris_to_start_spk": return notarisStart && latestSpkStart ? dayDiff(notarisStart, latestSpkStart) : null;
+        case "persentase_temuan": return fact.kpiMetrics.persentaseTemuan;
+        case "ketepatan_st": return fact.values.ketepatanStDays;
+        case "deviasi_pe": return fact.kpiMetrics.deviasiPe;
+        case "finalisasi_ktk": return fact.values.slaKtkDays;
+        default: return null;
+    }
+};
+
+const buildDetail = (fact: PerformanceKpiFact, query: PerformanceKpiDetailInput) => {
+    const approvalEvents = fact.approvals.filter((event) => {
+        if (query.card_type !== "sla_approval") return true;
+        if (query.sla_role && event.role !== query.sla_role) return false;
+        if (query.sla_doc && event.document !== query.sla_doc) return false;
+        return true;
+    });
+
+    return {
+        nomor_ulok: fact.nomorUlok,
+        nama_toko: fact.namaToko,
+        kode_toko: fact.kodeToko,
+        cabang: fact.cabang,
+        alamat: fact.alamat,
+        kontraktor: fact.kontraktor,
+        supports: fact.supports,
+        coordinators: fact.coordinators,
+        selected_card: query.card_type,
+        selected_value: getCardValue(fact, query.card_type),
+        sections: {
+            cost_m2: {
+                terbangun: fact.values.costM2Terbangun,
+                bangunan: fact.values.costM2Bangunan,
+                area_terbuka: fact.values.costM2Terbuka,
+                formula: "pengajuan_spk.grand_total / luas RAB approved terakhir; terbangun = luas_bangunan + 1/2 luas_area_terbuka"
+            },
+            jhk: {
+                avg_days: fact.values.jhkDays,
+                scopes: fact.rows.map((row) => ({ lingkup: row.lingkup, spk_start: row.spkStart, st_date: row.stDate, extension_days: row.extensionDays, spk_end_with_extension: row.spkEndWithExtension }))
+            },
+            denda: {
+                value: fact.values.dendaValue,
+                policy: "nilai representatif terkecil yang positif antar lingkup; nol diabaikan ketika ada nilai positif",
+                scopes: fact.rows.map((row) => ({ lingkup: row.lingkup, hari_denda: row.dendaDays, nilai_denda: row.dendaValue }))
+            },
+            kerja_tambah_kurang: {
+                kerja_tambah: fact.values.kerjaTambah,
+                kerja_kurang: fact.values.kerjaKurang,
+                formula: "opname_final.grand_total_final/opname - pengajuan_spk.grand_total",
+                scopes: fact.rows.map((row) => ({ lingkup: row.lingkup, spk_total: row.spkTotal, opname_final_total: row.opnameFinalTotal }))
+            },
+            ketepatan_st: {
+                days: fact.values.ketepatanStDays,
+                formula: "tanggal serah terima - (akhir SPK setelah tambah + 1 hari)",
+                scopes: fact.rows.map((row) => ({ lingkup: row.lingkup, spk_end_with_extension: row.spkEndWithExtension, st_date: row.stDate }))
+            },
+            sla_ktk: {
+                days: fact.values.slaKtkDays,
+                formula: "opname_final.waktu_persetujuan_direktur - tanggal serah terima",
+                director_approval: fact.rows.map((row) => ({ lingkup: row.lingkup, st_date: row.stDate, final_ktk_date: row.finalKtkDate }))
+            },
+            sla_approval: {
+                events: approvalEvents,
+                avg_days: avg(approvalEvents.map((event) => event.durationDays))
+            },
+            support_metrics: {
+                jhk_notaris_to_end_spk: metricForSupport(fact, "jhk_notaris_to_end_spk"),
+                jhk_notaris_to_start_spk: metricForSupport(fact, "jhk_notaris_to_start_spk"),
+                persentase_temuan: metricForSupport(fact, "persentase_temuan"),
+                ketepatan_st: metricForSupport(fact, "ketepatan_st"),
+                deviasi_pe: metricForSupport(fact, "deviasi_pe"),
+                finalisasi_ktk: metricForSupport(fact, "finalisasi_ktk")
+            }
+        },
+        documents: fact.documents,
+        data_quality: fact.dataQuality
+    };
+};
+
+export const performanceKpiService = {
+    async getSummary(query: PerformanceKpiQueryInput) {
+        const facts = await loadFacts(query);
+        const approvalEvents = facts.flatMap((fact) => fact.approvals).filter((event) => event.durationDays !== null);
+        return {
+            cards: {
+                sla_approval: {
+                    value: avg(approvalEvents.map((event) => event.durationDays)),
+                    count: approvalEvents.length,
+                    roles: {
+                        support: avg(approvalEvents.filter((event) => event.role === "support").map((event) => event.durationDays)),
+                        coordinator: avg(approvalEvents.filter((event) => event.role === "coordinator").map((event) => event.durationDays)),
+                        bm_manager: avg(approvalEvents.filter((event) => event.role === "bm_manager").map((event) => event.durationDays)),
+                        branch_manager: avg(approvalEvents.filter((event) => event.role === "branch_manager").map((event) => event.durationDays))
+                    }
+                },
+                cost_m2: {
+                    terbangun: avg(facts.map((fact) => fact.values.costM2Terbangun)),
+                    bangunan: avg(facts.map((fact) => fact.values.costM2Bangunan)),
+                    area_terbuka: avg(facts.map((fact) => fact.values.costM2Terbuka)),
+                    count: facts.filter((fact) => fact.values.costM2Terbangun !== null).length
+                },
+                jhk: { value: avg(facts.map((fact) => fact.values.jhkDays)), count: facts.filter((fact) => fact.values.jhkDays !== null).length },
+                denda: { value: avg(facts.map((fact) => fact.values.dendaValue)), count: facts.filter((fact) => (fact.values.dendaValue ?? 0) > 0).length },
+                kerja_tambah: { value: avg(facts.map((fact) => fact.values.kerjaTambah)), count: facts.filter((fact) => fact.values.kerjaTambah !== null).length },
+                kerja_kurang: { value: avg(facts.map((fact) => fact.values.kerjaKurang)), count: facts.filter((fact) => fact.values.kerjaKurang !== null).length },
+                ketepatan_st: { value: avg(facts.map((fact) => fact.values.ketepatanStDays)), count: facts.filter((fact) => fact.values.ketepatanStDays !== null).length },
+                sla_ktk: { value: avg(facts.map((fact) => fact.values.slaKtkDays)), count: facts.filter((fact) => fact.values.slaKtkDays !== null).length }
+            },
+            meta: {
+                total_ulok: facts.length,
+                incomplete_ulok: facts.filter((fact) => fact.dataQuality.length > 0).length,
+                period: query.period ?? "all",
+                basis: "ULOK_GABUNGAN"
+            }
+        };
+    },
+
+    async getFilters(query: PerformanceKpiQueryInput) {
+        const facts = await loadFacts(query);
+        return {
+            cabangs: Array.from(new Set(facts.map((fact) => fact.cabang).filter(Boolean))).sort(),
+            coordinators: Array.from(new Set(facts.flatMap((fact) => fact.coordinators))).sort(),
+            supports: Array.from(new Set(facts.flatMap((fact) => fact.supports))).sort()
+        };
+    },
+
+    async getDrilldown(query: PerformanceKpiDrilldownInput) {
+        const facts = (await loadFacts(query)).filter((fact) => matchesDrilldown(fact, query));
+        const rows = facts.map((fact) => toDrilldownRow(fact, query));
+        const total = rows.length;
+        const page = query.page;
+        const limit = query.limit;
+        return {
+            data: rows.slice((page - 1) * limit, page * limit),
+            meta: { total, page, limit, totalPages: Math.ceil(total / limit), basis: "ULOK_GABUNGAN" }
+        };
+    },
+
+    async getDetail(query: PerformanceKpiDetailInput) {
+        const facts = await loadFacts({ ...query, search: query.nomor_ulok });
+        const fact = facts.find((item) => normalizeUpper(item.nomorUlok) === normalizeUpper(query.nomor_ulok));
+        if (!fact) return null;
+        return buildDetail(fact, query);
+    },
+
+    async getTable(query: PerformanceKpiQueryInput) {
+        const facts = await loadFacts(query);
+        const grouped = new Map<string, PerformanceKpiFact[]>();
+        for (const fact of facts) {
+            for (const support of fact.supports) {
+                const rows = grouped.get(support) ?? [];
+                rows.push(fact);
+                grouped.set(support, rows);
+            }
+        }
+
+        return Array.from(grouped.entries()).map(([nama_support, supportFacts]) => ({
+            nama_support,
+            total_ulok: supportFacts.length,
+            jhk_notaris_to_end_spk: avg(supportFacts.map((fact) => metricForSupport(fact, "jhk_notaris_to_end_spk"))),
+            jhk_notaris_to_start_spk: avg(supportFacts.map((fact) => metricForSupport(fact, "jhk_notaris_to_start_spk"))),
+            persentase_temuan: avg(supportFacts.map((fact) => metricForSupport(fact, "persentase_temuan"))),
+            ketepatan_st: avg(supportFacts.map((fact) => metricForSupport(fact, "ketepatan_st"))),
+            deviasi_pe: avg(supportFacts.map((fact) => metricForSupport(fact, "deviasi_pe"))),
+            finalisasi_ktk: avg(supportFacts.map((fact) => metricForSupport(fact, "finalisasi_ktk"))),
+            incomplete_ulok: supportFacts.filter((fact) => fact.dataQuality.length > 0).length
+        })).sort((a, b) => a.nama_support.localeCompare(b.nama_support));
+    }
+};

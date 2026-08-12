@@ -1,0 +1,257 @@
+import type {
+    PerformanceKpiApprovalEvent,
+    PerformanceKpiDocument,
+    PerformanceKpiDocumentLink,
+    PerformanceKpiFact,
+    PerformanceKpiRawRow,
+    PerformanceKpiScopeRow,
+    PerformanceKpiSlaRole
+} from "./performance-kpi.types";
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+export const normalizeName = (value: unknown): string => String(value ?? "").trim();
+export const normalizeUpper = (value: unknown): string => normalizeName(value).toUpperCase();
+
+export const parseNumber = (value: unknown): number | null => {
+    if (value === null || value === undefined) return null;
+    if (typeof value === "number") return Number.isFinite(value) ? value : null;
+    const normalized = String(value).replace(/[^0-9,.-]/g, "").replace(/,/g, "").trim();
+    if (!normalized) return null;
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+};
+
+export const toDate = (value: unknown): Date | null => {
+    if (!value) return null;
+    const date = value instanceof Date ? value : new Date(String(value));
+    return Number.isNaN(date.getTime()) ? null : date;
+};
+
+export const toIso = (value: unknown): string | null => {
+    const date = toDate(value);
+    return date ? date.toISOString() : null;
+};
+
+export const dayDiff = (start: unknown, end: unknown): number | null => {
+    const startDate = toDate(start);
+    const endDate = toDate(end);
+    if (!startDate || !endDate) return null;
+    return Math.ceil((endDate.getTime() - startDate.getTime()) / DAY_MS);
+};
+
+const average = (values: Array<number | null | undefined>): number | null => {
+    const valid = values.filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+    if (!valid.length) return null;
+    return valid.reduce((sum, value) => sum + value, 0) / valid.length;
+};
+
+const latestDate = (values: Array<unknown>): string | null => {
+    const dates = values.map(toDate).filter((date): date is Date => Boolean(date));
+    if (!dates.length) return null;
+    return new Date(Math.max(...dates.map((date) => date.getTime()))).toISOString();
+};
+
+const firstValue = <T>(values: Array<T | null | undefined>): T | null => {
+    for (const value of values) {
+        if (value !== null && value !== undefined && String(value).trim() !== "") return value;
+    }
+    return null;
+};
+
+const addUnique = (items: Set<string>, value: unknown) => {
+    const normalized = normalizeName(value);
+    if (normalized) items.add(normalized);
+};
+
+const addDocument = (documents: PerformanceKpiDocumentLink[], seen: Set<string>, type: PerformanceKpiDocumentLink["type"], label: string, url: unknown, source: string) => {
+    const link = normalizeName(url);
+    if (!link) return;
+    const key = `${type}:${link}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    documents.push({ type, label, url: link, source });
+};
+
+const addApproval = (
+    approvals: PerformanceKpiApprovalEvent[],
+    role: PerformanceKpiSlaRole,
+    document: PerformanceKpiDocument,
+    label: string,
+    actorName: unknown,
+    startAt: unknown,
+    approvedAt: unknown,
+    source: string
+) => {
+    const approved = toIso(approvedAt);
+    if (!approved) return;
+    approvals.push({
+        role,
+        document,
+        label,
+        actorName: normalizeName(actorName) || null,
+        startAt: toIso(startAt),
+        approvedAt: approved,
+        durationDays: dayDiff(startAt, approvedAt),
+        source
+    });
+};
+
+const getScopeRow = (row: PerformanceKpiRawRow): PerformanceKpiScopeRow => {
+    const spkEndWithExtension = toIso(row.tambah_spk_new_end) ?? toIso(row.spk_end);
+    const spkTotal = parseNumber(row.spk_grand_total);
+    const opnameTotal = parseNumber(row.opname_grand_total_final) ?? parseNumber(row.opname_grand_total_opname);
+    return {
+        tokoId: row.toko_id,
+        lingkup: row.lingkup_pekerjaan,
+        supportName: normalizeName(row.support_name) || null,
+        spkTotal,
+        spkStart: toIso(row.spk_start),
+        spkEnd: toIso(row.spk_end),
+        spkEndWithExtension,
+        spkDurationDays: row.spk_start && row.st_created_at ? dayDiff(row.spk_start, row.st_created_at) : row.spk_duration ?? null,
+        extensionDays: parseNumber(row.tambah_spk_days),
+        rabTotal: parseNumber(row.rab_grand_total_final),
+        luasBangunan: parseNumber(row.rab_luas_bangunan),
+        luasTerbuka: parseNumber(row.rab_luas_terbuka),
+        opnameFinalTotal: opnameTotal,
+        dendaValue: parseNumber(row.opname_nilai_denda),
+        dendaDays: row.opname_hari_denda ?? null,
+        stDate: toIso(row.st_created_at),
+        finalKtkDate: toIso(row.opname_director_at)
+    };
+};
+
+const summarizeValues = (rows: PerformanceKpiScopeRow[]) => {
+    const spkTotal = average(rows.map((row) => row.spkTotal));
+    const luasBangunan = average(rows.map((row) => row.luasBangunan));
+    const luasTerbuka = average(rows.map((row) => row.luasTerbuka));
+    const luasTerbangun = luasBangunan !== null || luasTerbuka !== null ? (luasBangunan ?? 0) + ((luasTerbuka ?? 0) / 2) : null;
+
+    const positiveDenda = rows
+        .map((row) => row.dendaValue)
+        .filter((value): value is number => typeof value === "number" && value > 0);
+    const dendaValue = positiveDenda.length ? Math.min(...positiveDenda) : null;
+
+    const deltas = rows
+        .map((row) => row.opnameFinalTotal !== null && row.spkTotal !== null ? row.opnameFinalTotal - row.spkTotal : null)
+        .filter((value): value is number => typeof value === "number" && value !== 0);
+    const tambah = deltas.filter((value) => value > 0);
+    const kurang = deltas.filter((value) => value < 0).map(Math.abs);
+
+    const stTargetDates = rows.map((row) => row.spkEndWithExtension).filter(Boolean);
+    const stDates = rows.map((row) => row.stDate).filter(Boolean);
+    const latestStTarget = latestDate(stTargetDates);
+    const latestSt = latestDate(stDates);
+    const ketepatanRaw = latestStTarget && latestSt ? dayDiff(latestStTarget, latestSt) : null;
+    const ketepatanStDays = ketepatanRaw === null ? null : ketepatanRaw - 1;
+
+    const finalKtkDate = latestDate(rows.map((row) => row.finalKtkDate));
+    const slaKtkDays = latestSt && finalKtkDate ? dayDiff(latestSt, finalKtkDate) : null;
+
+    return {
+        costM2Terbangun: spkTotal !== null && luasTerbangun && luasTerbangun > 0 ? spkTotal / luasTerbangun : null,
+        costM2Bangunan: spkTotal !== null && luasBangunan && luasBangunan > 0 ? spkTotal / luasBangunan : null,
+        costM2Terbuka: spkTotal !== null && luasTerbuka && luasTerbuka > 0 ? spkTotal / luasTerbuka : null,
+        jhkDays: average(rows.map((row) => row.spkDurationDays)),
+        dendaValue,
+        kerjaTambah: tambah.length ? average(tambah) : null,
+        kerjaKurang: kurang.length ? average(kurang) : null,
+        ketepatanStDays,
+        slaKtkDays
+    };
+};
+
+const qualityFlags = (fact: Pick<PerformanceKpiFact, "values" | "kpiMetrics" | "rows" | "approvals">): string[] => {
+    const flags: string[] = [];
+    if (fact.values.costM2Terbangun === null) flags.push("MISSING_COST_M2_SOURCE");
+    if (fact.values.jhkDays === null) flags.push("MISSING_JHK_SOURCE");
+    if (fact.values.ketepatanStDays === null) flags.push("MISSING_ST_OR_SPK_END");
+    if (fact.values.slaKtkDays === null) flags.push("MISSING_KTK_DIRECTOR_OR_ST");
+    if (fact.kpiMetrics.tanggalNotarisStart === null) flags.push("NOTARIS_NOT_INPUT");
+    if (fact.kpiMetrics.persentaseTemuan === null) flags.push("TEMUAN_NOT_INPUT");
+    if (fact.kpiMetrics.deviasiPe === null) flags.push("DEVIASI_PE_NOT_INPUT");
+    if (!fact.approvals.length) flags.push("NO_APPROVAL_TIMESTAMPS");
+    return flags;
+};
+
+export const buildPerformanceKpiFacts = (sourceRows: PerformanceKpiRawRow[]): PerformanceKpiFact[] => {
+    const grouped = new Map<string, PerformanceKpiRawRow[]>();
+    for (const row of sourceRows) {
+        const key = normalizeName(row.nomor_ulok);
+        if (!key) continue;
+        const rows = grouped.get(key) ?? [];
+        rows.push(row);
+        grouped.set(key, rows);
+    }
+
+    return Array.from(grouped.entries()).map(([nomorUlok, rawRows]) => {
+        const first = rawRows[0];
+        const supportSet = new Set<string>();
+        const coordSet = new Set<string>();
+        const documents: PerformanceKpiDocumentLink[] = [];
+        const docSeen = new Set<string>();
+        const approvals: PerformanceKpiApprovalEvent[] = [];
+        const scopeRows = rawRows.map(getScopeRow);
+
+        for (const row of rawRows) {
+            addUnique(supportSet, row.support_name);
+            addUnique(coordSet, row.rab_coord_name);
+            addUnique(coordSet, row.il_coord_name);
+            addUnique(coordSet, row.opname_coord_name);
+
+            addDocument(documents, docSeen, "rab", "RAB Gabungan", row.rab_pdf_gabungan, "rab.link_pdf_gabungan");
+            addDocument(documents, docSeen, "rab", "RAB Non SBO", row.rab_pdf_non_sbo, "rab.link_pdf_non_sbo");
+            addDocument(documents, docSeen, "rab", "RAB Rekapitulasi", row.rab_pdf_rekap, "rab.link_pdf_rekapitulasi");
+            addDocument(documents, docSeen, "sph", "SPH", row.rab_pdf_sph, "rab.link_pdf_sph");
+            addDocument(documents, docSeen, "rab", "RAB Materai", row.rab_pdf_materai, "rab.link_pdf_materai");
+            addDocument(documents, docSeen, "spk", "SPK", row.spk_pdf, "pengajuan_spk.link_pdf");
+            addDocument(documents, docSeen, "tambah_spk", "Tambah SPK", row.tambah_spk_pdf, "pertambahan_spk.link_pdf");
+            addDocument(documents, docSeen, "lampiran", "Lampiran Tambah SPK", row.tambah_spk_lampiran, "pertambahan_spk.link_lampiran_pendukung");
+            addDocument(documents, docSeen, "il", "Instruksi Lapangan Gabungan", row.il_pdf_gabungan, "instruksi_lapangan.link_pdf_gabungan");
+            addDocument(documents, docSeen, "il", "Instruksi Lapangan Non SBO", row.il_pdf_non_sbo, "instruksi_lapangan.link_pdf_non_sbo");
+            addDocument(documents, docSeen, "il", "Instruksi Lapangan Rekapitulasi", row.il_pdf_rekap, "instruksi_lapangan.link_pdf_rekapitulasi");
+            addDocument(documents, docSeen, "lampiran", "Lampiran IL", row.il_lampiran, "instruksi_lapangan.link_lampiran");
+            addDocument(documents, docSeen, "ktk", "Opname Final / KTK", row.opname_pdf, "opname_final.link_pdf_opname");
+            addDocument(documents, docSeen, "serah_terima", "Serah Terima", row.st_pdf, "berkas_serah_terima.link_pdf");
+
+            addApproval(approvals, "coordinator", "rab", "RAB diketahui Coordinator", row.rab_coord_name, row.rab_created_at, row.rab_coord_at, "rab.created_at -> rab.waktu_persetujuan_koordinator");
+            addApproval(approvals, "bm_manager", "rab", "RAB disetujui B&M Manager", row.rab_manager_name, row.rab_coord_at, row.rab_manager_at, "rab.waktu_persetujuan_koordinator -> rab.waktu_persetujuan_manager");
+            addApproval(approvals, "branch_manager", "spk", "SPK disetujui Branch Manager", row.spk_approver, row.spk_created_at, row.spk_approved_at, "pengajuan_spk.created_at -> pengajuan_spk.waktu_persetujuan");
+            addApproval(approvals, "branch_manager", "tambah_spk", "Tambah SPK disetujui Branch Manager", row.tambah_spk_approver, row.tambah_spk_created_at, row.tambah_spk_approved_at, "pertambahan_spk.created_at -> pertambahan_spk.waktu_persetujuan");
+            addApproval(approvals, "coordinator", "il", "IL diketahui Coordinator", row.il_coord_name, row.il_created_at, row.il_coord_at, "instruksi_lapangan.created_at -> instruksi_lapangan.waktu_persetujuan_koordinator");
+            addApproval(approvals, "bm_manager", "il", "IL disetujui B&M Manager", row.il_manager_name, row.il_coord_at, row.il_manager_at, "instruksi_lapangan.waktu_persetujuan_koordinator -> instruksi_lapangan.waktu_persetujuan_manager");
+            addApproval(approvals, "support", "ktk", "KTK dibuat Support sampai diketahui Coordinator", row.opname_coord_name, row.opname_created_at, row.opname_coord_at, "opname_final.created_at -> opname_final.waktu_persetujuan_koordinator");
+            addApproval(approvals, "coordinator", "ktk", "KTK diketahui Coordinator", row.opname_coord_name, row.opname_created_at, row.opname_coord_at, "opname_final.created_at -> opname_final.waktu_persetujuan_koordinator");
+            addApproval(approvals, "bm_manager", "ktk", "KTK disetujui B&M Manager", row.opname_manager_name, row.opname_coord_at, row.opname_manager_at, "opname_final.waktu_persetujuan_koordinator -> opname_final.waktu_persetujuan_manager");
+        }
+
+        const kpiMetrics = {
+            tanggalNotarisStart: toIso(firstValue(rawRows.map((row) => row.tanggal_notaris_start))),
+            tanggalNotarisEnd: toIso(firstValue(rawRows.map((row) => row.tanggal_notaris_end))),
+            persentaseTemuan: parseNumber(firstValue(rawRows.map((row) => row.persentase_temuan))),
+            deviasiPe: parseNumber(firstValue(rawRows.map((row) => row.deviasi_pe)))
+        };
+        const values = summarizeValues(scopeRows);
+        const partial = { rows: scopeRows, approvals, values, kpiMetrics };
+
+        return {
+            nomorUlok,
+            namaToko: firstValue(rawRows.map((row) => row.nama_toko)),
+            kodeToko: firstValue(rawRows.map((row) => row.kode_toko)),
+            cabang: firstValue(rawRows.map((row) => row.cabang)),
+            alamat: firstValue(rawRows.map((row) => row.alamat)),
+            kontraktor: firstValue(rawRows.map((row) => row.nama_kontraktor)),
+            supports: Array.from(supportSet).sort((a, b) => a.localeCompare(b)),
+            coordinators: Array.from(coordSet).sort((a, b) => a.localeCompare(b)),
+            rows: scopeRows,
+            approvals,
+            documents,
+            kpiMetrics,
+            values,
+            dataQuality: qualityFlags(partial)
+        };
+    });
+};
+
+export const avg = average;

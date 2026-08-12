@@ -114,3 +114,26 @@ export const dashboardKpiQuerySchema = z.object(dashboardScopeSchema).extend({
 });
 
 export type DashboardKpiQueryInput = z.infer<typeof dashboardKpiQuerySchema>;
+
+export const dashboardKpiDrilldownTypeSchema = z.enum([
+    "keterlambatan",
+    "denda",
+    "kerja_tambah",
+    "kerja_kurang",
+    "total_ulok",
+    "cost_m2",
+    "jhk",
+    "sla_coord",
+    "sla_bm",
+    "sla_branch_manager",
+    "ketepatan_st",
+    "sla_ktk"
+]);
+
+export const dashboardKpiDrilldownQuerySchema = dashboardKpiQuerySchema.extend({
+    kpi_type: dashboardKpiDrilldownTypeSchema,
+    page: z.coerce.number().int().positive().default(1),
+    limit: z.coerce.number().int().min(5).max(100).default(50)
+});
+
+export type DashboardKpiDrilldownQueryInput = z.infer<typeof dashboardKpiDrilldownQuerySchema>;
