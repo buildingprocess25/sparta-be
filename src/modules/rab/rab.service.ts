@@ -10,6 +10,7 @@ import { userCabangRepository } from "../user-cabang/user-cabang.repository";
 import type { ApprovalActionInput } from "../approval/approval.schema";
 import { activityLogRepository } from "../activity-log/activity-log.repository";
 import { pool } from "../../db/pool";
+import { SUPPORTED_PRICE_BRANCHES } from "../price-rab/price-rab.constants";
 import { priceRabService, type PriceResult } from "../price-rab/price-rab.service";
 import { projekPlanningRepository } from "../project-planning/project-planning.repository";
 import type { ProjekPlanningRow } from "../project-planning/project-planning.repository";
@@ -399,7 +400,7 @@ const normalizeCabangForPrice = (value?: string | null): string => {
 const usesRabParentPrice = (cabang?: string | null): boolean => {
     const normalized = normalizeBranchScopeName(cabang);
     const priceBranch = getRabPriceBranch(normalized);
-    return priceBranch === "CIKOKOL" || priceBranch === "CILEUNGSI";
+    return SUPPORTED_PRICE_BRANCHES.includes(priceBranch);
 };
 
 const findUserCabangByEmailAndBranchScope = async (email: string, branch: string) => {

@@ -47,6 +47,8 @@ export const SPREADSHEET_IDS: Record<string, Record<"ME" | "SIPIL", string>> = {
     "HEAD OFFICE": { "ME": "1oQfZkWSP-TWQmQMY-gM1qVcLP_i47REBmJj1IfDNzkg", "SIPIL": "1Jf_qTHOMpmyLWp9zR_5CiwjyzWWtD8cH99qt4kJvLOw" }
 };
 
+export const SUPPORTED_PRICE_BRANCHES: string[] = Object.keys(SPREADSHEET_IDS);
+
 export const SBO_SPREADSHEET_ID = "11efRx3l6fXn5XLd_HZEQHmFWwQX5vRUIBVgFecCYMXQ";
 
 export const BRANCH_TO_ULOK_MAP: Record<string, string> = {
