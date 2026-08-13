@@ -287,5 +287,4 @@ export const buildPerformanceKpiFacts = (sourceRows: PerformanceKpiRawRow[]): Pe
 };
 
 export const avg = average;
-e x p o r t   {   s u m   } ;  
- 
+export { sum };
