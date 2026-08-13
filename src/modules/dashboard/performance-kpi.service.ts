@@ -1,14 +1,19 @@
 import { pool } from "../../db/pool";
-import { avg, buildPerformanceKpiFacts, dayDiff, normalizeName, normalizeUpper } from "./performance-kpi.facts";
+import { avg, sum, buildPerformanceKpiFacts, dayDiff, normalizeName, normalizeUpper } from "./performance-kpi.facts";
+import { BRANCH_GROUPS, normalizeBranchScopeName } from "../../common/branch-scope";
+
 import type {
     PerformanceKpiApprovalEvent,
     PerformanceKpiCardType,
     PerformanceKpiDetailInput,
     PerformanceKpiDrilldownInput,
     PerformanceKpiFact,
+    PerformanceKpiOptionStat,
+    PerformanceKpiOptionStatsInput,
     PerformanceKpiPersonRole,
     PerformanceKpiQueryInput,
     PerformanceKpiRawRow,
+    PerformanceKpiSlaRole,
     PerformanceKpiTableMetric
 } from "./performance-kpi.types";
 
@@ -22,11 +27,90 @@ const isAll = (value: unknown) => {
     return !normalized || normalized === "ALL" || normalized === "SEMUA" || normalized === "SEMUA CABANG";
 };
 
-const inList = (value: string | null, items: string[]) => {
-    if (!items.length) return true;
-    return value ? items.map(normalizeUpper).includes(normalizeUpper(value)) : false;
+
+type IdentityAliasMap = Map<string, string>;
+type IdentityAliases = { map: IdentityAliasMap; validNames: Set<string> };
+
+const isEmailAddress = (value: string | null | undefined): boolean => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeName(value));
+
+const addIdentityAlias = (aliases: IdentityAliases, label: string | null | undefined, alias: string | null | undefined) => {
+    const normalizedAlias = normalizeUpper(alias);
+    const normalizedLabel = normalizeName(label);
+    if (normalizedLabel) aliases.validNames.add(normalizedLabel);
+    if (normalizedAlias && normalizedLabel) aliases.map.set(normalizedAlias, normalizedLabel);
 };
 
+const loadIdentityAliasMaps = async (): Promise<{ support: IdentityAliases; coordinator: IdentityAliases }> => {
+    const result = await pool.query<{ nama_lengkap: string | null; email_sat: string | null; jabatan: string | null }>(`
+        SELECT nama_lengkap, email_sat, jabatan
+        FROM user_cabang
+        WHERE COALESCE(nama_lengkap, '') <> '' OR COALESCE(email_sat, '') <> ''
+    `);
+    const support: IdentityAliases = { map: new Map<string, string>(), validNames: new Set<string>() };
+    const coordinator: IdentityAliases = { map: new Map<string, string>(), validNames: new Set<string>() };
+    for (const row of result.rows) {
+        const jabatan = normalizeUpper(row.jabatan);
+        const target = jabatan.includes("SUPPORT")
+            ? support
+            : (jabatan.includes("COORD") || jabatan.includes("KOORD"))
+                ? coordinator
+                : null;
+        if (!target) continue;
+        const label = normalizeName(row.nama_lengkap) || normalizeName(row.email_sat);
+        addIdentityAlias(target, label, row.nama_lengkap);
+        addIdentityAlias(target, label, row.email_sat);
+    }
+    return { support, coordinator };
+};
+
+const canonicalizeName = (value: string | null | undefined, aliases: IdentityAliases): string | null => {
+    const raw = normalizeName(value);
+    if (!raw) return null;
+    const mapped = aliases.map.get(normalizeUpper(raw));
+    if (mapped) return mapped;
+    if (isEmailAddress(raw)) return null;
+    return aliases.validNames.has(raw) ? raw : null;
+};
+
+const canonicalizeNames = (values: string[], aliases: IdentityAliases): string[] =>
+    Array.from(new Set(values.map((value) => canonicalizeName(value, aliases)).filter((value): value is string => Boolean(value))))
+        .sort((a, b) => a.localeCompare(b));
+
+const canonicalizeApprovalActors = (fact: PerformanceKpiFact, aliases: { support: IdentityAliases; coordinator: IdentityAliases }): PerformanceKpiApprovalEvent[] =>
+    fact.approvals.map((event) => {
+        const actorName = event.role === "support"
+            ? canonicalizeName(event.actorName, aliases.support)
+            : event.role === "coordinator"
+                ? canonicalizeName(event.actorName, aliases.coordinator)
+                : event.actorName;
+        return { ...event, actorName };
+    });
+
+const normalizeFactPeople = (fact: PerformanceKpiFact, aliases: { support: IdentityAliases; coordinator: IdentityAliases }): PerformanceKpiFact => ({
+    ...fact,
+    supports: canonicalizeNames(fact.supports, aliases.support),
+    coordinators: canonicalizeNames(fact.coordinators, aliases.coordinator),
+    approvals: canonicalizeApprovalActors(fact, aliases)
+});
+
+const filterFactsByPeople = (facts: PerformanceKpiFact[], query: PerformanceKpiQueryInput, aliases: { support: IdentityAliases; coordinator: IdentityAliases }) => {
+    const supportFilter = isAll(query.support) ? null : (canonicalizeName(query.support, aliases.support) ?? "__NO_MATCH__");
+    const coordinatorFilter = isAll(query.coordinator) ? null : (canonicalizeName(query.coordinator, aliases.coordinator) ?? "__NO_MATCH__");
+    return facts.filter((fact) => {
+        if (supportFilter && !fact.supports.some((support) => normalizeUpper(support) === normalizeUpper(supportFilter))) return false;
+        if (coordinatorFilter && !fact.coordinators.some((coordinator) => normalizeUpper(coordinator) === normalizeUpper(coordinatorFilter))) return false;
+        return true;
+    });
+};
+
+const projectTypePredicate = (alias: string, placeholder: string) => `(
+    (${placeholder} = 'REGULER' AND UPPER(TRIM(COALESCE(${alias}.proyek, ''))) IN ('REGULER', 'ALFAMART REGULER'))
+    OR (${placeholder} = 'RENOVASI' AND (
+        UPPER(TRIM(COALESCE(${alias}.proyek, ''))) LIKE '%RENOVASI%'
+        OR UPPER(TRIM(COALESCE(${alias}.proyek, ''))) LIKE '%PERBAIKAN%'
+        OR UPPER(TRIM(COALESCE(${alias}.proyek, ''))) LIKE '%PEREMAJAAN%'
+    ))
+)`;
 const buildScopeWhere = (query: PerformanceKpiQueryInput, alias = "t") => {
     const params: unknown[] = [];
     const where = [`COALESCE(${alias}.nomor_ulok, '') <> ''`];
@@ -38,11 +122,14 @@ const buildScopeWhere = (query: PerformanceKpiQueryInput, alias = "t") => {
     }
 
     if (!isAll(query.cabang)) {
-        where.push(`UPPER(${alias}.cabang) = ${pushParam(params, normalizeUpper(query.cabang))}`);
+        const selected = normalizeBranchScopeName(query.cabang!);
+        const groupBranches = Object.entries(BRANCH_GROUPS).find(([parent]) => parent === selected)?.[1] || [selected];
+        where.push(`UPPER(${alias}.cabang) = ANY(${pushParam(params, groupBranches)}::text[])`);
     }
 
     if (query.job_type && normalizeUpper(query.job_type) !== "ALL") {
-        where.push(`UPPER(${alias}.lingkup_pekerjaan) = ${pushParam(params, normalizeUpper(query.job_type))}`);
+        const projectTypeParam = pushParam(params, normalizeUpper(query.job_type));
+        where.push(projectTypePredicate(alias, projectTypeParam));
     }
 
     if (query.search) {
@@ -56,23 +143,9 @@ const buildScopeWhere = (query: PerformanceKpiQueryInput, alias = "t") => {
             where.push(`COALESCE(st.created_at, ps.waktu_persetujuan, ps.created_at) >= date_trunc('year', now())`);
         } else {
             const monthMap: Record<string, string> = { "1m": "1 month", "3m": "3 months", "6m": "6 months", "12m": "12 months" };
-            where.push(`COALESCE(st.created_at, ps.waktu_persetujuan, ps.created_at, t.id::text::timestamp) >= now() - ${pushParam(params, monthMap[period] ?? "100 years")}::interval`);
+            where.push(`COALESCE(st.created_at, ps.waktu_persetujuan, ps.created_at) >= now() - ${pushParam(params, monthMap[period] ?? "100 years")}::interval`);
         }
     }
-
-    if (!isAll(query.support)) {
-        where.push(`EXISTS (SELECT 1 FROM pic_pengawasan pfx WHERE pfx.id_toko = t.id AND UPPER(pfx.plc_building_support) = ${pushParam(params, normalizeUpper(query.support))})`);
-    }
-
-    if (!isAll(query.coordinator)) {
-        const coordParam = pushParam(params, normalizeUpper(query.coordinator));
-        where.push(`(
-            EXISTS (SELECT 1 FROM rab rx WHERE rx.id_toko = t.id AND UPPER(COALESCE(rx.nama_persetujuan_koordinator, rx.pemberi_persetujuan_koordinator, '')) = ${coordParam})
-            OR EXISTS (SELECT 1 FROM instruksi_lapangan ilx WHERE ilx.id_toko = t.id AND UPPER(COALESCE(ilx.pemberi_persetujuan_koordinator, '')) = ${coordParam})
-            OR EXISTS (SELECT 1 FROM opname_final ofx WHERE ofx.id_toko = t.id AND UPPER(COALESCE(ofx.pemberi_persetujuan_koordinator, '')) = ${coordParam})
-        )`);
-    }
-
     return { where: where.join(" AND "), params };
 };
 
@@ -144,7 +217,7 @@ const loadFacts = async (query: PerformanceKpiQueryInput): Promise<PerformanceKp
             ORDER BY id_toko, created_at DESC NULLS LAST, id DESC
         )
         SELECT
-            t.id AS toko_id, t.nomor_ulok, t.lingkup_pekerjaan, t.nama_toko, t.kode_toko,
+            t.id AS toko_id, t.nomor_ulok, t.lingkup_pekerjaan, t.proyek, t.nama_toko, t.kode_toko,
             t.cabang, t.alamat, t.nama_kontraktor,
             pic.plc_building_support AS support_name, pic.created_at AS support_created_at,
             r.id AS rab_id, r.status AS rab_status, r.grand_total_final AS rab_grand_total_final,
@@ -203,7 +276,9 @@ const loadFacts = async (query: PerformanceKpiQueryInput): Promise<PerformanceKp
         ORDER BY t.nomor_ulok, t.id
     `;
     const result = await pool.query<PerformanceKpiRawRow>(sql, scoped.params);
-    return buildPerformanceKpiFacts(result.rows);
+    const aliases = await loadIdentityAliasMaps();
+    const facts = buildPerformanceKpiFacts(result.rows).map((fact) => normalizeFactPeople(fact, aliases));
+    return filterFactsByPeople(facts, query, aliases);
 };
 
 const getCardValue = (fact: PerformanceKpiFact, cardType: PerformanceKpiCardType): number | null => {
@@ -221,6 +296,32 @@ const getCardValue = (fact: PerformanceKpiFact, cardType: PerformanceKpiCardType
 };
 
 const formatNumber = (value: number | null) => value === null ? "-" : String(Number(value.toFixed(2)));
+const weightedAverage = (items: Array<{ numerator: number | null | undefined; denominator: number | null | undefined }>): number | null => {
+    let numeratorTotal = 0;
+    let denominatorTotal = 0;
+    for (const item of items) {
+        if (typeof item.numerator !== "number" || !Number.isFinite(item.numerator)) continue;
+        if (typeof item.denominator !== "number" || !Number.isFinite(item.denominator) || item.denominator <= 0) continue;
+        numeratorTotal += item.numerator;
+        denominatorTotal += item.denominator;
+    }
+    return denominatorTotal > 0 ? numeratorTotal / denominatorTotal : null;
+};
+
+const aggregateCostM2 = (facts: PerformanceKpiFact[]) => {
+    const rows = facts.flatMap((fact) => fact.rows);
+    return {
+        terbangun: weightedAverage(rows.map((row) => ({
+            numerator: row.spkTotal,
+            denominator: row.luasBangunan !== null || row.luasTerbuka !== null
+                ? (row.luasBangunan ?? 0) + ((row.luasTerbuka ?? 0) / 2)
+                : null
+        }))),
+        bangunan: weightedAverage(rows.map((row) => ({ numerator: row.spkTotal, denominator: row.luasBangunan }))),
+        area_terbuka: weightedAverage(rows.map((row) => ({ numerator: row.spkTotal, denominator: row.luasTerbuka }))),
+        count: facts.filter((fact) => fact.values.costM2Terbangun !== null).length
+    };
+};
 
 const approvalFilter = (query: Pick<PerformanceKpiDrilldownInput, "sla_role" | "sla_doc" | "person_name">) => (event: PerformanceKpiApprovalEvent) => {
     if (query.sla_role && event.role !== query.sla_role) return false;
@@ -277,6 +378,77 @@ const metricForSupport = (fact: PerformanceKpiFact, metric: PerformanceKpiTableM
     }
 };
 
+
+const roleLabels: Record<string, string> = {
+    support: "Branch Building Support",
+    coordinator: "Branch Building Coordinator",
+    bm_manager: "Branch Building & Maintenance Manager",
+    branch_manager: "Branch Manager"
+};
+
+const docLabels: Record<string, string> = {
+    rab: "RAB",
+    spk: "SPK",
+    tambah_spk: "Tambah SPK",
+    il: "Instruksi Lapangan",
+    ktk: "KTK / Opname Final"
+};
+
+const optionStat = (id: string, label: string, values: Array<number | null | undefined>, facts: PerformanceKpiFact[]): PerformanceKpiOptionStat => ({
+    id,
+    label,
+    value: avg(values),
+    count: values.filter((value) => typeof value === "number" && Number.isFinite(value)).length,
+    incomplete_count: facts.filter((fact) => fact.dataQuality.length > 0).length
+});
+
+const cardValueForStats = (fact: PerformanceKpiFact, cardType: PerformanceKpiCardType): number | null => getCardValue(fact, cardType);
+
+const optionFactsByPerson = (facts: PerformanceKpiFact[], role: PerformanceKpiPersonRole, name: string) =>
+    facts.filter((fact) => matchesPerson(fact, role, name));
+
+const buildRoleOptionStats = (facts: PerformanceKpiFact[], cardType: PerformanceKpiCardType, roles: Array<PerformanceKpiSlaRole | PerformanceKpiPersonRole>): PerformanceKpiOptionStat[] =>
+    roles.map((role) => {
+        if (cardType === "sla_approval") {
+            const events = facts.flatMap((fact) => fact.approvals).filter((event) => event.role === role && event.durationDays !== null);
+            return optionStat(role, roleLabels[role] ?? role, events.map((event) => event.durationDays), facts);
+        }
+        const roleFacts = facts.filter((fact) => role === "support" ? fact.supports.length > 0 : fact.coordinators.length > 0);
+        return optionStat(role, roleLabels[role] ?? role, roleFacts.map((fact) => cardValueForStats(fact, cardType)), roleFacts);
+    });
+
+const buildPeopleOptionStats = (facts: PerformanceKpiFact[], cardType: PerformanceKpiCardType, selectedRole?: PerformanceKpiSlaRole | PerformanceKpiPersonRole): PerformanceKpiOptionStat[] => {
+    if (!selectedRole) return [];
+    if (cardType === "sla_approval") {
+        const names = Array.from(new Set(facts.flatMap((fact) => fact.approvals.filter((event) => event.role === selectedRole && event.actorName).map((event) => event.actorName as string)))).sort();
+        return names.map((name) => {
+            const events = facts.flatMap((fact) => fact.approvals).filter((event) => event.role === selectedRole && normalizeUpper(event.actorName) === normalizeUpper(name) && event.durationDays !== null);
+            const relatedFacts = facts.filter((fact) => fact.approvals.some((event) => event.role === selectedRole && normalizeUpper(event.actorName) === normalizeUpper(name)));
+            return optionStat(name, name, events.map((event) => event.durationDays), relatedFacts);
+        });
+    }
+    if (selectedRole !== "support" && selectedRole !== "coordinator") return [];
+    const names = Array.from(new Set(facts.flatMap((fact) => selectedRole === "support" ? fact.supports : fact.coordinators))).sort();
+    return names.map((name) => {
+        const personFacts = optionFactsByPerson(facts, selectedRole, name);
+        return optionStat(name, name, personFacts.map((fact) => cardValueForStats(fact, cardType)), personFacts);
+    });
+};
+
+const buildDocumentOptionStats = (facts: PerformanceKpiFact[], selectedRole?: PerformanceKpiSlaRole | PerformanceKpiPersonRole, selectedName?: string): PerformanceKpiOptionStat[] => {
+    if (!selectedRole) return [];
+    const events = facts.flatMap((fact) => fact.approvals.map((event) => ({ event, fact }))).filter(({ event }) => {
+        if (event.role !== selectedRole || event.durationDays === null) return false;
+        if (selectedName && !isAll(selectedName) && normalizeUpper(event.actorName) !== normalizeUpper(selectedName)) return false;
+        return true;
+    });
+    const docs = Array.from(new Set(events.map(({ event }) => event.document))).sort();
+    return docs.map((doc) => {
+        const docEvents = events.filter(({ event }) => event.document === doc);
+        const relatedFacts = Array.from(new Set(docEvents.map(({ fact }) => fact)));
+        return optionStat(doc, docLabels[doc] ?? doc, docEvents.map(({ event }) => event.durationDays), relatedFacts);
+    });
+};
 const buildDetail = (fact: PerformanceKpiFact, query: PerformanceKpiDetailInput) => {
     const approvalEvents = fact.approvals.filter((event) => {
         if (query.card_type !== "sla_approval") return true;
@@ -304,8 +476,19 @@ const buildDetail = (fact: PerformanceKpiFact, query: PerformanceKpiDetailInput)
                 formula: "pengajuan_spk.grand_total / luas RAB approved terakhir; terbangun = luas_bangunan + 1/2 luas_area_terbuka"
             },
             jhk: {
-                avg_days: fact.values.jhkDays,
-                scopes: fact.rows.map((row) => ({ lingkup: row.lingkup, spk_start: row.spkStart, st_date: row.stDate, extension_days: row.extensionDays, spk_end_with_extension: row.spkEndWithExtension }))
+                avg_days: fact.values.jhkActualDays,
+                avg_target_days: fact.values.jhkTargetDays,
+                scopes: fact.rows.map((row) => ({
+                    lingkup: row.lingkup,
+                    project_type: row.projectType,
+                    spk_start: row.spkStart,
+                    st_date: row.stDate,
+                    target_st_date: row.targetStDate,
+                    jhk_actual_days: row.jhkActualDays,
+                    jhk_target_days: row.jhkTargetDays,
+                    extension_days: row.extensionDays,
+                    spk_end_with_extension: row.spkEndWithExtension
+                }))
             },
             denda: {
                 value: fact.values.dendaValue,
@@ -347,9 +530,23 @@ const buildDetail = (fact: PerformanceKpiFact, query: PerformanceKpiDetailInput)
 };
 
 export const performanceKpiService = {
+    async getOptionStats(query: PerformanceKpiOptionStatsInput) {
+        const facts = await loadFacts(query);
+        const selectedRole = query.selected_role;
+        const selectedName = query.selected_name;
+        const roles = query.card_type === "sla_approval"
+            ? (["support", "coordinator", "bm_manager", "branch_manager"] as Array<PerformanceKpiSlaRole | PerformanceKpiPersonRole>)
+            : (["support", "coordinator"] as Array<PerformanceKpiSlaRole | PerformanceKpiPersonRole>);
+        return {
+            roles: buildRoleOptionStats(facts, query.card_type, roles),
+            people: buildPeopleOptionStats(facts, query.card_type, selectedRole),
+            documents: query.card_type === "sla_approval" ? buildDocumentOptionStats(facts, selectedRole, selectedName) : []
+        };
+    },
     async getSummary(query: PerformanceKpiQueryInput) {
         const facts = await loadFacts(query);
         const approvalEvents = facts.flatMap((fact) => fact.approvals).filter((event) => event.durationDays !== null);
+        const costM2 = aggregateCostM2(facts);
         return {
             cards: {
                 sla_approval: {
@@ -362,16 +559,28 @@ export const performanceKpiService = {
                         branch_manager: avg(approvalEvents.filter((event) => event.role === "branch_manager").map((event) => event.durationDays))
                     }
                 },
-                cost_m2: {
-                    terbangun: avg(facts.map((fact) => fact.values.costM2Terbangun)),
-                    bangunan: avg(facts.map((fact) => fact.values.costM2Bangunan)),
-                    area_terbuka: avg(facts.map((fact) => fact.values.costM2Terbuka)),
-                    count: facts.filter((fact) => fact.values.costM2Terbangun !== null).length
+                cost_m2: costM2,
+                jhk: {
+                    value: avg(facts.map((fact) => fact.values.jhkActualDays)),
+                    count: facts.filter((fact) => fact.values.jhkActualDays !== null).length,
+                    target_value: avg(facts.map((fact) => fact.values.jhkTargetDays)),
+                    target_count: facts.filter((fact) => fact.values.jhkTargetDays !== null).length
                 },
-                jhk: { value: avg(facts.map((fact) => fact.values.jhkDays)), count: facts.filter((fact) => fact.values.jhkDays !== null).length },
-                denda: { value: avg(facts.map((fact) => fact.values.dendaValue)), count: facts.filter((fact) => (fact.values.dendaValue ?? 0) > 0).length },
-                kerja_tambah: { value: avg(facts.map((fact) => fact.values.kerjaTambah)), count: facts.filter((fact) => fact.values.kerjaTambah !== null).length },
-                kerja_kurang: { value: avg(facts.map((fact) => fact.values.kerjaKurang)), count: facts.filter((fact) => fact.values.kerjaKurang !== null).length },
+                denda: { 
+                    value: avg(facts.map((fact) => fact.values.dendaValue)), 
+                    sum_value: sum(facts.map((fact) => fact.values.dendaValue)),
+                    count: facts.filter((fact) => (fact.values.dendaValue ?? 0) > 0).length 
+                },
+                kerja_tambah: { 
+                    value: avg(facts.map((fact) => fact.values.kerjaTambah)), 
+                    sum_value: sum(facts.map((fact) => fact.values.kerjaTambah)),
+                    count: facts.filter((fact) => fact.values.kerjaTambah !== null).length 
+                },
+                kerja_kurang: { 
+                    value: avg(facts.map((fact) => fact.values.kerjaKurang)), 
+                    sum_value: sum(facts.map((fact) => fact.values.kerjaKurang)),
+                    count: facts.filter((fact) => fact.values.kerjaKurang !== null).length 
+                },
                 ketepatan_st: { value: avg(facts.map((fact) => fact.values.ketepatanStDays)), count: facts.filter((fact) => fact.values.ketepatanStDays !== null).length },
                 sla_ktk: { value: avg(facts.map((fact) => fact.values.slaKtkDays)), count: facts.filter((fact) => fact.values.slaKtkDays !== null).length }
             },
@@ -401,7 +610,7 @@ export const performanceKpiService = {
         }
 
         return {
-            cabangs: Array.from(new Set(facts.map((fact) => fact.cabang).filter(Boolean))).sort(),
+            cabangs: Array.from(new Set(facts.map((fact) => fact.cabang ? normalizeBranchScopeName(fact.cabang) : null).filter(Boolean))).sort(),
             coordinators: Array.from(new Set(facts.flatMap((fact) => fact.coordinators))).sort(),
             supports: Array.from(new Set(facts.flatMap((fact) => fact.supports))).sort(),
             approvalActors: {

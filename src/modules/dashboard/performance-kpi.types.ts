@@ -60,6 +60,7 @@ export type PerformanceKpiRawRow = {
     toko_id: number;
     nomor_ulok: string | null;
     lingkup_pekerjaan: string | null;
+    proyek: string | null;
     nama_toko: string | null;
     kode_toko: string | null;
     cabang: string | null;
@@ -169,11 +170,15 @@ export type PerformanceKpiScopeRow = {
     tokoId: number;
     lingkup: string | null;
     supportName: string | null;
+    projectType: PerformanceKpiJobType | "UNKNOWN";
     spkTotal: number | null;
     spkStart: string | null;
     spkEnd: string | null;
     spkEndWithExtension: string | null;
     spkDurationDays: number | null;
+    jhkActualDays: number | null;
+    jhkTargetDays: number | null;
+    targetStDate: string | null;
     extensionDays: number | null;
     rabTotal: number | null;
     luasBangunan: number | null;
@@ -208,6 +213,8 @@ export type PerformanceKpiFact = {
         costM2Bangunan: number | null;
         costM2Terbuka: number | null;
         jhkDays: number | null;
+        jhkActualDays: number | null;
+        jhkTargetDays: number | null;
         dendaValue: number | null;
         kerjaTambah: number | null;
         kerjaKurang: number | null;

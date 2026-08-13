@@ -20,6 +20,7 @@ import {
     getPerformanceFilters,
     getPerformanceDrilldown,
     getPerformanceDetail,
+    getPerformanceOptionStats,
     getPerformanceTable
 } from "./dashboard-performance.controller";
 
@@ -41,6 +42,7 @@ dashboardRouter.get("/kpi-drilldown", getDashboardKpiDrilldown);
 // Performance KPI SAT routes.
 dashboardRouter.get("/performance/summary", getPerformanceSummary);
 dashboardRouter.get("/performance/filters", getPerformanceFilters);
+dashboardRouter.get("/performance/options-stats", getPerformanceOptionStats);
 dashboardRouter.get("/performance/drilldown", getPerformanceDrilldown);
 dashboardRouter.get("/performance/detail", getPerformanceDetail);
 dashboardRouter.get("/performance/table", getPerformanceTable);

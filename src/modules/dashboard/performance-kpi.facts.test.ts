@@ -7,6 +7,7 @@ const baseRow = (overrides: Partial<PerformanceKpiRawRow> = {}): PerformanceKpiR
     toko_id: 1,
     nomor_ulok: "LZ01-2603-0001",
     lingkup_pekerjaan: "SIPIL",
+    proyek: "Reguler",
     nama_toko: "TOKO SAMPLE",
     kode_toko: "T001",
     cabang: "LAMPUNG",
@@ -120,6 +121,20 @@ test("ketepatan ST is ST minus extended SPK end plus one day tolerance", () => {
     const [early] = buildPerformanceKpiFacts([baseRow({ tambah_spk_new_end: "2026-08-22", st_created_at: "2026-08-20T00:00:00.000Z" })]);
     assert.equal(late.values.ketepatanStDays, 2);
     assert.equal(early.values.ketepatanStDays, -3);
+});
+
+test("JHK actual excludes SPK target duration when serah terima is missing", () => {
+    const [fact] = buildPerformanceKpiFacts([baseRow({
+        st_created_at: null,
+        st_pdf: null,
+        spk_start: "2026-08-10",
+        spk_end: "2026-08-20",
+        spk_duration: 10
+    })]);
+    assert.equal(fact.values.jhkActualDays, null);
+    assert.equal(fact.values.jhkDays, null);
+    assert.equal(fact.values.jhkTargetDays, 14);
+    assert.ok(fact.dataQuality.includes("TARGET_ST_USED"));
 });
 
 test("SLA KTK uses director approval minus serah terima date", () => {

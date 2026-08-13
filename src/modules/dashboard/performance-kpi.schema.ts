@@ -40,6 +40,11 @@ const scopeSchema = {
 export const performanceKpiSummaryQuerySchema = z.object(scopeSchema);
 export const performanceKpiFiltersQuerySchema = z.object(scopeSchema);
 export const performanceKpiTableQuerySchema = z.object(scopeSchema);
+export const performanceKpiOptionStatsQuerySchema = z.object(scopeSchema).extend({
+    card_type: performanceKpiCardTypeSchema,
+    selected_role: z.union([performanceKpiSlaRoleSchema, performanceKpiPersonRoleSchema]).optional(),
+    selected_name: z.string().trim().optional()
+});
 
 export const performanceKpiDrilldownQuerySchema = z.object(scopeSchema).extend({
     card_type: performanceKpiCardTypeSchema,
@@ -65,5 +70,6 @@ export const performanceKpiDetailQuerySchema = z.object(scopeSchema).extend({
 export type PerformanceKpiSummaryQueryInput = z.infer<typeof performanceKpiSummaryQuerySchema>;
 export type PerformanceKpiFiltersQueryInput = z.infer<typeof performanceKpiFiltersQuerySchema>;
 export type PerformanceKpiTableQueryInput = z.infer<typeof performanceKpiTableQuerySchema>;
+export type PerformanceKpiOptionStatsQueryInput = z.infer<typeof performanceKpiOptionStatsQuerySchema>;
 export type PerformanceKpiDrilldownQueryInput = z.infer<typeof performanceKpiDrilldownQuerySchema>;
 export type PerformanceKpiDetailQueryInput = z.infer<typeof performanceKpiDetailQuerySchema>;

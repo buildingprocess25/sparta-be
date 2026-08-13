@@ -8,6 +8,7 @@ import type {
     PerformanceKpiSlaRole
 } from "./performance-kpi.types";
 
+import { calculateEffectiveStDate } from "../../common/national-holidays";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const normalizeName = (value: unknown): string => String(value ?? "").trim();
@@ -46,6 +47,12 @@ const average = (values: Array<number | null | undefined>): number | null => {
     return valid.reduce((sum, value) => sum + value, 0) / valid.length;
 };
 
+const sum = (values: Array<number | null | undefined>): number | null => {
+    const valid = values.filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+    if (!valid.length) return null;
+    return valid.reduce((acc, value) => acc + value, 0);
+};
+
 const latestDate = (values: Array<unknown>): string | null => {
     const dates = values.map(toDate).filter((date): date is Date => Boolean(date));
     if (!dates.length) return null;
@@ -62,6 +69,19 @@ const firstValue = <T>(values: Array<T | null | undefined>): T | null => {
 const addUnique = (items: Set<string>, value: unknown) => {
     const normalized = normalizeName(value);
     if (normalized) items.add(normalized);
+};
+
+const classifyProjectType = (value: unknown): "REGULER" | "RENOVASI" | "UNKNOWN" => {
+    const normalized = normalizeUpper(value);
+    if (normalized === "REGULER" || normalized === "ALFAMART REGULER") return "REGULER";
+    if (normalized.includes("RENOVASI") || normalized.includes("PERBAIKAN") || normalized.includes("PEREMAJAAN")) return "RENOVASI";
+    return "UNKNOWN";
+};
+
+const getTargetStDate = (spkEndWithExtension: string | null): string | null => {
+    const endDate = toDate(spkEndWithExtension);
+    if (!endDate) return null;
+    return calculateEffectiveStDate(endDate).effectiveStDate.toISOString();
 };
 
 const addDocument = (documents: PerformanceKpiDocumentLink[], seen: Set<string>, type: PerformanceKpiDocumentLink["type"], label: string, url: unknown, source: string) => {
@@ -101,15 +121,24 @@ const getScopeRow = (row: PerformanceKpiRawRow): PerformanceKpiScopeRow => {
     const spkEndWithExtension = toIso(row.tambah_spk_new_end) ?? toIso(row.spk_end);
     const spkTotal = parseNumber(row.spk_grand_total);
     const opnameTotal = parseNumber(row.opname_grand_total_final) ?? parseNumber(row.opname_grand_total_opname);
+    const stDate = toIso(row.st_created_at);
+    const targetStDate = stDate ? null : getTargetStDate(spkEndWithExtension);
+    const jhkActualDays = row.spk_start && stDate ? dayDiff(row.spk_start, stDate) : null;
+    const jhkTargetDays = row.spk_start && targetStDate ? dayDiff(row.spk_start, targetStDate) : null;
+
     return {
         tokoId: row.toko_id,
         lingkup: row.lingkup_pekerjaan,
         supportName: normalizeName(row.support_name) || null,
+        projectType: classifyProjectType(row.proyek),
         spkTotal,
         spkStart: toIso(row.spk_start),
         spkEnd: toIso(row.spk_end),
         spkEndWithExtension,
-        spkDurationDays: row.spk_start && row.st_created_at ? dayDiff(row.spk_start, row.st_created_at) : row.spk_duration ?? null,
+        spkDurationDays: jhkActualDays,
+        jhkActualDays,
+        jhkTargetDays,
+        targetStDate,
         extensionDays: parseNumber(row.tambah_spk_days),
         rabTotal: parseNumber(row.rab_grand_total_final),
         luasBangunan: parseNumber(row.rab_luas_bangunan),
@@ -117,7 +146,7 @@ const getScopeRow = (row: PerformanceKpiRawRow): PerformanceKpiScopeRow => {
         opnameFinalTotal: opnameTotal,
         dendaValue: parseNumber(row.opname_nilai_denda),
         dendaDays: row.opname_hari_denda ?? null,
-        stDate: toIso(row.st_created_at),
+        stDate,
         finalKtkDate: toIso(row.opname_director_at)
     };
 };
@@ -153,7 +182,9 @@ const summarizeValues = (rows: PerformanceKpiScopeRow[]) => {
         costM2Terbangun: spkTotal !== null && luasTerbangun && luasTerbangun > 0 ? spkTotal / luasTerbangun : null,
         costM2Bangunan: spkTotal !== null && luasBangunan && luasBangunan > 0 ? spkTotal / luasBangunan : null,
         costM2Terbuka: spkTotal !== null && luasTerbuka && luasTerbuka > 0 ? spkTotal / luasTerbuka : null,
-        jhkDays: average(rows.map((row) => row.spkDurationDays)),
+        jhkDays: average(rows.map((row) => row.jhkActualDays)),
+        jhkActualDays: average(rows.map((row) => row.jhkActualDays)),
+        jhkTargetDays: average(rows.map((row) => row.jhkTargetDays)),
         dendaValue,
         kerjaTambah: tambah.length ? average(tambah) : null,
         kerjaKurang: kurang.length ? average(kurang) : null,
@@ -165,7 +196,8 @@ const summarizeValues = (rows: PerformanceKpiScopeRow[]) => {
 const qualityFlags = (fact: Pick<PerformanceKpiFact, "values" | "kpiMetrics" | "rows" | "approvals">): string[] => {
     const flags: string[] = [];
     if (fact.values.costM2Terbangun === null) flags.push("MISSING_COST_M2_SOURCE");
-    if (fact.values.jhkDays === null) flags.push("MISSING_JHK_SOURCE");
+    if (fact.values.jhkActualDays === null && fact.values.jhkTargetDays === null) flags.push("MISSING_JHK_SOURCE");
+    if (fact.rows.some((row) => row.jhkTargetDays !== null)) flags.push("TARGET_ST_USED");
     if (fact.values.ketepatanStDays === null) flags.push("MISSING_ST_OR_SPK_END");
     if (fact.values.slaKtkDays === null) flags.push("MISSING_KTK_DIRECTOR_OR_ST");
     if (fact.kpiMetrics.tanggalNotarisStart === null) flags.push("NOTARIS_NOT_INPUT");

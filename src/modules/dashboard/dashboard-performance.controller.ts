@@ -6,6 +6,7 @@ import {
     performanceKpiDetailQuerySchema,
     performanceKpiDrilldownQuerySchema,
     performanceKpiFiltersQuerySchema,
+    performanceKpiOptionStatsQuerySchema,
     performanceKpiSummaryQuerySchema,
     performanceKpiTableQuerySchema
 } from "./performance-kpi.schema";
@@ -44,5 +45,12 @@ export const getPerformanceTable = asyncHandler(async (req: Request, res: Respon
     let query = performanceKpiTableQuerySchema.parse(req.query);
     query = await injectBranchFilter(req.user!, query);
     const data = await performanceKpiService.getTable(query);
+    res.json({ status: "success", data });
+});
+
+export const getPerformanceOptionStats = asyncHandler(async (req: Request, res: Response) => {
+    let query = performanceKpiOptionStatsQuerySchema.parse(req.query);
+    query = await injectBranchFilter(req.user!, query);
+    const data = await performanceKpiService.getOptionStats(query);
     res.json({ status: "success", data });
 });
