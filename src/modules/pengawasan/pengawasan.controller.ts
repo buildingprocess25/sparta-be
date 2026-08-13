@@ -131,9 +131,9 @@ export const listPengawasan = asyncHandler(async (req: Request, res: Response) =
     console.log('[PENGAWASAN LIST] After inject filter:', JSON.stringify(query));
     
     // Security: Pastikan cabang_array tidak kosong untuk user non-global
-    // Global user (super human) akan punya cabang_array undefined = bypass, tidak perlu dicek
-    const isGlobal = !query.cabang_array; // undefined = global bypass
-    if (!isGlobal && query.cabang_array!.length === 0) {
+    // Global user (super human) akan punya _is_global_access = true = bypass, tidak perlu dicek
+    const isGlobal = !!query._is_global_access;
+    if (!isGlobal && (!query.cabang_array || query.cabang_array.length === 0 || query.cabang_array.includes('__NO_ACCESS__'))) {
         console.error('[PENGAWASAN LIST] REJECT: No branch access');
         throw new AppError("User tidak memiliki akses ke cabang manapun. Hubungi administrator.", 403);
     }
@@ -157,9 +157,9 @@ export const listPendingPengawasanMigrationPdfs = asyncHandler(async (req: Reque
     let query: any = {};
     query = await injectBranchFilter(req.user!, query);
     
-    // Security: Global user (super human) punya cabang_array undefined = bypass
-    const isGlobal = !query.cabang_array;
-    if (!isGlobal && query.cabang_array.length === 0) {
+    // Security: Global user (super human) punya _is_global_access = true = bypass
+    const isGlobal = !!query._is_global_access;
+    if (!isGlobal && (!query.cabang_array || query.cabang_array.length === 0 || query.cabang_array.includes('__NO_ACCESS__'))) {
         throw new AppError("User tidak memiliki akses ke cabang manapun. Hubungi administrator.", 403);
     }
     

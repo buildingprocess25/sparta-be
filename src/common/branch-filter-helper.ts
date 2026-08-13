@@ -36,6 +36,7 @@ export const getUserAccessibleBranches = async (user: AuthenticatedUser): Promis
  */
 export type QueryWithBranchArray = {
     cabang_array?: string[];
+    _is_global_access?: boolean;
     [key: string]: unknown;
 };
 
@@ -68,7 +69,8 @@ export const injectBranchFilter = async <T extends QueryWithBranchArray>(
         // Return object without cabang_array so repositories skip the ANY($X) filter.
         return {
             ...query,
-            cabang_array: undefined
+            cabang_array: undefined,
+            _is_global_access: true
         };
     }
 
