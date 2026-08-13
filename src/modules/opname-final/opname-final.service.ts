@@ -1,4 +1,5 @@
 import { AppError } from "../../common/app-error";
+import { pool } from "../../db/pool";
 import { GoogleProvider } from "../../common/google";
 import * as XLSX from "xlsx";
 import { env } from "../../config/env";
@@ -601,6 +602,22 @@ export const opnameFinalService = {
 
     async lockOpnameFinal(id: string, payload: LockOpnameFinalInput) {
         try {
+            // Validasi: Pastikan Serah Terima dan Pengawasan sudah selesai sebelum Kunci Finalisasi KTK
+            // Kecualikan data V1 (tidak ada gantt_chart)
+            const gantt = await pool.query(`SELECT id, status FROM gantt_chart WHERE id_toko = $1 ORDER BY id DESC LIMIT 1`, [payload.id_toko]);
+            
+            if ((gantt.rowCount ?? 0) > 0) {
+                // Cek apakah ada Serah Terima. 
+                // Karena Serah Terima hanya bisa digenerate jika Pengawasan sudah selesai, 
+                // mengecek keberadaan Serah Terima sudah mencakup validasi Pengawasan.
+                const st = await pool.query(`SELECT id FROM berkas_serah_terima WHERE id_toko = $1`, [payload.id_toko]);
+                const hasSerahTerima = (st.rowCount ?? 0) > 0;
+                
+                if (!hasSerahTerima) {
+                    throw new AppError("Tidak dapat melakukan Kunci Finalisasi KTK. Pastikan Pengawasan sudah terisi penuh dan Serah Terima sudah dilakukan.", 403);
+                }
+            }
+
             const result = await opnameFinalRepository.lockById(id, payload);
             if (result.item_count === 0) {
                 throw new AppError("Data opname_final tidak ditemukan", 404);
