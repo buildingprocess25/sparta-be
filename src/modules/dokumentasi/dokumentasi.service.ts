@@ -129,15 +129,7 @@ const isMeScope = (value?: string | null): boolean => {
 
 const resolveDokumentasiFolderId = async (row: DokumentasiBangunanRow): Promise<string> => {
     const gp = GoogleProvider.instance;
-    const root = env.DOC_BANGUNAN_DRIVE_FOLDER_ID;
-    if (!root) {
-        throw new AppError("DOC_BANGUNAN_DRIVE_FOLDER_ID belum diset", 500);
-    }
-
-    const kodeToko = sanitizeFilenamePart(row.kode_toko ?? undefined, "TOKO");
-    const nomorUlok = sanitizeFilenamePart(row.nomor_ulok ?? undefined, "ULOK");
-    const folderName = `DOKUMENTASI_${row.id}_${kodeToko}_${nomorUlok}`;
-    return gp.getOrCreateFolder(folderName, root);
+    return gp.getOrCreateProcessFolder("Dokumentasi Bangunan Toko Baru", row.nomor_ulok ?? null, row.nama_toko ?? null, row.kode_toko ?? null);
 };
 
 const uploadFotoItemsBulk = async (

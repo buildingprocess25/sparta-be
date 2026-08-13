@@ -141,8 +141,10 @@ const uploadLampiranPendukungToDrive = async (
     const ext = resolveFileExtension(file);
     const filename = `PERTAMBAHAN_SPK_LAMPIRAN_${safeProyek}_${safeUlok}_${Date.now()}${ext}`;
 
+    const folderId = await gp.getOrCreateProcessFolder("Pertambahan SPK", nomorUlok);
+
     const result = await gp.uploadFile(
-        env.PDF_STORAGE_FOLDER_ID,
+        folderId,
         filename,
         file.mimetype || "application/octet-stream",
         file.buffer,
@@ -153,13 +155,15 @@ const uploadLampiranPendukungToDrive = async (
     return result.webViewLink ?? `https://drive.google.com/file/d/${result.id}/view`;
 };
 
-const uploadPdfToDrive = async (buffer: Buffer, filename: string): Promise<string> => {
+const uploadPdfToDrive = async (buffer: Buffer, filename: string, nomorUlok?: string, proyek?: string): Promise<string> => {
     const gp = GoogleProvider.instance;
     const drive = gp.spartaDrive;
     if (!drive) throw new AppError("Google Drive (Sparta) belum terkonfigurasi", 500);
 
+    const folderId = await gp.getOrCreateProcessFolder("Pertambahan SPK", nomorUlok);
+
     const result = await gp.uploadFile(
-        env.PDF_STORAGE_FOLDER_ID,
+        folderId,
         filename,
         "application/pdf",
         buffer,
@@ -199,7 +203,7 @@ const buildAndUploadPdfForDetail = async (data: PertambahanSpkDetailRow): Promis
 
     const safeNomorSpk = sanitizeFilenamePart(data.nomor_spk ?? data.spk?.nomor_spk ?? spk.pengajuan.nomor_spk, "SPK");
     const pdfFilename = `FORM_PERPANJANGAN_SPK_${safeNomorSpk}_${Date.now()}.pdf`;
-    return uploadPdfToDrive(pdfBuffer, pdfFilename);
+    return uploadPdfToDrive(pdfBuffer, pdfFilename, spk.pengajuan.nomor_ulok, spk.pengajuan.proyek);
 };
 
 export const pertambahanSpkService = {

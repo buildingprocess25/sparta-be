@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { Readable } from "stream";
 import { env } from "../config/env";
+import { getDriveBranchParent } from "./branch-scope";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -308,6 +309,47 @@ export class GoogleProvider {
             supportsAllDrives: true,
         });
         return folder.data.id!;
+    }
+
+    /** Dapatkan atau buat Folder Proyek di dalam Master Folder (Sentralisasi) */
+    async getOrCreateProjectFolder(ulok?: string | null, namaToko?: string | null, kodeToko?: string | null, cabang?: string | null): Promise<string> {
+        let resolvedNama = namaToko;
+        let resolvedKode = kodeToko;
+        let resolvedCabang = cabang;
+
+        if (ulok && (!resolvedNama || !resolvedCabang)) {
+            try {
+                const { pool } = await import("../db/pool");
+                const res = await pool.query("SELECT nama_toko, kode_toko, cabang FROM toko WHERE nomor_ulok = $1 LIMIT 1", [ulok]);
+                if (res.rows.length > 0) {
+                    resolvedNama = resolvedNama || res.rows[0].nama_toko;
+                    resolvedKode = resolvedKode || res.rows[0].kode_toko;
+                    resolvedCabang = resolvedCabang || res.rows[0].cabang;
+                }
+            } catch (e) {
+                console.error("[Drive] Failed to resolve toko from DB:", e);
+            }
+        }
+
+        // 1. Resolve Cabang Induk
+        const parentBranchName = getDriveBranchParent(resolvedCabang);
+        const branchFolderId = await this.getOrCreateFolder(parentBranchName, env.MASTER_DRIVE_FOLDER_ID);
+
+        // 2. Resolve Project Folder Name
+        const safeUlok = (ulok || "TANPA_ULOK").trim().toUpperCase();
+        const safeNama = (resolvedNama || "TANPA_NAMA").trim().toUpperCase();
+        const safeKode = (resolvedKode || "TANPA_KODE").trim().toUpperCase();
+        
+        const projectName = `${safeUlok} - ${safeNama} - ${safeKode}`;
+        
+        // 3. Create Project Folder inside Branch Folder
+        return this.getOrCreateFolder(projectName, branchFolderId);
+    }
+
+    /** Dapatkan atau buat Sub-folder proses di dalam Folder Proyek */
+    async getOrCreateProcessFolder(processName: string, ulok?: string | null, namaToko?: string | null, kodeToko?: string | null, cabang?: string | null): Promise<string> {
+        const projectFolderId = await this.getOrCreateProjectFolder(ulok, namaToko, kodeToko, cabang);
+        return this.getOrCreateFolder(processName, projectFolderId);
     }
 
     private async setPublicPermission(drive: drive_v3.Drive, fileId: string | undefined) {

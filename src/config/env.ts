@@ -11,6 +11,7 @@ const envSchema = z.object({
     // Google credentials – Penyimpanan dokumen
     GOOGLE_TOKEN_PATH: z.string().optional(),
     GOOGLE_DOC_TOKEN_PATH: z.string().optional(),
+    MASTER_DRIVE_FOLDER_ID: z.string().default("1on8FKU56eoKEIkqObrZgy3kI8kvadnnF"),
     SPREADSHEET_ID: z.string().default("1LA1TlhgltT2bqSN3H-LYasq9PtInVlqq98VPru8txoo"),
     DOC_SHEET_ID: z.string().optional(),
     DOC_SPREADSHEET_ID: z.string().default("1bEslAY1gGm1QgYl_ZL88_rt5z-errU7HU3GkqbWcNOw"),

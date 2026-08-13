@@ -136,15 +136,17 @@ const resolveStatusTransition = (
     throw new AppError(`Jabatan "${action.jabatan}" tidak dikenali`, 400);
 };
 
-const uploadPdfToDrive = async (buffer: Buffer, filename: string): Promise<string> => {
+const uploadPdfToDrive = async (buffer: Buffer, filename: string, nomorUlok?: string | null, proyek?: string | null): Promise<string> => {
     const gp = GoogleProvider.instance;
     const drive = gp.spartaDrive;
     if (!drive) {
         throw new AppError("Google Drive (Sparta) belum terkonfigurasi", 500);
     }
 
+    const folderId = await gp.getOrCreateProcessFolder("Opname", nomorUlok);
+
     const result = await gp.uploadFile(
-        env.PDF_STORAGE_FOLDER_ID,
+        folderId,
         filename,
         "application/pdf",
         buffer,
@@ -402,7 +404,7 @@ const regeneratePdfAndUpload = async (opnameFinalId: string): Promise<string> =>
     const filenamePrefix = "OPNAME";
     const filename = `${filenamePrefix}_${proyek}_${nomorUlok}_${detail.opname_final.id}.pdf`;
 
-    return uploadPdfToDrive(pdfBuffer, filename);
+    return uploadPdfToDrive(pdfBuffer, filename, detail.toko.nomor_ulok, detail.toko.proyek);
 };
 
 const runningRegenerateJobs = new Set<string>();
@@ -568,7 +570,7 @@ export const opnameFinalService = {
         const rabData = await loadRabData(refreshedDetail.opname_final.id);
         await applyRukoConversionIfNeeded(refreshedDetail, instruksiLapanganItems, rabData);
         const pdfBuffer = await buildOpnameFinalPdfBuffer(refreshedDetail, instruksiLapanganItems, rabData);
-        uploadPdfToDrive(pdfBuffer, filename).then((linkPdf) =>
+        uploadPdfToDrive(pdfBuffer, filename, refreshedDetail.toko.nomor_ulok, refreshedDetail.toko.proyek).then((linkPdf) =>
             opnameFinalRepository.updatePdfLink(id, linkPdf)
         ).catch((error) => {
             console.warn("[opname-final] Gagal menyimpan cache PDF hasil generate; tetap mengirim PDF ke user", {

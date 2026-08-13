@@ -333,9 +333,40 @@ const resolveFolderId = async (
     input: Pick<PenyimpananDokumenCreateInput, "id_toko" | "kode_toko" | "nama_toko" | "cabang" | "folder_name">,
     folderName?: string
 ): Promise<string> => {
-    const { gp, root } = ensureDocDriveReady();
-    const name = resolveFolderName(toko, input, folderName);
-    return gp.getOrCreateFolder(name, root);
+    const gp = GoogleProvider.instance;
+    let nomorUlok = null;
+    let kodeToko = input.kode_toko ?? toko?.kode_toko ?? null;
+    let namaToko = input.nama_toko ?? toko?.nama_toko ?? null;
+    let cabang = input.cabang ?? toko?.cabang ?? null;
+
+    const { pool } = await import("../../db/pool");
+
+    if (kodeToko) {
+        const ulokQuery = await pool.query(
+            `SELECT nomor_ulok, nama_toko, cabang FROM toko WHERE kode_toko = $1 LIMIT 1`,
+            [kodeToko]
+        );
+        if (ulokQuery.rows.length > 0) {
+            nomorUlok = ulokQuery.rows[0].nomor_ulok;
+            if (!namaToko) namaToko = ulokQuery.rows[0].nama_toko;
+            if (!cabang) cabang = ulokQuery.rows[0].cabang;
+        }
+    } else if (input.id_toko || toko?.id) {
+        const id = input.id_toko || toko?.id;
+        const tokoQuery = await pool.query(
+            `SELECT nomor_ulok, nama_toko, kode_toko, cabang FROM toko WHERE id = $1 LIMIT 1`,
+            [id]
+        );
+        if (tokoQuery.rows.length > 0) {
+            nomorUlok = tokoQuery.rows[0].nomor_ulok;
+            namaToko = tokoQuery.rows[0].nama_toko;
+            kodeToko = tokoQuery.rows[0].kode_toko;
+            cabang = tokoQuery.rows[0].cabang;
+        }
+    }
+
+    const processName = folderName || input.folder_name || "Penyimpanan Dokumen Toko";
+    return gp.getOrCreateProcessFolder(processName, nomorUlok, namaToko, kodeToko, cabang);
 };
 
 const buildFolderLink = (folderId: string) => `https://drive.google.com/drive/folders/${folderId}`;

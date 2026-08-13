@@ -111,8 +111,17 @@ const uploadDokumentasiToDrive = async (
     const ext = resolveFileExtension(file);
     const filename = `PENGAWASAN_DOKUMENTASI_${safeGantt}_${Date.now()}${ext}`;
 
+    const tokoQuery = await pool.query(
+        `SELECT t.nomor_ulok, t.proyek FROM gantt_chart g JOIN master_toko t ON g.id_toko = t.id WHERE g.id = $1`,
+        [idGantt]
+    );
+    const nomorUlok = tokoQuery.rows[0]?.nomor_ulok;
+    const proyek = tokoQuery.rows[0]?.proyek;
+
+    const folderId = await gp.getOrCreateProcessFolder("Pengawasan", nomorUlok);
+
     const result = await gp.uploadFile(
-        env.PDF_STORAGE_FOLDER_ID,
+        folderId,
         filename,
         file.mimetype || "application/octet-stream",
         file.buffer,
@@ -372,9 +381,18 @@ const generateAndUploadPengawasanPdf = async (
             }
         }
 
+        const tokoQuery = await pool.query(
+            `SELECT t.nomor_ulok, t.proyek FROM gantt_chart g JOIN master_toko t ON g.id_toko = t.id WHERE g.id = $1`,
+            [idGantt]
+        );
+        const nomorUlok = tokoQuery.rows[0]?.nomor_ulok;
+        const proyek = tokoQuery.rows[0]?.proyek;
+
+        const folderId = await gp.getOrCreateProcessFolder("Pengawasan", nomorUlok);
+
         const filename = `PENGAWASAN_REPORT_GANTT${idGantt}_PG${idPengawasanGantt}_${Date.now()}.pdf`;
         const result = await gp.uploadFile(
-            env.PDF_STORAGE_FOLDER_ID,
+            folderId,
             filename,
             "application/pdf",
             pdfBuffer,

@@ -1,4 +1,5 @@
 import { AppError } from "../../common/app-error";
+import { pool } from "../../db/pool";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
 import { calculateDendaByTokoId } from "../denda/denda-keterlambatan";
@@ -165,8 +166,17 @@ const uploadFotoOpnameToDrive = async (
     const ext = resolveFileExtension(file);
     const filename = `OPNAME_FOTO_${safeToko}_${Date.now()}${ext}`;
 
+    const tokoQuery = await pool.query(
+        `SELECT nomor_ulok, proyek FROM master_toko WHERE id = $1`,
+        [idToko]
+    );
+    const nomorUlok = tokoQuery.rows[0]?.nomor_ulok;
+    const proyek = tokoQuery.rows[0]?.proyek;
+
+    const folderId = await gp.getOrCreateProcessFolder("Opname", nomorUlok);
+
     const result = await gp.uploadFile(
-        env.PDF_STORAGE_FOLDER_ID,
+        folderId,
         filename,
         file.mimetype || "application/octet-stream",
         file.buffer,

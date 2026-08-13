@@ -91,8 +91,23 @@ const uploadSpAttachmentToDrive = async (
     const safeLevel = context.sp_level ? `SP${context.sp_level}` : "SP";
     const filename = `SURAT_PERINGATAN_LAMPIRAN_${safeLevel}_${safeUlok}_${safeKontraktor}_${Date.now()}${resolveFileExtension(file)}`;
 
+    let namaToko = undefined;
+    let kodeToko = undefined;
+    if (context.nomor_ulok) {
+        const { pool } = await import("../../db/pool");
+        const tokoQuery = await pool.query(
+            `SELECT nama_toko, kode_toko FROM master_toko WHERE nomor_ulok = $1 LIMIT 1`,
+            [context.nomor_ulok]
+        );
+        if (tokoQuery.rows.length > 0) {
+            namaToko = tokoQuery.rows[0].nama_toko;
+            kodeToko = tokoQuery.rows[0].kode_toko;
+        }
+    }
+    const folderId = await gp.getOrCreateProcessFolder("Surat Peringatan", context.nomor_ulok, namaToko, kodeToko);
+
     const result = await gp.uploadFile(
-        env.PDF_STORAGE_FOLDER_ID,
+        folderId,
         filename,
         file.mimetype || "application/octet-stream",
         file.buffer,
@@ -143,8 +158,23 @@ const buildAndUploadSpPdf = async (input: {
     const drive = gp.spartaDrive;
     if (!drive) throw new AppError("Google Drive (Sparta) belum terkonfigurasi", 500);
 
+    let namaToko = undefined;
+    let kodeToko = undefined;
+    if (input.action.nomor_ulok) {
+        const { pool } = await import("../../db/pool");
+        const tokoQuery = await pool.query(
+            `SELECT nama_toko, kode_toko FROM master_toko WHERE nomor_ulok = $1 LIMIT 1`,
+            [input.action.nomor_ulok]
+        );
+        if (tokoQuery.rows.length > 0) {
+            namaToko = tokoQuery.rows[0].nama_toko;
+            kodeToko = tokoQuery.rows[0].kode_toko;
+        }
+    }
+    const folderId = await gp.getOrCreateProcessFolder("Surat Peringatan", input.action.nomor_ulok, namaToko, kodeToko);
+
     const result = await gp.uploadFile(
-        env.PDF_STORAGE_FOLDER_ID,
+        folderId,
         filename,
         "application/pdf",
         pdfBuffer,

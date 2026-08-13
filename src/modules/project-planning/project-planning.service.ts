@@ -24,13 +24,15 @@ async function uploadCompressedFiles(files: Express.Multer.File[], folderId: str
     return links.length > 0 ? links.join("\n") : undefined;
 }
 
-async function uploadPdfToDrive(buffer: Buffer, filename: string): Promise<string> {
+async function uploadPdfToDrive(buffer: Buffer, filename: string, nomorUlok?: string | null, namaToko?: string | null, kodeToko?: string | null, cabang?: string | null): Promise<string> {
     const gp = GoogleProvider.instance;
     const drive = gp.spartaDrive;
     if (!drive) throw new AppError("Google Drive (Sparta) belum terkonfigurasi", 500);
 
+    const folderId = await gp.getOrCreateProcessFolder("RAB", nomorUlok, namaToko, kodeToko, cabang);
+
     const result = await gp.uploadFile(
-        env.PDF_STORAGE_FOLDER_ID,
+        folderId,
         filename,
         "application/pdf",
         buffer,
@@ -242,18 +244,20 @@ export const projekPlanningService = {
             const itemRegex = /^foto_items_(\d+)$/i;
 
             try {
+                const folderId = await GoogleProvider.instance.getOrCreateProcessFolder("RAB", payload.nomor_ulok, payload.nama_lokasi || payload.nama_toko || null, payload.kode_toko || null, payload.cabang || null);
+
                 if (fFpd.length > 0) {
-                    const link = await uploadCompressedFiles(fFpd, PROJECT_PLANNING_DRIVE_FOLDER_ID);
+                    const link = await uploadCompressedFiles(fFpd, folderId);
                     if (link) fpdLink = link;
                 }
                 if (fGambarKerjaMe.length > 0) {
-                    const link = await uploadCompressedFiles(fGambarKerjaMe, PROJECT_PLANNING_DRIVE_FOLDER_ID);
+                    const link = await uploadCompressedFiles(fGambarKerjaMe, folderId);
                     if (link) gambarKerjaMe = link;
                 }
                 if (fKompetitor.length > 0) {
                     const uploadedLinks: string[] = [];
                     for (const [idx, file] of fKompetitor.slice(0, 2).entries()) {
-                        const link = await uploadCompressedFile(file, PROJECT_PLANNING_DRIVE_FOLDER_ID);
+                        const link = await uploadCompressedFile(file, folderId);
                         if (link) {
                             uploadedLinks.push(link);
                             fotoItemsLinks.push({ item_index: 39 + idx, link_foto: link });
@@ -263,11 +267,11 @@ export const projekPlanningService = {
                     if (link) gambarKompetitor = link;
                 }
                 if (fSiteplan.length > 0) {
-                    const link = await uploadCompressedFiles(fSiteplan, PROJECT_PLANNING_DRIVE_FOLDER_ID);
+                    const link = await uploadCompressedFiles(fSiteplan, folderId);
                     if (link) siteplanLink = link;
                 }
                 if (fBaTidakSesuaiStandar.length > 0) {
-                    const link = await uploadCompressedFiles(fBaTidakSesuaiStandar, PROJECT_PLANNING_DRIVE_FOLDER_ID);
+                    const link = await uploadCompressedFiles(fBaTidakSesuaiStandar, folderId);
                     if (link) baTidakSesuaiStandarLink = link;
                 }
 
@@ -277,7 +281,7 @@ export const projekPlanningService = {
                     if (match) {
                         const index = parseInt(match[1], 10);
                         if (!isNaN(index)) {
-                            const link = await uploadCompressedFile(file, PROJECT_PLANNING_DRIVE_FOLDER_ID);
+                            const link = await uploadCompressedFile(file, folderId);
                             if (link) fotoItemsLinks.push({ item_index: index, link_foto: link });
                         }
                     }
@@ -378,18 +382,20 @@ export const projekPlanningService = {
             const itemRegex = /^foto_items_(\d+)$/i;
 
             try {
+                const folderId = await GoogleProvider.instance.getOrCreateProcessFolder("RAB", projek.nomor_ulok, payload.nama_lokasi || payload.nama_toko || projek.nama_toko || null, payload.kode_toko || projek.kode_toko || null, payload.cabang || projek.cabang || null);
+
                 if (fFpd.length > 0) {
-                    const link = await uploadCompressedFiles(fFpd, PROJECT_PLANNING_DRIVE_FOLDER_ID);
+                    const link = await uploadCompressedFiles(fFpd, folderId);
                     if (link) fpdLink = link;
                 }
                 if (fGambarKerjaMe.length > 0) {
-                    const link = await uploadCompressedFiles(fGambarKerjaMe, PROJECT_PLANNING_DRIVE_FOLDER_ID);
+                    const link = await uploadCompressedFiles(fGambarKerjaMe, folderId);
                     if (link) gambarKerjaMe = link;
                 }
                 if (fKompetitor.length > 0) {
                     const uploadedLinks: string[] = [];
                     for (const [idx, file] of fKompetitor.slice(0, 2).entries()) {
-                        const link = await uploadCompressedFile(file, PROJECT_PLANNING_DRIVE_FOLDER_ID);
+                        const link = await uploadCompressedFile(file, folderId);
                         if (link) {
                             uploadedLinks.push(link);
                             fotoItemsLinks.push({ item_index: 39 + idx, link_foto: link });
@@ -399,11 +405,11 @@ export const projekPlanningService = {
                     if (link) gambarKompetitor = link;
                 }
                 if (fSiteplan.length > 0) {
-                    const link = await uploadCompressedFiles(fSiteplan, PROJECT_PLANNING_DRIVE_FOLDER_ID);
+                    const link = await uploadCompressedFiles(fSiteplan, folderId);
                     if (link) siteplanLink = link;
                 }
                 if (fBaTidakSesuaiStandar.length > 0) {
-                    const link = await uploadCompressedFiles(fBaTidakSesuaiStandar, PROJECT_PLANNING_DRIVE_FOLDER_ID);
+                    const link = await uploadCompressedFiles(fBaTidakSesuaiStandar, folderId);
                     if (link) baTidakSesuaiStandarLink = link;
                 }
 
@@ -413,7 +419,7 @@ export const projekPlanningService = {
                     if (match) {
                         const index = parseInt(match[1], 10);
                         if (!isNaN(index)) {
-                            const link = await uploadCompressedFile(file, PROJECT_PLANNING_DRIVE_FOLDER_ID);
+                            const link = await uploadCompressedFile(file, folderId);
                             if (link) fotoItemsLinks.push({ item_index: index, link_foto: link });
                         }
                     }
@@ -562,7 +568,7 @@ export const projekPlanningService = {
 
         const buffer = await buildProjekPlanningPdfBuffer(item.projek);
         const filename = `PROJECT_PLANNING_${sanitizeFilenamePart(item.projek.nomor_ulok, String(projekPlanningId))}_${projekPlanningId}.pdf`;
-        const linkPdf = await uploadPdfToDrive(buffer, filename);
+        const linkPdf = await uploadPdfToDrive(buffer, filename, item.projek.nomor_ulok, item.projek.nama_toko, item.projek.kode_toko);
 
         await projekPlanningRepository.updatePdfLink(projekPlanningId, linkPdf);
 

@@ -64,13 +64,15 @@ const isNoPpnArea = (toko: { cabang?: string | null; nama_toko?: string | null; 
     return identity.some(value => value === "BATAM" || value === "BINTAN" || /\bBATAM\b|\bBINTAN\b/.test(value));
 };
 
-async function uploadPdfToDrive(buffer: Buffer, filename: string): Promise<string> {
+async function uploadPdfToDrive(buffer: Buffer, filename: string, nomorUlok?: string | null, namaToko?: string | null, kodeToko?: string | null, cabang?: string | null): Promise<string> {
     const gp = GoogleProvider.instance;
     const drive = gp.spartaDrive;
     if (!drive) throw new AppError("Google Drive (Sparta) belum terkonfigurasi", 500);
 
+    const folderId = await gp.getOrCreateProcessFolder("SPK", nomorUlok, namaToko, kodeToko, cabang);
+
     const result = await gp.uploadFile(
-        env.PDF_STORAGE_FOLDER_ID,
+        folderId,
         filename,
         "application/pdf",
         buffer,
@@ -103,7 +105,7 @@ async function regenerateSpkPdfAndUpload(
     const nomorUlok = filenameParts?.nomorUlok ?? data.pengajuan.nomor_ulok ?? "UNKNOWN";
     const filename = `SPK_${proyek}_${nomorUlok}.pdf`;
 
-    return uploadPdfToDrive(pdfBuffer, filename);
+    return uploadPdfToDrive(pdfBuffer, filename, nomorUlok, toko.nama_toko, toko.kode_toko, toko.cabang);
 }
 
 export const spkService = {

@@ -77,15 +77,17 @@ const dateOnlyKey = (value: unknown): string | null => {
 };
 
 
-const uploadPdfToDrive = async (buffer: Buffer, filename: string): Promise<string> => {
+const uploadPdfToDrive = async (buffer: Buffer, filename: string, nomorUlok?: string | null, proyek?: string | null): Promise<string> => {
     const gp = GoogleProvider.instance;
     const drive = gp.spartaDrive;
     if (!drive) {
         throw new AppError("Google Drive (Sparta) belum terkonfigurasi", 500);
     }
 
+    const folderId = await gp.getOrCreateProcessFolder("Serah Terima", nomorUlok);
+
     const result = await gp.uploadFile(
-        env.PDF_STORAGE_FOLDER_ID,
+        folderId,
         filename,
         "application/pdf",
         buffer,
@@ -485,7 +487,7 @@ export const serahTerimaService = {
         const nomorUlok = sanitizeFilenamePart(toko.nomor_ulok ?? undefined, "ULOK");
         const filename = `SERAH_TERIMA_${proyek}_${nomorUlok}_${opnameFinal.id}.pdf`;
 
-        const linkPdf = await uploadPdfToDrive(pdfBuffer, filename);
+        const linkPdf = await uploadPdfToDrive(pdfBuffer, filename, toko.nomor_ulok, toko.proyek);
 
         // 3. Simpan link di tabel berkas_serah_terima
         const berkas = await serahTerimaRepository.updateBerkasSerahTerimaLink(placeholder.id, linkPdf);
@@ -668,7 +670,7 @@ export const serahTerimaService = {
         const proyek = sanitizeFilenamePart(masterScope.proyek ?? undefined, "PROYEK");
         const safeNomorUlok = sanitizeFilenamePart(nomorUlok, "ULOK");
         const filename = `SERAH_TERIMA_UNIFIED_${proyek}_${safeNomorUlok}.pdf`;
-        const linkPdf = await uploadPdfToDrive(mergedBuffer, filename);
+        const linkPdf = await uploadPdfToDrive(mergedBuffer, filename, nomorUlok, masterScope.proyek);
         const berkasRows = await Promise.all(
             targetScopes.map(async (scope) => {
                 const row = scope.id === masterScope.id

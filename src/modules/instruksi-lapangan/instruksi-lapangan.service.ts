@@ -33,13 +33,15 @@ const extractDriveFileId = (value: string): string | null => {
 
 
 
-async function uploadPdfToDrive(buffer: Buffer, filename: string): Promise<string> {
+async function uploadPdfToDrive(buffer: Buffer, filename: string, nomorUlok?: string, proyek?: string): Promise<string> {
     const gp = GoogleProvider.instance;
     const drive = gp.spartaDrive;
     if (!drive) throw new AppError("Google Drive (Sparta) belum terkonfigurasi", 500);
 
+    const folderId = await gp.getOrCreateProcessFolder("Instruksi Lapangan", nomorUlok);
+
     const result = await gp.uploadFile(
-        env.PDF_STORAGE_FOLDER_ID,
+        folderId,
         filename,
         "application/pdf",
         buffer,
@@ -260,9 +262,9 @@ export const instruksiLapanganService = {
         const pdfFilename = `Instruksi_Lapangan_${data.toko.nomor_ulok}_${Date.now()}`;
 
         const [linkGabungan, linkNonSbo, linkRekap] = await Promise.all([
-            uploadPdfToDrive(mergedBuffer, `${pdfFilename}_Gabungan.pdf`),
-            uploadPdfToDrive(reportBuffer, `${pdfFilename}_NonSBO.pdf`),
-            uploadPdfToDrive(recapBuffer, `${pdfFilename}_Rekapitulasi.pdf`)
+            uploadPdfToDrive(mergedBuffer, `${pdfFilename}_Gabungan.pdf`, data.toko.nomor_ulok, data.toko.proyek),
+            uploadPdfToDrive(reportBuffer, `${pdfFilename}_NonSBO.pdf`, data.toko.nomor_ulok, data.toko.proyek),
+            uploadPdfToDrive(recapBuffer, `${pdfFilename}_Rekapitulasi.pdf`, data.toko.nomor_ulok, data.toko.proyek)
         ]);
 
         const total = items.reduce((acc, item) => acc + Number(item.total_harga || 0), 0);

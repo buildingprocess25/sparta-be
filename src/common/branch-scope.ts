@@ -60,6 +60,18 @@ export const getBranchScopeCandidates = (branch?: string | null): string[] => {
     return result;
 };
 
+export const getDriveBranchParent = (branch?: string | null): string => {
+    const normalized = normalizeBranchScopeName(branch);
+    if (!normalized) return "CABANG LAINNYA";
+
+    for (const [parentBranch, branchGroup] of Object.entries(BRANCH_GROUPS)) {
+        if (branchGroup.includes(normalized)) {
+            return parentBranch;
+        }
+    }
+    return normalized;
+};
+
 export const getRabPriceBranch = (branch?: string | null): string => {
     const normalized = normalizeBranchScopeName(branch);
     if (!normalized) return "";
