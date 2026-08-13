@@ -310,6 +310,12 @@ export const dokumentasiBangunanRepository = {
             `);
         }
 
+        // Wajib ada Serah Terima (baik dari berkas maupun denda)
+        conditions.push(`(st_latest.created_at IS NOT NULL OR opname_latest.tanggal_serah_terima_denda IS NOT NULL)`);
+
+        // Wajib KTK Final / Opname Final sudah disetujui
+        conditions.push(`UPPER(TRIM(COALESCE(opname_latest.status_opname_final, ''))) = 'DISETUJUI'`);
+
         const result = await pool.query<DokumentasiBangunanPrefillSourceRow>(
             `
             SELECT
@@ -389,7 +395,7 @@ export const dokumentasiBangunanRepository = {
                 LIMIT 1
             ) st_latest ON true
             LEFT JOIN LATERAL (
-                SELECT ofn.tanggal_serah_terima_denda
+                SELECT ofn.tanggal_serah_terima_denda, ofn.status_opname_final
                 FROM opname_final ofn
                 WHERE ofn.id_toko = t.id
                 ORDER BY ofn.id DESC
