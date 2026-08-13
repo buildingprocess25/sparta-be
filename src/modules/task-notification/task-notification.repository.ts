@@ -1033,6 +1033,36 @@ const findRabProjectPlanningRequests = async (user: AuthenticatedUser): Promise<
     `, values);
 };
 
+const findCoordinatorRabUploadRequired = async (user: AuthenticatedUser): Promise<NotificationRow[]> => {
+    const isCoordinator = hasActiveRole(user, "BRANCH BUILDING COORDINATOR") || hasActiveRole(user, "COORDINATOR") || hasActiveRole(user, "KOORDINATOR") || (hasActiveRole(user, "BRANCH BUILDING & MAINTENANCE MANAGER") && user.cabang?.toUpperCase() === "BOGOR");
+    
+    if (!isSuperHuman(user) && !isCoordinator) return [];
+
+    const values: SqlValue[] = [];
+    const branchWhere = addApprovalBranchScope(user, values, "pp.cabang");
+    values.push(ITEM_LIMIT);
+
+    return queryNotificationRows(`
+        SELECT
+            'PROJECT_PLANNING' AS entity_type,
+            pp.id AS entity_id,
+            pp.id_toko,
+            COALESCE(pp.nama_toko, pp.nama_lokasi, pp.nomor_ulok) AS title,
+            pp.nomor_ulok,
+            pp.lingkup_pekerjaan,
+            pp.cabang,
+            pp.status,
+            'Project Planning menunggu Anda untuk upload RAB dan Gambar Kerja Final (Tahap 2).' AS description,
+            'Upload RAB & Gambar' AS action_label,
+            '/projek-planning/' || pp.id AS action_url,
+            COUNT(*) OVER() AS total_count
+        FROM projek_planning pp
+        WHERE pp.status = 'WAITING_RAB_UPLOAD'
+          AND ${branchWhere}
+        LIMIT $${values.length}
+    `, values);
+};
+
 export const taskNotificationRepository = {
     async getGroups(user: AuthenticatedUser): Promise<TaskNotificationGroup[]> {
         const [
@@ -1049,6 +1079,7 @@ export const taskNotificationRepository = {
             revisionRequired,
             picAssignmentRequired,
             rabProjectPlanningRequests,
+            coordinatorRabUpload,
         ] = await Promise.all([
             findRabApproval(user),
             findSpkApproval(user),
@@ -1063,6 +1094,7 @@ export const taskNotificationRepository = {
             findRevisionRequired(user),
             findPicAssignmentRequired(user),
             findRabProjectPlanningRequests(user),
+            findCoordinatorRabUploadRequired(user),
         ]);
 
         return [
@@ -1189,8 +1221,15 @@ export const taskNotificationRepository = {
                 "pic_pengawasan_missing",
                 "input",
                 "PIC Pengawasan",
-                "Proyek yang perlu penentuan PIC pengawasan.",
+                "Belum ada kontraktor yang ditugaskan untuk RAB yang sudah disetujui (Tugas Branch Building Coordinator).",
                 picAssignmentRequired
+            ),
+            makeGroup(
+                "coordinator_rab_upload",
+                "input",
+                "Upload RAB & Gambar Final",
+                "Project Planning yang membutuhkan upload dokumen tahap 2 oleh Koordinator.",
+                coordinatorRabUpload
             ),
             makeGroup(
                 "rab_project_planning_request",
