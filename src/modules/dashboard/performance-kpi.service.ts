@@ -222,9 +222,10 @@ const getCardValue = (fact: PerformanceKpiFact, cardType: PerformanceKpiCardType
 
 const formatNumber = (value: number | null) => value === null ? "-" : String(Number(value.toFixed(2)));
 
-const approvalFilter = (query: Pick<PerformanceKpiDrilldownInput, "sla_role" | "sla_doc">) => (event: PerformanceKpiApprovalEvent) => {
+const approvalFilter = (query: Pick<PerformanceKpiDrilldownInput, "sla_role" | "sla_doc" | "person_name">) => (event: PerformanceKpiApprovalEvent) => {
     if (query.sla_role && event.role !== query.sla_role) return false;
     if (query.sla_doc && event.document !== query.sla_doc) return false;
+    if (query.person_name && !isAll(query.person_name) && normalizeUpper(event.actorName) !== normalizeUpper(query.person_name)) return false;
     return event.durationDays !== null;
 };
 
@@ -385,10 +386,30 @@ export const performanceKpiService = {
 
     async getFilters(query: PerformanceKpiQueryInput) {
         const facts = await loadFacts(query);
+        const approvalActors: Record<string, string[]> = {
+            support: [],
+            coordinator: [],
+            bm_manager: [],
+            branch_manager: []
+        };
+        for (const fact of facts) {
+            for (const approval of fact.approvals) {
+                if (approval.actorName) {
+                    approvalActors[approval.role].push(approval.actorName);
+                }
+            }
+        }
+
         return {
             cabangs: Array.from(new Set(facts.map((fact) => fact.cabang).filter(Boolean))).sort(),
             coordinators: Array.from(new Set(facts.flatMap((fact) => fact.coordinators))).sort(),
-            supports: Array.from(new Set(facts.flatMap((fact) => fact.supports))).sort()
+            supports: Array.from(new Set(facts.flatMap((fact) => fact.supports))).sort(),
+            approvalActors: {
+                support: Array.from(new Set(approvalActors.support)).sort(),
+                coordinator: Array.from(new Set(approvalActors.coordinator)).sort(),
+                bm_manager: Array.from(new Set(approvalActors.bm_manager)).sort(),
+                branch_manager: Array.from(new Set(approvalActors.branch_manager)).sort(),
+            }
         };
     },
 
