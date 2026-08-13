@@ -1001,7 +1001,7 @@ const inferFileExtension = (mimeType?: string | null): string => {
     return "";
 };
 
-const uploadLogoToDrive = async (logoValue: string, filename: string): Promise<string | null> => {
+const uploadLogoToDrive = async (logoValue: string, filename: string, nomorUlok: string): Promise<string | null> => {
     const normalized = normalizeBase64Image(logoValue);
     if (!normalized) return null;
 
@@ -1009,8 +1009,9 @@ const uploadLogoToDrive = async (logoValue: string, filename: string): Promise<s
     const drive = gp.spartaDrive;
     if (!drive) throw new AppError("Google Drive (Sparta) belum terkonfigurasi", 500);
 
+    const folderId = await gp.getOrCreateProcessFolder("RAB", nomorUlok);
     const result = await gp.uploadFile(
-        env.PDF_STORAGE_FOLDER_ID,
+        folderId,
         filename,
         normalized.mimeType,
         normalized.buffer,
@@ -1058,8 +1059,9 @@ const uploadInsuranceFileToDrive = async (
     const ext = resolveFileExtension(file);
     const filename = `RAB_ASURANSI_${safeProyek}_${safeUlok}_${Date.now()}${ext}`;
 
+    const folderId = await gp.getOrCreateProcessFolder("RAB", nomorUlok);
     const result = await gp.uploadFile(
-        env.PDF_STORAGE_FOLDER_ID,
+        folderId,
         filename,
         file.mimetype || "application/octet-stream",
         file.buffer,
@@ -1089,8 +1091,9 @@ const uploadLogoFileToDrive = async (
     const ext = resolveFileExtension(file);
     const filename = `RAB_LOGO_${safeProyek}_${safeUlok}_${Date.now()}${ext}`;
 
+    const folderId = await gp.getOrCreateProcessFolder("RAB", nomorUlok);
     const result = await gp.uploadFile(
-        env.PDF_STORAGE_FOLDER_ID,
+        folderId,
         filename,
         file.mimetype || "application/octet-stream",
         file.buffer,
@@ -1125,8 +1128,9 @@ const uploadInsuranceStringToDrive = async (
     const drive = gp.spartaDrive;
     if (!drive) throw new AppError("Google Drive (Sparta) belum terkonfigurasi", 500);
 
+    const folderId = await gp.getOrCreateProcessFolder("RAB", nomorUlok);
     const result = await gp.uploadFile(
-        env.PDF_STORAGE_FOLDER_ID,
+        folderId,
         filename,
         normalized.mimeType,
         normalized.buffer,
@@ -1174,14 +1178,15 @@ const resolveLogoForPdf = async (logoValue?: string | null): Promise<string | un
 };
 
 /** Upload buffer ke Google Drive, return web view link */
-async function uploadPdfToDrive(buffer: Buffer, filename: string): Promise<string> {
+async function uploadPdfToDrive(buffer: Buffer, filename: string, nomorUlok: string): Promise<string> {
     const gp = GoogleProvider.instance;
     // Python server pakai drive_service (Sparta / token.json) utk upload RAB PDF
     const drive = gp.spartaDrive;
     if (!drive) throw new AppError("Google Drive (Sparta) belum terkonfigurasi", 500);
 
+    const folderId = await gp.getOrCreateProcessFolder("RAB", nomorUlok);
     const result = await gp.uploadFile(
-        env.PDF_STORAGE_FOLDER_ID,
+        folderId,
         filename,
         "application/pdf",
         buffer,
@@ -1392,7 +1397,8 @@ async function regenerateRabPdfs(
 
     linkSph = await uploadPdfToDrive(
         pdfSph,
-        `SPH_${proyek}_${nomorUlok}.pdf`
+        `SPH_${proyek}_${nomorUlok}.pdf`,
+        nomorUlok
     );
     logRab("PDF", "PDF SPH diupload", { rabId, linkSph });
 
@@ -1425,15 +1431,18 @@ async function regenerateRabPdfs(
 
     const linkNonSbo = await uploadPdfToDrive(
         pdfNonSbo,
-        `RAB_NON-SBO_${proyek}_${nomorUlok}.pdf`
+        `RAB_NON-SBO_${proyek}_${nomorUlok}.pdf`,
+        nomorUlok
     );
     const linkRecap = await uploadPdfToDrive(
         pdfRecap,
-        `REKAP_RAB_${proyek}_${nomorUlok}.pdf`
+        `REKAP_RAB_${proyek}_${nomorUlok}.pdf`,
+        nomorUlok
     );
     const linkMerged = await uploadPdfToDrive(
         pdfMerged,
-        `RAB_GABUNGAN_${proyek}_${nomorUlok}.pdf`
+        `RAB_GABUNGAN_${proyek}_${nomorUlok}.pdf`,
+        nomorUlok
     );
     logRab("PDF", "PDF hasil generate selesai diupload", {
         rabId,
@@ -1621,7 +1630,7 @@ export const rabService = {
             logoLink = normalizeIncomingAssetLink(logoValue);
             try {
                 const filename = `RAB_LOGO_${payload.proyek ?? "PROYEK"}_${payload.nomor_ulok}.png`;
-                const uploadedLink = await uploadLogoToDrive(logoValue, filename);
+                const uploadedLink = await uploadLogoToDrive(logoValue, filename, payload.nomor_ulok);
                 if (uploadedLink) {
                     logoLink = uploadedLink;
                 }
@@ -1636,7 +1645,7 @@ export const rabService = {
             let revLogoLink = normalizeIncomingAssetLink(revLogoValue);
             try {
                 const filename = `RAB_LOGO_${payload.proyek ?? "PROYEK"}_${payload.nomor_ulok}_${Date.now()}.png`;
-                const uploadedLink = await uploadLogoToDrive(revLogoValue, filename);
+                const uploadedLink = await uploadLogoToDrive(revLogoValue, filename, payload.nomor_ulok);
                 if (uploadedLink) {
                     revLogoLink = uploadedLink;
                 }

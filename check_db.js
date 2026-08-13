@@ -1,25 +1,15 @@
-const { Pool } = require('pg');
-const { env } = require('./src/config/env');
-const pool = new Pool({
-    user: env.DB_USER,
-    host: env.DB_HOST,
-    database: env.DB_NAME,
-    password: env.DB_PASSWORD,
-    port: env.DB_PORT,
-});
-
-async function main() {
-    try {
-        const result = await pool.query(`
-            SELECT id, id_toko, email_pembuat, volume_akhir, jenis_pekerjaan 
-            FROM opname_final 
-            WHERE jenis_pekerjaan LIKE '%Partisi gypsum%' AND volume_akhir > 1000
-        `);
-        console.log('Result:', result.rows);
-    } catch(e) {
-        console.error(e);
-    } finally {
-        pool.end();
-    }
+const { Client } = require('pg');
+const client = new Client({ connectionString: 'postgresql://aku-sparta:0hhUTvTHKtgkN8TfLadC@103.127.99.241:5432/building?sslmode=disable' });
+async function run() {
+    await client.connect();
+    let res = await client.query("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'opname_final'");
+    console.log('opname_final:\n', res.rows.map(r => r.column_name).join(', '));
+    res = await client.query("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'ktk'");
+    console.log('ktk:\n', res.rows.map(r => r.column_name).join(', '));
+    res = await client.query("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'toko'");
+    console.log('toko:\n', res.rows.map(r => r.column_name).join(', '));
+    res = await client.query("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'pengajuan_spk'");
+    console.log('pengajuan_spk:\n', res.rows.map(r => r.column_name).join(', '));
+    await client.end();
 }
-main();
+run().catch(console.error);
