@@ -46,7 +46,7 @@ export const listDokumentasiBangunan = asyncHandler(async (req: Request, res: Re
     console.log('[DOKUMENTASI LIST] After inject filter:', JSON.stringify(query));
     
     // Security: Pastikan cabang_array tidak kosong untuk user non-global
-    if (!query._is_global_access && (!query.cabang_array || query.cabang_array.length === 0 || query.cabang_array.includes('__NO_ACCESS__'))) {
+    if (!(query as any)._is_global_access && (!query.cabang_array || query.cabang_array.length === 0 || query.cabang_array.includes('__NO_ACCESS__'))) {
         console.error('[DOKUMENTASI LIST] REJECT: No branch access');
         throw new AppError("User tidak memiliki akses ke cabang manapun. Hubungi administrator.", 403);
     }
