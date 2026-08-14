@@ -330,7 +330,7 @@ export class GoogleProvider {
     }
 
     /** Dapatkan atau buat Folder Proyek di dalam Master Folder (Sentralisasi) */
-    async getOrCreateProjectFolder(ulok?: string | null, namaToko?: string | null, kodeToko?: string | null, cabang?: string | null): Promise<string> {
+    async getOrCreateProjectFolder(ulok?: string | null, namaToko?: string | null, kodeToko?: string | null, cabang?: string | null, kategoriProyek: string = "Toko"): Promise<string> {
         let resolvedNama = namaToko;
         let resolvedKode = kodeToko;
         let resolvedCabang = cabang;
@@ -352,6 +352,9 @@ export class GoogleProvider {
         // 1. Resolve Cabang Induk
         const parentBranchName = getDriveBranchParent(resolvedCabang);
         const branchFolderId = await this.getOrCreateFolder(parentBranchName, env.MASTER_DRIVE_FOLDER_ID);
+        
+        // 1.5 Resolve Kategori Folder (Toko / DC Development)
+        const kategoriFolderId = await this.getOrCreateFolder(kategoriProyek, branchFolderId);
 
         // 2. Resolve Project Folder Name
         const safeUlok = (ulok || "TANPA_ULOK").trim().toUpperCase();
@@ -359,7 +362,7 @@ export class GoogleProvider {
         const safeKode = (resolvedKode || "TANPA_KODE").trim().toUpperCase();
         
         const projectName = `${safeUlok} - ${safeNama} - ${safeKode}`;
-        const cacheKey = `${branchFolderId}_${projectName}`;
+        const cacheKey = `${kategoriFolderId}_${projectName}`;
 
         if (this.folderCache.has(cacheKey)) {
             return this.folderCache.get(cacheKey)!;
@@ -372,7 +375,7 @@ export class GoogleProvider {
                 
                 // Prioritas 1: ULOK
                 if (!foundFolder && safeUlok !== "TANPA_ULOK") {
-                    const q = `name contains '${safeUlok}' and '${branchFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+                    const q = `name contains '${safeUlok}' and '${kategoriFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
                     const res = await drive.files.list({ q, fields: "files(id, name)", supportsAllDrives: true, includeItemsFromAllDrives: true });
                     if (res.data.files && res.data.files.length > 0) {
                         foundFolder = { id: res.data.files[0].id!, name: res.data.files[0].name! };
@@ -381,7 +384,7 @@ export class GoogleProvider {
                 
                 // Prioritas 2: KODE TOKO
                 if (!foundFolder && safeKode !== "TANPA_KODE") {
-                    const q = `name contains '${safeKode}' and '${branchFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+                    const q = `name contains '${safeKode}' and '${kategoriFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
                     const res = await drive.files.list({ q, fields: "files(id, name)", supportsAllDrives: true, includeItemsFromAllDrives: true });
                     if (res.data.files && res.data.files.length === 1) {
                         foundFolder = { id: res.data.files[0].id!, name: res.data.files[0].name! };
@@ -393,7 +396,7 @@ export class GoogleProvider {
                 
                 // Prioritas 3: NAMA TOKO
                 if (!foundFolder && safeNama !== "TANPA_NAMA") {
-                    const q = `name contains '${safeNama}' and '${branchFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+                    const q = `name contains '${safeNama}' and '${kategoriFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
                     const res = await drive.files.list({ q, fields: "files(id, name)", supportsAllDrives: true, includeItemsFromAllDrives: true });
                     if (res.data.files && res.data.files.length > 0) {
                         foundFolder = { id: res.data.files[0].id!, name: res.data.files[0].name! };
@@ -413,12 +416,12 @@ export class GoogleProvider {
                     return foundFolder.id;
                 }
                 
-                // Jika tidak ditemukan sama sekali, buat baru
+                // Jika tidak ditemukan sama sekali, buat baru di dalam kategori
                 const created = await drive.files.create({
                     requestBody: {
                         name: projectName,
                         mimeType: "application/vnd.google-apps.folder",
-                        parents: [branchFolderId],
+                        parents: [kategoriFolderId],
                     },
                     fields: "id",
                     supportsAllDrives: true,
@@ -435,9 +438,9 @@ export class GoogleProvider {
     }
 
     /** Dapatkan atau buat Sub-folder proses di dalam Folder Proyek */
-    async getOrCreateProcessFolder(processName: string, ulok?: string | null, namaToko?: string | null, kodeToko?: string | null, cabang?: string | null): Promise<string> {
-        // 1. Dapatkan folder proyek: Dokumen SPARTA > Cabang Induk > ULOK - NAMA - KODE
-        const projectFolderId = await this.getOrCreateProjectFolder(ulok, namaToko, kodeToko, cabang);
+    async getOrCreateProcessFolder(processName: string, ulok?: string | null, namaToko?: string | null, kodeToko?: string | null, cabang?: string | null, kategoriProyek: string = "Toko"): Promise<string> {
+        // 1. Dapatkan folder proyek: Dokumen SPARTA > Cabang Induk > [Kategori] > ULOK - NAMA - KODE
+        const projectFolderId = await this.getOrCreateProjectFolder(ulok, namaToko, kodeToko, cabang, kategoriProyek);
         // 2. Buat sub-folder statis "Building"
         const buildingFolderId = await this.getOrCreateFolder("Building", projectFolderId);
         // 3. Buat folder proses (contoh: RAB, SPK, dll) di dalam "Building"
