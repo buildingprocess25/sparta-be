@@ -597,6 +597,12 @@ export const dcDevelopmentService = {
             })
             : document;
 
+        if (typeof input.notes !== "undefined") {
+            await ensureAccess(document.project_id, { email: input.actor_email, role: input.actor_role }, DC_MEMBER_ACCESS_LEVEL.UPLOAD);
+            await dcDevelopmentRepository.updateDocumentNotes(document.id, input.notes ?? null);
+            updated = (await this.getDocumentDetail(id, { actor_email: input.actor_email, actor_role: input.actor_role })) || updated;
+        }
+
         if (files.length > 0) {
             await ensureAccess(document.project_id, { email: input.actor_email, role: input.actor_role }, DC_MEMBER_ACCESS_LEVEL.UPLOAD);
             const project = await dcDevelopmentRepository.findProjectById(document.project_id);

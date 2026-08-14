@@ -179,6 +179,9 @@ export type DcArchiveProjectRow = {
     created_at: string;
     updated_at: string;
     jumlah_dokumen: number;
+    docs_pembangunan: number;
+    docs_renovasi: number;
+    docs_perluasan: number;
     kategori_counts: Record<string, number>;
 };
 
@@ -343,6 +346,9 @@ export const dcDevelopmentRepository = {
                 a.created_at,
                 a.updated_at,
                 COUNT(d.id)::int AS jumlah_dokumen,
+                COUNT(d.id) FILTER (WHERE d.stage = 'Pembangunan')::int AS docs_pembangunan,
+                COUNT(d.id) FILTER (WHERE d.stage = 'Renovasi')::int AS docs_renovasi,
+                COUNT(d.id) FILTER (WHERE d.stage = 'Perluasan')::int AS docs_perluasan,
                 COALESCE(
                     jsonb_object_agg(d.document_type, doc_counts.total) FILTER (WHERE d.document_type IS NOT NULL),
                     '{}'::jsonb
@@ -400,7 +406,9 @@ export const dcDevelopmentRepository = {
                 ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, timezone('Asia/Jakarta', now()), timezone('Asia/Jakarta', now()))
                 RETURNING id, project_id, archive_code, archive_name, branch_name, location_name,
                     project_type, address, notes, created_by_email, created_by_role,
-                    created_at, updated_at, 0::int AS jumlah_dokumen, '{}'::jsonb AS kategori_counts`,
+                    created_at, updated_at, 0::int AS jumlah_dokumen, 
+                    0::int AS docs_pembangunan, 0::int AS docs_renovasi, 0::int AS docs_perluasan,
+                    '{}'::jsonb AS kategori_counts`,
                 [
                     project.id,
                     input.archive_code,
@@ -1422,6 +1430,15 @@ export const dcDevelopmentRepository = {
             [id]
         );
         return result.rows[0] ?? null;
+    },
+
+    async updateDocumentNotes(documentId: number, notes: string | null): Promise<void> {
+        await pool.query(
+            `UPDATE dc_document_version
+             SET notes = $2, updated_at = timezone('Asia/Jakarta', now())
+             WHERE document_id = $1 AND is_current = true`,
+            [documentId, notes]
+        );
     },
 
     async updateDocumentMetadata(
