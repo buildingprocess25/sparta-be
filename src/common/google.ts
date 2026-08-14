@@ -359,9 +359,79 @@ export class GoogleProvider {
         const safeKode = (resolvedKode || "TANPA_KODE").trim().toUpperCase();
         
         const projectName = `${safeUlok} - ${safeNama} - ${safeKode}`;
-        
-        // 3. Create Project Folder inside Branch Folder
-        return this.getOrCreateFolder(projectName, branchFolderId);
+        const cacheKey = `${branchFolderId}_${projectName}`;
+
+        if (this.folderCache.has(cacheKey)) {
+            return this.folderCache.get(cacheKey)!;
+        }
+
+        const createPromise = (async () => {
+            try {
+                const drive = this.ensureDocDrive();
+                let foundFolder: { id: string, name: string } | null = null;
+                
+                // Prioritas 1: ULOK
+                if (!foundFolder && safeUlok !== "TANPA_ULOK") {
+                    const q = `name contains '${safeUlok}' and '${branchFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+                    const res = await drive.files.list({ q, fields: "files(id, name)", supportsAllDrives: true, includeItemsFromAllDrives: true });
+                    if (res.data.files && res.data.files.length > 0) {
+                        foundFolder = { id: res.data.files[0].id!, name: res.data.files[0].name! };
+                    }
+                }
+                
+                // Prioritas 2: KODE TOKO
+                if (!foundFolder && safeKode !== "TANPA_KODE") {
+                    const q = `name contains '${safeKode}' and '${branchFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+                    const res = await drive.files.list({ q, fields: "files(id, name)", supportsAllDrives: true, includeItemsFromAllDrives: true });
+                    if (res.data.files && res.data.files.length === 1) {
+                        foundFolder = { id: res.data.files[0].id!, name: res.data.files[0].name! };
+                    } else if (res.data.files && res.data.files.length > 1) {
+                        const matched = res.data.files.find(f => f.name?.includes(safeNama));
+                        foundFolder = matched ? { id: matched.id!, name: matched.name! } : { id: res.data.files[0].id!, name: res.data.files[0].name! };
+                    }
+                }
+                
+                // Prioritas 3: NAMA TOKO
+                if (!foundFolder && safeNama !== "TANPA_NAMA") {
+                    const q = `name contains '${safeNama}' and '${branchFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+                    const res = await drive.files.list({ q, fields: "files(id, name)", supportsAllDrives: true, includeItemsFromAllDrives: true });
+                    if (res.data.files && res.data.files.length > 0) {
+                        foundFolder = { id: res.data.files[0].id!, name: res.data.files[0].name! };
+                    }
+                }
+
+                if (foundFolder) {
+                    // Update nama jika belum sesuai (auto-rename)
+                    if (foundFolder.name !== projectName) {
+                        console.log(`[Drive] Auto-renaming project folder from "${foundFolder.name}" to "${projectName}"`);
+                        await drive.files.update({
+                            fileId: foundFolder.id,
+                            requestBody: { name: projectName },
+                            supportsAllDrives: true,
+                        });
+                    }
+                    return foundFolder.id;
+                }
+                
+                // Jika tidak ditemukan sama sekali, buat baru
+                const created = await drive.files.create({
+                    requestBody: {
+                        name: projectName,
+                        mimeType: "application/vnd.google-apps.folder",
+                        parents: [branchFolderId],
+                    },
+                    fields: "id",
+                    supportsAllDrives: true,
+                });
+                return created.data.id!;
+            } catch (error) {
+                this.folderCache.delete(cacheKey);
+                throw error;
+            }
+        })();
+
+        this.folderCache.set(cacheKey, createPromise);
+        return createPromise;
     }
 
     /** Dapatkan atau buat Sub-folder proses di dalam Folder Proyek */
