@@ -119,6 +119,8 @@ export class GoogleProvider {
     docDrive: drive_v3.Drive | null = null;
     docAuthClient: any = null;
     docTokenMeta = { source: null as string | null, tokenFileFound: false, hasRefreshToken: false };
+    
+    private folderCache = new Map<string, Promise<string>>();
 
     private static _instance: GoogleProvider | null = null;
     private static _initPromise: Promise<void> | null = null;
@@ -290,25 +292,41 @@ export class GoogleProvider {
         return this.docDrive;
     }
 
-    /** Sama dg Python get_or_create_folder() */
+    /** Sama dg Python get_or_create_folder() dengan proteksi Race-Condition (Cache Lock) */
     async getOrCreateFolder(name: string, parentId: string): Promise<string> {
         const drive = this.ensureDocDrive();
         const safeName = name.replace(/'/g, "\\'");
-        const query = `name='${safeName}' and '${parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
-        const res = await drive.files.list({ q: query, fields: "files(id)", supportsAllDrives: true, includeItemsFromAllDrives: true });
-        const items = res.data.files || [];
-        if (items.length > 0) return items[0].id!;
+        const cacheKey = `${parentId}_${safeName}`;
 
-        const folder = await drive.files.create({
-            requestBody: {
-                name,
-                mimeType: "application/vnd.google-apps.folder",
-                parents: [parentId],
-            },
-            fields: "id",
-            supportsAllDrives: true,
-        });
-        return folder.data.id!;
+        if (this.folderCache.has(cacheKey)) {
+            return this.folderCache.get(cacheKey)!;
+        }
+
+        const createPromise = (async () => {
+            try {
+                const query = `name='${safeName}' and '${parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+                const res = await drive.files.list({ q: query, fields: "files(id)", supportsAllDrives: true, includeItemsFromAllDrives: true });
+                const items = res.data.files || [];
+                if (items.length > 0) return items[0].id!;
+
+                const folder = await drive.files.create({
+                    requestBody: {
+                        name,
+                        mimeType: "application/vnd.google-apps.folder",
+                        parents: [parentId],
+                    },
+                    fields: "id",
+                    supportsAllDrives: true,
+                });
+                return folder.data.id!;
+            } catch (error) {
+                this.folderCache.delete(cacheKey); // Hapus dari cache jika gagal agar bisa di-retry
+                throw error;
+            }
+        })();
+
+        this.folderCache.set(cacheKey, createPromise);
+        return createPromise;
     }
 
     /** Dapatkan atau buat Folder Proyek di dalam Master Folder (Sentralisasi) */
@@ -348,8 +366,12 @@ export class GoogleProvider {
 
     /** Dapatkan atau buat Sub-folder proses di dalam Folder Proyek */
     async getOrCreateProcessFolder(processName: string, ulok?: string | null, namaToko?: string | null, kodeToko?: string | null, cabang?: string | null): Promise<string> {
+        // 1. Dapatkan folder proyek: Dokumen SPARTA > Cabang Induk > ULOK - NAMA - KODE
         const projectFolderId = await this.getOrCreateProjectFolder(ulok, namaToko, kodeToko, cabang);
-        return this.getOrCreateFolder(processName, projectFolderId);
+        // 2. Buat sub-folder statis "Building"
+        const buildingFolderId = await this.getOrCreateFolder("Building", projectFolderId);
+        // 3. Buat folder proses (contoh: RAB, SPK, dll) di dalam "Building"
+        return this.getOrCreateFolder(processName, buildingFolderId);
     }
 
     private async setPublicPermission(drive: drive_v3.Drive, fileId: string | undefined) {

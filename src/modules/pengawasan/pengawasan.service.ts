@@ -112,7 +112,7 @@ const uploadDokumentasiToDrive = async (
     const filename = `PENGAWASAN_DOKUMENTASI_${safeGantt}_${Date.now()}${ext}`;
 
     const tokoQuery = await pool.query(
-        `SELECT t.nomor_ulok, t.proyek FROM gantt_chart g JOIN master_toko t ON g.id_toko = t.id WHERE g.id = $1`,
+        `SELECT t.nomor_ulok, t.proyek FROM gantt_chart g JOIN toko t ON g.id_toko = t.id WHERE g.id = $1`,
         [idGantt]
     );
     const nomorUlok = tokoQuery.rows[0]?.nomor_ulok;
@@ -382,7 +382,7 @@ const generateAndUploadPengawasanPdf = async (
         }
 
         const tokoQuery = await pool.query(
-            `SELECT t.nomor_ulok, t.proyek FROM gantt_chart g JOIN master_toko t ON g.id_toko = t.id WHERE g.id = $1`,
+            `SELECT t.nomor_ulok, t.proyek FROM gantt_chart g JOIN toko t ON g.id_toko = t.id WHERE g.id = $1`,
             [idGantt]
         );
         const nomorUlok = tokoQuery.rows[0]?.nomor_ulok;

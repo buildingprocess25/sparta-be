@@ -167,7 +167,7 @@ const uploadFotoOpnameToDrive = async (
     const filename = `OPNAME_FOTO_${safeToko}_${Date.now()}${ext}`;
 
     const tokoQuery = await pool.query(
-        `SELECT nomor_ulok, proyek FROM master_toko WHERE id = $1`,
+        `SELECT nomor_ulok, proyek FROM toko WHERE id = $1`,
         [idToko]
     );
     const nomorUlok = tokoQuery.rows[0]?.nomor_ulok;

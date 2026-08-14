@@ -96,7 +96,7 @@ const uploadSpAttachmentToDrive = async (
     if (context.nomor_ulok) {
         const { pool } = await import("../../db/pool");
         const tokoQuery = await pool.query(
-            `SELECT nama_toko, kode_toko FROM master_toko WHERE nomor_ulok = $1 LIMIT 1`,
+            `SELECT nama_toko, kode_toko FROM toko WHERE nomor_ulok = $1 LIMIT 1`,
             [context.nomor_ulok]
         );
         if (tokoQuery.rows.length > 0) {
@@ -163,7 +163,7 @@ const buildAndUploadSpPdf = async (input: {
     if (input.action.nomor_ulok) {
         const { pool } = await import("../../db/pool");
         const tokoQuery = await pool.query(
-            `SELECT nama_toko, kode_toko FROM master_toko WHERE nomor_ulok = $1 LIMIT 1`,
+            `SELECT nama_toko, kode_toko FROM toko WHERE nomor_ulok = $1 LIMIT 1`,
             [input.action.nomor_ulok]
         );
         if (tokoQuery.rows.length > 0) {

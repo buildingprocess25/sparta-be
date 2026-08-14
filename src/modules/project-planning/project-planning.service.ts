@@ -790,8 +790,9 @@ export const projekPlanningService = {
         let link3d = payload.link_desain_3d;
         if (file) {
             try {
+                const folderId = await GoogleProvider.instance.getOrCreateProcessFolder("Project planning", projek.nomor_ulok, projek.nama_toko, projek.kode_toko, projek.cabang);
                 const uploaded = await GoogleProvider.instance.uploadFile(
-                    PROJECT_PLANNING_DRIVE_FOLDER_ID,
+                    folderId,
                     file.originalname,
                     file.mimetype,
                     file.buffer
@@ -882,12 +883,13 @@ export const projekPlanningService = {
             const fGambarMe = files["file_gambar_kerja_final_me"] ?? [];
             
             try {
+                const folderId = await GoogleProvider.instance.getOrCreateProcessFolder("Project planning", projek.nomor_ulok, projek.nama_toko, projek.kode_toko, projek.cabang);
                 if (fGambarSipil.length > 0) {
-                    const link = await uploadCompressedFiles(fGambarSipil, PROJECT_PLANNING_DRIVE_FOLDER_ID);
+                    const link = await uploadCompressedFiles(fGambarSipil, folderId);
                     if (link) linkGambarSipil = link;
                 }
                 if (fGambarMe.length > 0) {
-                    const link = await uploadCompressedFiles(fGambarMe, PROJECT_PLANNING_DRIVE_FOLDER_ID);
+                    const link = await uploadCompressedFiles(fGambarMe, folderId);
                     if (link) linkGambarMe = link;
                 }
             } catch (e) {
