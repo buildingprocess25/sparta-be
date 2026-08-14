@@ -346,9 +346,9 @@ export const dcDevelopmentRepository = {
                 a.created_at,
                 a.updated_at,
                 COUNT(d.id)::int AS jumlah_dokumen,
-                COUNT(d.id) FILTER (WHERE d.stage = 'Pembangunan')::int AS docs_pembangunan,
-                COUNT(d.id) FILTER (WHERE d.stage = 'Renovasi')::int AS docs_renovasi,
-                COUNT(d.id) FILTER (WHERE d.stage = 'Perluasan')::int AS docs_perluasan,
+                COUNT(DISTINCT split_part(d.document_type, '__', 1)) FILTER (WHERE d.stage = 'Pembangunan')::int AS docs_pembangunan,
+                COUNT(DISTINCT split_part(d.document_type, '__', 1)) FILTER (WHERE d.stage = 'Renovasi')::int AS docs_renovasi,
+                COUNT(DISTINCT split_part(d.document_type, '__', 1)) FILTER (WHERE d.stage = 'Perluasan')::int AS docs_perluasan,
                 COALESCE(
                     jsonb_object_agg(d.document_type, doc_counts.total) FILTER (WHERE d.document_type IS NOT NULL),
                     '{}'::jsonb
