@@ -3,8 +3,10 @@ import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
 import { pool } from "../../db/pool";
 import { DC_MEMBER_ACCESS_LEVEL, DC_PROJECT_STAGE_SEQUENCE, DC_ROLES, type DcMemberAccessLevel } from "./dc-development.constants";
+import * as xlsx from "xlsx";
 import { dcDevelopmentRepository, type DcDocumentRow } from "./dc-development.repository";
 import { DC_DOCUMENT_CONFIG } from "./dc-document.config";
+import { buildDcDocumentReportPdfBuffer, type PdfStage, type PdfStageItem } from "./dc-development.pdf";
 import type {
     AdvanceDcProjectStageInput,
     CreateDcArchiveProjectInput,
@@ -650,5 +652,113 @@ export const dcDevelopmentService = {
             buffer,
             link: document.link_dokumen
         };
+    },
+
+    async exportDcDocuments(id: string, actor: DcDocumentActorQuery, format: "csv" | "excel" | "pdf") {
+        const projectId = Number(id);
+        const project = await dcDevelopmentRepository.findArchiveProjectById(projectId);
+        if (!project) throw new AppError("Arsip DC tidak ditemukan", 404);
+
+        // Verify access (View level is enough to export)
+        await ensureAccess(projectId, { email: actor.actor_email, role: actor.actor_role }, DC_MEMBER_ACCESS_LEVEL.VIEW);
+
+        // Fetch all documents for this project
+        const documents = await dcDevelopmentRepository.listDocuments({ project_id: projectId, actor_email: actor.actor_email, actor_role: actor.actor_role });
+
+        // Build a map of document items (key is `${jenisKey}`)
+        // We only care about the first part of document_type
+        const docMap = new Map<string, { stage: string, notes: string | null }>();
+        for (const doc of documents) {
+            if (doc.document_type && doc.stage) {
+                const jenisKey = doc.document_type.split('__')[0];
+                const existing = docMap.get(`${doc.stage}#${jenisKey}`);
+                if (!existing || doc.notes) {
+                     docMap.set(`${doc.stage}#${jenisKey}`, { stage: doc.stage, notes: doc.notes || (existing?.notes ?? null) });
+                }
+            }
+        }
+
+        const stages: PdfStage[] = [];
+        const flatRows: any[] = [];
+        
+        const STAGES = ["Pembangunan", "Renovasi", "Perluasan"];
+
+        for (const stageName of STAGES) {
+            const items: PdfStageItem[] = [];
+            let total = 0;
+            let filled = 0;
+
+            for (const utama of DC_DOCUMENT_CONFIG) {
+                // Skip if Renovasi and not allowed
+                if (stageName === "Renovasi" && utama.title !== "Perijinan Utama" && utama.title !== "Dokumen Asbuilt Drawing") {
+                     continue;
+                }
+                for (const detail of utama.details) {
+                    for (const jenis of detail.jenis) {
+                        total++;
+                        const mapKey = `${stageName}#${jenis.key}`;
+                        const isFilled = docMap.has(mapKey);
+                        if (isFilled) filled++;
+
+                        const notes = isFilled ? docMap.get(mapKey)!.notes : null;
+
+                        items.push({
+                            kategori: utama.title,
+                            jenis: jenis.title,
+                            status: isFilled,
+                            notes: notes
+                        });
+
+                        flatRows.push({
+                            "Tahap": stageName,
+                            "Kategori Utama": utama.title,
+                            "Jenis Dokumen": jenis.title,
+                            "Status": isFilled ? "ADA" : "KOSONG",
+                            "Catatan": notes || ""
+                        });
+                    }
+                }
+            }
+
+            if (total > 0) {
+                stages.push({
+                    stageName,
+                    total,
+                    filled,
+                    percentage: Math.round((filled / total) * 100),
+                    items
+                });
+            }
+        }
+
+        if (format === "csv") {
+            if (flatRows.length === 0) return { buffer: Buffer.from(""), filename: `Export_${project.archive_name}.csv` };
+            const headers = Object.keys(flatRows[0]);
+            const csvRows = [
+                headers.join(","),
+                ...flatRows.map(row => headers.map(h => `"${(row[h] || "").toString().replace(/"/g, '""')}"`).join(","))
+            ];
+            return {
+                buffer: Buffer.from(csvRows.join("\n")),
+                filename: `Data_DC_${project.archive_code}.csv`
+            };
+        } else if (format === "excel") {
+            const wb = xlsx.utils.book_new();
+            const ws = xlsx.utils.json_to_sheet(flatRows);
+            xlsx.utils.book_append_sheet(wb, ws, "Dokumen DC");
+            const buffer = xlsx.write(wb, { type: "buffer", bookType: "xlsx" });
+            return {
+                buffer,
+                filename: `Data_DC_${project.archive_code}.xlsx`
+            };
+        } else if (format === "pdf") {
+            const buffer = await buildDcDocumentReportPdfBuffer(project, stages);
+            return {
+                buffer,
+                filename: `Laporan_DC_${project.archive_code}.pdf`
+            };
+        }
+
+        throw new AppError("Format tidak didukung", 400);
     }
 };

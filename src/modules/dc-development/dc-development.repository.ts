@@ -550,6 +550,30 @@ export const dcDevelopmentRepository = {
         return result.rows[0] ?? null;
     },
 
+    async findArchiveProjectById(id: number): Promise<DcArchiveProjectRow | null> {
+        const result = await pool.query<DcArchiveProjectRow>(
+            `SELECT
+                id,
+                project_id,
+                archive_code,
+                archive_name,
+                branch_name,
+                location_name,
+                project_type,
+                address,
+                notes,
+                created_by_email,
+                created_by_role,
+                created_at,
+                updated_at
+             FROM dc_archive_project
+             WHERE id = $1
+             LIMIT 1`,
+            [id]
+        );
+        return result.rows[0] ?? null;
+    },
+
     async advanceProjectStage(input: {
         id: number;
         actor_email: string;

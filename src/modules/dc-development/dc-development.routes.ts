@@ -35,7 +35,10 @@ import {
     updateDcProjectBast,
     listDcParticipantTerms,
     addDcTermSchedule,
-    submitDcTermClaim
+    submitDcTermClaim,
+    exportDcDocumentsCsv,
+    exportDcDocumentsExcel,
+    exportDcDocumentsPdf
 } from "./dc-development.controller";
 import { DC_ROLES } from "./dc-development.constants";
 
@@ -83,6 +86,11 @@ dcDevelopmentRouter.put("/projects/:id/timeline/:taskId", updateDcProjectTimelin
 dcDevelopmentRouter.get("/projects/:id/issues", listDcProjectIssues);
 dcDevelopmentRouter.post("/projects/:id/issues", addDcProjectIssue);
 dcDevelopmentRouter.put("/projects/:id/issues/:issueId", updateDcProjectIssue);
+
+dcDevelopmentRouter.get("/projects/:id/export/csv", exportDcDocumentsCsv);
+dcDevelopmentRouter.get("/projects/:id/export/excel", exportDcDocumentsExcel);
+dcDevelopmentRouter.get("/projects/:id/export/pdf", exportDcDocumentsPdf);
+
 dcDevelopmentRouter.get("/projects/:id/bast", listDcProjectBast);
 dcDevelopmentRouter.post("/projects/:id/bast", createDcProjectBast);
 dcDevelopmentRouter.put("/projects/:id/bast/:bastId", updateDcProjectBast);

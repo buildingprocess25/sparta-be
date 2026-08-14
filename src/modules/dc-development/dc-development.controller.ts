@@ -351,3 +351,27 @@ export const downloadDcDocument = asyncHandler(async (req: Request, res: Respons
     res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(file.document.file_name || "dokumen-dc")}"`);
     res.send(file.buffer);
 });
+
+export const exportDcDocumentsCsv = asyncHandler(async (req: Request, res: Response) => {
+    const actor = withSessionActor(req, dcDocumentActorQuerySchema.parse(req.query));
+    const result = await dcDevelopmentService.exportDcDocuments(req.params.id, actor, "csv");
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);
+    res.send(result.buffer);
+});
+
+export const exportDcDocumentsExcel = asyncHandler(async (req: Request, res: Response) => {
+    const actor = withSessionActor(req, dcDocumentActorQuerySchema.parse(req.query));
+    const result = await dcDevelopmentService.exportDcDocuments(req.params.id, actor, "excel");
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);
+    res.send(result.buffer);
+});
+
+export const exportDcDocumentsPdf = asyncHandler(async (req: Request, res: Response) => {
+    const actor = withSessionActor(req, dcDocumentActorQuerySchema.parse(req.query));
+    const result = await dcDevelopmentService.exportDcDocuments(req.params.id, actor, "pdf");
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);
+    res.send(result.buffer);
+});
