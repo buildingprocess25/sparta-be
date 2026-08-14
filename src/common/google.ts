@@ -330,7 +330,7 @@ export class GoogleProvider {
     }
 
     /** Dapatkan atau buat Folder Proyek di dalam Master Folder (Sentralisasi) */
-    async getOrCreateProjectFolder(ulok?: string | null, namaToko?: string | null, kodeToko?: string | null, cabang?: string | null, kategoriProyek: string = "Toko"): Promise<string> {
+    async getOrCreateProjectFolder(ulok?: string | null, namaToko?: string | null, kodeToko?: string | null, cabang?: string | null, kategoriProyek: string = "Toko", projectNameOverride?: string): Promise<string> {
         let resolvedNama = namaToko;
         let resolvedKode = kodeToko;
         let resolvedCabang = cabang;
@@ -361,7 +361,7 @@ export class GoogleProvider {
         const safeNama = (resolvedNama || "TANPA_NAMA").trim().toUpperCase();
         const safeKode = (resolvedKode || "TANPA_KODE").trim().toUpperCase();
         
-        const projectName = `${safeUlok} - ${safeNama} - ${safeKode}`;
+        const projectName = projectNameOverride || `${safeUlok} - ${safeNama} - ${safeKode}`;
         const cacheKey = `${kategoriFolderId}_${projectName}`;
 
         if (this.folderCache.has(cacheKey)) {
@@ -438,12 +438,12 @@ export class GoogleProvider {
     }
 
     /** Dapatkan atau buat Sub-folder proses di dalam Folder Proyek */
-    async getOrCreateProcessFolder(processName: string, ulok?: string | null, namaToko?: string | null, kodeToko?: string | null, cabang?: string | null, kategoriProyek: string = "Toko"): Promise<string> {
-        // 1. Dapatkan folder proyek: Dokumen SPARTA > Cabang Induk > [Kategori] > ULOK - NAMA - KODE
-        const projectFolderId = await this.getOrCreateProjectFolder(ulok, namaToko, kodeToko, cabang, kategoriProyek);
+    async getOrCreateProcessFolder(processName: string, ulok?: string | null, namaToko?: string | null, kodeToko?: string | null, cabang?: string | null, kategoriProyek: string = "Toko", projectNameOverride?: string): Promise<string> {
+        // 1. Dapatkan folder proyek: Dokumen SPARTA > Cabang Induk > [Kategori] > [Nama Proyek]
+        const projectFolderId = await this.getOrCreateProjectFolder(ulok, namaToko, kodeToko, cabang, kategoriProyek, projectNameOverride);
         // 2. Buat sub-folder statis "Building"
         const buildingFolderId = await this.getOrCreateFolder("Building", projectFolderId);
-        // 3. Buat folder proses (contoh: RAB, SPK, dll) di dalam "Building"
+        // 3. Buat folder proses (contoh: RAB, SPK, Penyimpanan Dokumen DC, dll) di dalam "Building"
         return this.getOrCreateFolder(processName, buildingFolderId);
     }
 

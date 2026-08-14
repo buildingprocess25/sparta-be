@@ -254,19 +254,7 @@ const DC_DOCUMENT_SELECT = `
     p.project_name
 `;
 
-const REQUIRED_ARCHIVE_DOCUMENT_CATEGORIES = [
-    "fotoExisting",
-    "fotoRenovasi",
-    "me",
-    "sipil",
-    "sketsaAwal",
-    "spk",
-    "rab",
-    "instruksiLapangan",
-    "pengawasan",
-    "aanwijzing",
-    "kerjaTambahKurang"
-];
+const REQUIRED_ARCHIVE_DOCUMENT_CATEGORIES: string[] = [];
 
 const insertActivityLog = async (
     client: PoolClient,
@@ -327,17 +315,15 @@ export const dcDevelopmentRepository = {
             )`);
         }
 
-        const requiredCategoryList = REQUIRED_ARCHIVE_DOCUMENT_CATEGORIES.map((category) => `'${category}'`).join(",");
         if (filter.status && filter.status !== "all") {
-            const comparator = filter.status === "lengkap" ? "=" : "<";
+            const comparator = filter.status === "lengkap" ? ">" : "=";
             conditions.push(`(
                 SELECT COUNT(DISTINCT d.document_type)
                 FROM dc_document d
                 WHERE d.entity_type = 'DC_ARCHIVE_PROJECT'
                   AND d.entity_id = a.id
                   AND d.status <> 'DELETED'
-                  AND d.document_type IN (${requiredCategoryList})
-            ) ${comparator} ${REQUIRED_ARCHIVE_DOCUMENT_CATEGORIES.length}`);
+            ) ${comparator} 0`);
         }
 
         const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";

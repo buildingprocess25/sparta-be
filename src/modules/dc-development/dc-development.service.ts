@@ -4,6 +4,7 @@ import { env } from "../../config/env";
 import { pool } from "../../db/pool";
 import { DC_MEMBER_ACCESS_LEVEL, DC_PROJECT_STAGE_SEQUENCE, DC_ROLES, type DcMemberAccessLevel } from "./dc-development.constants";
 import { dcDevelopmentRepository, type DcDocumentRow } from "./dc-development.repository";
+import { DC_DOCUMENT_CONFIG } from "./dc-document.config";
 import type {
     AdvanceDcProjectStageInput,
     CreateDcArchiveProjectInput,
@@ -116,27 +117,62 @@ const ensureAccess = async (
     }
 };
 
+const resolveDocHierarchy = (documentType: string) => {
+    const match = documentType.match(/^([a-zA-Z_0-9]+)__([a-zA-Z_0-9]+)$/);
+    if (!match) return { utama: "Lainnya", jenis: documentType };
+    const jenisKey = match[1];
+    
+    for (const utama of DC_DOCUMENT_CONFIG) {
+        for (const detail of utama.details) {
+            for (const jenis of detail.jenis) {
+                if (jenis.key === jenisKey) {
+                    return { utama: utama.title, jenis: jenis.title };
+                }
+            }
+        }
+    }
+    return { utama: "Lainnya", jenis: documentType };
+};
+
 const uploadFilesToDrive = async (
     input: CreateDcDocumentInput,
-    project: { project_code: string; project_name: string },
+    project: any,
     files: UploadedDcDocumentFile[]
 ) => {
-    const { gp, root } = ensureDcDocDriveReady();
-    const dcRootFolder = await gp.getOrCreateFolder("DC Development", root);
-    const projectFolder = await gp.getOrCreateFolder(
-        `${sanitizeFilenamePart(project.project_code, "DC")}_${sanitizeFilenamePart(project.project_name, "PROJECT")}`,
-        dcRootFolder
+    const { gp } = ensureDcDocDriveReady();
+    
+    const projectNameOverride = `${project.project_code} - ${project.project_name} - ${project.branch_name || "UNKNOWN"}`;
+    
+    const processFolder = await gp.getOrCreateProcessFolder(
+        "Penyimpanan Dokumen DC", 
+        null, 
+        project.project_name, 
+        project.project_code, 
+        project.branch_name, 
+        "DC Development", 
+        projectNameOverride
     );
+
+    const stageName = input.stage ?? input.entity_type;
     const stageFolder = await gp.getOrCreateFolder(
-        sanitizeFilenamePart(input.stage ?? input.entity_type, "PROJECT"),
-        projectFolder
+        sanitizeFilenamePart(stageName, "PROJECT"),
+        processFolder
     );
-    const documentFolder = await gp.getOrCreateFolder(
-        sanitizeFilenamePart(input.document_type, "DOKUMEN"),
+
+    const docHierarchy = resolveDocHierarchy(input.document_type);
+    
+    const utamaFolder = await gp.getOrCreateFolder(
+        sanitizeFilenamePart(docHierarchy.utama, "KATEGORI"),
         stageFolder
     );
+
+    const documentFolder = await gp.getOrCreateFolder(
+        sanitizeFilenamePart(docHierarchy.jenis, "DOKUMEN"),
+        utamaFolder
+    );
+
     const folderLink = buildFolderLink(documentFolder);
-    const safeDoc = sanitizeFilenamePart(input.document_type, "DOKUMEN");
+    const safeDoc = sanitizeFilenamePart(docHierarchy.jenis, "DOKUMEN");
     const safeProject = sanitizeFilenamePart(project.project_code, "DC");
     const timestamp = Date.now();
 
