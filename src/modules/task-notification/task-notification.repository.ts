@@ -620,6 +620,66 @@ const findDendaActionToAcknowledge = async (user: AuthenticatedUser): Promise<No
     `, values);
 };
 
+const findPendingOpnameFromGantt = async (user: AuthenticatedUser): Promise<NotificationRow[]> => {
+    if (!isSuperHuman(user) && !hasActiveRole(user, "BRANCH BUILDING SUPPORT")) return [];
+
+    const values: SqlValue[] = [];
+    const branchWhere = addBranchScope(user, values, "t.cabang");
+    values.push(ITEM_LIMIT);
+
+    return queryNotificationRows(`
+        WITH latest_gantt AS (
+            SELECT DISTINCT ON (id_toko) id, id_toko
+            FROM gantt_chart
+            ORDER BY id_toko, id DESC
+        ),
+        completed_pengawasan AS (
+            SELECT lg.id_toko, p.kategori_pekerjaan
+            FROM pengawasan p
+            JOIN latest_gantt lg ON lg.id = p.id_gantt
+            WHERE LOWER(p.status) = 'selesai'
+        ),
+        opname_items AS (
+            SELECT ofn.id_toko, COALESCE(ri.kategori_pekerjaan, ili.kategori_pekerjaan) AS kategori_pekerjaan
+            FROM opname_item oi
+            JOIN opname_final ofn ON ofn.id = oi.id_opname_final
+            LEFT JOIN rab_item ri ON ri.id = oi.id_rab_item
+            LEFT JOIN instruksi_lapangan_item ili ON ili.id = oi.id_instruksi_lapangan_item
+            WHERE COALESCE(ofn.status_opname_final, '') NOT IN ('Ditolak', 'Batal')
+        ),
+        missing_opname AS (
+            SELECT cp.id_toko, cp.kategori_pekerjaan
+            FROM completed_pengawasan cp
+            LEFT JOIN opname_items oi ON oi.id_toko = cp.id_toko AND oi.kategori_pekerjaan = cp.kategori_pekerjaan
+            WHERE oi.kategori_pekerjaan IS NULL
+        ),
+        grouped_missing AS (
+            SELECT id_toko, STRING_AGG(DISTINCT kategori_pekerjaan, ', ') as missing_items, COUNT(DISTINCT kategori_pekerjaan)::int as missing_count
+            FROM missing_opname
+            GROUP BY id_toko
+        )
+        SELECT
+            'PENDING_OPNAME_GANTT' AS entity_type,
+            t.id AS entity_id,
+            t.id AS id_toko,
+            COALESCE(t.nama_toko, t.nomor_ulok) AS title,
+            t.nomor_ulok,
+            t.lingkup_pekerjaan,
+            t.cabang,
+            'Opname Belum Diisi (' || gm.missing_count || ' Item)' AS status,
+            'Progress pengawasan selesai tapi belum di-Opname: ' || gm.missing_items AS description,
+            'Isi Opname' AS action_label,
+            '/opname?id_toko=' || t.id AS action_url,
+            COUNT(*) OVER() AS total_count
+        FROM grouped_missing gm
+        JOIN toko t ON t.id = gm.id_toko
+        WHERE 1=1
+          ${branchWhere}
+        ORDER BY t.id DESC
+        LIMIT $${values.length}
+    `, values);
+};
+
 const findSupportKtkReady = async (user: AuthenticatedUser): Promise<NotificationRow[]> => {
     if (!isSuperHuman(user) && !hasActiveRole(user, "BRANCH BUILDING SUPPORT")) return [];
 
@@ -1075,6 +1135,7 @@ export const taskNotificationRepository = {
             dendaActionApproval,
             requestIntervensiApproval,
             dendaActionToAcknowledge,
+            pendingOpnameFromGantt,
             supportKtkReady,
             revisionRequired,
             picAssignmentRequired,
@@ -1090,6 +1151,7 @@ export const taskNotificationRepository = {
             findDendaActionApproval(user),
             findRequestIntervensiApproval(user),
             findDendaActionToAcknowledge(user),
+            findPendingOpnameFromGantt(user),
             findSupportKtkReady(user),
             findRevisionRequired(user),
             findPicAssignmentRequired(user),
@@ -1160,6 +1222,13 @@ export const taskNotificationRepository = {
                 "Surat Peringatan Baru",
                 "Surat Peringatan yang baru diterbitkan dan perlu disetujui.",
                 dendaActionToAcknowledge
+            ),
+            makeGroup(
+                "pending_opname_gantt",
+                "input",
+                "Opname Belum Diisi",
+                "Progress pengawasan sudah selesai, harap lanjutkan pengisian Opname.",
+                pendingOpnameFromGantt
             ),
             makeGroup(
                 "support_ktk_ready",
