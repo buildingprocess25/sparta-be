@@ -764,7 +764,9 @@ export const dcDevelopmentService = {
 
     async exportGlobalDcDocuments(query: DcArchiveProjectListQuery, actor: DcDocumentActorQuery, format: 'csv' | 'excel' | 'pdf') {
         const projects = await dcDevelopmentRepository.listArchiveProjects(query, canBypassDocumentAccess(actor.actor_role));
-        if (!projects || projects.length === 0) throw new AppError('Tidak ada data arsip DC yang sesuai dengan filter', 404);
+        if (!projects || projects.length === 0) {
+            throw new AppError(`Tidak ada data arsip DC yang sesuai dengan filter. Debug: query=${JSON.stringify(query)}, bypass=${canBypassDocumentAccess(actor.actor_role)}, role=${actor.actor_role}`, 404);
+        }
 
         const STAGES = ['Pembangunan', 'Renovasi', 'Perluasan'];
         const flatRows: any[] = [];
