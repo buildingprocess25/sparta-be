@@ -71,3 +71,18 @@ export const buildDcDocumentReportPdfBuffer = async (
 
     return renderPdfFromHtml(html);
 };
+
+export const buildGlobalDcDocumentReportPdfBuffer = async (
+    allStages: { project: any, stages: PdfStage[] }[]
+): Promise<Buffer> => {
+    const templatePath = await resolveTemplatePath('dc_document_report_global.njk');
+
+    const html = await renderHtmlTemplate(templatePath, {
+        allStages,
+        alfamart_logo_path: staticAssetPath('Alfamart-Emblem.png'),
+        sparta_logo_path: staticAssetPath('Building-Logo.png'),
+        generated_at: formatDateIndonesia(new Date().toISOString())
+    });
+
+    return renderPdfFromHtml(html);
+};
