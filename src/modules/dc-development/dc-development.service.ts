@@ -6,7 +6,7 @@ import { DC_MEMBER_ACCESS_LEVEL, DC_PROJECT_STAGE_SEQUENCE, DC_ROLES, type DcMem
 import * as xlsx from "xlsx";
 import { dcDevelopmentRepository, type DcDocumentRow } from "./dc-development.repository";
 import { DC_DOCUMENT_CONFIG } from "./dc-document.config";
-import { buildDcDocumentReportPdfBuffer, type PdfStage, type PdfStageItem } from "./dc-development.pdf";
+import { buildDcDocumentReportPdfBuffer, buildGlobalDcDocumentReportPdfBuffer, type PdfStage, type PdfStageItem } from "./dc-development.pdf";
 import type {
     AdvanceDcProjectStageInput,
     CreateDcArchiveProjectInput,
@@ -763,8 +763,7 @@ export const dcDevelopmentService = {
     },
 
     async exportGlobalDcDocuments(query: DcArchiveProjectListQuery, actor: DcDocumentActorQuery, format: 'csv' | 'excel' | 'pdf') {
-        const projectsRes = await dcDevelopmentRepository.listArchiveProjects(query);
-        const projects = projectsRes.data;
+        const projects = await dcDevelopmentRepository.listArchiveProjects(query);
         if (!projects || projects.length === 0) throw new AppError('Tidak ada data arsip DC yang sesuai dengan filter', 404);
 
         const STAGES = ['Pembangunan', 'Renovasi', 'Perluasan'];
