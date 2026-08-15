@@ -763,7 +763,7 @@ export const dcDevelopmentService = {
     },
 
     async exportGlobalDcDocuments(query: DcArchiveProjectListQuery, actor: DcDocumentActorQuery, format: 'csv' | 'excel' | 'pdf') {
-        const projects = await dcDevelopmentRepository.listArchiveProjects(query);
+        const projects = await dcDevelopmentRepository.listArchiveProjects(query, canBypassDocumentAccess(actor.actor_role));
         if (!projects || projects.length === 0) throw new AppError('Tidak ada data arsip DC yang sesuai dengan filter', 404);
 
         const STAGES = ['Pembangunan', 'Renovasi', 'Perluasan'];
