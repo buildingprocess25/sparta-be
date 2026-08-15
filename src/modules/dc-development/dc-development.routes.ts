@@ -37,7 +37,6 @@ import {
     addDcTermSchedule,
     submitDcTermClaim,
     exportDcDocumentsCsv,
-    exportDcDocumentsCsv,
     exportDcDocumentsExcel,
     exportDcDocumentsPdf,
     exportGlobalDcDocumentsCsv,
