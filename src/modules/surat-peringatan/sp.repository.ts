@@ -461,7 +461,7 @@ export const spRepository = {
                        AND dka.status IN ('APPROVED', 'SENT_TO_CONTRACTOR', 'VIEWED_BY_CONTRACTOR', 'ACKNOWLEDGED_BY_CONTRACTOR')
                        AND (dka.expires_at IS NULL OR dka.expires_at >= timezone('Asia/Jakarta', now()))
                    ) AS is_active,
-                   spk.tanggal_spk,
+                   spk.waktu_persetujuan as tanggal_spk,
                    spk.grand_total as nilai_spk
             FROM denda_keterlambatan_action dka
             LEFT JOIN pengajuan_spk spk ON spk.nomor_spk = dka.nomor_spk

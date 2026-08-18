@@ -5,8 +5,12 @@ const client = new Client({ connectionString: 'postgresql://aku-sparta:0hhUTvTHK
 async function main() {
   try {
     await client.connect();
-    const res = await client.query("SELECT nomor_ulok, STRING_AGG(DISTINCT lingkup_pekerjaan, ' + ' ORDER BY lingkup_pekerjaan DESC) AS lingkup_pekerjaan FROM toko WHERE nomor_ulok = 'Z001-2512-4444' GROUP BY nomor_ulok");
-    console.table(res.rows);
+        const result = await client.query(`
+            SELECT nomor_spk, waktu_mulai, waktu_selesai, created_at, waktu_persetujuan
+            FROM pengajuan_spk
+            LIMIT 5;
+        `);
+        console.table(result.rows);
   } catch (err) {
     console.error(err);
   } finally {
