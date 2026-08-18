@@ -394,13 +394,13 @@ export const spRepository = {
                     ) AS highest_active_sp_level
                 FROM denda_keterlambatan_action action
                 WHERE LOWER(TRIM(COALESCE(action.nama_kontraktor, ''))) = LOWER(TRIM(COALESCE(spk.nama_kontraktor, t.nama_kontraktor, '')))
-                  AND \${branchGroupSql('action.cabang')} = \${branchGroupSql('t.cabang')}
+                  AND ${branchGroupSql('action.cabang')} = ${branchGroupSql('t.cabang')}
             ) sp_stats ON TRUE
             LEFT JOIN LATERAL (
                 SELECT action_type, status, created_at, expires_at
                 FROM denda_keterlambatan_action action
                 WHERE LOWER(TRIM(COALESCE(action.nama_kontraktor, ''))) = LOWER(TRIM(COALESCE(spk.nama_kontraktor, t.nama_kontraktor, '')))
-                  AND \${branchGroupSql('action.cabang')} = \${branchGroupSql('t.cabang')}
+                  AND ${branchGroupSql('action.cabang')} = ${branchGroupSql('t.cabang')}
                 ORDER BY action.created_at DESC, action.id DESC
                 LIMIT 1
             ) latest_action ON TRUE
