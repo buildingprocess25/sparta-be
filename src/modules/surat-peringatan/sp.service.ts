@@ -408,12 +408,13 @@ export const spService = {
             if (tokoIds.length > 0) {
                 const { pool } = require("../../db/pool");
                 const spkRes = await pool.query(`
-                    SELECT id_toko, grand_total, waktu_mulai
+                    SELECT id_toko, grand_total, waktu_mulai, waktu_selesai
                     FROM (
-                        SELECT id_toko, grand_total, waktu_mulai,
+                        SELECT id_toko, grand_total, waktu_mulai, waktu_selesai,
                                ROW_NUMBER() OVER(PARTITION BY id_toko ORDER BY created_at DESC) as rn
                         FROM pengajuan_spk
                         WHERE id_toko = ANY($1)
+                          AND UPPER(TRIM(COALESCE(status, ''))) IN ('SPK_APPROVED', 'APPROVED', 'DISETUJUI', 'AKTIF', 'ACTIVE', 'SELESAI')
                     ) sub
                     WHERE rn = 1
                 `, [tokoIds]);
@@ -426,6 +427,7 @@ export const spService = {
                 return actions.map(a => ({
                     ...a,
                     tanggal_spk: a.id_toko && spkMap.has(a.id_toko) ? spkMap.get(a.id_toko).waktu_mulai : null,
+                    tanggal_spk_selesai: a.id_toko && spkMap.has(a.id_toko) ? spkMap.get(a.id_toko).waktu_selesai : null,
                     nilai_spk: a.id_toko && spkMap.has(a.id_toko) ? spkMap.get(a.id_toko).grand_total : null
                 }));
             }
