@@ -1,3 +1,16 @@
+export const branchGroupSql = (colName: string) => `
+    CASE 
+      WHEN UPPER(TRIM(COALESCE(${colName}, ''))) IN ('BANDUNG', 'BANDUNG 1', 'BANDUNG 2', 'BANDUNG RAYA') THEN 'BANDUNG RAYA'
+      WHEN UPPER(TRIM(COALESCE(${colName}, ''))) IN ('SUMBAWA', 'LOMBOK') THEN 'LOMBOK'
+      WHEN UPPER(TRIM(COALESCE(${colName}, ''))) IN ('BOGOR', 'BEKASI', 'KARAWANG', 'CILEUNGSI') THEN 'CILEUNGSI'
+      WHEN UPPER(TRIM(COALESCE(${colName}, ''))) IN ('PARUNG', 'BALARAJA', 'SERANG', 'BINTAN', 'CIKOKOL') THEN 'CIKOKOL'
+      WHEN UPPER(TRIM(COALESCE(${colName}, ''))) IN ('ACEH', 'MEDAN') THEN 'MEDAN'
+      WHEN UPPER(TRIM(COALESCE(${colName}, ''))) IN ('KOTABUMI', 'LAMPUNG') THEN 'LAMPUNG'
+      WHEN UPPER(TRIM(COALESCE(${colName}, ''))) IN ('BENGKULU', 'BANGKA', 'BELITUNG', 'PALEMBANG') THEN 'PALEMBANG'
+      WHEN UPPER(TRIM(COALESCE(${colName}, ''))) IN ('SIDOARJO BPN SMD', 'MANOKWARI', 'NTT', 'SORONG', 'SIDOARJO') THEN 'SIDOARJO'
+      ELSE UPPER(TRIM(COALESCE(${colName}, '')))
+    END
+`;
 import { pool } from "../../db/pool";
 import type { DendaActionStatus, DendaActionType, ListDendaActionsQuery, SpReason } from "./sp.schema";
 import { getEffectiveBranchesForUser } from "../../common/branch-scope";
@@ -381,13 +394,13 @@ export const spRepository = {
                     ) AS highest_active_sp_level
                 FROM denda_keterlambatan_action action
                 WHERE LOWER(TRIM(COALESCE(action.nama_kontraktor, ''))) = LOWER(TRIM(COALESCE(spk.nama_kontraktor, t.nama_kontraktor, '')))
-                  AND UPPER(TRIM(COALESCE(action.cabang, ''))) = UPPER(TRIM(COALESCE(t.cabang, '')))
+                  AND \${branchGroupSql('action.cabang')} = \${branchGroupSql('t.cabang')}
             ) sp_stats ON TRUE
             LEFT JOIN LATERAL (
                 SELECT action_type, status, created_at, expires_at
                 FROM denda_keterlambatan_action action
                 WHERE LOWER(TRIM(COALESCE(action.nama_kontraktor, ''))) = LOWER(TRIM(COALESCE(spk.nama_kontraktor, t.nama_kontraktor, '')))
-                  AND UPPER(TRIM(COALESCE(action.cabang, ''))) = UPPER(TRIM(COALESCE(t.cabang, '')))
+                  AND \${branchGroupSql('action.cabang')} = \${branchGroupSql('t.cabang')}
                 ORDER BY action.created_at DESC, action.id DESC
                 LIMIT 1
             ) latest_action ON TRUE
@@ -1384,6 +1397,7 @@ export const spRepository = {
         };
     },
 };
+
 
 
 
