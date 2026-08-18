@@ -264,7 +264,8 @@ export const spRepository = {
                     ofn.created_at
                 FROM opname_final ofn
                 ORDER BY ofn.id_toko, ofn.created_at DESC NULLS LAST, ofn.id DESC
-            )
+            ),
+            raw_candidates AS (
             SELECT
                 ofn.id AS opname_final_id,
                 t.id AS id_toko,
@@ -290,7 +291,9 @@ export const spRepository = {
                 latest_action.status AS latest_action_status,
                 latest_action.created_at AS latest_action_created_at,
                 latest_action.expires_at AS latest_action_expires_at,
-                COALESCE(latest_action.expires_at < timezone('Asia/Jakarta', now()), false) AS latest_action_is_expired
+                COALESCE(latest_action.expires_at < timezone('Asia/Jakarta', now()), false) AS latest_action_is_expired,
+                ofn.created_at AS ofn_created_at,
+                delay.hari_terlambat
             FROM toko t
             LEFT JOIN latest_opname ofn ON ofn.id_toko = t.id
             LEFT JOIN LATERAL (
@@ -387,7 +390,32 @@ export const spRepository = {
                 LIMIT 1
             ) latest_action ON TRUE
             ${whereClause}
-            ORDER BY GREATEST(COALESCE(ofn.hari_denda, 0), COALESCE(delay.hari_terlambat, 0)) DESC, ofn.created_at DESC NULLS LAST, t.id DESC
+            )
+            SELECT
+                MAX(opname_final_id) AS opname_final_id,
+                MAX(id_toko) AS id_toko,
+                nomor_ulok,
+                STRING_AGG(DISTINCT lingkup_pekerjaan, ' + ' ORDER BY lingkup_pekerjaan DESC) AS lingkup_pekerjaan,
+                MAX(nama_toko) AS nama_toko,
+                MAX(kode_toko) AS kode_toko,
+                MAX(cabang) AS cabang,
+                MAX(nama_kontraktor) AS nama_kontraktor,
+                MAX(nomor_spk) AS nomor_spk,
+                MAX(hari_denda) AS hari_denda,
+                MAX(nilai_denda) AS nilai_denda,
+                MAX(tanggal_akhir_spk_denda) AS tanggal_akhir_spk_denda,
+                MAX(tanggal_serah_terima_denda) AS tanggal_serah_terima_denda,
+                MAX(active_sp_count) AS active_sp_count,
+                MAX(next_sp_level) AS next_sp_level,
+                BOOL_OR(has_pending_approval) AS has_pending_approval,
+                MAX(latest_action_type) AS latest_action_type,
+                MAX(latest_action_status) AS latest_action_status,
+                MAX(latest_action_created_at) AS latest_action_created_at,
+                MAX(latest_action_expires_at) AS latest_action_expires_at,
+                BOOL_OR(latest_action_is_expired) AS latest_action_is_expired
+            FROM raw_candidates
+            GROUP BY nomor_ulok
+            ORDER BY GREATEST(MAX(hari_denda), MAX(hari_terlambat)) DESC, MAX(ofn_created_at) DESC NULLS LAST, MAX(id_toko) DESC
         `, values);
 
         return result.rows;
@@ -426,10 +454,19 @@ export const spRepository = {
         const whereClause = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
         const result = await pool.query<DendaActionRow>(
             `
-            SELECT ${ACTION_SELECT}
-            FROM denda_keterlambatan_action
-            ${whereClause}
-            ORDER BY created_at DESC, id DESC
+            SELECT dka.*, 
+                   (dka.expires_at IS NOT NULL AND dka.expires_at < timezone('Asia/Jakarta', now())) AS is_expired,
+                   (
+                       dka.action_type = 'SP'
+                       AND dka.status IN ('APPROVED', 'SENT_TO_CONTRACTOR', 'VIEWED_BY_CONTRACTOR', 'ACKNOWLEDGED_BY_CONTRACTOR')
+                       AND (dka.expires_at IS NULL OR dka.expires_at >= timezone('Asia/Jakarta', now()))
+                   ) AS is_active,
+                   spk.tanggal_spk,
+                   spk.grand_total as nilai_spk
+            FROM denda_keterlambatan_action dka
+            LEFT JOIN spk ON spk.nomor_spk = dka.nomor_spk
+            ${whereClause.replace(/cabang/g, 'dka.cabang').replace(/nama_kontraktor/g, 'dka.nama_kontraktor').replace(/action_type/g, 'dka.action_type').replace(/status/g, 'dka.status')}
+            ORDER BY dka.created_at DESC, dka.id DESC
             `,
             values
         );
@@ -449,6 +486,19 @@ export const spRepository = {
         );
 
         return result.rows[0] ?? null;
+    },
+
+    async getActionHistory(entityId: number): Promise<any[]> {
+        const result = await pool.query(
+            `
+            SELECT id, entity_type, entity_id, actor_email, actor_role, action, status_before, status_after, reason, metadata, created_at
+            FROM activity_log
+            WHERE entity_type = 'DENDA_ACTION' AND entity_id = $1
+            ORDER BY created_at ASC, id ASC
+            `,
+            [entityId]
+        );
+        return result.rows;
     },
 
     async findTargetByOpnameFinalId(idOpnameFinal: number): Promise<DendaActionTargetRow | null> {
@@ -737,70 +787,154 @@ export const spRepository = {
         actor_role?: string | null;
         cabang?: string | null;
     }): Promise<DendaActionRow> {
-        const result = await pool.query<{ id: string }>(
+        let actionId: number | null = null;
+        let isResubmit = false;
+
+        const nomor_ulok = input.target?.nomor_ulok ?? null;
+        
+        if (nomor_ulok) {
+            const existingRes = await pool.query<{ id: string }>(
+                `
+                SELECT id 
+                FROM denda_keterlambatan_action
+                WHERE nomor_ulok = $1
+                  AND action_type = $2
+                  AND sp_level IS NOT DISTINCT FROM $3
+                  AND status IN ('REJECTED_BY_MANAGER', 'EXPIRED')
+                LIMIT 1
+                `,
+                [nomor_ulok, input.action_type, input.sp_level ?? null]
+            );
+
+            if (existingRes.rowCount && existingRes.rowCount > 0) {
+                isResubmit = true;
+                actionId = Number(existingRes.rows[0].id);
+                
+                await pool.query(
+                    `
+                    UPDATE denda_keterlambatan_action
+                    SET status = 'WAITING_MANAGER',
+                        id_toko = COALESCE($2, id_toko),
+                        nama_kontraktor = COALESCE($3, nama_kontraktor),
+                        alasan_sp = $4,
+                        alasan_lainnya = $5,
+                        catatan = $6,
+                        lampiran_1_url = $7,
+                        lampiran_2_url = $8,
+                        submitted_by_email = $9,
+                        submitted_by_name = $10,
+                        submitted_by_role = $11,
+                        submitted_at = timezone('Asia/Jakarta', now()),
+                        updated_at = timezone('Asia/Jakarta', now()),
+                        actor_email = $9,
+                        actor_role = $11,
+                        manager_rejected_by = NULL,
+                        manager_rejected_role = NULL,
+                        manager_rejected_at = NULL,
+                        manager_rejected_reason = NULL,
+                        manager_approved_by = NULL,
+                        manager_approved_role = NULL,
+                        manager_approved_at = NULL
+                    WHERE id = $1
+                    `,
+                    [
+                        actionId,
+                        input.id_toko ?? input.target?.id_toko ?? null,
+                        input.nama_kontraktor ?? input.target?.nama_kontraktor ?? null,
+                        input.alasan_sp ?? null,
+                        input.alasan_lainnya ?? null,
+                        input.catatan,
+                        input.lampiran_1_url ?? null,
+                        input.lampiran_2_url ?? null,
+                        input.actor_email ?? null,
+                        input.actor_name ?? null,
+                        input.actor_role ?? null
+                    ]
+                );
+            }
+        }
+
+        if (!isResubmit) {
+            const result = await pool.query<{ id: string }>(
+                `
+                INSERT INTO denda_keterlambatan_action (
+                    id_toko,
+                    id_opname_final,
+                    nomor_ulok,
+                    lingkup_pekerjaan,
+                    nama_toko,
+                    kode_toko,
+                    cabang,
+                    nama_kontraktor,
+                    nomor_spk,
+                    action_type,
+                    status,
+                    sp_level,
+                    hari_denda,
+                    nilai_denda,
+                    alasan_sp,
+                    alasan_lainnya,
+                    catatan,
+                    instruksi_tindak_lanjut,
+                    deadline_tindak_lanjut,
+                    lampiran_1_url,
+                    lampiran_2_url,
+                    submitted_by_email,
+                    submitted_by_name,
+                    submitted_by_role,
+                    submitted_at,
+                    actor_email,
+                    actor_role
+                )
+                VALUES (
+                    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'WAITING_MANAGER', $11, $12, $13, $14, $15, $16, $17, $18::date, $19, $20, $21, $22, $23, timezone('Asia/Jakarta', now()), $21, $23
+                )
+                RETURNING id
+                `,
+                [
+                    input.id_toko ?? input.target?.id_toko ?? null,
+                    input.target?.id_opname_final ?? null,
+                    input.target?.nomor_ulok ?? null,
+                    input.target?.lingkup_pekerjaan ?? null,
+                    input.target?.nama_toko ?? null,
+                    input.target?.kode_toko ?? null,
+                    input.target?.cabang ?? input.cabang ?? null,
+                    input.nama_kontraktor ?? input.target?.nama_kontraktor ?? null,
+                    input.target?.nomor_spk ?? null,
+                    input.action_type,
+                    input.sp_level ?? null,
+                    input.target?.hari_denda ?? 0,
+                    input.target?.nilai_denda ?? '0',
+                    input.alasan_sp ?? null,
+                    input.alasan_lainnya ?? null,
+                    input.catatan,
+                    input.instruksi_tindak_lanjut ?? null,
+                    input.deadline_tindak_lanjut ?? null,
+                    input.lampiran_1_url ?? null,
+                    input.lampiran_2_url ?? null,
+                    input.actor_email ?? null,
+                    input.actor_name ?? null,
+                    input.actor_role ?? null,
+                ]
+            );
+            actionId = Number(result.rows[0].id);
+        }
+
+        await pool.query(
             `
-            INSERT INTO denda_keterlambatan_action (
-                id_toko,
-                id_opname_final,
-                nomor_ulok,
-                lingkup_pekerjaan,
-                nama_toko,
-                kode_toko,
-                cabang,
-                nama_kontraktor,
-                nomor_spk,
-                action_type,
-                status,
-                sp_level,
-                hari_denda,
-                nilai_denda,
-                alasan_sp,
-                alasan_lainnya,
-                catatan,
-                instruksi_tindak_lanjut,
-                deadline_tindak_lanjut,
-                lampiran_1_url,
-                lampiran_2_url,
-                submitted_by_email,
-                submitted_by_name,
-                submitted_by_role,
-                submitted_at,
-                actor_email,
-                actor_role
-            )
-            VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'WAITING_MANAGER', $11, $12, $13, $14, $15, $16, $17, $18::date, $19, $20, $21, $22, $23, timezone('Asia/Jakarta', now()), $21, $23
-            )
-            RETURNING id
+            INSERT INTO activity_log (entity_type, entity_id, actor_email, actor_role, action, status_before, status_after, created_at)
+            VALUES ('DENDA_ACTION', $1, $2, $3, $4, $5, 'WAITING_MANAGER', timezone('Asia/Jakarta', now()))
             `,
             [
-                input.id_toko ?? input.target?.id_toko ?? null,    // $1  id_toko
-                input.target?.id_opname_final ?? null,              // $2  id_opname_final
-                input.target?.nomor_ulok ?? null,                   // $3  nomor_ulok
-                input.target?.lingkup_pekerjaan ?? null,            // $4  lingkup_pekerjaan
-                input.target?.nama_toko ?? null,                    // $5  nama_toko
-                input.target?.kode_toko ?? null,                    // $6  kode_toko
-                input.target?.cabang ?? input.cabang ?? null,       // $7  cabang
-                input.nama_kontraktor ?? input.target?.nama_kontraktor ?? null, // $8 nama_kontraktor
-                input.target?.nomor_spk ?? null,                    // $9  nomor_spk
-                input.action_type,                                  // $10 action_type
-                input.sp_level ?? null,                             // $11 sp_level
-                input.target?.hari_denda ?? 0,                      // $12 hari_denda
-                input.target?.nilai_denda ?? '0',                   // $13 nilai_denda
-                input.alasan_sp ?? null,                            // $14 alasan_sp
-                input.alasan_lainnya ?? null,                       // $15 alasan_lainnya
-                input.catatan,                                      // $16 catatan
-                input.instruksi_tindak_lanjut ?? null,              // $17 instruksi_tindak_lanjut
-                input.deadline_tindak_lanjut ?? null,               // $18 deadline_tindak_lanjut (::date cast in query)
-                input.lampiran_1_url ?? null,                       // $19 lampiran_1_url
-                input.lampiran_2_url ?? null,                       // $20 lampiran_2_url
-                input.actor_email ?? null,                          // $21 actor_email = submitted_by_email (reused)
-                input.actor_name ?? null,                           // $22 submitted_by_name
-                input.actor_role ?? null,                           // $23 actor_role = submitted_by_role (reused)
+                actionId!,
+                input.actor_email ?? null,
+                input.actor_role ?? null,
+                isResubmit ? 'RESUBMIT' : 'CREATE',
+                isResubmit ? 'REJECTED_BY_MANAGER' : null
             ]
         );
 
-        const created = await this.findActionById(Number(result.rows[0].id));
+        const created = await this.findActionById(actionId!);
         if (!created) throw new Error("Denda action was created but could not be loaded.");
         return created;
     },
@@ -843,6 +977,15 @@ export const spRepository = {
         if (result.rowCount === 0) return null as never;
         const updated = await this.findActionById(Number(result.rows[0].id));
         if (!updated) throw new Error("Denda action was approved but could not be loaded.");
+
+        await pool.query(
+            `
+            INSERT INTO activity_log (entity_type, entity_id, actor_email, actor_role, action, status_before, status_after, created_at)
+            VALUES ('DENDA_ACTION', $1, $2, $3, 'APPROVE', 'WAITING_MANAGER', $4, timezone('Asia/Jakarta', now()))
+            `,
+            [input.id, input.actor_email ?? null, input.actor_role ?? null, updated.status]
+        );
+
         return updated;
     },
 
@@ -898,6 +1041,15 @@ export const spRepository = {
         if (result.rowCount === 0) return null as never;
         const updated = await this.findActionById(Number(result.rows[0].id));
         if (!updated) throw new Error("Denda action was rejected but could not be loaded.");
+
+        await pool.query(
+            `
+            INSERT INTO activity_log (entity_type, entity_id, actor_email, actor_role, action, status_before, status_after, reason, created_at)
+            VALUES ('DENDA_ACTION', $1, $2, $3, 'REJECT', 'WAITING_MANAGER', 'REJECTED_BY_MANAGER', $4, timezone('Asia/Jakarta', now()))
+            `,
+            [input.id, input.actor_email ?? null, input.actor_role ?? null, input.reason]
+        );
+
         return updated;
     },
 

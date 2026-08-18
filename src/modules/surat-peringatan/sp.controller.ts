@@ -42,6 +42,17 @@ export const listDendaActionCandidates = asyncHandler(async (req: Request, res: 
     });
 });
 
+export const getDendaActionHistory = asyncHandler(async (req: Request, res: Response) => {
+    const { id } = dendaActionIdParamsSchema.parse(req.params);
+    const data = await spService.getDendaActionHistory(id);
+
+    res.json({
+        status: "success",
+        data,
+    });
+});
+
+
 export const listDendaActions = asyncHandler(async (req: Request, res: Response) => {
     if (!req.user) {
         throw new AppError("User tidak terautentikasi", 401);

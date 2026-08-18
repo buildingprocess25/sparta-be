@@ -4,6 +4,8 @@ import { env } from "../../config/env";
 import type { AuthenticatedUser } from "../auth/auth-session.service";
 import { spRepository } from "./sp.repository";
 import type { CreateDendaActionInput, ListDendaActionsQuery, RejectDendaActionInput } from "./sp.schema";
+
+import { PDFDocument } from "pdf-lib";
 import { getBranchScopeCandidates } from "../../common/branch-scope";
 // Threshold for Takeover action (in days of denda)
 export const DENDA_ACTION_THRESHOLD_DAYS = 8;
@@ -158,6 +160,59 @@ const buildAndUploadSpPdf = async (input: {
     const drive = gp.spartaDrive;
     if (!drive) throw new AppError("Google Drive (Sparta) belum terkonfigurasi", 500);
 
+    let finalPdfBuffer = pdfBuffer;
+    
+    // Merge Lampiran if available
+    const lampirans = [input.action.lampiran_1_url, input.action.lampiran_2_url].filter(Boolean);
+    if (lampirans.length > 0) {
+        try {
+            const mainPdf = await PDFDocument.load(pdfBuffer);
+            
+            for (const url of lampirans) {
+                const fileId = extractDriveFileId(url);
+                if (!fileId) continue;
+                
+                try {
+                    const response = await gp.spartaDrive!.files.get({ fileId, alt: "media", supportsAllDrives: true }, { responseType: "arraybuffer" });
+                    const metaResponse = await gp.spartaDrive!.files.get({ fileId, fields: "mimeType", supportsAllDrives: true });
+                    const mimeType = metaResponse.data.mimeType;
+                    const buffer = Buffer.from(response.data as ArrayBuffer);
+                    
+                    if (mimeType === "application/pdf") {
+                        const attachmentPdf = await PDFDocument.load(buffer);
+                        const copiedPages = await mainPdf.copyPages(attachmentPdf, attachmentPdf.getPageIndices());
+                        copiedPages.forEach(page => mainPdf.addPage(page));
+                    } else if (mimeType?.startsWith("image/")) {
+                        let image;
+                        if (mimeType === "image/jpeg" || mimeType === "image/jpg") {
+                            image = await mainPdf.embedJpg(buffer);
+                        } else if (mimeType === "image/png") {
+                            image = await mainPdf.embedPng(buffer);
+                        }
+                        
+                        if (image) {
+                            const page = mainPdf.addPage();
+                            const { width, height } = page.getSize();
+                            const imgDims = image.scaleToFit(width - 100, height - 100);
+                            page.drawImage(image, {
+                                x: (width - imgDims.width) / 2,
+                                y: (height - imgDims.height) / 2,
+                                width: imgDims.width,
+                                height: imgDims.height,
+                            });
+                        }
+                    }
+                } catch (err: any) {
+                    console.warn(`[SP Service] Failed to merge attachment ${url}:`, err?.message);
+                }
+            }
+            
+            finalPdfBuffer = Buffer.from(await mainPdf.save());
+        } catch (err: any) {
+            console.error("[SP Service] Failed to merge PDFs:", err?.message);
+        }
+    }
+
     let namaToko = undefined;
     let kodeToko = undefined;
     if (input.action.nomor_ulok) {
@@ -177,7 +232,7 @@ const buildAndUploadSpPdf = async (input: {
         folderId,
         filename,
         "application/pdf",
-        pdfBuffer,
+        finalPdfBuffer,
         2,
         drive
     );
@@ -586,6 +641,14 @@ export const spService = {
         });
 
         return updated;
+    },
+
+    async getDendaActionHistory(id: number) {
+        await spRepository.ensureSchema();
+        const action = await spRepository.findActionById(id);
+        if (!action) throw new AppError("Pengajuan SP/Takeover tidak ditemukan.", 404);
+        
+        return spRepository.getActionHistory(id);
     },
 
     async rejectAction(input: { id: number; payload: RejectDendaActionInput; actor?: AuthenticatedUser | null }) {

@@ -88,7 +88,7 @@ const getAlasanSpText = (alasan?: string | null): string => {
 const getKeterlambatanText = (action: DendaActionRow): string | null => {
     if ((action.alasan_sp ?? "").toUpperCase() !== "KETERLAMBATAN") return null;
     const hari = Number(action.hari_denda ?? 0);
-    return hari > 0 ? `Keterlambatan ${hari} hari` : "Keterlambatan";
+    return hari > 0 ? `Keterlambatan ${hari} hari` : "Potensi Keterlambatan";
 };
 
 export async function buildSuratPeringatanPdfBuffer(input: BuildSpPdfInput): Promise<Buffer> {
