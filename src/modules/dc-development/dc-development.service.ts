@@ -531,7 +531,7 @@ export const dcDevelopmentService = {
     },
 
     async createDocument(input: CreateDcDocumentInput, files: UploadedDcDocumentFile[]) {
-        if (files.length === 0) throw new AppError("Dokumen wajib diupload", 400);
+        if (files.length === 0 && !input.notes) throw new AppError("Dokumen wajib diupload atau catatan wajib diisi", 400);
         const project = await dcDevelopmentRepository.findProjectById(input.project_id);
         if (!project) throw new AppError("Project DC tidak ditemukan", 404);
 
@@ -542,9 +542,32 @@ export const dcDevelopmentService = {
             throw new AppError(error instanceof Error ? error.message : "Relasi dokumen DC tidak valid", 409);
         }
 
-        const versions = await uploadFilesToDrive(input, project, files);
         const items: DcDocumentRow[] = [];
-        for (const version of versions) {
+        let folder = null;
+
+        if (files.length > 0) {
+            const versions = await uploadFilesToDrive(input, project, files);
+            for (const version of versions) {
+                const item = await dcDevelopmentRepository.createDocumentWithVersion({
+                    project_id: input.project_id,
+                    tender_id: input.tender_id ?? null,
+                    participant_id: input.participant_id ?? null,
+                    entity_type: input.entity_type,
+                    entity_id: input.entity_id ?? null,
+                    document_type: input.document_type,
+                    stage: input.stage ?? null,
+                    created_by_email: input.actor_email,
+                    notes: input.notes ?? null
+                }, version);
+                items.push(item);
+            }
+            if (versions[0]) {
+                folder = {
+                    id: versions[0].drive_folder_id,
+                    link: versions[0].link_folder
+                };
+            }
+        } else {
             const item = await dcDevelopmentRepository.createDocumentWithVersion({
                 project_id: input.project_id,
                 tender_id: input.tender_id ?? null,
@@ -553,16 +576,14 @@ export const dcDevelopmentService = {
                 entity_id: input.entity_id ?? null,
                 document_type: input.document_type,
                 stage: input.stage ?? null,
-                created_by_email: input.actor_email
-            }, version);
+                created_by_email: input.actor_email,
+                notes: input.notes ?? null
+            });
             items.push(item);
         }
 
         return {
-            folder: versions[0] ? {
-                id: versions[0].drive_folder_id,
-                link: versions[0].link_folder
-            } : null,
+            folder,
             items
         };
     },

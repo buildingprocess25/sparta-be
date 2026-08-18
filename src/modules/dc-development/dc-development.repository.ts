@@ -1376,8 +1376,9 @@ export const dcDevelopmentRepository = {
             document_type: string;
             stage?: string | null;
             created_by_email: string;
+            notes?: string | null;
         },
-        version: DcUploadedDocumentVersion
+        version?: DcUploadedDocumentVersion
     ): Promise<DcDocumentRow> {
         return withTransaction(async (client) => {
             const documentResult = await client.query<{ id: number }>(
@@ -1399,26 +1400,29 @@ export const dcDevelopmentRepository = {
             );
 
             const documentId = documentResult.rows[0].id;
-            await client.query(
-                `INSERT INTO dc_document_version (
-                    document_id, version_no, drive_file_id, drive_folder_id, link_dokumen, link_folder,
-                    file_name, mime_type, size_bytes, notes, uploaded_by_email, uploaded_by_role,
-                    is_current, created_at
-                ) VALUES ($1,1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,true, timezone('Asia/Jakarta', now()))`,
-                [
-                    documentId,
-                    version.drive_file_id,
-                    version.drive_folder_id,
-                    version.link_dokumen,
-                    version.link_folder,
-                    version.file_name,
-                    version.mime_type,
-                    version.size_bytes,
-                    version.notes ?? null,
-                    version.uploaded_by_email,
-                    version.uploaded_by_role
-                ]
-            );
+            
+            if (version || input.notes) {
+                await client.query(
+                    `INSERT INTO dc_document_version (
+                        document_id, version_no, drive_file_id, drive_folder_id, link_dokumen, link_folder,
+                        file_name, mime_type, size_bytes, notes, uploaded_by_email, uploaded_by_role,
+                        is_current, created_at
+                    ) VALUES ($1,1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,true, timezone('Asia/Jakarta', now()))`,
+                    [
+                        documentId,
+                        version?.drive_file_id ?? null,
+                        version?.drive_folder_id ?? null,
+                        version?.link_dokumen ?? null,
+                        version?.link_folder ?? null,
+                        version?.file_name ?? null,
+                        version?.mime_type ?? null,
+                        version?.size_bytes ?? null,
+                        input.notes ?? version?.notes ?? null,
+                        version?.uploaded_by_email ?? input.created_by_email,
+                        version?.uploaded_by_role ?? null
+                    ]
+                );
+            }
 
             await insertActivityLog(client, {
                 project_id: input.project_id,
