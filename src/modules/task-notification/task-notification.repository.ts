@@ -1118,7 +1118,7 @@ const findCoordinatorRabUploadRequired = async (user: AuthenticatedUser): Promis
             COUNT(*) OVER() AS total_count
         FROM projek_planning pp
         WHERE pp.status = 'WAITING_RAB_UPLOAD'
-          AND ${branchWhere}
+          ${branchWhere}
         LIMIT $${values.length}
     `, values);
 };

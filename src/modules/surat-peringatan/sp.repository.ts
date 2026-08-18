@@ -464,7 +464,7 @@ export const spRepository = {
                    spk.tanggal_spk,
                    spk.grand_total as nilai_spk
             FROM denda_keterlambatan_action dka
-            LEFT JOIN spk ON spk.nomor_spk = dka.nomor_spk
+            LEFT JOIN pengajuan_spk spk ON spk.nomor_spk = dka.nomor_spk
             ${whereClause.replace(/cabang/g, 'dka.cabang').replace(/nama_kontraktor/g, 'dka.nama_kontraktor').replace(/action_type/g, 'dka.action_type').replace(/status/g, 'dka.status')}
             ORDER BY dka.created_at DESC, dka.id DESC
             `,
