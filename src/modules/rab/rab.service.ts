@@ -1001,7 +1001,7 @@ const inferFileExtension = (mimeType?: string | null): string => {
     return "";
 };
 
-const uploadLogoToDrive = async (logoValue: string, filename: string, nomorUlok: string): Promise<string | null> => {
+const uploadLogoToDrive = async (logoValue: string, filename: string, nomorUlok: string, namaToko?: string, kodeToko?: string, cabang?: string): Promise<string | null> => {
     const normalized = normalizeBase64Image(logoValue);
     if (!normalized) return null;
 
@@ -1009,7 +1009,7 @@ const uploadLogoToDrive = async (logoValue: string, filename: string, nomorUlok:
     const drive = gp.spartaDrive;
     if (!drive) throw new AppError("Google Drive (Sparta) belum terkonfigurasi", 500);
 
-    const folderId = await gp.getOrCreateProcessFolder("RAB", nomorUlok);
+    const folderId = await gp.getOrCreateProcessFolder("RAB", nomorUlok, namaToko, kodeToko, cabang);
     const result = await gp.uploadFile(
         folderId,
         filename,
@@ -1049,6 +1049,9 @@ const uploadInsuranceFileToDrive = async (
     file: UploadedFile,
     nomorUlok: string,
     proyek?: string,
+    namaToko?: string,
+    kodeToko?: string,
+    cabang?: string,
 ): Promise<string> => {
     const gp = GoogleProvider.instance;
     const drive = gp.spartaDrive;
@@ -1059,7 +1062,7 @@ const uploadInsuranceFileToDrive = async (
     const ext = resolveFileExtension(file);
     const filename = `RAB_ASURANSI_${safeProyek}_${safeUlok}_${Date.now()}${ext}`;
 
-    const folderId = await gp.getOrCreateProcessFolder("RAB", nomorUlok);
+    const folderId = await gp.getOrCreateProcessFolder("RAB", nomorUlok, namaToko, kodeToko, cabang);
     const result = await gp.uploadFile(
         folderId,
         filename,
@@ -1081,6 +1084,9 @@ const uploadLogoFileToDrive = async (
     file: UploadedFile,
     nomorUlok: string,
     proyek?: string,
+    namaToko?: string,
+    kodeToko?: string,
+    cabang?: string,
 ): Promise<string> => {
     const gp = GoogleProvider.instance;
     const drive = gp.spartaDrive;
@@ -1091,7 +1097,7 @@ const uploadLogoFileToDrive = async (
     const ext = resolveFileExtension(file);
     const filename = `RAB_LOGO_${safeProyek}_${safeUlok}_${Date.now()}${ext}`;
 
-    const folderId = await gp.getOrCreateProcessFolder("RAB", nomorUlok);
+    const folderId = await gp.getOrCreateProcessFolder("RAB", nomorUlok, namaToko, kodeToko, cabang);
     const result = await gp.uploadFile(
         folderId,
         filename,
@@ -1113,6 +1119,9 @@ const uploadInsuranceStringToDrive = async (
     fileValue: string,
     nomorUlok: string,
     proyek?: string,
+    namaToko?: string,
+    kodeToko?: string,
+    cabang?: string,
 ): Promise<string> => {
     const normalized = normalizeBase64Binary(fileValue);
     if (!normalized) {
@@ -1128,7 +1137,7 @@ const uploadInsuranceStringToDrive = async (
     const drive = gp.spartaDrive;
     if (!drive) throw new AppError("Google Drive (Sparta) belum terkonfigurasi", 500);
 
-    const folderId = await gp.getOrCreateProcessFolder("RAB", nomorUlok);
+    const folderId = await gp.getOrCreateProcessFolder("RAB", nomorUlok, namaToko, kodeToko, cabang);
     const result = await gp.uploadFile(
         folderId,
         filename,
@@ -1630,7 +1639,7 @@ export const rabService = {
             logoLink = normalizeIncomingAssetLink(logoValue);
             try {
                 const filename = `RAB_LOGO_${payload.proyek ?? "PROYEK"}_${payload.nomor_ulok}.png`;
-                const uploadedLink = await uploadLogoToDrive(logoValue, filename, payload.nomor_ulok);
+                const uploadedLink = await uploadLogoToDrive(logoValue, filename, payload.nomor_ulok, payload.nama_toko, payload.kode_toko, payload.cabang);
                 if (uploadedLink) {
                     logoLink = uploadedLink;
                 }
@@ -1645,7 +1654,7 @@ export const rabService = {
             let revLogoLink = normalizeIncomingAssetLink(revLogoValue);
             try {
                 const filename = `RAB_LOGO_${payload.proyek ?? "PROYEK"}_${payload.nomor_ulok}_${Date.now()}.png`;
-                const uploadedLink = await uploadLogoToDrive(revLogoValue, filename, payload.nomor_ulok);
+                const uploadedLink = await uploadLogoToDrive(revLogoValue, filename, payload.nomor_ulok, payload.nama_toko, payload.kode_toko, payload.cabang);
                 if (uploadedLink) {
                     revLogoLink = uploadedLink;
                 }
@@ -1663,7 +1672,10 @@ export const rabService = {
             logoLink = await uploadLogoFileToDrive(
                 uploadedFiles.revLogoFile,
                 payload.nomor_ulok,
-                payload.proyek
+                payload.proyek,
+                payload.nama_toko,
+                payload.kode_toko,
+                payload.cabang
             );
             logRab("SUBMIT", "Rev logo file diupload", { logoLink });
         }
@@ -1680,7 +1692,10 @@ export const rabService = {
             insuranceLink = await uploadInsuranceFileToDrive(
                 uploadedFiles.insuranceFile,
                 payload.nomor_ulok,
-                payload.proyek
+                payload.proyek,
+                payload.nama_toko,
+                payload.kode_toko,
+                payload.cabang
             );
             logRab("SUBMIT", "File asuransi diupload", { insuranceLink });
         }
@@ -1689,7 +1704,10 @@ export const rabService = {
             insuranceLink = await uploadInsuranceStringToDrive(
                 revFileAsuransiInput,
                 payload.nomor_ulok,
-                payload.proyek
+                payload.proyek,
+                payload.nama_toko,
+                payload.kode_toko,
+                payload.cabang
             );
             logRab("SUBMIT", "Rev file asuransi diupload", { insuranceLink });
         }
@@ -1698,7 +1716,10 @@ export const rabService = {
             insuranceLink = await uploadInsuranceFileToDrive(
                 uploadedFiles.revInsuranceFile,
                 payload.nomor_ulok,
-                payload.proyek
+                payload.proyek,
+                payload.nama_toko,
+                payload.kode_toko,
+                payload.cabang
             );
             logRab("SUBMIT", "Rev file asuransi (file) diupload", { insuranceLink });
         }
