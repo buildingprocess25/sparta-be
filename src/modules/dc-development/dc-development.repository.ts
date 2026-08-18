@@ -1429,10 +1429,10 @@ export const dcDevelopmentRepository = {
                 entity_type: "DC_DOCUMENT",
                 entity_id: documentId,
                 actor_email: input.created_by_email,
-                actor_role: version.uploaded_by_role,
+                actor_role: version?.uploaded_by_role ?? "SYSTEM",
                 action: "CREATE_DOCUMENT",
                 status_after: "ACTIVE",
-                metadata: { document_type: input.document_type, file_name: version.file_name }
+                metadata: { document_type: input.document_type, file_name: version?.file_name ?? null }
             });
 
             const created = await client.query<DcDocumentRow>(
