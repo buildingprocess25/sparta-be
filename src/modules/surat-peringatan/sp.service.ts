@@ -141,9 +141,31 @@ const buildAndUploadSpPdf = async (input: {
     approvedRole?: string | null;
     approvedAt?: string | null;
 }): Promise<string> => {
+    let spkWaktuMulai = null;
+    let spkWaktuSelesai = null;
+    
+    if (input.action.id_toko) {
+        const { pool } = require("../../db/pool");
+        const spkRes = await pool.query(`
+            SELECT waktu_mulai, waktu_selesai
+            FROM pengajuan_spk
+            WHERE id_toko = $1
+              AND UPPER(TRIM(COALESCE(status, ''))) IN ('SPK_APPROVED', 'APPROVED', 'DISETUJUI', 'AKTIF', 'ACTIVE', 'SELESAI')
+            ORDER BY created_at DESC
+            LIMIT 1
+        `, [input.action.id_toko]);
+        
+        if (spkRes.rowCount && spkRes.rowCount > 0) {
+            spkWaktuMulai = spkRes.rows[0].waktu_mulai;
+            spkWaktuSelesai = spkRes.rows[0].waktu_selesai;
+        }
+    }
+
     const { buildSuratPeringatanPdfBuffer } = await import("./sp.pdf");
     const pdfBuffer = await buildSuratPeringatanPdfBuffer({
         action: { ...input.action, nomor_surat: input.nomorSurat, manager_approved_at: input.approvedAt ?? input.action.manager_approved_at },
+        spkWaktuMulai,
+        spkWaktuSelesai,
         tokoNama: input.action.nama_toko ?? null,
         approvedBy: input.approvedBy ?? null,
         approvedRole: input.approvedRole ?? null,

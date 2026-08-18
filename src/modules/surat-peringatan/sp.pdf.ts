@@ -12,6 +12,8 @@ type BuildSpPdfInput = {
     approvedAt?: string | null;
     submittedBy: string;
     submittedAt?: string | null;
+    spkWaktuMulai?: string | null;
+    spkWaktuSelesai?: string | null;
 };
 
 const JAKARTA_TIME_ZONE = "Asia/Jakarta";
@@ -106,6 +108,9 @@ export async function buildSuratPeringatanPdfBuffer(input: BuildSpPdfInput): Pro
         kodeToko: input.action.kode_toko ?? "-",
         lingkupPekerjaan: input.action.lingkup_pekerjaan ?? "-",
         nomorSpk: input.action.nomor_spk?.trim() || null,
+        tanggalSpk: (input.spkWaktuMulai || input.spkWaktuSelesai) 
+            ? `${formatTanggal(input.spkWaktuMulai)} s/d ${formatTanggal(input.spkWaktuSelesai)}` 
+            : "-",
         tanggalSurat: formatTanggal(input.action.manager_approved_at ?? input.action.submitted_at ?? input.action.created_at ?? new Date().toISOString()),
         alasanSpText: getKeterlambatanText(input.action) ?? getAlasanSpText(input.action.alasan_sp),
         alasan: (input.action.alasan_sp ?? '').toUpperCase(),

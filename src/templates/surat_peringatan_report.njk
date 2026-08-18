@@ -247,12 +247,17 @@
     <tr>
       <td class="label">Nomor SPK</td>
       <td>{{ nomorSpk }}</td>
+      <td class="label">Tanggal SPK</td>
+      <td>{{ tanggalSpk }}</td>
+    </tr>
+    <tr>
       {% if lingkupPekerjaan and lingkupPekerjaan != '-' %}
       <td class="label">Lingkup Pekerjaan</td>
       <td>{{ lingkupPekerjaan }}</td>
       {% else %}
       <td></td><td></td>
       {% endif %}
+      <td></td><td></td>
     </tr>
     {% elif lingkupPekerjaan and lingkupPekerjaan != '-' %}
     <tr>
