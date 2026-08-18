@@ -6,9 +6,9 @@ async function main() {
   try {
     await client.connect();
         const result = await client.query(`
-            SELECT nomor_spk, waktu_mulai, waktu_selesai, created_at, waktu_persetujuan
-            FROM pengajuan_spk
-            LIMIT 5;
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' AND table_name ILIKE '%spk%';
         `);
         console.table(result.rows);
   } catch (err) {
