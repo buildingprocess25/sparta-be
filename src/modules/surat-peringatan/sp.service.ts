@@ -324,7 +324,36 @@ export const spService = {
 
     async listActions(query: ListDendaActionsQuery) {
         await spRepository.ensureSchema();
-        return spRepository.listActions(query);
+        const actions = await spRepository.listActions(query);
+
+        if (actions.length > 0) {
+            const tokoIds = [...new Set(actions.map(a => a.id_toko).filter(id => id != null))];
+            if (tokoIds.length > 0) {
+                const { pool } = require("../../db/pool");
+                const spkRes = await pool.query(`
+                    SELECT id_toko, grand_total, waktu_mulai
+                    FROM (
+                        SELECT id_toko, grand_total, waktu_mulai,
+                               ROW_NUMBER() OVER(PARTITION BY id_toko ORDER BY created_at DESC) as rn
+                        FROM pengajuan_spk
+                        WHERE id_toko = ANY($1)
+                    ) sub
+                    WHERE rn = 1
+                `, [tokoIds]);
+                
+                const spkMap = new Map();
+                for (const row of spkRes.rows) {
+                    spkMap.set(row.id_toko, row);
+                }
+                
+                return actions.map(a => ({
+                    ...a,
+                    tanggal_spk: a.id_toko && spkMap.has(a.id_toko) ? spkMap.get(a.id_toko).waktu_mulai : null,
+                    nilai_spk: a.id_toko && spkMap.has(a.id_toko) ? spkMap.get(a.id_toko).grand_total : null
+                }));
+            }
+        }
+        return actions;
     },
 
     async listActionsForKontraktor(namaKontraktor: string) {
