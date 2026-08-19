@@ -245,7 +245,11 @@ export const buildDashboardV2SummaryCards = (projects: DashboardData[]): Dashboa
         penawaran += getDashboardV2RabContractValue(project);
         if (project.rab[0] && normalize(project.rab[0].status) === "DISETUJUI") rabApproved++;
         else if (project.rab[0]) rabOngoing++;
-        if (getDashboardV2ApprovedSpks(project).length > 0 && stage === "Ongoing") spkAktif++;
+        
+        if (stage !== "Done") {
+            spkAktif += getDashboardV2ApprovedSpks(project).length;
+        }
+        
         if (stage === "Kerja Tambah Kurang") ktkCount++;
         if (project.berkas_serah_terima.some((st) => String(st.link_pdf || "").trim())) stCount++;
 

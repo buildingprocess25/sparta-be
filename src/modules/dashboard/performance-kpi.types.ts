@@ -56,6 +56,21 @@ export type PerformanceKpiDetailInput = PerformanceKpiQueryInput & {
     support_metric?: PerformanceKpiTableMetric;
 };
 
+export type PerformanceKpiOptionStatsInput = PerformanceKpiQueryInput & {
+    card_type: PerformanceKpiCardType;
+    sla_role?: PerformanceKpiSlaRole | PerformanceKpiPersonRole;
+    person_name?: string;
+    sla_doc?: PerformanceKpiDocument;
+};
+
+export type PerformanceKpiOptionStat = {
+    id: string;
+    label: string;
+    value: number | null;
+    count: number;
+    incomplete_count: number;
+};
+
 export type PerformanceKpiRawRow = {
     toko_id: number;
     nomor_ulok: string | null;

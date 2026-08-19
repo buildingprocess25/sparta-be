@@ -1,4 +1,5 @@
 import { pool } from "../../db/pool";
+import { calculateEffectiveStDate, toIsoDateString } from "../../common/national-holidays";
 import type { DashboardAllQueryInput, DashboardExportQueryInput, DashboardQueryInput } from "./dashboard.schema";
 
 export type DashboardTokoRow = {
@@ -38,8 +39,10 @@ export type DashboardRabRow = {
     email_pembuat: string | null;
     pemberi_persetujuan_direktur: string | null;
     waktu_persetujuan_direktur: string | null;
+    nama_persetujuan_koordinator: string | null;
     pemberi_persetujuan_koordinator: string | null;
     waktu_persetujuan_koordinator: string | null;
+    nama_persetujuan_manager: string | null;
     pemberi_persetujuan_manager: string | null;
     waktu_persetujuan_manager: string | null;
     alasan_penolakan: string | null;
@@ -170,6 +173,7 @@ export type DashboardSpkRow = {
     status: string;
     link_pdf: string | null;
     approver_email: string | null;
+    approver_name?: string | null;
     waktu_persetujuan: string | null;
     alasan_penolakan: string | null;
     created_at: string | null;
@@ -190,6 +194,7 @@ export type DashboardPertambahanSpkRow = {
     pertambahan_hari: string;
     tanggal_spk_akhir: string;
     tanggal_spk_akhir_setelah_perpanjangan: string;
+    target_st_setelah_perpanjangan?: string | null;
     alasan_perpanjangan: string;
     dibuat_oleh: string;
     status_persetujuan: string;
@@ -224,10 +229,13 @@ export type DashboardInstruksiLapanganRow = {
     link_lampiran: string | null;
     email_pembuat: string | null;
     pemberi_persetujuan_koordinator: string | null;
+    nama_persetujuan_koordinator?: string | null;
     waktu_persetujuan_koordinator: string | null;
     pemberi_persetujuan_manager: string | null;
+    nama_persetujuan_manager?: string | null;
     waktu_persetujuan_manager: string | null;
     pemberi_persetujuan_kontraktor: string | null;
+    nama_persetujuan_kontraktor?: string | null;
     waktu_persetujuan_kontraktor: string | null;
     alasan_penolakan: string | null;
     grand_total: string | null;
@@ -449,8 +457,13 @@ export const dashboardRepository = {
                    r.waktu_persetujuan_manager, r.alasan_penolakan, r.waktu_penolakan, r.ditolak_oleh, r.durasi_pekerjaan,
                    r.kategori_lokasi, r.no_polis, r.berlaku_polis, r.file_asuransi, r.luas_bangunan, r.luas_terbangun,
                    r.luas_area_terbuka, r.luas_area_parkir, r.luas_area_sales, r.luas_gudang, r.grand_total,
-                   r.grand_total_non_sbo, r.grand_total_final, r.created_at
+                   r.grand_total_non_sbo, r.grand_total_final, r.created_at,
+                       uc_koor.nama_lengkap AS nama_persetujuan_koordinator,
+                       uc_mgr.nama_lengkap AS nama_persetujuan_manager, dcv.full_name AS nama_persetujuan_direktur
             FROM rab r
+                LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) uc_koor ON uc_koor.email_sat = r.pemberi_persetujuan_koordinator
+                LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) uc_mgr ON uc_mgr.email_sat = r.pemberi_persetujuan_manager
+                LEFT JOIN (SELECT email, MAX(full_name) as full_name FROM dc_vendor_user GROUP BY email) dcv ON dcv.email = r.pemberi_persetujuan_direktur
             LEFT JOIN toko t ON t.id = r.id_toko
             WHERE r.id_toko = $1
             ORDER BY r.created_at DESC, r.id DESC
@@ -539,19 +552,20 @@ export const dashboardRepository = {
 
         const spkResult = await pool.query<DashboardSpkRow>(
             `
-            SELECT id, id_toko, nomor_ulok, email_pembuat, lingkup_pekerjaan, nama_kontraktor, proyek,
-                   waktu_mulai, durasi, waktu_selesai, grand_total, terbilang, nomor_spk, par,
-                   spk_manual_1, spk_manual_2, status, link_pdf, approver_email, waktu_persetujuan,
-                   alasan_penolakan, created_at
-            FROM pengajuan_spk
-            WHERE id_toko = $1
+            SELECT p.id, p.id_toko, p.nomor_ulok, p.email_pembuat, p.lingkup_pekerjaan, p.nama_kontraktor, p.proyek,
+                   p.waktu_mulai, p.durasi, p.waktu_selesai, p.grand_total, p.terbilang, p.nomor_spk, p.par,
+                   p.spk_manual_1, p.spk_manual_2, p.status, p.link_pdf, p.approver_email, p.waktu_persetujuan,
+                   p.alasan_penolakan, p.created_at, uc.nama_lengkap AS approver_name
+            FROM pengajuan_spk p
+                LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) uc ON uc.email_sat = p.approver_email
+            WHERE p.id_toko = $1
                OR (
-                   id_toko IS NULL
+                   p.id_toko IS NULL
                    AND $2::text IS NOT NULL
-                   AND nomor_ulok = $2::text
-                   AND LOWER(COALESCE(lingkup_pekerjaan, '')) = LOWER(COALESCE($3::text, ''))
+                   AND p.nomor_ulok = $2::text
+                   AND LOWER(COALESCE(p.lingkup_pekerjaan, '')) = LOWER(COALESCE($3::text, ''))
                )
-            ORDER BY created_at DESC, id DESC
+            ORDER BY p.created_at DESC, p.id DESC
             `,
             [tokoId, toko?.nomor_ulok ?? null, toko?.lingkup_pekerjaan ?? null]
         );
@@ -594,14 +608,19 @@ export const dashboardRepository = {
 
         const instruksiResult = await pool.query<DashboardInstruksiLapanganRow>(
             `
-            SELECT id, id_toko, status, link_pdf_gabungan, link_pdf_non_sbo, link_pdf_rekapitulasi, link_lampiran,
-                   email_pembuat, pemberi_persetujuan_koordinator, waktu_persetujuan_koordinator,
-                   pemberi_persetujuan_manager, waktu_persetujuan_manager, pemberi_persetujuan_kontraktor,
-                   waktu_persetujuan_kontraktor, alasan_penolakan, grand_total, grand_total_non_sbo,
-                   grand_total_final, created_at
-            FROM instruksi_lapangan
-            WHERE id_toko = $1
-            ORDER BY created_at DESC, id DESC
+            SELECT il.id, il.id_toko, il.status, il.link_pdf_gabungan, il.link_pdf_non_sbo, il.link_pdf_rekapitulasi, il.link_lampiran,
+                   il.email_pembuat, il.pemberi_persetujuan_koordinator, il.waktu_persetujuan_koordinator,
+                   il.pemberi_persetujuan_manager, il.waktu_persetujuan_manager, il.pemberi_persetujuan_kontraktor,
+                   il.waktu_persetujuan_kontraktor, il.alasan_penolakan, il.grand_total, il.grand_total_non_sbo,
+                   il.grand_total_final, il.created_at,
+                       uc_koor.nama_lengkap AS nama_persetujuan_koordinator,
+                       uc_mgr.nama_lengkap AS nama_persetujuan_manager, dcv.full_name AS nama_persetujuan_kontraktor
+            FROM instruksi_lapangan il
+                LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) uc_koor ON uc_koor.email_sat = il.pemberi_persetujuan_koordinator
+                LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) uc_mgr ON uc_mgr.email_sat = il.pemberi_persetujuan_manager
+                LEFT JOIN (SELECT email, MAX(full_name) as full_name FROM dc_vendor_user GROUP BY email) dcv ON dcv.email = il.pemberi_persetujuan_kontraktor
+            WHERE il.id_toko = $1
+            ORDER BY il.created_at DESC, il.id DESC
             `,
             [tokoId]
         );
@@ -790,8 +809,12 @@ export const dashboardRepository = {
 
         const pertambahanBySpkId = new Map<number, DashboardPertambahanSpkRow[]>();
         for (const row of pertambahanResult.rows) {
+            const mappedRow = {
+                ...row,
+                target_st_setelah_perpanjangan: row.tanggal_spk_akhir_setelah_perpanjangan ? toIsoDateString(calculateEffectiveStDate(new Date(row.tanggal_spk_akhir_setelah_perpanjangan)).effectiveStDate) : null
+            };
             const items = pertambahanBySpkId.get(row.id_spk) ?? [];
-            items.push(row);
+            items.push(mappedRow);
             pertambahanBySpkId.set(row.id_spk, items);
         }
 
@@ -918,8 +941,13 @@ export const dashboardRepository = {
                        r.waktu_persetujuan_manager, r.alasan_penolakan, r.waktu_penolakan, r.ditolak_oleh, r.durasi_pekerjaan,
                        r.kategori_lokasi, r.no_polis, r.berlaku_polis, r.file_asuransi, r.luas_bangunan, r.luas_terbangun,
                        r.luas_area_terbuka, r.luas_area_parkir, r.luas_area_sales, r.luas_gudang, r.grand_total,
-                       r.grand_total_non_sbo, r.grand_total_final, r.created_at
+                       r.grand_total_non_sbo, r.grand_total_final, r.created_at,
+                       uc_koor.nama_lengkap AS nama_persetujuan_koordinator,
+                       uc_mgr.nama_lengkap AS nama_persetujuan_manager, dcv.full_name AS nama_persetujuan_direktur
                 FROM rab r
+                LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) uc_koor ON uc_koor.email_sat = r.pemberi_persetujuan_koordinator
+                LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) uc_mgr ON uc_mgr.email_sat = r.pemberi_persetujuan_manager
+                LEFT JOIN (SELECT email, MAX(full_name) as full_name FROM dc_vendor_user GROUP BY email) dcv ON dcv.email = r.pemberi_persetujuan_direktur
                 LEFT JOIN toko t ON t.id = r.id_toko
                 WHERE r.id_toko = ANY($1::int[])
                 ORDER BY r.created_at DESC, r.id DESC
@@ -958,8 +986,9 @@ export const dashboardRepository = {
                        p.approver_email,
                        p.waktu_persetujuan,
                        p.alasan_penolakan,
-                       p.created_at
+                       p.created_at, uc.nama_lengkap AS approver_name
                 FROM pengajuan_spk p
+                LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) uc ON uc.email_sat = p.approver_email
                 LEFT JOIN toko t
                   ON t.nomor_ulok = p.nomor_ulok
                  AND LOWER(COALESCE(t.lingkup_pekerjaan, '')) = LOWER(COALESCE(p.lingkup_pekerjaan, ''))
@@ -988,14 +1017,19 @@ export const dashboardRepository = {
             ),
             pool.query<DashboardInstruksiLapanganRow>(
                 `
-                SELECT id, id_toko, status, link_pdf_gabungan, link_pdf_non_sbo, link_pdf_rekapitulasi, link_lampiran,
-                       email_pembuat, pemberi_persetujuan_koordinator, waktu_persetujuan_koordinator,
-                       pemberi_persetujuan_manager, waktu_persetujuan_manager, pemberi_persetujuan_kontraktor,
-                       waktu_persetujuan_kontraktor, alasan_penolakan, grand_total, grand_total_non_sbo,
-                       grand_total_final, created_at
-                FROM instruksi_lapangan
-                WHERE id_toko = ANY($1::int[])
-                ORDER BY created_at DESC, id DESC
+                SELECT il.id, il.id_toko, il.status, il.link_pdf_gabungan, il.link_pdf_non_sbo, il.link_pdf_rekapitulasi, il.link_lampiran,
+                       il.email_pembuat, il.pemberi_persetujuan_koordinator, il.waktu_persetujuan_koordinator,
+                       il.pemberi_persetujuan_manager, il.waktu_persetujuan_manager, il.pemberi_persetujuan_kontraktor,
+                       il.waktu_persetujuan_kontraktor, il.alasan_penolakan, il.grand_total, il.grand_total_non_sbo,
+                       il.grand_total_final, il.created_at,
+                       uc_koor.nama_lengkap AS nama_persetujuan_koordinator,
+                       uc_mgr.nama_lengkap AS nama_persetujuan_manager, dcv.full_name AS nama_persetujuan_kontraktor
+                FROM instruksi_lapangan il
+                LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) uc_koor ON uc_koor.email_sat = il.pemberi_persetujuan_koordinator
+                LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) uc_mgr ON uc_mgr.email_sat = il.pemberi_persetujuan_manager
+                LEFT JOIN (SELECT email, MAX(full_name) as full_name FROM dc_vendor_user GROUP BY email) dcv ON dcv.email = il.pemberi_persetujuan_kontraktor
+                WHERE il.id_toko = ANY($1::int[])
+                ORDER BY il.created_at DESC, il.id DESC
                 `,
                 [toArrayParam(tokoIds)]
             ),
@@ -1251,7 +1285,11 @@ export const dashboardRepository = {
 
         const pertambahanBySpkId = new Map<number, DashboardPertambahanSpkRow[]>();
         for (const row of pertambahanResult.rows) {
-            pushMapArray(pertambahanBySpkId, row.id_spk, row);
+            const mappedRow = {
+                ...row,
+                target_st_setelah_perpanjangan: row.tanggal_spk_akhir_setelah_perpanjangan ? toIsoDateString(calculateEffectiveStDate(new Date(row.tanggal_spk_akhir_setelah_perpanjangan)).effectiveStDate) : null
+            };
+            pushMapArray(pertambahanBySpkId, row.id_spk, mappedRow);
         }
 
         const spkByTokoId = new Map<number, Array<DashboardSpkRow & {
@@ -1516,8 +1554,9 @@ export const dashboardRepository = {
                    p.approver_email,
                    p.waktu_persetujuan,
                    p.alasan_penolakan,
-                   p.created_at
+                   p.created_at, uc.nama_lengkap AS approver_name
             FROM pengajuan_spk p
+                LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) uc ON uc.email_sat = p.approver_email
             LEFT JOIN toko t
               ON t.nomor_ulok = p.nomor_ulok
              AND LOWER(COALESCE(t.lingkup_pekerjaan, '')) = LOWER(COALESCE(p.lingkup_pekerjaan, ''))
@@ -1556,7 +1595,7 @@ export const dashboardRepository = {
             const mapped = {
                 ...row,
                 approval_logs: [],
-                pertambahan_spk: []
+                pertambahan_spk: pertambahanBySpkId.get(row.id) ?? []
             };
             const explicitTokoId = Number(row.id_toko);
             const targetTokoIds = selectedTokoIds.includes(explicitTokoId)
