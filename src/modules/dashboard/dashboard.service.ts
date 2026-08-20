@@ -59,7 +59,8 @@ export const dashboardService = {
     },
 
     async getDashboardAll(query: DashboardAllQueryInput) {
-        return dashboardRepository.findAllDashboard(query);
+        const projects = await dashboardRepository.findAllDashboard(query);
+        return dashboardRepository.hydrateOpnameItemsOnly(projects);
     },
 
     async getDashboardSummary(query: DashboardSummaryQueryInput) {
@@ -89,7 +90,7 @@ export const dashboardService = {
             if (stage !== "Done" && isDashboardPastSla(project, stage)) attention += 1;
             penawaran += Number(project.rab[0]?.grand_total_final || 0);
             nilaiSpk += project.spk.reduce((sum, spk) => sum + Number(spk.grand_total || 0), 0);
-            
+
             // ✅ FIX: Hanya hitung denda resmi untuk total
             if (penalty.source === "Resmi") {
                 totalDenda += penalty.amount;

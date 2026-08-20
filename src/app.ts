@@ -40,6 +40,7 @@ import { spkBackdatePolicyRouter } from "./modules/spk-backdate-policy/spk-backd
 
 
 const app = express();
+app.disable("etag");
 const SLOW_REQUEST_MS = Number(process.env.SLOW_REQUEST_LOG_MS || 3000);
 const POLLING_ENDPOINTS = new Set([
     "/api/system-maintenance/status",

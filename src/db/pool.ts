@@ -18,6 +18,8 @@ const buildConnectionString = (rawUrl: string): string => {
     const parsed = parseDatabaseUrl(rawUrl);
     parsed.searchParams.delete("sslmode");
     parsed.searchParams.delete("ssl");
+    // Set Timezone di level koneksi (tanpa query concurrent di event connect)
+    parsed.searchParams.set("options", "-c timezone=Asia/Jakarta");
     return parsed.toString();
 };
 
@@ -43,10 +45,9 @@ export const pool = new Pool({
 
 console.log(`[Postgres] Pool max efektif: ${pgPoolMax}`);
 
-// Setiap koneksi baru: set timezone ke WIB
-pool.on("connect", (client) => {
-    client.query("SET TIME ZONE 'Asia/Jakarta'").catch(() => {});
-});
+// Konfigurasi Timezone kini sudah tidak diset via event connect untuk
+// menghindari concurrent query (pool corruption) dengan pg@8+.
+// Sebaiknya di-set dari pg connection parameter atau default server postgres.
 
 pool.on("error", (error) => {
     console.error("Postgres pool error:", error);
