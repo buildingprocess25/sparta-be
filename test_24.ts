@@ -1,0 +1,1 @@
+import { pool } from './src/db/pool'; async function run() { const pgRes = await pool.query('SELECT status, kategori_pekerjaan FROM pengawasan WHERE id_gantt IN (SELECT id_gantt FROM pengawasan_gantt WHERE id_toko = 2498 AND tanggal_pengawasan = \'' + '2026-07-24' + '\')'); console.log(pgRes.rows); process.exit(); } run();

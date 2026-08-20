@@ -59,7 +59,8 @@ export const dashboardService = {
     },
 
     async getDashboardAll(query: DashboardAllQueryInput) {
-        return dashboardRepository.findAllDashboard(query);
+        const projects = await dashboardRepository.findAllDashboard(query);
+        return dashboardRepository.hydrateOpnameItemsOnly(projects);
     },
 
     async getDashboardSummary(query: DashboardSummaryQueryInput) {

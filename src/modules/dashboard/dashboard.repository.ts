@@ -1451,6 +1451,42 @@ export const dashboardRepository = {
         }));
     },
 
+    async hydrateOpnameItemsOnly(projects: DashboardData[]): Promise<DashboardData[]> {
+        const opnameFinalIds = projects.flatMap((project) => project.opname_final.map((row) => row.id));
+        if (opnameFinalIds.length === 0) return projects;
+
+        const opnameItemResult = await pool.query<DashboardOpnameItemRow>(
+            `
+            SELECT oi.id, oi.id_toko, oi.id_opname_final, oi.id_rab_item, oi.id_instruksi_lapangan_item,
+                   COALESCE(ri.kategori_pekerjaan, ili.kategori_pekerjaan) AS kategori_pekerjaan,
+                   COALESCE(ri.jenis_pekerjaan, ili.jenis_pekerjaan) AS jenis_pekerjaan,
+                   COALESCE(ri.satuan, ili.satuan) AS satuan,
+                   oi.status, oi.volume_akhir, oi.selisih_volume, oi.total_selisih,
+                   oi.total_harga_opname, oi.desain, oi.kualitas, oi.spesifikasi,
+                   oi.foto, oi.catatan, oi.created_at
+            FROM opname_item oi
+            LEFT JOIN rab_item ri ON ri.id = oi.id_rab_item
+            LEFT JOIN instruksi_lapangan_item ili ON ili.id = oi.id_instruksi_lapangan_item
+            WHERE oi.id_opname_final = ANY($1::int[])
+            ORDER BY oi.id ASC
+            `,
+            [toArrayParam(opnameFinalIds)]
+        );
+
+        const opnameItemsByFinalId = new Map<number, DashboardOpnameItemRow[]>();
+        for (const row of opnameItemResult.rows) {
+            pushMapArray(opnameItemsByFinalId, row.id_opname_final, row);
+        }
+
+        return projects.map((project) => ({
+            ...project,
+            opname_final: project.opname_final.map((row) => ({
+                ...row,
+                items: opnameItemsByFinalId.get(row.id) ?? []
+            }))
+        }));
+    },
+
     async findKtkOpnameFinalDashboard(query: DashboardExportQueryInput): Promise<DashboardData[]> {
         const filters: string[] = [
             `EXISTS (
