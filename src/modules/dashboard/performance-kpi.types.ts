@@ -58,8 +58,8 @@ export type PerformanceKpiDetailInput = PerformanceKpiQueryInput & {
 
 export type PerformanceKpiOptionStatsInput = PerformanceKpiQueryInput & {
     card_type: PerformanceKpiCardType;
-    sla_role?: PerformanceKpiSlaRole | PerformanceKpiPersonRole;
-    person_name?: string;
+    selected_role?: PerformanceKpiSlaRole | PerformanceKpiPersonRole;
+    selected_name?: string;
     sla_doc?: PerformanceKpiDocument;
 };
 

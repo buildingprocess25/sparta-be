@@ -1631,7 +1631,7 @@ export const dashboardRepository = {
             const mapped = {
                 ...row,
                 approval_logs: [],
-                pertambahan_spk: pertambahanBySpkId.get(row.id) ?? []
+                pertambahan_spk: []
             };
             const explicitTokoId = Number(row.id_toko);
             const targetTokoIds = selectedTokoIds.includes(explicitTokoId)
