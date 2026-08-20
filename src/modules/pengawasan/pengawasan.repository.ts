@@ -51,6 +51,24 @@ export type PengawasanPdfMigrationPendingRow = {
     updated_at: string;
 };
 
+export type SkippedPreviousProgressRow = {
+    previous_id: number;
+    previous_tanggal_pengawasan: string;
+    previous_status: string;
+    skipped_id_pengawasan_gantt: number;
+    skipped_tanggal_pengawasan: string;
+};
+
+export type FutureUnfinishedPengawasanRow = {
+    id: number;
+    id_pengawasan_gantt: number;
+    tanggal_pengawasan: string;
+    kategori_pekerjaan: string;
+    jenis_pekerjaan: string;
+    status: string;
+    created_at: string;
+};
+
 export type PengawasanRowWithBerkas = PengawasanRow & {
     berkas_pengawasan: BerkasPengawasanRow | null;
 };
@@ -260,7 +278,7 @@ export const pengawasanRepository = {
             JOIN gantt_chart g ON g.id = p.id_gantt
             JOIN toko t ON t.id = g.id_toko
             ${whereClause}
-            ORDER BY p.id DESC
+            ORDER BY to_date(pg.tanggal_pengawasan, 'DD/MM/YYYY') DESC NULLS LAST, p.id DESC
             `,
             values
         );
@@ -397,6 +415,105 @@ export const pengawasanRepository = {
         return result.rows[0] ?? null;
     },
 
+    async findSkippedPreviousProgress(input: {
+        id_gantt: number;
+        id_pengawasan_gantt: number;
+        kategori_pekerjaan: string;
+        jenis_pekerjaan: string;
+    }): Promise<SkippedPreviousProgressRow | null> {
+        const result = await pool.query<SkippedPreviousProgressRow>(
+            `
+            WITH current_checkpoint AS (
+                SELECT id_gantt, to_date(tanggal_pengawasan, 'DD/MM/YYYY') AS tanggal
+                FROM pengawasan_gantt
+                WHERE id = $2
+            ), previous_item AS (
+                SELECT
+                    p.id,
+                    pg.tanggal_pengawasan,
+                    to_date(pg.tanggal_pengawasan, 'DD/MM/YYYY') AS tanggal,
+                    p.status
+                FROM pengawasan p
+                JOIN pengawasan_gantt pg ON pg.id = p.id_pengawasan_gantt
+                JOIN current_checkpoint cp ON cp.id_gantt = pg.id_gantt
+                WHERE p.id_gantt = $1
+                  AND UPPER(TRIM(COALESCE(p.kategori_pekerjaan, ''))) = UPPER(TRIM($3))
+                  AND UPPER(TRIM(COALESCE(p.jenis_pekerjaan, ''))) = UPPER(TRIM($4))
+                  AND to_date(pg.tanggal_pengawasan, 'DD/MM/YYYY') < cp.tanggal
+                ORDER BY to_date(pg.tanggal_pengawasan, 'DD/MM/YYYY') DESC, p.id DESC
+                LIMIT 1
+            ), skipped_checkpoint AS (
+                SELECT pg.id, pg.tanggal_pengawasan
+                FROM pengawasan_gantt pg
+                JOIN current_checkpoint cp ON cp.id_gantt = pg.id_gantt
+                JOIN previous_item prev ON true
+                WHERE pg.id_gantt = $1
+                  AND to_date(pg.tanggal_pengawasan, 'DD/MM/YYYY') > prev.tanggal
+                  AND to_date(pg.tanggal_pengawasan, 'DD/MM/YYYY') < cp.tanggal
+                ORDER BY to_date(pg.tanggal_pengawasan, 'DD/MM/YYYY') ASC, pg.id ASC
+                LIMIT 1
+            )
+            SELECT
+                prev.id AS previous_id,
+                prev.tanggal_pengawasan AS previous_tanggal_pengawasan,
+                prev.status AS previous_status,
+                skipped.id AS skipped_id_pengawasan_gantt,
+                skipped.tanggal_pengawasan AS skipped_tanggal_pengawasan
+            FROM previous_item prev
+            JOIN skipped_checkpoint skipped ON true
+            WHERE LOWER(TRIM(COALESCE(prev.status, ''))) = 'progress'
+            `,
+            [
+                input.id_gantt,
+                input.id_pengawasan_gantt,
+                input.kategori_pekerjaan,
+                input.jenis_pekerjaan
+            ]
+        );
+
+        return result.rows[0] ?? null;
+    },
+    async findFutureUnfinishedItems(input: {
+        id_gantt: number;
+        id_pengawasan_gantt: number;
+        kategori_pekerjaan: string;
+        jenis_pekerjaan: string;
+    }): Promise<FutureUnfinishedPengawasanRow[]> {
+        const result = await pool.query<FutureUnfinishedPengawasanRow>(
+            `
+            WITH current_checkpoint AS (
+                SELECT id_gantt, to_date(tanggal_pengawasan, 'DD/MM/YYYY') AS tanggal
+                FROM pengawasan_gantt
+                WHERE id = $2
+            )
+            SELECT
+                p.id,
+                p.id_pengawasan_gantt,
+                future_pg.tanggal_pengawasan,
+                p.kategori_pekerjaan,
+                p.jenis_pekerjaan,
+                p.status,
+                p.created_at
+            FROM pengawasan p
+            JOIN pengawasan_gantt future_pg ON future_pg.id = p.id_pengawasan_gantt
+            JOIN current_checkpoint cp ON cp.id_gantt = future_pg.id_gantt
+            WHERE p.id_gantt = $1
+              AND UPPER(TRIM(COALESCE(p.kategori_pekerjaan, ''))) = UPPER(TRIM($3))
+              AND UPPER(TRIM(COALESCE(p.jenis_pekerjaan, ''))) = UPPER(TRIM($4))
+              AND LOWER(TRIM(COALESCE(p.status, ''))) IN ('progress', 'terlambat')
+              AND to_date(future_pg.tanggal_pengawasan, 'DD/MM/YYYY') > cp.tanggal
+            ORDER BY to_date(future_pg.tanggal_pengawasan, 'DD/MM/YYYY') DESC, p.id DESC
+            `,
+            [
+                input.id_gantt,
+                input.id_pengawasan_gantt,
+                input.kategori_pekerjaan,
+                input.jenis_pekerjaan
+            ]
+        );
+
+        return result.rows;
+    },
     async findAllPengawasanByGanttId(idPengawasanGantt: number): Promise<PengawasanRow[]> {
         const result = await pool.query<PengawasanRow>(
             `

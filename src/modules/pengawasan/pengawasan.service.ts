@@ -426,6 +426,41 @@ const regeneratePengawasanPdfForRow = async (row: Pick<PengawasanRow, "id_gantt"
         .catch((err) => console.error("[berkas_pengawasan] background error:", err));
 };
 
+const ensureProgressUsesNearestCheckpoint = async (item: CreatePengawasanData): Promise<void> => {
+    if (String(item.status || '').toLowerCase() !== 'progress') return;
+
+    const skipped = await pengawasanRepository.findSkippedPreviousProgress({
+        id_gantt: item.id_gantt,
+        id_pengawasan_gantt: item.id_pengawasan_gantt,
+        kategori_pekerjaan: item.kategori_pekerjaan,
+        jenis_pekerjaan: item.jenis_pekerjaan
+    });
+
+    if (!skipped) return;
+
+    throw new AppError(
+        `Item ${item.kategori_pekerjaan} / ${item.jenis_pekerjaan} masih harus diisi di pengawasan terdekat ${skipped.skipped_tanggal_pengawasan} setelah Progress ${skipped.previous_tanggal_pengawasan}. Tidak bisa lompat ke checkpoint ini.`,
+        409
+    );
+};
+const ensureSelesaiBackfillDoesNotLeaveFutureBlocker = async (item: CreatePengawasanData): Promise<void> => {
+    if (String(item.status || '').toLowerCase() !== 'selesai') return;
+
+    const futureRows = await pengawasanRepository.findFutureUnfinishedItems({
+        id_gantt: item.id_gantt,
+        id_pengawasan_gantt: item.id_pengawasan_gantt,
+        kategori_pekerjaan: item.kategori_pekerjaan,
+        jenis_pekerjaan: item.jenis_pekerjaan
+    });
+
+    if (futureRows.length === 0) return;
+
+    const latest = futureRows[0];
+    throw new AppError(
+        `Item ${item.kategori_pekerjaan} / ${item.jenis_pekerjaan} masih memiliki status ${latest.status} pada pengawasan ${latest.tanggal_pengawasan}. Selesaikan item di checkpoint terbaru tersebut agar tidak membuat blocker stale.`,
+        409
+    );
+};
 const hasAnyUpdateField = (input: UpdatePengawasanInput): boolean =>
     typeof input.kategori_pekerjaan !== "undefined"
     || typeof input.jenis_pekerjaan !== "undefined"
@@ -465,6 +500,8 @@ export const pengawasanService = {
                     ...inputWithoutTanggal,
                     id_pengawasan_gantt: idPengawasanGantt
                 };
+                    await ensureProgressUsesNearestCheckpoint(payload);
+                    await ensureSelesaiBackfillDoesNotLeaveFutureBlocker(payload);
 
             const row = await pengawasanRepository.create(payload);
 
@@ -512,6 +549,11 @@ export const pengawasanService = {
             let rows: PengawasanRow[];
 
             if (uploadedDokumentasiFiles.length === 0) {
+                for (const payload of basePayloads) {
+                    await ensureProgressUsesNearestCheckpoint(payload);
+                    await ensureSelesaiBackfillDoesNotLeaveFutureBlocker(payload);
+                }
+
                 rows = await pengawasanRepository.createBulk(basePayloads);
             } else if (uploadedDokumentasiIndexes && uploadedDokumentasiIndexes.length > 0) {
                 if (uploadedDokumentasiIndexes.length !== uploadedDokumentasiFiles.length) {
@@ -549,6 +591,11 @@ export const pengawasanService = {
                     };
                 }
 
+                for (const payload of payloadWithDokumentasi) {
+                    await ensureProgressUsesNearestCheckpoint(payload);
+                    await ensureSelesaiBackfillDoesNotLeaveFutureBlocker(payload);
+                }
+
                 rows = await pengawasanRepository.createBulk(payloadWithDokumentasi);
             } else {
                 if (uploadedDokumentasiFiles.length !== 1 && uploadedDokumentasiFiles.length !== items.length) {
@@ -575,6 +622,11 @@ export const pengawasanService = {
                         ...item,
                         dokumentasi: dokumentasiLink
                     });
+                }
+
+                for (const payload of payloadWithDokumentasi) {
+                    await ensureProgressUsesNearestCheckpoint(payload);
+                    await ensureSelesaiBackfillDoesNotLeaveFutureBlocker(payload);
                 }
 
                 rows = await pengawasanRepository.createBulk(payloadWithDokumentasi);
