@@ -24,7 +24,8 @@ export const getDashboardView = asyncHandler(async (req: Request, res: Response)
 });
 
 export const getDashboardAll = asyncHandler(async (req: Request, res: Response) => {
-    const query = dashboardAllQuerySchema.parse(req.query);
+    let query = dashboardAllQuerySchema.parse(req.query);
+    query = await injectBranchFilter(req.user!, query);
     const data = await dashboardService.getDashboardAll(query);
     res.json({ status: "success", data });
 });
@@ -82,7 +83,7 @@ export const getDashboardV2Timeline = asyncHandler(async (req: Request, res: Res
     if (!Number.isInteger(tokoId) || tokoId <= 0) {
         throw new AppError("ID toko tidak valid", 422);
     }
-    const data = await dashboardV2Service.getTimeline(tokoId);
+    const data = await dashboardV2Service.getTimeline(tokoId, req.user!);
     res.json({ status: "success", data });
 });
 
@@ -96,7 +97,7 @@ export const getDashboardV2Detail = asyncHandler(async (req: Request, res: Respo
         throw new AppError("ID dokumen tidak valid", 422);
     }
     const documentType = dashboardV2DocumentTypeSchema.parse(req.params.documentType);
-    const data = await dashboardV2Service.getDetail(tokoId, documentType, rawId);
+    const data = await dashboardV2Service.getDetail(tokoId, documentType, rawId, req.user!);
     res.json({ status: "success", data });
 });
 

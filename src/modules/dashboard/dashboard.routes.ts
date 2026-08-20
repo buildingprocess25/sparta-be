@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type NextFunction, type Request, type Response } from "express";
 import {
     exportDashboard,
     getDashboardAll,
@@ -24,6 +24,21 @@ import {
     getPerformanceTable
 } from "./dashboard-performance.controller";
 
+
+const isSuperHuman = (req: Request): boolean =>
+    Boolean(req.user?.roles.some((role) => role.trim().toUpperCase().includes("SUPER HUMAN")));
+
+const requireSuperHumanForPerformance = (req: Request, res: Response, next: NextFunction) => {
+    if (isSuperHuman(req)) {
+        next();
+        return;
+    }
+
+    res.status(403).json({
+        status: "coming_soon",
+        message: "Performance Internal SAT sedang disiapkan dan sementara hanya tersedia untuk Super Human."
+    });
+};
 const dashboardRouter = Router();
 
 dashboardRouter.get("/export", exportDashboard);
@@ -35,17 +50,17 @@ dashboardRouter.get("/v2/charts", getDashboardV2Charts);
 dashboardRouter.get("/summary", getDashboardSummary);
 dashboardRouter.get("/projects", getDashboardProjects);
 dashboardRouter.get("/projects/:tokoId", getDashboardProjectDetail);
-dashboardRouter.get("/kpi-performance", getDashboardKpiPerformance);
-dashboardRouter.get("/kpi-filters", getDashboardKpiFilters);
-dashboardRouter.get("/kpi-drilldown", getDashboardKpiDrilldown);
+dashboardRouter.get("/kpi-performance", requireSuperHumanForPerformance, getDashboardKpiPerformance);
+dashboardRouter.get("/kpi-filters", requireSuperHumanForPerformance, getDashboardKpiFilters);
+dashboardRouter.get("/kpi-drilldown", requireSuperHumanForPerformance, getDashboardKpiDrilldown);
 
 // Performance KPI SAT routes.
-dashboardRouter.get("/performance/summary", getPerformanceSummary);
-dashboardRouter.get("/performance/filters", getPerformanceFilters);
-dashboardRouter.get("/performance/options-stats", getPerformanceOptionStats);
-dashboardRouter.get("/performance/drilldown", getPerformanceDrilldown);
-dashboardRouter.get("/performance/detail", getPerformanceDetail);
-dashboardRouter.get("/performance/table", getPerformanceTable);
+dashboardRouter.get("/performance/summary", requireSuperHumanForPerformance, getPerformanceSummary);
+dashboardRouter.get("/performance/filters", requireSuperHumanForPerformance, getPerformanceFilters);
+dashboardRouter.get("/performance/options-stats", requireSuperHumanForPerformance, getPerformanceOptionStats);
+dashboardRouter.get("/performance/drilldown", requireSuperHumanForPerformance, getPerformanceDrilldown);
+dashboardRouter.get("/performance/detail", requireSuperHumanForPerformance, getPerformanceDetail);
+dashboardRouter.get("/performance/table", requireSuperHumanForPerformance, getPerformanceTable);
 dashboardRouter.get("/", getDashboardView);
 dashboardRouter.get("/all", getDashboardAll);
 

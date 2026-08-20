@@ -403,7 +403,7 @@ const parseTextCsv = (value?: string): string[] => String(value ?? "")
 export const dashboardRepository = {
     async findTokoByQuery(query: DashboardQueryInput): Promise<DashboardTokoRow | null> {
         const filters: string[] = [];
-        const values: Array<string | number> = [];
+        const values: Array<string | number | string[]> = [];
 
         if (query.id) {
             values.push(query.id);
@@ -875,7 +875,7 @@ export const dashboardRepository = {
 
     async findAllDashboard(query: DashboardAllQueryInput): Promise<DashboardData[]> {
         const filters: string[] = [];
-        const values: Array<string | number> = [];
+        const values: Array<string | number | string[]> = [];
 
         if (query.search) {
             values.push(`%${query.search}%`);
@@ -883,6 +883,12 @@ export const dashboardRepository = {
             filters.push(
                 `(nomor_ulok ILIKE $${idx} OR nama_toko ILIKE $${idx} OR kode_toko ILIKE $${idx} OR cabang ILIKE $${idx} OR CAST(id AS TEXT) ILIKE $${idx})`
             );
+        }
+
+        if (query.cabang_array && query.cabang_array.length > 0) {
+            values.push(query.cabang_array.map((item) => item.toUpperCase()));
+            const idx = values.length;
+            filters.push(`UPPER(TRIM(cabang)) = ANY($${idx}::text[])`);
         }
 
         const whereClause = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
