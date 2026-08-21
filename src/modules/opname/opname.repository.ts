@@ -47,6 +47,35 @@ export type OpnameRow = {
     foto: string | null;
     catatan: string | null;
     created_at: string;
+    rab_item?: {
+        id: number;
+        id_rab: number;
+        kategori_pekerjaan: string | null;
+        jenis_pekerjaan: string | null;
+        satuan: string | null;
+        volume: number | null;
+        harga_material: number | null;
+        harga_upah: number | null;
+        total_material: number | null;
+        total_upah: number | null;
+        total_harga: number | null;
+        catatan: string | null;
+    } | null;
+    instruksi_lapangan_item?: {
+        id: number;
+        id_instruksi_lapangan: number;
+        kategori_pekerjaan: string | null;
+        jenis_pekerjaan: string | null;
+        satuan: string | null;
+        volume: number | null;
+        harga_material: number | null;
+        harga_upah: number | null;
+        total_material: number | null;
+        total_upah: number | null;
+        total_harga: number | null;
+        catatan: string | null;
+    } | null;
+    toko?: TokoSummaryRow | null;
 };
 
 export type OpnameFinalHeaderRow = {
@@ -120,7 +149,46 @@ const returningColumnsFromOpnameItem = `
     oi.spesifikasi,
     oi.foto,
     oi.catatan,
-    oi.created_at
+    oi.created_at,
+    CASE WHEN ri.id IS NULL THEN NULL ELSE json_build_object(
+        'id', ri.id,
+        'id_rab', ri.id_rab,
+        'kategori_pekerjaan', ri.kategori_pekerjaan,
+        'jenis_pekerjaan', ri.jenis_pekerjaan,
+        'satuan', ri.satuan,
+        'volume', ri.volume,
+        'harga_material', ri.harga_material,
+        'harga_upah', ri.harga_upah,
+        'total_material', ri.total_material,
+        'total_upah', ri.total_upah,
+        'total_harga', ri.total_harga,
+        'catatan', ri.catatan
+    ) END AS rab_item,
+    CASE WHEN ili.id IS NULL THEN NULL ELSE json_build_object(
+        'id', ili.id,
+        'id_instruksi_lapangan', ili.id_instruksi_lapangan,
+        'kategori_pekerjaan', ili.kategori_pekerjaan,
+        'jenis_pekerjaan', ili.jenis_pekerjaan,
+        'satuan', ili.satuan,
+        'volume', ili.volume,
+        'harga_material', ili.harga_material,
+        'harga_upah', ili.harga_upah,
+        'total_material', ili.total_material,
+        'total_upah', ili.total_upah,
+        'total_harga', ili.total_harga,
+        'catatan', ili.catatan
+    ) END AS instruksi_lapangan_item,
+    CASE WHEN t.id IS NULL THEN NULL ELSE json_build_object(
+        'id', t.id,
+        'nomor_ulok', t.nomor_ulok,
+        'lingkup_pekerjaan', t.lingkup_pekerjaan,
+        'nama_toko', t.nama_toko,
+        'kode_toko', t.kode_toko,
+        'proyek', t.proyek,
+        'cabang', t.cabang,
+        'alamat', t.alamat,
+        'nama_kontraktor', t.nama_kontraktor
+    ) END AS toko
 `;
 
 const opnameFinalColumns = `
@@ -509,6 +577,9 @@ export const opnameRepository = {
             SELECT ${returningColumnsFromOpnameItem}
             FROM opname_item oi
             JOIN opname_final ofn ON ofn.id = oi.id_opname_final
+            LEFT JOIN rab_item ri ON ri.id = oi.id_rab_item
+            LEFT JOIN instruksi_lapangan_item ili ON ili.id = oi.id_instruksi_lapangan_item
+            LEFT JOIN toko t ON t.id = oi.id_toko
             ${whereClause}
             ORDER BY oi.id DESC
             `,
