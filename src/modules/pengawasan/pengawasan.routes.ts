@@ -39,7 +39,8 @@ pengawasanRouter.post(
 pengawasanRouter.post(
     "/bulk",
     pengawasanUpload.fields([
-        { name: "file_dokumentasi", maxCount: 50 }
+        { name: "file_dokumentasi", maxCount: 50 },
+        { name: "file_foto_opname", maxCount: 50 }
     ]),
     createBulkPengawasan
 );
@@ -52,7 +53,9 @@ pengawasanRouter.get("/:id", getPengawasanById);
 pengawasanRouter.put(
     "/bulk",
     pengawasanUpload.fields([
-        { name: "rev_file_dokumentasi", maxCount: 50 }
+        { name: "rev_file_dokumentasi", maxCount: 50 },
+        { name: "file_foto_opname", maxCount: 50 },
+        { name: "rev_file_foto_opname", maxCount: 50 }
     ]),
     updateBulkPengawasan
 );
