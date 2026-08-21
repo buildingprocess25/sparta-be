@@ -503,10 +503,10 @@ export const serahTerimaRepository = {
                 rab_latest.grand_total_final AS nilai_penawaran,
                 spk_latest.grand_total AS nilai_spk,
                 opname_latest.grand_total_opname AS nilai_opname,
-                opname_latest.hari_denda,
-                opname_latest.nilai_denda,
-                opname_latest.tanggal_akhir_spk_denda,
-                opname_latest.tanggal_serah_terima_denda,
+                opname_denda_latest.hari_denda,
+                opname_denda_latest.nilai_denda,
+                opname_denda_latest.tanggal_akhir_spk_denda,
+                opname_denda_latest.tanggal_serah_terima_denda,
                 spk_latest.nomor_spk
             FROM berkas_serah_terima bst
             JOIN toko t ON t.id = bst.id_toko
@@ -526,12 +526,20 @@ export const serahTerimaRepository = {
                 LIMIT 1
             ) spk_latest ON true
             LEFT JOIN LATERAL (
-                SELECT grand_total_opname, hari_denda, nilai_denda, tanggal_akhir_spk_denda, tanggal_serah_terima_denda
+                SELECT grand_total_opname
                 FROM opname_final
                 WHERE id_toko = bst.id_toko
                 ORDER BY id DESC
                 LIMIT 1
             ) opname_latest ON true
+            LEFT JOIN LATERAL (
+                SELECT hari_denda, nilai_denda, tanggal_akhir_spk_denda, tanggal_serah_terima_denda
+                FROM opname_final ofin
+                JOIN toko t2 ON t2.id = ofin.id_toko
+                WHERE t2.nomor_ulok = t.nomor_ulok
+                ORDER BY CAST(ofin.nilai_denda AS NUMERIC) DESC
+                LIMIT 1
+            ) opname_denda_latest ON true
             ${whereClause}
             ORDER BY bst.created_at DESC, bst.id DESC
             `,
