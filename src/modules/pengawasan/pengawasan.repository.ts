@@ -1,4 +1,5 @@
 import { pool, withTransaction } from "../../db/pool";
+import { type PoolClient } from "pg";
 import type {
     CreatePengawasanData,
     ListPengawasanQueryInput,
@@ -125,7 +126,7 @@ export const pengawasanRepository = {
         return result.rows[0];
     },
 
-    async createBulk(items: CreatePengawasanData[]): Promise<PengawasanRow[]> {
+    async createBulk(items: CreatePengawasanData[], existingClient?: PoolClient): Promise<PengawasanRow[]> {
         return withTransaction(async (client) => {
             const values: Array<number | string | null> = [];
             const placeholders = items.map((item, index) => {
@@ -299,47 +300,33 @@ export const pengawasanRepository = {
         });
     },
 
-    async updateById(id: string, input: UpdatePengawasanInput): Promise<PengawasanRow | null> {
+    async updateById(id: string, input: UpdatePengawasanInput, existingClient?: PoolClient): Promise<PengawasanRow | null> {
         const setClauses: string[] = [];
         const values: Array<string> = [];
 
-        if (typeof input.kategori_pekerjaan !== "undefined") {
-            values.push(input.kategori_pekerjaan);
-            setClauses.push(`kategori_pekerjaan = $${values.length}`);
-        }
+        Object.entries(input).forEach(([key, value]) => {
+            if (value !== undefined && key !== 'opname_data') { // ignore opname_data for SQL
+                values.push(value as string);
+                setClauses.push(`${key} = $${values.length}`);
+            }
+        });
 
-        if (typeof input.jenis_pekerjaan !== "undefined") {
-            values.push(input.jenis_pekerjaan);
-            setClauses.push(`jenis_pekerjaan = $${values.length}`);
-        }
-
-        if (typeof input.catatan !== "undefined") {
-            values.push(input.catatan);
-            setClauses.push(`catatan = $${values.length}`);
-        }
-
-        if (typeof input.dokumentasi !== "undefined") {
-            values.push(input.dokumentasi);
-            setClauses.push(`dokumentasi = $${values.length}`);
-        }
-
-        if (typeof input.status !== "undefined") {
-            values.push(input.status);
-            setClauses.push(`status = $${values.length}`);
-        }
+        if (setClauses.length === 0) return null;
 
         values.push(id);
-
-        const result = await pool.query<PengawasanRow>(
-            `
+        const query = `
             UPDATE pengawasan
             SET ${setClauses.join(", ")}
             WHERE id = $${values.length}
-            RETURNING id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, dokumentasi_base64, status, created_at
-            `,
-            values
-        );
+            RETURNING *
+        `;
 
+        if (existingClient) {
+            const result = await existingClient.query<PengawasanRow>(query, values);
+            return result.rows[0] ?? null;
+        }
+
+        const result = await pool.query<PengawasanRow>(query, values);
         return result.rows[0] ?? null;
     },
 

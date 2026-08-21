@@ -265,7 +265,8 @@ export const opnameService = {
             items: CreateBulkOpnameItemInput[];
         },
         uploadedFotoOpnameFiles: UploadedFotoOpnameFile[] = [],
-        uploadedFotoOpnameIndexes?: number[]
+        uploadedFotoOpnameIndexes?: number[],
+        existingClient?: any
     ): Promise<{ opname_final: { id: number; id_toko: number; aksi: string; status_opname_final: string }; items: OpnameRow[] }> {
         try {
             const {
@@ -285,7 +286,7 @@ export const opnameService = {
                     grand_total_opname: grandTotalOpname,
                     grand_total_rab: grandTotalRab,
                     items
-                });
+                }, existingClient);
 
                 return finalizeBulkCreate(created);
             }
@@ -332,7 +333,7 @@ export const opnameService = {
                     grand_total_opname: grandTotalOpname,
                     grand_total_rab: grandTotalRab,
                     items: payloadWithFoto
-                });
+                }, existingClient);
 
                 return finalizeBulkCreate(created);
             }
@@ -370,7 +371,7 @@ export const opnameService = {
                 grand_total_opname: grandTotalOpname,
                 grand_total_rab: grandTotalRab,
                 items: payloadWithFoto
-            });
+            }, existingClient);
 
             return finalizeBulkCreate(created);
         } catch (error) {

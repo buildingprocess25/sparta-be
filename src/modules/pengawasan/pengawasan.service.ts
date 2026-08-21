@@ -2,11 +2,13 @@ import { AppError } from "../../common/app-error";
 import { GoogleProvider } from "../../common/google";
 import { renderHtmlTemplate, renderPdfFromHtml, resolveTemplatePath } from "../../common/html-pdf";
 import { env } from "../../config/env";
-import { pool } from "../../db/pool";
+import { pool, withTransaction } from "../../db/pool";
 import fs from "fs";
 import path from "path";
 import sharp from "sharp";
 import { scheduleAutomaticSerahTerimaIfReady } from "../serah-terima/serah-terima.service";
+import { opnameService } from "../opname/opname.service";
+import { type PoolClient } from "pg";
 import { pengawasanRepository, type PengawasanRow } from "./pengawasan.repository";
 import type {
     BulkUpdatePengawasanItemInput,
@@ -15,6 +17,8 @@ import type {
     ListPengawasanQueryInput,
     UpdatePengawasanInput
 } from "./pengawasan.schema";
+
+type UploadedFotoOpnameFile = UploadedDokumentasiFile;
 
 type UploadedDokumentasiFile = {
     originalname: string;
@@ -468,6 +472,59 @@ const hasAnyUpdateField = (input: UpdatePengawasanInput): boolean =>
     || typeof input.dokumentasi !== "undefined"
     || typeof input.status !== "undefined";
 
+
+const processOpnameDataForPengawasanBulk = async (
+    originalItems: any[],
+    uploadedFotoOpnameFiles: UploadedFotoOpnameFile[],
+    uploadedFotoOpnameIndexes: number[] | undefined,
+    emailPembuat: string,
+    client: PoolClient
+) => {
+    const opnamePayloads = [];
+    const newFotoFiles = [];
+    const newFotoIndexes = [];
+
+    for (let i = 0; i < originalItems.length; i++) {
+        const item = originalItems[i];
+        if (item.opname_data) {
+            opnamePayloads.push({
+                ...item.opname_data,
+                status: "pending"
+            });
+            
+            if (uploadedFotoOpnameIndexes && uploadedFotoOpnameIndexes.length > 0) {
+                const fotoPos = uploadedFotoOpnameIndexes.indexOf(i);
+                if (fotoPos !== -1) {
+                    newFotoFiles.push(uploadedFotoOpnameFiles[fotoPos]);
+                    newFotoIndexes.push(opnamePayloads.length - 1);
+                }
+            } else {
+                if (uploadedFotoOpnameFiles.length === 1) {
+                    newFotoFiles.push(uploadedFotoOpnameFiles[0]);
+                } else if (uploadedFotoOpnameFiles.length === originalItems.length) {
+                    newFotoFiles.push(uploadedFotoOpnameFiles[i]);
+                    newFotoIndexes.push(opnamePayloads.length - 1);
+                }
+            }
+        }
+    }
+
+    if (opnamePayloads.length > 0) {
+        if (!emailPembuat) {
+             throw new AppError("email_pembuat harus diisi (User tidak terautentikasi) untuk menyimpan data opname.", 400);
+        }
+        
+        await opnameService.createBulk({
+            id_toko: opnamePayloads[0].id_toko,
+            tipe_opname: "OPNAME",
+            email_pembuat: emailPembuat,
+            grand_total_opname: "0",
+            grand_total_rab: "0",
+            items: opnamePayloads
+        }, newFotoFiles, newFotoIndexes.length > 0 ? newFotoIndexes : undefined, client);
+    }
+};
+
 export const pengawasanService = {
     async listPendingMigrationPdfs(nomorUlok?: string, cabangArray?: string[]) {
         return pengawasanRepository.findPendingMigrationPdfs(nomorUlok, cabangArray);
@@ -519,7 +576,10 @@ export const pengawasanService = {
     async createBulk(
         items: CreatePengawasanInput[],
         uploadedDokumentasiFiles: UploadedDokumentasiFile[] = [],
-        uploadedDokumentasiIndexes?: number[]
+        uploadedDokumentasiIndexes?: number[],
+        uploadedFotoOpnameFiles: UploadedFotoOpnameFile[] = [],
+        uploadedFotoOpnameIndexes?: number[],
+        emailPembuat?: string
     ): Promise<PengawasanRow[]> {
         try {
             const resolvedGanttIds = new Map<number, { idPengawasanGantt: number; tanggal: string }>();
@@ -554,7 +614,11 @@ export const pengawasanService = {
                     await ensureSelesaiBackfillDoesNotLeaveFutureBlocker(payload);
                 }
 
-                rows = await pengawasanRepository.createBulk(basePayloads);
+                rows = await withTransaction(async (client) => {
+                    const result = await pengawasanRepository.createBulk(basePayloads, client);
+                    await processOpnameDataForPengawasanBulk(items, uploadedFotoOpnameFiles, uploadedFotoOpnameIndexes, emailPembuat || "", client);
+                    return result;
+                });
             } else if (uploadedDokumentasiIndexes && uploadedDokumentasiIndexes.length > 0) {
                 if (uploadedDokumentasiIndexes.length !== uploadedDokumentasiFiles.length) {
                     throw new AppError(
@@ -596,7 +660,11 @@ export const pengawasanService = {
                     await ensureSelesaiBackfillDoesNotLeaveFutureBlocker(payload);
                 }
 
-                rows = await pengawasanRepository.createBulk(payloadWithDokumentasi);
+                rows = await withTransaction(async (client) => {
+                    const result = await pengawasanRepository.createBulk(payloadWithDokumentasi, client);
+                    await processOpnameDataForPengawasanBulk(items, uploadedFotoOpnameFiles, uploadedFotoOpnameIndexes, emailPembuat || "", client);
+                    return result;
+                });
             } else {
                 if (uploadedDokumentasiFiles.length !== 1 && uploadedDokumentasiFiles.length !== items.length) {
                     throw new AppError(
@@ -741,7 +809,10 @@ export const pengawasanService = {
     async updateBulk(
         items: BulkUpdatePengawasanItemInput[],
         uploadedDokumentasiFiles: UploadedDokumentasiFile[] = [],
-        uploadedDokumentasiIndexes?: number[]
+        uploadedDokumentasiIndexes?: number[],
+        uploadedFotoOpnameFiles: UploadedFotoOpnameFile[] = [],
+        uploadedFotoOpnameIndexes?: number[],
+        emailPembuat?: string
     ): Promise<PengawasanRow[]> {
         try {
             const fileByItemIndex = new Map<number, UploadedDokumentasiFile>();
@@ -795,6 +866,7 @@ export const pengawasanService = {
             // sekali per tanggal, bukan sekali per item (mencegah OOM)
             const ganttIdsToRegenerate = new Set<number>();
 
+            const finalItemsToUpdate: { id: string | number, finalPayload: any }[] = [];
             for (let index = 0; index < items.length; index++) {
                 const item = items[index];
                 if (usedIds.has(item.id)) {
@@ -826,15 +898,25 @@ export const pengawasanService = {
                     ? { ...payload, dokumentasi: dokumentasiLink }
                     : payload;
 
-                const data = await pengawasanRepository.updateById(String(id), finalPayload);
-                if (!data) {
-                    throw new AppError(`Data pengawasan tidak ditemukan pada items[${index}] (id=${id})`, 404);
-                }
-
-                // Tandai id_pengawasan_gantt untuk regenerasi PDF di akhir (deduplication)
-                ganttIdsToRegenerate.add(data.id_pengawasan_gantt);
-                updatedRows.push(data);
+                finalItemsToUpdate.push({ id, finalPayload });
             }
+
+            const updatedRowsArray = await withTransaction(async (client) => {
+                const results = [];
+                for (const { id, finalPayload } of finalItemsToUpdate) {
+                    const data = await pengawasanRepository.updateById(String(id), finalPayload, client);
+                    if (!data) {
+                        throw new AppError(`Data pengawasan tidak ditemukan (id=${id})`, 404);
+                    }
+                    results.push(data);
+                    ganttIdsToRegenerate.add(data.id_pengawasan_gantt);
+                }
+                
+                await processOpnameDataForPengawasanBulk(items, uploadedFotoOpnameFiles, uploadedFotoOpnameIndexes, emailPembuat || "", client);
+                
+                return results;
+            });
+            updatedRows.push(...updatedRowsArray);
 
             // Generate PDF sekali per id_pengawasan_gantt (fire-and-forget)
             // Ini mencegah N concurrent PDF generation yang bisa crash server

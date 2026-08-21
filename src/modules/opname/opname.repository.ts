@@ -1,3 +1,4 @@
+import { type PoolClient } from "pg";
 import { AppError } from "../../common/app-error";
 import { pool, withTransaction } from "../../db/pool";
 import { OPNAME_FINAL_STATUS, REJECTED_OPNAME_FINAL_STATUSES } from "../opname-final/opname-final.constants";
@@ -266,7 +267,7 @@ export const opnameRepository = {
         grand_total_opname: string;
         grand_total_rab: string;
         items: CreateBulkOpnameItemData[];
-    }): Promise<{ opnameFinal: OpnameFinalHeaderRow; items: OpnameRow[] }> {
+    }, existingClient?: PoolClient): Promise<{ opnameFinal: OpnameFinalHeaderRow; items: OpnameRow[] }> {
         return withTransaction(async (client) => {
             const tipeOpname = payload.tipe_opname || "OPNAME";
             const existingFinalResult = await client.query<OpnameFinalHeaderRow>(
@@ -521,7 +522,7 @@ export const opnameRepository = {
                 opnameFinal: refreshedFinal.rows[0],
                 items
             };
-        });
+        }, existingClient);
     },
 
     async findById(id: string): Promise<OpnameRow | null> {

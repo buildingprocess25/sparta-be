@@ -54,8 +54,13 @@ pool.on("error", (error) => {
 });
 
 export const withTransaction = async <T>(
-    executor: (client: PoolClient) => Promise<T>
+    executor: (client: PoolClient) => Promise<T>,
+    existingClient?: PoolClient
 ): Promise<T> => {
+    if (existingClient) {
+        return executor(existingClient);
+    }
+
     const client = await pool.connect();
 
     try {

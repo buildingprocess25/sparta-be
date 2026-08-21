@@ -8,7 +8,20 @@ export const createPengawasanSchema = z.object({
     kategori_pekerjaan: z.string().trim().min(1),
     jenis_pekerjaan: z.string().trim().min(1),
     catatan: z.string().trim().min(1).optional(),
-    status: pengawasanStatusSchema.optional()
+    status: pengawasanStatusSchema.optional(),
+    opname_data: z.object({
+        id_toko: z.coerce.number().int().positive(),
+        id_rab_item: z.coerce.number().int().positive().optional(),
+        id_instruksi_lapangan_item: z.coerce.number().int().positive().optional(),
+        volume_akhir: z.coerce.number(),
+        selisih_volume: z.coerce.number(),
+        total_selisih: z.coerce.number(),
+        total_harga_opname: z.coerce.number(),
+        desain: z.string().trim().min(1),
+        kualitas: z.string().trim().min(1),
+        spesifikasi: z.string().trim().min(1),
+        catatan: z.string().trim().optional()
+    }).optional()
 });
 
 export const bulkCreatePengawasanSchema = z.object({
@@ -20,7 +33,20 @@ const updatePengawasanFieldsSchema = z.object({
     jenis_pekerjaan: z.string().trim().min(1).optional(),
     catatan: z.string().trim().min(1).optional(),
     dokumentasi: z.string().trim().min(1).optional(),
-    status: pengawasanStatusSchema.optional()
+    status: pengawasanStatusSchema.optional(),
+    opname_data: z.object({
+        id_toko: z.coerce.number().int().positive(),
+        id_rab_item: z.coerce.number().int().positive().optional(),
+        id_instruksi_lapangan_item: z.coerce.number().int().positive().optional(),
+        volume_akhir: z.coerce.number(),
+        selisih_volume: z.coerce.number(),
+        total_selisih: z.coerce.number(),
+        total_harga_opname: z.coerce.number(),
+        desain: z.string().trim().min(1),
+        kualitas: z.string().trim().min(1),
+        spesifikasi: z.string().trim().min(1),
+        catatan: z.string().trim().optional()
+    }).optional()
 });
 
 export const updatePengawasanSchema = updatePengawasanFieldsSchema;
