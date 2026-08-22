@@ -650,7 +650,7 @@ const findPendingOpnameFromGantt = async (user: AuthenticatedUser): Promise<Noti
         missing_opname AS (
             SELECT cp.id_toko, cp.kategori_pekerjaan
             FROM completed_pengawasan cp
-            LEFT JOIN opname_items oi ON oi.id_toko = cp.id_toko AND oi.kategori_pekerjaan = cp.kategori_pekerjaan
+            LEFT JOIN opname_items oi ON oi.id_toko = cp.id_toko AND LOWER(TRIM(oi.kategori_pekerjaan)) = LOWER(TRIM(cp.kategori_pekerjaan))
             WHERE oi.kategori_pekerjaan IS NULL
         ),
         grouped_missing AS (
