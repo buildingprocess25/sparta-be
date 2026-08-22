@@ -514,14 +514,26 @@ const processOpnameDataForPengawasanBulk = async (
              throw new AppError("email_pembuat harus diisi (User tidak terautentikasi) untuk menyimpan data opname.", 400);
         }
         
-        await opnameService.createBulk({
-            id_toko: opnamePayloads[0].id_toko,
-            tipe_opname: "OPNAME",
-            email_pembuat: emailPembuat,
-            grand_total_opname: "0",
-            grand_total_rab: "0",
-            items: opnamePayloads
-        }, newFotoFiles, newFotoIndexes.length > 0 ? newFotoIndexes : undefined, client);
+        try {
+            const result = await opnameService.createBulk({
+                id_toko: opnamePayloads[0].id_toko,
+                tipe_opname: "OPNAME",
+                email_pembuat: emailPembuat,
+                grand_total_opname: "0",
+                grand_total_rab: "0",
+                items: opnamePayloads
+            }, newFotoFiles, newFotoIndexes.length > 0 ? newFotoIndexes : undefined, client);
+
+            if (result && (result as any).statusCode) {
+                throw new AppError((result as any).message || "Gagal menyimpan opname karena timeout atau error validasi.", (result as any).statusCode);
+            }
+        } catch (error) {
+            // Re-throw any caught errors specifically so the parent transaction rolls back
+            if (error instanceof AppError) {
+                throw error;
+            }
+            throw new AppError(error instanceof Error ? error.message : "Terjadi kesalahan saat menyimpan opname", 500);
+        }
     }
 };
 
