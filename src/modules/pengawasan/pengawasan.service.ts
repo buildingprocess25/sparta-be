@@ -479,7 +479,7 @@ const preUploadOpnameFotos = async (
     uploadedFotoOpnameIndexes: number[] | undefined,
     idTokoFallback: number
 ) => {
-    const opnamePayloadsPromises = [];
+    const opnamePayloads = [];
 
     for (let i = 0; i < originalItems.length; i++) {
         const item = originalItems[i];
@@ -489,34 +489,30 @@ const preUploadOpnameFotos = async (
                 status: "pending"
             };
             
-            const uploadPromise = async () => {
-                let fileToUpload: UploadedFotoOpnameFile | undefined;
-                if (uploadedFotoOpnameIndexes && uploadedFotoOpnameIndexes.length > 0) {
-                    const fotoPos = uploadedFotoOpnameIndexes.indexOf(i);
-                    if (fotoPos !== -1) {
-                        fileToUpload = uploadedFotoOpnameFiles[fotoPos];
-                    }
-                } else {
-                    if (uploadedFotoOpnameFiles.length === 1) {
-                        fileToUpload = uploadedFotoOpnameFiles[0];
-                    } else if (uploadedFotoOpnameFiles.length === originalItems.length) {
-                        fileToUpload = uploadedFotoOpnameFiles[i];
-                    }
+            let fileToUpload: UploadedFotoOpnameFile | undefined;
+            if (uploadedFotoOpnameIndexes && uploadedFotoOpnameIndexes.length > 0) {
+                const fotoPos = uploadedFotoOpnameIndexes.indexOf(i);
+                if (fotoPos !== -1) {
+                    fileToUpload = uploadedFotoOpnameFiles[fotoPos];
                 }
+            } else {
+                if (uploadedFotoOpnameFiles.length === 1) {
+                    fileToUpload = uploadedFotoOpnameFiles[0];
+                } else if (uploadedFotoOpnameFiles.length === originalItems.length) {
+                    fileToUpload = uploadedFotoOpnameFiles[i];
+                }
+            }
 
-                if (fileToUpload) {
-                    const targetToko = payload.id_toko || idTokoFallback;
-                    payload.foto = await uploadFotoOpnameToDrive(targetToko, fileToUpload);
-                }
-                
-                return payload;
-            };
+            if (fileToUpload) {
+                const targetToko = payload.id_toko || idTokoFallback;
+                payload.foto = await uploadFotoOpnameToDrive(targetToko, fileToUpload);
+            }
             
-            opnamePayloadsPromises.push(uploadPromise());
+            opnamePayloads.push(payload);
         }
     }
 
-    return Promise.all(opnamePayloadsPromises);
+    return opnamePayloads;
 };
 
 const processOpnameDataForPengawasanBulk = async (
@@ -899,7 +895,9 @@ export const pengawasanService = {
             const updatedRows: PengawasanRow[] = [];
             const ganttIdsToRegenerate = new Set<number>();
 
-            const uploadPromises = items.map(async (item, index) => {
+            const finalItemsToUpdate: { id: string | number, finalPayload: any }[] = [];
+            for (let index = 0; index < items.length; index++) {
+                const item = items[index];
                 if (usedIds.has(item.id)) {
                     throw new AppError(`id duplikat ditemukan pada items[${index}] (id=${item.id})`, 400);
                 }
@@ -929,10 +927,8 @@ export const pengawasanService = {
                     ? { ...payload, dokumentasi: dokumentasiLink }
                     : payload;
 
-                return { id, finalPayload };
-            });
-
-            const finalItemsToUpdate = await Promise.all(uploadPromises);
+                finalItemsToUpdate.push({ id, finalPayload });
+            }
 
             let fallbackIdToko = 0;
             const firstOpname = items.find(i => i.opname_data)?.opname_data;
