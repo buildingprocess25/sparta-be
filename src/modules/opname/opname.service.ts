@@ -151,7 +151,7 @@ const normalizeOpnameFotoLink = <T extends { id: number | string; foto: string |
     };
 };
 
-const uploadFotoOpnameToDrive = async (
+export const uploadFotoOpnameToDrive = async (
     idToko: number,
     file: UploadedFotoOpnameFile
 ): Promise<string> => {

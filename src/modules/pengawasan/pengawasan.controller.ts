@@ -22,7 +22,7 @@ type UploadedFilesMap = Record<string, UploadedDokumentasiFile[]>;
 
 const getUploadedFile = (
     files: UploadedFilesMap | undefined,
-    fieldName: "file_dokumentasi" | "rev_file_dokumentasi" | "file_foto_opname"
+    fieldName: "file_dokumentasi" | "rev_file_dokumentasi" | "file_foto_opname" | "rev_file_foto_opname"
 ): UploadedDokumentasiFile | undefined => {
     const file = files?.[fieldName]?.[0];
     if (!file) return undefined;
@@ -36,7 +36,7 @@ const getUploadedFile = (
 
 const getUploadedFiles = (
     files: UploadedFilesMap | undefined,
-    fieldName: "file_dokumentasi" | "rev_file_dokumentasi" | "file_foto_opname"
+    fieldName: "file_dokumentasi" | "rev_file_dokumentasi" | "file_foto_opname" | "rev_file_foto_opname"
 ): UploadedDokumentasiFile[] => {
     const fieldFiles = files?.[fieldName] ?? [];
     return fieldFiles.map((file) => ({
@@ -314,9 +314,10 @@ export const updateBulkPengawasan = asyncHandler(async (req: Request, res: Respo
 
     const uploadedFiles = req.files as UploadedFilesMap | undefined;
     const uploadedDokumentasiFiles = getUploadedFiles(uploadedFiles, "rev_file_dokumentasi");
-    const uploadedFotoOpnameFiles = getUploadedFiles(uploadedFiles, "file_foto_opname"); // We still use "file_foto_opname" or "rev_file_foto_opname" based on what frontend sends. The opname frontend uses "file_foto_opname" typically for bulk, but wait...
-    
-    // In update bulk, we will assume frontend sends "file_foto_opname" or "rev_file_foto_opname". Let's use getUploadedFile which looks for the exact string. If frontend sends file_foto_opname, we should extract it. Actually, the helper getUploadedFiles accepts 'file_foto_opname' as an allowed type. Let's extract that.
+    const uploadedFotoOpnameFiles = [
+        ...getUploadedFiles(uploadedFiles, "file_foto_opname"),
+        ...getUploadedFiles(uploadedFiles, "rev_file_foto_opname")
+    ];
     
     // Require user info for opname email pembuat
     if (!req.user) {

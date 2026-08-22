@@ -7,7 +7,7 @@ import fs from "fs";
 import path from "path";
 import sharp from "sharp";
 import { scheduleAutomaticSerahTerimaIfReady } from "../serah-terima/serah-terima.service";
-import { opnameService } from "../opname/opname.service";
+import { opnameService, uploadFotoOpnameToDrive } from "../opname/opname.service";
 import { type PoolClient } from "pg";
 import { pengawasanRepository, type PengawasanRow } from "./pengawasan.repository";
 import type {
@@ -473,42 +473,53 @@ const hasAnyUpdateField = (input: UpdatePengawasanInput): boolean =>
     || typeof input.status !== "undefined";
 
 
-const processOpnameDataForPengawasanBulk = async (
+const preUploadOpnameFotos = async (
     originalItems: any[],
     uploadedFotoOpnameFiles: UploadedFotoOpnameFile[],
     uploadedFotoOpnameIndexes: number[] | undefined,
-    emailPembuat: string,
-    client: PoolClient
+    idTokoFallback: number
 ) => {
     const opnamePayloads = [];
-    const newFotoFiles = [];
-    const newFotoIndexes = [];
 
     for (let i = 0; i < originalItems.length; i++) {
         const item = originalItems[i];
         if (item.opname_data) {
-            opnamePayloads.push({
+            const payload = {
                 ...item.opname_data,
                 status: "pending"
-            });
+            };
             
+            let fileToUpload: UploadedFotoOpnameFile | undefined;
             if (uploadedFotoOpnameIndexes && uploadedFotoOpnameIndexes.length > 0) {
                 const fotoPos = uploadedFotoOpnameIndexes.indexOf(i);
                 if (fotoPos !== -1) {
-                    newFotoFiles.push(uploadedFotoOpnameFiles[fotoPos]);
-                    newFotoIndexes.push(opnamePayloads.length - 1);
+                    fileToUpload = uploadedFotoOpnameFiles[fotoPos];
                 }
             } else {
                 if (uploadedFotoOpnameFiles.length === 1) {
-                    newFotoFiles.push(uploadedFotoOpnameFiles[0]);
+                    fileToUpload = uploadedFotoOpnameFiles[0];
                 } else if (uploadedFotoOpnameFiles.length === originalItems.length) {
-                    newFotoFiles.push(uploadedFotoOpnameFiles[i]);
-                    newFotoIndexes.push(opnamePayloads.length - 1);
+                    fileToUpload = uploadedFotoOpnameFiles[i];
                 }
             }
+
+            if (fileToUpload) {
+                const targetToko = payload.id_toko || idTokoFallback;
+                payload.foto = await uploadFotoOpnameToDrive(targetToko, fileToUpload);
+            }
+            
+            opnamePayloads.push(payload);
         }
     }
 
+    return opnamePayloads;
+};
+
+const processOpnameDataForPengawasanBulk = async (
+    opnamePayloads: any[],
+    emailPembuat: string,
+    client: PoolClient
+) => {
     if (opnamePayloads.length > 0) {
         if (!emailPembuat) {
              throw new AppError("email_pembuat harus diisi (User tidak terautentikasi) untuk menyimpan data opname.", 400);
@@ -522,13 +533,12 @@ const processOpnameDataForPengawasanBulk = async (
                 grand_total_opname: "0",
                 grand_total_rab: "0",
                 items: opnamePayloads
-            }, newFotoFiles, newFotoIndexes.length > 0 ? newFotoIndexes : undefined, client);
+            }, [], undefined, client);
 
             if (result && (result as any).statusCode) {
                 throw new AppError((result as any).message || "Gagal menyimpan opname karena timeout atau error validasi.", (result as any).statusCode);
             }
         } catch (error) {
-            // Re-throw any caught errors specifically so the parent transaction rolls back
             if (error instanceof AppError) {
                 throw error;
             }
@@ -617,6 +627,11 @@ export const pengawasanService = {
                     id_pengawasan_gantt: idPengawasanGantt
                 });
             }
+            let fallbackIdToko = 0;
+            const firstOpname = items.find(i => i.opname_data)?.opname_data;
+            if (firstOpname && firstOpname.id_toko) fallbackIdToko = firstOpname.id_toko;
+            
+            const opnamePayloads = await preUploadOpnameFotos(items, uploadedFotoOpnameFiles, uploadedFotoOpnameIndexes, fallbackIdToko);
 
             let rows: PengawasanRow[];
 
@@ -628,7 +643,7 @@ export const pengawasanService = {
 
                 rows = await withTransaction(async (client) => {
                     const result = await pengawasanRepository.createBulk(basePayloads, client);
-                    await processOpnameDataForPengawasanBulk(items, uploadedFotoOpnameFiles, uploadedFotoOpnameIndexes, emailPembuat || "", client);
+                    await processOpnameDataForPengawasanBulk(opnamePayloads, emailPembuat || "", client);
                     return result;
                 });
             } else if (uploadedDokumentasiIndexes && uploadedDokumentasiIndexes.length > 0) {
@@ -674,7 +689,7 @@ export const pengawasanService = {
 
                 rows = await withTransaction(async (client) => {
                     const result = await pengawasanRepository.createBulk(payloadWithDokumentasi, client);
-                    await processOpnameDataForPengawasanBulk(items, uploadedFotoOpnameFiles, uploadedFotoOpnameIndexes, emailPembuat || "", client);
+                    await processOpnameDataForPengawasanBulk(opnamePayloads, emailPembuat || "", client);
                     return result;
                 });
             } else {
@@ -709,7 +724,11 @@ export const pengawasanService = {
                     await ensureSelesaiBackfillDoesNotLeaveFutureBlocker(payload);
                 }
 
-                rows = await pengawasanRepository.createBulk(payloadWithDokumentasi);
+                rows = await withTransaction(async (client) => {
+                    const result = await pengawasanRepository.createBulk(payloadWithDokumentasi, client);
+                    await processOpnameDataForPengawasanBulk(opnamePayloads, emailPembuat || "", client);
+                    return result;
+                });
             }
 
             // Generate PDF & upsert berkas_pengawasan for each unique id_pengawasan_gantt (fire-and-forget)
@@ -913,6 +932,12 @@ export const pengawasanService = {
                 finalItemsToUpdate.push({ id, finalPayload });
             }
 
+            let fallbackIdToko = 0;
+            const firstOpname = items.find(i => i.opname_data)?.opname_data;
+            if (firstOpname && firstOpname.id_toko) fallbackIdToko = firstOpname.id_toko;
+            
+            const opnamePayloads = await preUploadOpnameFotos(items, uploadedFotoOpnameFiles, uploadedFotoOpnameIndexes, fallbackIdToko);
+
             const updatedRowsArray = await withTransaction(async (client) => {
                 const results = [];
                 for (const { id, finalPayload } of finalItemsToUpdate) {
@@ -924,7 +949,7 @@ export const pengawasanService = {
                     ganttIdsToRegenerate.add(data.id_pengawasan_gantt);
                 }
                 
-                await processOpnameDataForPengawasanBulk(items, uploadedFotoOpnameFiles, uploadedFotoOpnameIndexes, emailPembuat || "", client);
+                await processOpnameDataForPengawasanBulk(opnamePayloads, emailPembuat || "", client);
                 
                 return results;
             });
