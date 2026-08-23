@@ -252,6 +252,29 @@ export const DC_DOCUMENT_CONFIG: DokumenUtama[] = [
     ]
   },
   {
+    id: 'L',
+    title: 'PEKERJAAN KONTRAKTOR',
+    details: [
+      {
+        no: 'L_DETAIL',
+        title: '(Renovasi)',
+        jenis: [
+          { key: 'L_1', title: 'KAK & TOR', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }] },
+          { key: 'L_2', title: 'Penawaran Harga (Pemenang)', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }, { type: 'EXCEL', label: 'Upload EXCEL' }] },
+          { key: 'L_3', title: 'Gambar Shopdrawing (Approval MK/Planner)', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }, { type: 'AUTOCAD', label: 'Upload AUTOCAD' }] },
+          { key: 'L_4', title: 'Dokumen Tagihan Termin/Progress', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }] },
+          { key: 'L_5', title: 'SPK Kontraktor', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }] },
+          { key: 'L_6', title: 'Kontrak PKS', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }] },
+          { key: 'L_7', title: 'BAST Pertama', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }] },
+          { key: 'L_8', title: 'As-Built Drawing', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }, { type: 'AUTOCAD', label: 'Upload AUTOCAD' }] },
+          { key: 'L_9', title: 'Dokumen Kerja Tambah/Kurang', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }] },
+          { key: 'L_10', title: 'BAST Kedua (Retensi)', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }] },
+          { key: 'L_11', title: 'Test Commisioning', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }] }
+        ]
+      }
+    ]
+  },
+  {
     id: 'K',
     title: 'DATA PENTING LAINNYA',
     details: [
@@ -293,5 +316,24 @@ export const RENOVASI_ALLOWED_UTAMA = [
   'DATA PENTING LAINNYA',
   'COLD STORAGE',
   'PEKERJAAN MEZANIN',
-  'PEKERJAAN HYDRANT'
+  'PEKERJAAN HYDRANT',
+  'PEKERJAAN KONTRAKTOR'
 ];
+
+export const PEMBANGUNAN_EXCLUDED_UTAMA = [
+  'COLD STORAGE',
+  'PEKERJAAN MEZANIN',
+  'PEKERJAAN HYDRANT',
+  'PEKERJAAN KONTRAKTOR'
+];
+
+export const getDcDocumentConfigForStage = (tipe: "Renovasi" | "Pembangunan" | "Perluasan" | string): DokumenUtama[] => {
+  const normalizedTipe = String(tipe).toUpperCase();
+  if (normalizedTipe === "RENOVASI") {
+    return DC_DOCUMENT_CONFIG.filter(utama => RENOVASI_ALLOWED_UTAMA.includes(utama.title));
+  }
+  if (normalizedTipe === "PEMBANGUNAN") {
+    return DC_DOCUMENT_CONFIG.filter(utama => !PEMBANGUNAN_EXCLUDED_UTAMA.includes(utama.title));
+  }
+  return DC_DOCUMENT_CONFIG;
+};

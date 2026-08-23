@@ -5,7 +5,7 @@ import { pool } from "../../db/pool";
 import { DC_MEMBER_ACCESS_LEVEL, DC_PROJECT_STAGE_SEQUENCE, DC_ROLES, type DcMemberAccessLevel } from "./dc-development.constants";
 import * as xlsx from "xlsx";
 import { dcDevelopmentRepository, type DcDocumentCustomItemRow, type DcDocumentRow } from "./dc-development.repository";
-import { DC_DOCUMENT_CONFIG, RENOVASI_ALLOWED_UTAMA } from "./dc-document.config";
+import { DC_DOCUMENT_CONFIG, getDcDocumentConfigForStage } from "./dc-document.config";
 import { buildDcDocumentReportPdfBuffer, buildGlobalDcDocumentReportPdfBuffer, type PdfStage, type PdfStageItem } from "./dc-development.pdf";
 import type {
     AdvanceDcProjectStageInput,
@@ -232,9 +232,6 @@ const resolveDcExportStages = (stage?: string | null) => {
         : DC_EXPORT_STAGES;
 };
 
-const shouldIncludeDcExportCategory = (stage: DcExportStageKey, categoryTitle: string): boolean =>
-    stage !== "RENOVASI" || RENOVASI_ALLOWED_UTAMA.includes(categoryTitle);
-
 const formatDcDocumentType = (jenisKey: string, slotType: string): string =>
     `${jenisKey}__${slotType.replace(/\//g, "_")}`;
 
@@ -296,9 +293,7 @@ const buildDcDocumentExport = (
         let total = 0;
         let filled = 0;
 
-        for (const utama of DC_DOCUMENT_CONFIG) {
-            if (!shouldIncludeDcExportCategory(stage.key, utama.title)) continue;
-
+        for (const utama of getDcDocumentConfigForStage(stage.key)) {
             for (const detail of utama.details) {
                 for (const jenis of detail.jenis) {
                     for (const slot of jenis.slots) {

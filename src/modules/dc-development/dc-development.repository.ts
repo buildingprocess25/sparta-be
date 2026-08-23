@@ -362,7 +362,7 @@ export const dcDevelopmentRepository = {
                 a.created_at,
                 a.updated_at,
                 COUNT(DISTINCT d.id)::int AS jumlah_dokumen,
-                COUNT(DISTINCT split_part(d.document_type, '__', 1)) FILTER (WHERE UPPER(COALESCE(d.stage, '')) = 'PEMBANGUNAN')::int AS docs_pembangunan,
+                COUNT(DISTINCT split_part(d.document_type, '__', 1)) FILTER (WHERE UPPER(COALESCE(d.stage, '')) = 'PEMBANGUNAN' AND split_part(d.document_type, '__', 1) !~ '^(H|I|J|L)_')::int AS docs_pembangunan,
                 COUNT(DISTINCT split_part(d.document_type, '__', 1)) FILTER (WHERE UPPER(COALESCE(d.stage, '')) = 'RENOVASI')::int AS docs_renovasi,
                 COUNT(DISTINCT split_part(d.document_type, '__', 1)) FILTER (WHERE UPPER(COALESCE(d.stage, '')) = 'PERLUASAN')::int AS docs_perluasan,
                 COALESCE(
