@@ -81,6 +81,7 @@ function sleep(ms: number) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+const escapeDriveQueryString = (value: string): string => value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 export async function withGoogleRetry<T>(
     operation: () => Promise<T>,
     opName = "google_call",
@@ -295,7 +296,7 @@ export class GoogleProvider {
     /** Sama dg Python get_or_create_folder() dengan proteksi Race-Condition (Cache Lock) */
     async getOrCreateFolder(name: string, parentId: string): Promise<string> {
         const drive = this.ensureDocDrive();
-        const safeName = name.replace(/'/g, "\\'");
+        const safeName = escapeDriveQueryString(name);
         const cacheKey = `${parentId}_${safeName}`;
 
         if (this.folderCache.has(cacheKey)) {
@@ -375,7 +376,7 @@ export class GoogleProvider {
                 
                 // Prioritas 1: ULOK
                 if (!foundFolder && safeUlok !== "TANPA_ULOK") {
-                    const q = `name contains '${safeUlok}' and '${kategoriFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+                    const q = `name contains '${escapeDriveQueryString(safeUlok)}' and '${kategoriFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
                     const res = await drive.files.list({ q, fields: "files(id, name)", supportsAllDrives: true, includeItemsFromAllDrives: true });
                     if (res.data.files && res.data.files.length > 0) {
                         foundFolder = { id: res.data.files[0].id!, name: res.data.files[0].name! };
@@ -384,7 +385,7 @@ export class GoogleProvider {
                 
                 // Prioritas 2: KODE TOKO
                 if (!foundFolder && safeKode !== "TANPA_KODE") {
-                    const q = `name contains '${safeKode}' and '${kategoriFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+                    const q = `name contains '${escapeDriveQueryString(safeKode)}' and '${kategoriFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
                     const res = await drive.files.list({ q, fields: "files(id, name)", supportsAllDrives: true, includeItemsFromAllDrives: true });
                     if (res.data.files && res.data.files.length === 1) {
                         foundFolder = { id: res.data.files[0].id!, name: res.data.files[0].name! };
@@ -396,7 +397,7 @@ export class GoogleProvider {
                 
                 // Prioritas 3: NAMA TOKO
                 if (!foundFolder && safeNama !== "TANPA_NAMA") {
-                    const q = `name contains '${safeNama}' and '${kategoriFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+                    const q = `name contains '${escapeDriveQueryString(safeNama)}' and '${kategoriFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
                     const res = await drive.files.list({ q, fields: "files(id, name)", supportsAllDrives: true, includeItemsFromAllDrives: true });
                     if (res.data.files && res.data.files.length > 0) {
                         foundFolder = { id: res.data.files[0].id!, name: res.data.files[0].name! };
@@ -583,7 +584,7 @@ export class GoogleProvider {
     /** Cari file berdasarkan nama di folder tertentu */
     async listFilesByNameInFolder(folderId: string, filename: string): Promise<{ id: string }[]> {
         const drive = this.ensureDocDrive();
-        const safeName = filename.replace(/'/g, "\\'");
+        const safeName = escapeDriveQueryString(filename);
         const query = `name='${safeName}' and '${folderId}' in parents and trashed=false`;
         const res = await drive.files.list({ q: query, fields: "files(id)", supportsAllDrives: true, includeItemsFromAllDrives: true });
         return (res.data.files || []).map((f: any) => ({ id: f.id! }));

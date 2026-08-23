@@ -980,6 +980,30 @@ const buildRabAssetDownloadPath = (
     return `/api/rab/${rabId}/file-asuransi`;
 };
 
+const getExternalUploadErrorContext = (error: unknown) => {
+    const candidate = error as { message?: unknown; code?: unknown; response?: { status?: unknown; data?: { error?: { message?: unknown }; message?: unknown } } } | null;
+    return {
+        status: candidate?.code ?? candidate?.response?.status,
+        message: typeof candidate?.message === "string"
+            ? candidate.message
+            : typeof candidate?.response?.data?.error?.message === "string"
+                ? candidate.response.data.error.message
+                : typeof candidate?.response?.data?.message === "string"
+                    ? candidate.response.data.message
+                    : undefined,
+    };
+};
+
+const throwRabUploadAppError = (label: string, error: unknown): never => {
+    if (error instanceof AppError) throw error;
+
+    const context = getExternalUploadErrorContext(error);
+    console.error(`[RAB SUBMIT] Gagal upload ${label} ke Google Drive sebelum simpan DB`, context);
+    throw new AppError(
+        `Upload ${label} ke Google Drive gagal. Pastikan file valid, tidak rusak, dan coba submit ulang.`,
+        502
+    );
+};
 const normalizeRabFileLinks = <T extends { id: number | string; logo: string | null; file_asuransi: string | null }>(
     rab: T,
 ): T => {
@@ -1669,15 +1693,19 @@ export const rabService = {
         }
 
         if (isRejectedResubmit && uploadedFiles.revLogoFile) {
-            logoLink = await uploadLogoFileToDrive(
-                uploadedFiles.revLogoFile,
-                payload.nomor_ulok,
-                payload.proyek,
-                payload.nama_toko,
-                payload.kode_toko,
-                payload.cabang
-            );
-            logRab("SUBMIT", "Rev logo file diupload", { logoLink });
+            try {
+                logoLink = await uploadLogoFileToDrive(
+                    uploadedFiles.revLogoFile,
+                    payload.nomor_ulok,
+                    payload.proyek,
+                    payload.nama_toko,
+                    payload.kode_toko,
+                    payload.cabang
+                );
+                logRab("SUBMIT", "Rev logo file diupload", { logoLink });
+            } catch (err) {
+                throwRabUploadAppError("logo revisi RAB", err);
+            }
         }
 
         let insuranceLink = rejectedRabToReplaceId !== null
@@ -1689,39 +1717,51 @@ export const rabService = {
         }
 
         if (!isRejectedResubmit && uploadedFiles.insuranceFile) {
-            insuranceLink = await uploadInsuranceFileToDrive(
-                uploadedFiles.insuranceFile,
-                payload.nomor_ulok,
-                payload.proyek,
-                payload.nama_toko,
-                payload.kode_toko,
-                payload.cabang
-            );
-            logRab("SUBMIT", "File asuransi diupload", { insuranceLink });
+            try {
+                insuranceLink = await uploadInsuranceFileToDrive(
+                    uploadedFiles.insuranceFile,
+                    payload.nomor_ulok,
+                    payload.proyek,
+                    payload.nama_toko,
+                    payload.kode_toko,
+                    payload.cabang
+                );
+                logRab("SUBMIT", "File asuransi diupload", { insuranceLink });
+            } catch (err) {
+                throwRabUploadAppError("file asuransi RAB", err);
+            }
         }
 
         if (isRejectedResubmit && hasRevFileAsuransiInput) {
-            insuranceLink = await uploadInsuranceStringToDrive(
-                revFileAsuransiInput,
-                payload.nomor_ulok,
-                payload.proyek,
-                payload.nama_toko,
-                payload.kode_toko,
-                payload.cabang
-            );
-            logRab("SUBMIT", "Rev file asuransi diupload", { insuranceLink });
+            try {
+                insuranceLink = await uploadInsuranceStringToDrive(
+                    revFileAsuransiInput,
+                    payload.nomor_ulok,
+                    payload.proyek,
+                    payload.nama_toko,
+                    payload.kode_toko,
+                    payload.cabang
+                );
+                logRab("SUBMIT", "Rev file asuransi diupload", { insuranceLink });
+            } catch (err) {
+                throwRabUploadAppError("file asuransi revisi RAB", err);
+            }
         }
 
         if (isRejectedResubmit && uploadedFiles.revInsuranceFile) {
-            insuranceLink = await uploadInsuranceFileToDrive(
-                uploadedFiles.revInsuranceFile,
-                payload.nomor_ulok,
-                payload.proyek,
-                payload.nama_toko,
-                payload.kode_toko,
-                payload.cabang
-            );
-            logRab("SUBMIT", "Rev file asuransi (file) diupload", { insuranceLink });
+            try {
+                insuranceLink = await uploadInsuranceFileToDrive(
+                    uploadedFiles.revInsuranceFile,
+                    payload.nomor_ulok,
+                    payload.proyek,
+                    payload.nama_toko,
+                    payload.kode_toko,
+                    payload.cabang
+                );
+                logRab("SUBMIT", "Rev file asuransi (file) diupload", { insuranceLink });
+            } catch (err) {
+                throwRabUploadAppError("file asuransi revisi RAB", err);
+            }
         }
 
         const normalizedProject = normalizeProjectByUlok(payload.nomor_ulok, payload.proyek) ?? payload.proyek;
