@@ -5,7 +5,7 @@ import { pool } from "../../db/pool";
 import { DC_MEMBER_ACCESS_LEVEL, DC_PROJECT_STAGE_SEQUENCE, DC_ROLES, type DcMemberAccessLevel } from "./dc-development.constants";
 import * as xlsx from "xlsx";
 import { dcDevelopmentRepository, type DcDocumentRow } from "./dc-development.repository";
-import { DC_DOCUMENT_CONFIG } from "./dc-document.config";
+import { DC_DOCUMENT_CONFIG, RENOVASI_ALLOWED_UTAMA } from "./dc-document.config";
 import { buildDcDocumentReportPdfBuffer, buildGlobalDcDocumentReportPdfBuffer, type PdfStage, type PdfStageItem } from "./dc-development.pdf";
 import type {
     AdvanceDcProjectStageInput,
@@ -202,6 +202,167 @@ const uploadFilesToDrive = async (
             uploaded_by_role: input.actor_role
         };
     });
+};
+
+type DcExportFormat = "csv" | "excel" | "pdf";
+
+type DcExportStageKey = "PEMBANGUNAN" | "RENOVASI" | "PERLUASAN";
+
+const DC_EXPORT_STAGES: Array<{ key: DcExportStageKey; label: string }> = [
+    { key: "PEMBANGUNAN", label: "Pembangunan" },
+    { key: "RENOVASI", label: "Renovasi" },
+    { key: "PERLUASAN", label: "Perluasan" }
+];
+
+const normalizeDcExportStage = (stage?: string | null): DcExportStageKey | null => {
+    const normalized = String(stage ?? "").trim().toUpperCase();
+    if (normalized === "PEMBANGUNAN") return "PEMBANGUNAN";
+    if (normalized === "RENOVASI") return "RENOVASI";
+    if (normalized === "PERLUASAN") return "PERLUASAN";
+    return null;
+};
+
+const resolveDcExportStages = (stage?: string | null) => {
+    const normalized = normalizeDcExportStage(stage);
+    return normalized
+        ? DC_EXPORT_STAGES.filter((item) => item.key === normalized)
+        : DC_EXPORT_STAGES;
+};
+
+const shouldIncludeDcExportCategory = (stage: DcExportStageKey, categoryTitle: string): boolean =>
+    stage !== "RENOVASI" || RENOVASI_ALLOWED_UTAMA.includes(categoryTitle);
+
+const formatDcDocumentType = (jenisKey: string, slotType: string): string =>
+    `${jenisKey}__${slotType.replace(/\//g, "_")}`;
+
+type DcDocumentExportRow = Record<string, string | number>;
+
+const applyDcWorksheetFormatting = (worksheet: xlsx.WorkSheet, rows: DcDocumentExportRow[]) => {
+    worksheet["!cols"] = [
+        { wch: 6 },
+        { wch: 16 },
+        { wch: 28 },
+        { wch: 18 },
+        { wch: 16 },
+        { wch: 24 },
+        { wch: 14 },
+        { wch: 28 },
+        { wch: 26 },
+        { wch: 52 },
+        { wch: 14 },
+        { wch: 10 },
+        { wch: 36 }
+    ];
+    if (rows.length > 0) {
+        worksheet["!autofilter"] = { ref: worksheet["!ref"] || "A1" };
+    }
+};
+
+const buildDcDocumentExport = (
+    project: {
+        id: number;
+        project_id: number;
+        archive_code: string;
+        archive_name: string;
+        branch_name: string;
+        location_name: string | null;
+        project_type: string;
+    },
+    documents: DcDocumentRow[],
+    stageFilter?: string | null
+) => {
+    const documentMap = new Map<string, DcDocumentRow>();
+    for (const doc of documents) {
+        if (!doc.document_type || !doc.stage) continue;
+        const stage = normalizeDcExportStage(doc.stage);
+        if (!stage) continue;
+        const mapKey = `${stage}#${doc.document_type}`;
+        const existing = documentMap.get(mapKey);
+        if (!existing || (!existing.notes && doc.notes) || (!existing.drive_file_id && doc.drive_file_id)) {
+            documentMap.set(mapKey, doc);
+        }
+    }
+
+    const rows: DcDocumentExportRow[] = [];
+    const stages: PdfStage[] = [];
+    let rowNumber = 1;
+
+    for (const stage of resolveDcExportStages(stageFilter)) {
+        const items: PdfStageItem[] = [];
+        let total = 0;
+        let filled = 0;
+
+        for (const utama of DC_DOCUMENT_CONFIG) {
+            if (!shouldIncludeDcExportCategory(stage.key, utama.title)) continue;
+
+            for (const detail of utama.details) {
+                for (const jenis of detail.jenis) {
+                    for (const slot of jenis.slots) {
+                        total++;
+                        const documentType = formatDcDocumentType(jenis.key, slot.type);
+                        const doc = documentMap.get(`${stage.key}#${documentType}`) ?? null;
+                        const isFilled = !!doc;
+                        if (isFilled) filled++;
+
+                        const notes = doc?.notes ?? null;
+                        const itemLabel = jenis.slots.length > 1 ? `${jenis.title} (${slot.type})` : jenis.title;
+                        items.push({
+                            kategori: utama.title,
+                            jenis: itemLabel,
+                            status: isFilled,
+                            notes
+                        });
+
+                        rows.push({
+                            "No": rowNumber++,
+                            "Kode Proyek": project.archive_code,
+                            "Nama Proyek": project.archive_name,
+                            "Cabang": project.branch_name,
+                            "Tipe Proyek": project.project_type,
+                            "Lokasi": project.location_name ?? "",
+                            "Tahap": stage.label,
+                            "Kategori Utama": utama.title,
+                            "Sub Kategori": detail.title,
+                            "Jenis Dokumen": jenis.title,
+                            "Format Dokumen": slot.type,
+                            "Status": isFilled ? "ADA" : "KOSONG",
+                            "Catatan": notes ?? ""
+                        });
+                    }
+                }
+            }
+        }
+
+        if (total > 0) {
+            stages.push({
+                stageName: stage.label,
+                total,
+                filled,
+                percentage: Math.round((filled / total) * 100),
+                items
+            });
+        }
+    }
+
+    return { rows, stages };
+};
+
+const buildDcCsvBuffer = (rows: DcDocumentExportRow[]): Buffer => {
+    if (rows.length === 0) return Buffer.from("");
+    const headers = Object.keys(rows[0]);
+    const csvRows = [
+        headers.join(","),
+        ...rows.map((row) => headers.map((header) => `"${String(row[header] ?? "").replace(/"/g, '""')}"`).join(","))
+    ];
+    return Buffer.from(csvRows.join("\n"));
+};
+
+const buildDcExcelBuffer = (rows: DcDocumentExportRow[], sheetName: string): Buffer => {
+    const workbook = xlsx.utils.book_new();
+    const worksheet = xlsx.utils.json_to_sheet(rows);
+    applyDcWorksheetFormatting(worksheet, rows);
+    xlsx.utils.book_append_sheet(workbook, worksheet, sheetName);
+    return xlsx.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
 };
 
 export const dcDevelopmentService = {
@@ -675,240 +836,94 @@ export const dcDevelopmentService = {
         };
     },
 
-    async exportDcDocuments(id: string, actor: DcDocumentActorQuery, format: "csv" | "excel" | "pdf") {
-        const projectId = Number(id);
-        const project = await dcDevelopmentRepository.findArchiveProjectById(projectId);
+    async exportDcDocuments(id: string, actor: DcDocumentActorQuery, format: DcExportFormat, stageFilter?: string | null) {
+        const archiveId = Number(id);
+        const project = await dcDevelopmentRepository.findArchiveProjectById(archiveId);
         if (!project) throw new AppError("Arsip DC tidak ditemukan", 404);
 
-        // Verify access (View level is enough to export)
-        await ensureAccess(projectId, { email: actor.actor_email, role: actor.actor_role }, DC_MEMBER_ACCESS_LEVEL.VIEW);
+        await ensureAccess(project.project_id, { email: actor.actor_email, role: actor.actor_role }, DC_MEMBER_ACCESS_LEVEL.VIEW);
 
-        // Fetch all documents for this project
-        const documents = await dcDevelopmentRepository.listDocuments({ project_id: projectId, actor_email: actor.actor_email, actor_role: actor.actor_role });
+        const documents = await dcDevelopmentRepository.listDocuments({
+            project_id: project.project_id,
+            actor_email: actor.actor_email,
+            actor_role: actor.actor_role
+        }, canBypassDocumentAccess(actor.actor_role));
 
-        // Build a map of document items (key is `${jenisKey}`)
-        // We only care about the first part of document_type
-        const docMap = new Map<string, { stage: string, notes: string | null }>();
-        for (const doc of documents) {
-            if (doc.document_type && doc.stage) {
-                const jenisKey = doc.document_type.split('__')[0];
-                const existing = docMap.get(`${doc.stage}#${jenisKey}`);
-                if (!existing || doc.notes) {
-                     docMap.set(`${doc.stage}#${jenisKey}`, { stage: doc.stage, notes: doc.notes || (existing?.notes ?? null) });
-                }
-            }
-        }
-
-        const stages: PdfStage[] = [];
-        const flatRows: any[] = [];
-        
-        const STAGES = ["Pembangunan", "Renovasi", "Perluasan"];
-
-        for (const stageName of STAGES) {
-            const items: PdfStageItem[] = [];
-            let total = 0;
-            let filled = 0;
-
-            for (const utama of DC_DOCUMENT_CONFIG) {
-                // Skip if Renovasi and not allowed
-                if (stageName === "Renovasi" && utama.title !== "Perijinan Utama" && utama.title !== "Dokumen Asbuilt Drawing") {
-                     continue;
-                }
-                for (const detail of utama.details) {
-                    for (const jenis of detail.jenis) {
-                        total++;
-                        const mapKey = `${stageName}#${jenis.key}`;
-                        const isFilled = docMap.has(mapKey);
-                        if (isFilled) filled++;
-
-                        const notes = isFilled ? docMap.get(mapKey)!.notes : null;
-
-                        items.push({
-                            kategori: utama.title,
-                            jenis: jenis.title,
-                            status: isFilled,
-                            notes: notes
-                        });
-
-                        flatRows.push({
-                            "Tahap": stageName,
-                            "Kategori Utama": utama.title,
-                            "Jenis Dokumen": jenis.title,
-                            "Status": isFilled ? "ADA" : "KOSONG",
-                            "Catatan": notes || ""
-                        });
-                    }
-                }
-            }
-
-            if (total > 0) {
-                stages.push({
-                    stageName,
-                    total,
-                    filled,
-                    percentage: Math.round((filled / total) * 100),
-                    items
-                });
-            }
-        }
+        const { rows, stages } = buildDcDocumentExport(project, documents, stageFilter);
+        const stageSuffix = normalizeDcExportStage(stageFilter) ? `_${normalizeDcExportStage(stageFilter)}` : "";
 
         if (format === "csv") {
-            if (flatRows.length === 0) return { buffer: Buffer.from(""), filename: `Export_${project.archive_name}.csv` };
-            const headers = Object.keys(flatRows[0]);
-            const csvRows = [
-                headers.join(","),
-                ...flatRows.map(row => headers.map(h => `"${(row[h] || "").toString().replace(/"/g, '""')}"`).join(","))
-            ];
             return {
-                buffer: Buffer.from(csvRows.join("\n")),
-                filename: `Data_DC_${project.archive_code}.csv`
+                buffer: buildDcCsvBuffer(rows),
+                filename: `Data_DC_${project.archive_code}${stageSuffix}.csv`
             };
-        } else if (format === "excel") {
-            const wb = xlsx.utils.book_new();
-            const ws = xlsx.utils.json_to_sheet(flatRows);
-            xlsx.utils.book_append_sheet(wb, ws, "Dokumen DC");
-            const buffer = xlsx.write(wb, { type: "buffer", bookType: "xlsx" });
+        }
+
+        if (format === "excel") {
             return {
-                buffer,
-                filename: `Data_DC_${project.archive_code}.xlsx`
+                buffer: buildDcExcelBuffer(rows, "Dokumen DC"),
+                filename: `Data_DC_${project.archive_code}${stageSuffix}.xlsx`
             };
-        } else if (format === "pdf") {
+        }
+
+        if (format === "pdf") {
             const buffer = await buildDcDocumentReportPdfBuffer(project, stages);
             return {
                 buffer,
-                filename: `Laporan_DC_${project.archive_code}.pdf`
+                filename: `Laporan_DC_${project.archive_code}${stageSuffix}.pdf`
             };
         }
 
         throw new AppError("Format tidak didukung", 400);
     },
 
-    async exportGlobalDcDocuments(query: DcArchiveProjectListQuery, actor: DcDocumentActorQuery, format: 'csv' | 'excel' | 'pdf') {
+    async exportGlobalDcDocuments(query: DcArchiveProjectListQuery, actor: DcDocumentActorQuery, format: DcExportFormat) {
         const projects = await dcDevelopmentRepository.listArchiveProjects(query, canBypassDocumentAccess(actor.actor_role));
         if (!projects || projects.length === 0) {
-            throw new AppError(`Tidak ada data arsip DC yang sesuai dengan filter. Debug: query=${JSON.stringify(query)}, bypass=${canBypassDocumentAccess(actor.actor_role)}, role=${actor.actor_role}`, 404);
+            throw new AppError("Tidak ada data arsip DC yang sesuai dengan filter", 404);
         }
 
-        const STAGES = ['Pembangunan', 'Renovasi', 'Perluasan'];
-        const flatRows: any[] = [];
-        const wb = format === 'excel' ? xlsx.utils.book_new() : null;
+        const flatRows: DcDocumentExportRow[] = [];
         const allStagesForPdf: { project: any, stages: PdfStage[] }[] = [];
 
         for (const project of projects) {
-            // Fetch documents for each project
-            const documents = await dcDevelopmentRepository.listDocuments({ project_id: project.id, actor_email: actor.actor_email, actor_role: actor.actor_role });
-            
-            const docMap = new Map<string, { stage: string, notes: string | null }>();
-            for (const doc of documents) {
-                if (doc.document_type && doc.stage) {
-                    const jenisKey = doc.document_type.split('__')[0];
-                    const existing = docMap.get(`${doc.stage}#${jenisKey}`);
-                    if (!existing || doc.notes) {
-                         docMap.set(`${doc.stage}#${jenisKey}`, { stage: doc.stage, notes: doc.notes || (existing?.notes ?? null) });
-                    }
-                }
-            }
+            const documents = await dcDevelopmentRepository.listDocuments({
+                project_id: project.project_id,
+                actor_email: actor.actor_email,
+                actor_role: actor.actor_role
+            }, canBypassDocumentAccess(actor.actor_role));
 
-            const projectFlatRows: any[] = [];
-            const stages: PdfStage[] = [];
-
-            for (const stageName of STAGES) {
-                const items: PdfStageItem[] = [];
-                let total = 0;
-                let filled = 0;
-
-                for (const utama of DC_DOCUMENT_CONFIG) {
-                    if (stageName === 'Renovasi' && utama.title !== 'Perijinan Utama' && utama.title !== 'Dokumen Asbuilt Drawing') {
-                         continue;
-                    }
-                    for (const detail of utama.details) {
-                        for (const jenis of detail.jenis) {
-                            total++;
-                            const mapKey = `${stageName}#${jenis.key}`;
-                            const isFilled = docMap.has(mapKey);
-                            if (isFilled) filled++;
-
-                            const notes = isFilled ? docMap.get(mapKey)!.notes : null;
-
-                            items.push({
-                                kategori: utama.title,
-                                jenis: jenis.title,
-                                status: isFilled,
-                                notes: notes
-                            });
-
-                            const rowData = {
-                                'Cabang': project.branch_name,
-                                'Tipe': project.archive_name,
-                                'Tahap': stageName,
-                                'Kategori Utama': utama.title,
-                                'Jenis Dokumen': jenis.title,
-                                'Status': isFilled ? 'ADA' : 'KOSONG',
-                                'Catatan': notes || ''
-                            };
-                            projectFlatRows.push(rowData);
-                            flatRows.push(rowData);
-                        }
-                    }
-                }
-
-                if (total > 0) {
-                    stages.push({
-                        stageName,
-                        total,
-                        filled,
-                        percentage: Math.round((filled / total) * 100),
-                        items
-                    });
-                }
-            }
-
+            const { rows, stages } = buildDcDocumentExport(project, documents);
+            const offset = flatRows.length;
+            rows.forEach((row, index) => {
+                flatRows.push({ ...row, "No": offset + index + 1 });
+            });
             allStagesForPdf.push({ project, stages });
-
-            if (format === 'excel' && wb) {
-                // sheet name length max 31
-                let sheetName = project.archive_name || `Project_${project.id}`;
-                if (sheetName.length > 31) sheetName = sheetName.substring(0, 31);
-                
-                // prevent duplicate sheet names
-                let count = 1;
-                let finalSheetName = sheetName;
-                while (wb.SheetNames.includes(finalSheetName)) {
-                    finalSheetName = `${sheetName.substring(0, 28)}_${count}`;
-                    count++;
-                }
-
-                const ws = xlsx.utils.json_to_sheet(projectFlatRows);
-                xlsx.utils.book_append_sheet(wb, ws, finalSheetName);
-            }
         }
 
-        if (format === 'csv') {
-            if (flatRows.length === 0) return { buffer: Buffer.from(''), filename: 'Export_Global_DC.csv' };
-            const headers = Object.keys(flatRows[0]);
-            const csvRows = [
-                headers.join(','),
-                ...flatRows.map(row => headers.map(h => `"${(row[h] || '').toString().replace(/"/g, '""')}"`).join(','))
-            ];
+        if (format === "csv") {
             return {
-                buffer: Buffer.from(csvRows.join('\n')),
-                filename: 'Data_Global_DC.csv'
+                buffer: buildDcCsvBuffer(flatRows),
+                filename: "Data_Global_DC.csv"
             };
-        } else if (format === 'excel' && wb) {
-            const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+        }
+
+        if (format === "excel") {
             return {
-                buffer,
-                filename: 'Data_Global_DC.xlsx'
+                buffer: buildDcExcelBuffer(flatRows, "Data Global DC"),
+                filename: "Data_Global_DC.xlsx"
             };
-        } else if (format === 'pdf') {
+        }
+
+        if (format === "pdf") {
             const buffer = await buildGlobalDcDocumentReportPdfBuffer(allStagesForPdf);
             return {
                 buffer,
-                filename: 'Laporan_Global_DC.pdf'
+                filename: "Laporan_Global_DC.pdf"
             };
         }
 
-        throw new AppError('Format tidak didukung', 400);
+        throw new AppError("Format tidak didukung", 400);
     }
 
 };

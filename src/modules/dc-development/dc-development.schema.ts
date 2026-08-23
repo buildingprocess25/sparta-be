@@ -179,7 +179,8 @@ export const updateDcDocumentSchema = z.object({
 
 export const dcDocumentActorQuerySchema = z.object({
     actor_email: z.string().email(),
-    actor_role: z.string().trim().min(1)
+    actor_role: z.string().trim().min(1),
+    stage: z.string().trim().optional()
 });
 
 export const dcArchiveProjectListQuerySchema = z.object({
