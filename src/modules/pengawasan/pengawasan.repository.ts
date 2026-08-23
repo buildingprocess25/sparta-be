@@ -70,6 +70,13 @@ export type FutureUnfinishedPengawasanRow = {
     created_at: string;
 };
 
+export type PengawasanDocumentFallbackInput = {
+    id_gantt: number;
+    kategori_pekerjaan: string;
+    jenis_pekerjaan: string;
+    excludeIdPengawasanGantt?: number;
+};
+
 export type PengawasanRowWithBerkas = PengawasanRow & {
     berkas_pengawasan: BerkasPengawasanRow | null;
 };
@@ -152,9 +159,40 @@ export const pengawasanRepository = {
                 `,
                 values
             );
-
             return result.rows;
-        });
+        }, existingClient);
+    },
+
+    async findLatestNonNullDokumentasiForItem(
+        input: PengawasanDocumentFallbackInput,
+        existingClient?: PoolClient
+    ): Promise<string | null> {
+        const values: Array<number | string> = [
+            input.id_gantt,
+            input.kategori_pekerjaan,
+            input.jenis_pekerjaan
+        ];
+        const excludeClause = typeof input.excludeIdPengawasanGantt === "number"
+            ? `AND p.id_pengawasan_gantt <> $${values.push(input.excludeIdPengawasanGantt)}`
+            : "";
+
+        const query = `
+            SELECT p.dokumentasi
+            FROM pengawasan p
+            LEFT JOIN pengawasan_gantt pg ON pg.id = p.id_pengawasan_gantt
+            WHERE p.id_gantt = $1
+              AND p.kategori_pekerjaan = $2
+              AND p.jenis_pekerjaan = $3
+              AND p.status = 'selesai'
+              AND NULLIF(TRIM(p.dokumentasi), '') IS NOT NULL
+              ${excludeClause}
+            ORDER BY to_date(pg.tanggal_pengawasan, 'DD/MM/YYYY') DESC NULLS LAST, p.id DESC
+            LIMIT 1
+        `;
+
+        const client = existingClient ?? pool;
+        const result = await client.query<{ dokumentasi: string }>(query, values);
+        return result.rows[0]?.dokumentasi ?? null;
     },
 
     async findById(id: string): Promise<PengawasanRowWithBerkas | null> {
@@ -305,6 +343,10 @@ export const pengawasanRepository = {
         const values: Array<string> = [];
 
         Object.entries(input).forEach(([key, value]) => {
+            if (key === "dokumentasi" && (typeof value !== "string" || value.trim().length === 0)) {
+                return;
+            }
+
             if (value !== undefined && key !== 'opname_data') { // ignore opname_data for SQL
                 values.push(value as string);
                 setClauses.push(`${key} = $${values.length}`);
@@ -533,3 +575,4 @@ export const pengawasanRepository = {
         return result.rows[0] ?? null;
     }
 };
+

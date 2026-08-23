@@ -8,6 +8,7 @@ export const createPengawasanSchema = z.object({
     kategori_pekerjaan: z.string().trim().min(1),
     jenis_pekerjaan: z.string().trim().min(1),
     catatan: z.string().trim().min(1).optional(),
+    dokumentasi: z.string().trim().min(1).optional(),
     status: pengawasanStatusSchema.optional(),
     opname_data: z.object({
         id_toko: z.coerce.number().int().positive(),

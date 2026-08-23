@@ -486,6 +486,29 @@ const hasAnyUpdateField = (input: UpdatePengawasanInput): boolean =>
     || typeof input.dokumentasi !== "undefined"
     || typeof input.status !== "undefined";
 
+const withPengawasanDocumentFallback = async (
+    item: CreatePengawasanData,
+    client?: PoolClient
+): Promise<CreatePengawasanData> => {
+    if (item.dokumentasi?.trim()) return item;
+    if (String(item.status || "").toLowerCase() !== "selesai") return item;
+
+    const fallbackDokumentasi = await pengawasanRepository.findLatestNonNullDokumentasiForItem({
+        id_gantt: item.id_gantt,
+        kategori_pekerjaan: item.kategori_pekerjaan,
+        jenis_pekerjaan: item.jenis_pekerjaan,
+        excludeIdPengawasanGantt: item.id_pengawasan_gantt
+    }, client);
+
+    return fallbackDokumentasi ? { ...item, dokumentasi: fallbackDokumentasi } : item;
+};
+
+const withPengawasanDocumentFallbacks = async (
+    items: CreatePengawasanData[],
+    client: PoolClient
+): Promise<CreatePengawasanData[]> => Promise.all(
+    items.map((item) => withPengawasanDocumentFallback(item, client))
+);
 
 const preUploadOpnameFotos = async (
     originalItems: any[],
@@ -596,7 +619,8 @@ export const pengawasanService = {
                     await ensureProgressUsesNearestCheckpoint(payload);
                     await ensureSelesaiBackfillDoesNotLeaveFutureBlocker(payload);
 
-            const row = await pengawasanRepository.create(payload);
+            const payloadWithFallback = await withPengawasanDocumentFallback(payload);
+            const row = await pengawasanRepository.create(payloadWithFallback);
 
             // Generate PDF & upsert berkas_pengawasan (fire-and-forget)
             generateAndUploadPengawasanPdf(input.id_gantt, idPengawasanGantt, normalizedTanggal)
@@ -656,7 +680,8 @@ export const pengawasanService = {
                 }
 
                 rows = await withTransaction(async (client) => {
-                    const result = await pengawasanRepository.createBulk(basePayloads, client);
+                    const payloadsReadyToInsert = await withPengawasanDocumentFallbacks(basePayloads, client);
+                    const result = await pengawasanRepository.createBulk(payloadsReadyToInsert, client);
                     await processOpnameDataForPengawasanBulk(opnamePayloads, emailPembuat || "", client);
                     return result;
                 });
@@ -702,7 +727,8 @@ export const pengawasanService = {
                 }
 
                 rows = await withTransaction(async (client) => {
-                    const result = await pengawasanRepository.createBulk(payloadWithDokumentasi, client);
+                    const payloadsReadyToInsert = await withPengawasanDocumentFallbacks(payloadWithDokumentasi, client);
+                    const result = await pengawasanRepository.createBulk(payloadsReadyToInsert, client);
                     await processOpnameDataForPengawasanBulk(opnamePayloads, emailPembuat || "", client);
                     return result;
                 });
@@ -739,7 +765,8 @@ export const pengawasanService = {
                 }
 
                 rows = await withTransaction(async (client) => {
-                    const result = await pengawasanRepository.createBulk(payloadWithDokumentasi, client);
+                    const payloadsReadyToInsert = await withPengawasanDocumentFallbacks(payloadWithDokumentasi, client);
+                    const result = await pengawasanRepository.createBulk(payloadsReadyToInsert, client);
                     await processOpnameDataForPengawasanBulk(opnamePayloads, emailPembuat || "", client);
                     return result;
                 });

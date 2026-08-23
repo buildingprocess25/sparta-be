@@ -26,7 +26,8 @@
         "regenerate:il-pdfs": "tsx src/scripts/regenerate-instruksi-lapangan-pdfs.ts",
         "correct:serah-terima-date": "tsx src/scripts/correct-serah-terima-date.ts",
         "backfill:migrated-st": "tsx src/scripts/backfill-migrated-serah-terima-from-mapping.ts",
-        "typecheck": "tsc --noEmit -p tsconfig.json"
+        "typecheck": "tsc --noEmit -p tsconfig.json",
+        "recover:pengawasan-docs": "tsx src/scripts/recover-pengawasan-dokumentasi.ts"
     },
     "dependencies": {
         "cors": "^2.8.5",
