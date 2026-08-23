@@ -1,5 +1,6 @@
 import { AppError } from "../../common/app-error";
 import { pool } from "../../db/pool";
+import type { PoolClient } from "pg";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
 import { calculateDendaByTokoId } from "../denda/denda-keterlambatan";
@@ -195,9 +196,9 @@ export const uploadFotoOpnameToDrive = async (
     throw new AppError("Upload foto opname ke Google Drive gagal", 500);
 };
 
-const refreshOpnameFinalDenda = async (opnameFinalId: number, idToko: number) => {
+const refreshOpnameFinalDenda = async (opnameFinalId: number, idToko: number, existingClient?: PoolClient) => {
     const denda = await calculateDendaByTokoId(idToko);
-    await opnameFinalRepository.updateDenda(String(opnameFinalId), denda);
+    await opnameFinalRepository.updateDenda(String(opnameFinalId), denda, existingClient);
     return denda;
 };
 
@@ -212,10 +213,16 @@ const mapBulkCreateResponse = (created: Awaited<ReturnType<typeof opnameReposito
 });
 
 const finalizeBulkCreate = async (
-    created: Awaited<ReturnType<typeof opnameRepository.createBulkWithFinal>>
+    created: Awaited<ReturnType<typeof opnameRepository.createBulkWithFinal>>,
+    existingClient?: PoolClient
 ) => {
-    await refreshOpnameFinalDenda(created.opnameFinal.id, created.opnameFinal.id_toko);
-    await opnameFinalRepository.updateTotals(String(created.opnameFinal.id));
+    await refreshOpnameFinalDenda(created.opnameFinal.id, created.opnameFinal.id_toko, existingClient);
+    await opnameFinalRepository.updateTotals(String(created.opnameFinal.id), existingClient);
+
+    if (existingClient) {
+        return mapBulkCreateResponse(created);
+    }
+
     await scheduleAutomaticSerahTerimaIfReady(created.opnameFinal.id_toko, created.opnameFinal.created_at);
 
     // Trigger unified ST otomatis (SIPIL+ME) setelah semua pengawasan selesai dan opname masuk
@@ -231,7 +238,6 @@ const finalizeBulkCreate = async (
 
     return mapBulkCreateResponse(created);
 };
-
 export const opnameService = {
     async create(
         input: CreateOpnameInput,
@@ -266,7 +272,7 @@ export const opnameService = {
         },
         uploadedFotoOpnameFiles: UploadedFotoOpnameFile[] = [],
         uploadedFotoOpnameIndexes?: number[],
-        existingClient?: any
+        existingClient?: PoolClient
     ): Promise<{ opname_final: { id: number; id_toko: number; aksi: string; status_opname_final: string }; items: OpnameRow[] }> {
         try {
             const {
@@ -288,7 +294,7 @@ export const opnameService = {
                     items
                 }, existingClient);
 
-                return finalizeBulkCreate(created);
+                return finalizeBulkCreate(created, existingClient);
             }
 
             if (uploadedFotoOpnameIndexes && uploadedFotoOpnameIndexes.length > 0) {
@@ -335,7 +341,7 @@ export const opnameService = {
                     items: payloadWithFoto
                 }, existingClient);
 
-                return finalizeBulkCreate(created);
+                return finalizeBulkCreate(created, existingClient);
             }
 
             if (uploadedFotoOpnameFiles.length !== 1 && uploadedFotoOpnameFiles.length !== items.length) {
@@ -373,7 +379,7 @@ export const opnameService = {
                 items: payloadWithFoto
             }, existingClient);
 
-            return finalizeBulkCreate(created);
+            return finalizeBulkCreate(created, existingClient);
         } catch (error) {
             return mapPgError(error);
         }

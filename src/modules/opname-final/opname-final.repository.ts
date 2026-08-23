@@ -1,4 +1,5 @@
 import { pool, withTransaction } from "../../db/pool";
+import type { PoolClient } from "pg";
 import { getBranchScopeCandidates } from "../../common/branch-scope";
 import type { ApprovalActionInput } from "../approval/approval.schema";
 import { calculateOpnameFinalFinancials, isNoPpnArea } from "./opname-final.financial";
@@ -798,8 +799,9 @@ export const opnameFinalRepository = {
         nilai_denda: number;
         tanggal_akhir_spk: string | null;
         tanggal_serah_terima: string | null;
-    }): Promise<void> {
-        await pool.query(
+    }, existingClient?: PoolClient): Promise<void> {
+        const queryRunner = existingClient ?? pool;
+        await queryRunner.query(
             `
             UPDATE opname_final
             SET hari_denda = $1,
@@ -818,8 +820,9 @@ export const opnameFinalRepository = {
         );
     },
 
-    async updateTotals(opnameFinalId: string): Promise<void> {
-        const header = await pool.query(`
+    async updateTotals(opnameFinalId: string, existingClient?: PoolClient): Promise<void> {
+        const queryRunner = existingClient ?? pool;
+        const header = await queryRunner.query(`
             SELECT ofn.id_toko, ofn.nilai_denda, t.cabang, t.nama_toko, t.alamat
             FROM opname_final ofn
             JOIN toko t ON t.id = ofn.id_toko
@@ -830,14 +833,14 @@ export const opnameFinalRepository = {
 
         const noPpn = isNoPpnArea(row);
 
-        const items = await pool.query(`
+        const items = await queryRunner.query(`
             SELECT oi.id_rab_item, oi.total_selisih, ri.total_harga AS rab_item_total_harga
             FROM opname_item oi
             LEFT JOIN rab_item ri ON ri.id = oi.id_rab_item
             WHERE oi.id_opname_final = $1
         `, [opnameFinalId]);
 
-        const ilResult = await pool.query<{ total: string }>(`
+        const ilResult = await queryRunner.query<{ total: string }>(`
             SELECT COALESCE(SUM(
                 CASE
                     WHEN oi.id IS NOT NULL THEN oi.total_harga_opname
@@ -878,7 +881,7 @@ export const opnameFinalRepository = {
             noPpn,
         });
 
-        await pool.query(
+        await queryRunner.query(
             `
             UPDATE opname_final
             SET grand_total_opname = $1,
@@ -894,7 +897,6 @@ export const opnameFinalRepository = {
             ]
         );
     },
-
     async lockById(opnameFinalId: string, payload: LockOpnameFinalInput): Promise<{ item_count: number }> {
         return withTransaction(async (client) => {
             const existing = await client.query<{ id: number }>(
