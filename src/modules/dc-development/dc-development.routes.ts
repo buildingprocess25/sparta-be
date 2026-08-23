@@ -3,16 +3,19 @@ import multer from "multer";
 import {
     advanceDcProjectStage,
     createDcArchiveProject,
+    createDcDocumentCustomItem,
     createDcProject,
     createDcDocument,
     createDcTender,
     createDcVendor,
     createDcVendorUser,
     deleteDcDocument,
+    deleteDcDocumentCustomItem,
     downloadDcDocument,
     getDcDocumentDetail,
     getDcProjectById,
     listDcArchiveProjects,
+    listDcDocumentCustomItems,
     listDcApprovals,
     listDcDocuments,
     listDcProjects,
@@ -60,7 +63,8 @@ const isDcDocumentPath = (path: string) =>
     path === "/archive-projects"
     || path.startsWith("/archive-projects/")
     || path === "/documents"
-    || path.startsWith("/documents/");
+    || path.startsWith("/documents/")
+    || path.startsWith("/custom-document-items/");
 
 dcDevelopmentRouter.use((req, res, next) => {
     const roles = req.user?.roles;
@@ -114,6 +118,9 @@ dcDevelopmentRouter.post("/tenders/participants/terms/:termId/claim", submitDcTe
 
 dcDevelopmentRouter.get("/archive-projects", listDcArchiveProjects);
 dcDevelopmentRouter.post("/archive-projects", createDcArchiveProject);
+dcDevelopmentRouter.get("/archive-projects/:id/custom-document-items", listDcDocumentCustomItems);
+dcDevelopmentRouter.post("/archive-projects/:id/custom-document-items", createDcDocumentCustomItem);
+dcDevelopmentRouter.delete("/custom-document-items/:itemId", deleteDcDocumentCustomItem);
 
 dcDevelopmentRouter.get("/vendors", listDcVendors);
 dcDevelopmentRouter.post("/vendors", createDcVendor);

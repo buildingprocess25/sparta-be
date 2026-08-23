@@ -5,6 +5,9 @@ import {
     DC_VENDOR_SERVICE_TYPES
 } from "./dc-development.constants";
 
+export const dcDocumentCustomSlotSchema = z.enum(["PDF/JPEG", "AUTOCAD", "WORD", "EXCEL", "PPT"]);
+export const dcDocumentCustomStageSchema = z.enum(["PEMBANGUNAN", "RENOVASI", "PERLUASAN"]);
+
 export const dcProjectListQuerySchema = z.object({
     status: z.string().optional(),
     current_stage: z.string().optional(),
@@ -183,6 +186,25 @@ export const dcDocumentActorQuerySchema = z.object({
     stage: z.string().trim().optional()
 });
 
+export const dcDocumentCustomItemListQuerySchema = z.object({
+    stage: dcDocumentCustomStageSchema.optional(),
+    actor_email: z.string().email(),
+    actor_role: z.string().trim().min(1)
+});
+
+export const createDcDocumentCustomItemSchema = z.object({
+    stage: dcDocumentCustomStageSchema,
+    title: z.string().trim().min(1).max(255),
+    slots: z.array(dcDocumentCustomSlotSchema).min(1),
+    actor_email: z.string().email(),
+    actor_role: z.string().trim().min(1)
+});
+
+export const deleteDcDocumentCustomItemSchema = z.object({
+    actor_email: z.string().email(),
+    actor_role: z.string().trim().min(1)
+});
+
 export const dcArchiveProjectListQuerySchema = z.object({
     search: z.string().trim().optional(),
     branch_name: z.string().trim().optional(),
@@ -229,5 +251,8 @@ export type DcDocumentListQuery = z.infer<typeof dcDocumentListQuerySchema>;
 export type CreateDcDocumentInput = z.infer<typeof createDcDocumentSchema>;
 export type UpdateDcDocumentInput = z.infer<typeof updateDcDocumentSchema>;
 export type DcDocumentActorQuery = z.infer<typeof dcDocumentActorQuerySchema>;
+export type DcDocumentCustomItemListQuery = z.infer<typeof dcDocumentCustomItemListQuerySchema>;
+export type CreateDcDocumentCustomItemInput = z.infer<typeof createDcDocumentCustomItemSchema>;
+export type DeleteDcDocumentCustomItemInput = z.infer<typeof deleteDcDocumentCustomItemSchema>;
 export type DcArchiveProjectListQuery = z.infer<typeof dcArchiveProjectListQuerySchema>;
 export type CreateDcArchiveProjectInput = z.infer<typeof createDcArchiveProjectSchema>;

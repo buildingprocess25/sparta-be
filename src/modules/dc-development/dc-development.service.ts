@@ -4,13 +4,16 @@ import { env } from "../../config/env";
 import { pool } from "../../db/pool";
 import { DC_MEMBER_ACCESS_LEVEL, DC_PROJECT_STAGE_SEQUENCE, DC_ROLES, type DcMemberAccessLevel } from "./dc-development.constants";
 import * as xlsx from "xlsx";
-import { dcDevelopmentRepository, type DcDocumentRow } from "./dc-development.repository";
+import { dcDevelopmentRepository, type DcDocumentCustomItemRow, type DcDocumentRow } from "./dc-development.repository";
 import { DC_DOCUMENT_CONFIG, RENOVASI_ALLOWED_UTAMA } from "./dc-document.config";
 import { buildDcDocumentReportPdfBuffer, buildGlobalDcDocumentReportPdfBuffer, type PdfStage, type PdfStageItem } from "./dc-development.pdf";
 import type {
     AdvanceDcProjectStageInput,
     CreateDcArchiveProjectInput,
     CreateDcDocumentInput,
+    CreateDcDocumentCustomItemInput,
+    DeleteDcDocumentCustomItemInput,
+    DcDocumentCustomItemListQuery,
     CreateDcProjectInput,
     CreateDcTenderInput,
     CreateDcVendorInput,
@@ -123,7 +126,7 @@ const resolveDocHierarchy = (documentType: string) => {
     const match = documentType.match(/^([a-zA-Z_0-9]+)__([a-zA-Z_0-9]+)$/);
     if (!match) return { utama: "Lainnya", jenis: documentType };
     const jenisKey = match[1];
-    
+
     for (const utama of DC_DOCUMENT_CONFIG) {
         for (const detail of utama.details) {
             for (const jenis of detail.jenis) {
@@ -142,16 +145,16 @@ const uploadFilesToDrive = async (
     files: UploadedDcDocumentFile[]
 ) => {
     const { gp } = ensureDcDocDriveReady();
-    
+
     const projectNameOverride = `${project.project_code} - ${project.project_name} - ${project.branch_name || "UNKNOWN"}`;
-    
+
     const processFolder = await gp.getOrCreateProcessFolder(
-        "Penyimpanan Dokumen DC", 
-        null, 
-        project.project_name, 
-        project.project_code, 
-        project.branch_name, 
-        "DC Development", 
+        "Penyimpanan Dokumen DC",
+        null,
+        project.project_name,
+        project.project_code,
+        project.branch_name,
+        "DC Development",
         projectNameOverride
     );
 
@@ -162,7 +165,7 @@ const uploadFilesToDrive = async (
     );
 
     const docHierarchy = resolveDocHierarchy(input.document_type);
-    
+
     const utamaFolder = await gp.getOrCreateFolder(
         sanitizeFilenamePart(docHierarchy.utama, "KATEGORI"),
         stageFolder
@@ -269,6 +272,7 @@ const buildDcDocumentExport = (
         project_type: string;
     },
     documents: DcDocumentRow[],
+    customItems: DcDocumentCustomItemRow[] = [],
     stageFilter?: string | null
 ) => {
     const documentMap = new Map<string, DcDocumentRow>();
@@ -330,6 +334,41 @@ const buildDcDocumentExport = (
                         });
                     }
                 }
+            }
+        }
+
+        for (const customItem of customItems.filter((item) => item.stage === stage.key)) {
+            for (const slotType of customItem.slots) {
+                total++;
+                const documentType = formatDcDocumentType(`CUSTOM_K_${customItem.id}`, slotType);
+                const doc = documentMap.get(`${stage.key}#${documentType}`) ?? null;
+                const isFilled = !!doc;
+                if (isFilled) filled++;
+
+                const notes = doc?.notes ?? null;
+                const itemLabel = customItem.slots.length > 1 ? `${customItem.title} (${slotType})` : customItem.title;
+                items.push({
+                    kategori: "DATA PENTING LAINNYA",
+                    jenis: itemLabel,
+                    status: isFilled,
+                    notes
+                });
+
+                rows.push({
+                    "No": rowNumber++,
+                    "Kode Proyek": project.archive_code,
+                    "Nama Proyek": project.archive_name,
+                    "Cabang": project.branch_name,
+                    "Tipe Proyek": project.project_type,
+                    "Lokasi": project.location_name ?? "",
+                    "Tahap": stage.label,
+                    "Kategori Utama": "DATA PENTING LAINNYA",
+                    "Sub Kategori": "Item Tambahan",
+                    "Jenis Dokumen": customItem.title,
+                    "Format Dokumen": slotType,
+                    "Status": isFilled ? "ADA" : "KOSONG",
+                    "Catatan": notes ?? ""
+                });
             }
         }
 
@@ -459,7 +498,7 @@ export const dcDevelopmentService = {
         }
         const tender = await dcDevelopmentRepository.getTenderById(tenderId);
         if (!tender) throw new AppError("Tender DC tidak ditemukan", 404);
-        
+
         const participants = await dcDevelopmentRepository.listTenderParticipants(tenderId);
         const submissions = await dcDevelopmentRepository.listTenderSubmissions(tenderId);
 
@@ -691,6 +730,40 @@ export const dcDevelopmentService = {
         return dcDevelopmentRepository.listDocuments(filter, canBypassDocumentAccess(filter.actor_role));
     },
 
+    async listCustomDocumentItems(archiveIdRaw: string, query: DcDocumentCustomItemListQuery) {
+        const archiveId = Number(archiveIdRaw);
+        if (!Number.isInteger(archiveId) || archiveId <= 0) throw new AppError("ID arsip DC tidak valid", 400);
+        const archive = await dcDevelopmentRepository.findArchiveProjectById(archiveId);
+        if (!archive) throw new AppError("Arsip DC tidak ditemukan", 404);
+        await ensureAccess(archive.project_id, { email: query.actor_email, role: query.actor_role }, DC_MEMBER_ACCESS_LEVEL.VIEW);
+        return dcDevelopmentRepository.listCustomDocumentItems({ archive_project_id: archive.id, stage: query.stage });
+    },
+
+    async createCustomDocumentItem(archiveIdRaw: string, input: CreateDcDocumentCustomItemInput) {
+        const archiveId = Number(archiveIdRaw);
+        if (!Number.isInteger(archiveId) || archiveId <= 0) throw new AppError("ID arsip DC tidak valid", 400);
+        const archive = await dcDevelopmentRepository.findArchiveProjectById(archiveId);
+        if (!archive) throw new AppError("Arsip DC tidak ditemukan", 404);
+        await ensureAccess(archive.project_id, { email: input.actor_email, role: input.actor_role }, DC_MEMBER_ACCESS_LEVEL.UPLOAD);
+        return dcDevelopmentRepository.createCustomDocumentItem(archive, input);
+    },
+
+    async deleteCustomDocumentItem(itemIdRaw: string, input: DeleteDcDocumentCustomItemInput) {
+        const itemId = Number(itemIdRaw);
+        if (!Number.isInteger(itemId) || itemId <= 0) throw new AppError("ID item tambahan tidak valid", 400);
+        const item = await dcDevelopmentRepository.findCustomDocumentItemById(itemId);
+        if (!item) throw new AppError("Item tambahan tidak ditemukan", 404);
+        const isCreator = item.created_by_email?.toLowerCase() === input.actor_email.toLowerCase();
+        if (!isCreator) {
+            await ensureAccess(item.project_id, { email: input.actor_email, role: input.actor_role }, DC_MEMBER_ACCESS_LEVEL.MANAGE);
+        } else {
+            await ensureAccess(item.project_id, { email: input.actor_email, role: input.actor_role }, DC_MEMBER_ACCESS_LEVEL.UPLOAD);
+        }
+        const deleted = await dcDevelopmentRepository.softDeleteCustomDocumentItem(item.id, { email: input.actor_email, role: input.actor_role });
+        if (!deleted) throw new AppError("Item tambahan tidak ditemukan", 404);
+        return deleted;
+    },
+
     async createDocument(input: CreateDcDocumentInput, files: UploadedDcDocumentFile[]) {
         if (files.length === 0 && !input.notes) throw new AppError("Dokumen wajib diupload atau catatan wajib diisi", 400);
         const project = await dcDevelopmentRepository.findProjectById(input.project_id);
@@ -849,7 +922,8 @@ export const dcDevelopmentService = {
             actor_role: actor.actor_role
         }, canBypassDocumentAccess(actor.actor_role));
 
-        const { rows, stages } = buildDcDocumentExport(project, documents, stageFilter);
+        const customItems = await dcDevelopmentRepository.listCustomDocumentItems({ archive_project_id: project.id, stage: normalizeDcExportStage(stageFilter) });
+        const { rows, stages } = buildDcDocumentExport(project, documents, customItems, stageFilter);
         const stageSuffix = normalizeDcExportStage(stageFilter) ? `_${normalizeDcExportStage(stageFilter)}` : "";
 
         if (format === "csv") {
@@ -893,7 +967,8 @@ export const dcDevelopmentService = {
                 actor_role: actor.actor_role
             }, canBypassDocumentAccess(actor.actor_role));
 
-            const { rows, stages } = buildDcDocumentExport(project, documents);
+            const customItems = await dcDevelopmentRepository.listCustomDocumentItems({ archive_project_id: project.id });
+            const { rows, stages } = buildDcDocumentExport(project, documents, customItems);
             const offset = flatRows.length;
             rows.forEach((row, index) => {
                 flatRows.push({ ...row, "No": offset + index + 1 });

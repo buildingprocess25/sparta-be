@@ -11,6 +11,7 @@ import {
 } from "./dc-development.constants";
 import type {
     CreateDcArchiveProjectInput,
+    CreateDcDocumentCustomItemInput,
     CreateDcProjectInput,
     CreateDcTenderInput,
     CreateDcVendorInput,
@@ -185,6 +186,21 @@ export type DcArchiveProjectRow = {
     kategori_counts: Record<string, number>;
 };
 
+export type DcDocumentCustomItemRow = {
+    id: number;
+    archive_project_id: number;
+    project_id: number;
+    stage: "PEMBANGUNAN" | "RENOVASI" | "PERLUASAN";
+    title: string;
+    slots: string[];
+    status: string;
+    created_by_email: string | null;
+    created_by_role: string | null;
+    created_at: string;
+    updated_at: string;
+    deleted_at: string | null;
+};
+
 export type DcUploadedDocumentVersion = {
     drive_file_id: string;
     drive_folder_id: string | null;
@@ -324,7 +340,7 @@ export const dcDevelopmentRepository = {
                 SELECT COUNT(DISTINCT d.document_type)
                 FROM dc_document d
                 WHERE d.entity_type = 'DC_ARCHIVE_PROJECT'
-                  AND d.entity_id = a.id
+                  AND d.project_id = a.project_id
                   AND d.status <> 'DELETED'
             ) ${comparator} 0`);
         }
@@ -345,10 +361,10 @@ export const dcDevelopmentRepository = {
                 a.created_by_role,
                 a.created_at,
                 a.updated_at,
-                COUNT(d.id)::int AS jumlah_dokumen,
-                COUNT(DISTINCT split_part(d.document_type, '__', 1)) FILTER (WHERE d.stage = 'Pembangunan')::int AS docs_pembangunan,
-                COUNT(DISTINCT split_part(d.document_type, '__', 1)) FILTER (WHERE d.stage = 'Renovasi')::int AS docs_renovasi,
-                COUNT(DISTINCT split_part(d.document_type, '__', 1)) FILTER (WHERE d.stage = 'Perluasan')::int AS docs_perluasan,
+                COUNT(DISTINCT d.id)::int AS jumlah_dokumen,
+                COUNT(DISTINCT split_part(d.document_type, '__', 1)) FILTER (WHERE UPPER(COALESCE(d.stage, '')) = 'PEMBANGUNAN')::int AS docs_pembangunan,
+                COUNT(DISTINCT split_part(d.document_type, '__', 1)) FILTER (WHERE UPPER(COALESCE(d.stage, '')) = 'RENOVASI')::int AS docs_renovasi,
+                COUNT(DISTINCT split_part(d.document_type, '__', 1)) FILTER (WHERE UPPER(COALESCE(d.stage, '')) = 'PERLUASAN')::int AS docs_perluasan,
                 COALESCE(
                     jsonb_object_agg(d.document_type, doc_counts.total) FILTER (WHERE d.document_type IS NOT NULL),
                     '{}'::jsonb
@@ -356,15 +372,15 @@ export const dcDevelopmentRepository = {
              FROM dc_archive_project a
              ${joins.join("\n")}
              LEFT JOIN (
-                SELECT entity_id, document_type, COUNT(*)::int AS total
+                SELECT project_id, document_type, COUNT(*)::int AS total
                 FROM dc_document
                 WHERE entity_type = 'DC_ARCHIVE_PROJECT'
                   AND status <> 'DELETED'
-                GROUP BY entity_id, document_type
-             ) doc_counts ON doc_counts.entity_id = a.id
+                GROUP BY project_id, document_type
+             ) doc_counts ON doc_counts.project_id = a.project_id
              LEFT JOIN dc_document d
                 ON d.entity_type = 'DC_ARCHIVE_PROJECT'
-               AND d.entity_id = a.id
+               AND d.project_id = a.project_id
                AND d.status <> 'DELETED'
                AND d.document_type = doc_counts.document_type
              ${whereClause}
@@ -406,7 +422,7 @@ export const dcDevelopmentRepository = {
                 ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, timezone('Asia/Jakarta', now()), timezone('Asia/Jakarta', now()))
                 RETURNING id, project_id, archive_code, archive_name, branch_name, location_name,
                     project_type, address, notes, created_by_email, created_by_role,
-                    created_at, updated_at, 0::int AS jumlah_dokumen, 
+                    created_at, updated_at, 0::int AS jumlah_dokumen,
                     0::int AS docs_pembangunan, 0::int AS docs_renovasi, 0::int AS docs_perluasan,
                     '{}'::jsonb AS kategori_counts`,
                 [
@@ -740,7 +756,7 @@ export const dcDevelopmentRepository = {
                  RETURNING *`,
                 [tenderId, vendorId, email ?? null]
             );
-            
+
             await client.query(
                 `UPDATE dc_tender SET status = 'IN_PROGRESS', updated_at = timezone('Asia/Jakarta', now())
                  WHERE id = $1 AND status = 'DRAFT'`,
@@ -903,7 +919,7 @@ export const dcDevelopmentRepository = {
             }
 
             updateSql += ` WHERE id = $1 RETURNING *`;
-            
+
             const result = await client.query<DcProjectTimelineRow>(updateSql, params);
 
             await insertActivityLog(client, {
@@ -963,8 +979,8 @@ export const dcDevelopmentRepository = {
             let resolvedAtSql = input.status === 'RESOLVED' || input.status === 'CLOSED' ? `timezone('Asia/Jakarta', now())` : `NULL`;
 
             const result = await client.query<DcIssueRow>(
-                `UPDATE dc_issue 
-                 SET status = $1, 
+                `UPDATE dc_issue
+                 SET status = $1,
                      resolution_notes = COALESCE($2, resolution_notes),
                      resolved_at = ${resolvedAtSql},
                      updated_at = timezone('Asia/Jakarta', now())
@@ -1026,8 +1042,8 @@ export const dcDevelopmentRepository = {
             const current = currentRes.rows[0];
 
             const result = await client.query<DcBastRow>(
-                `UPDATE dc_bast 
-                 SET status = $1, 
+                `UPDATE dc_bast
+                 SET status = $1,
                      checklist = COALESCE($2, checklist),
                      notes = COALESCE($3, notes),
                      updated_at = timezone('Asia/Jakarta', now())
@@ -1055,7 +1071,7 @@ export const dcDevelopmentRepository = {
             `SELECT * FROM dc_term_schedule WHERE participant_id = $1 ORDER BY term_no ASC`,
             [participantId]
         );
-        
+
         let claims: DcTermClaimRow[] = [];
         if (schedulesRes.rows.length > 0) {
             const scheduleIds = schedulesRes.rows.map(s => s.id);
@@ -1315,6 +1331,99 @@ export const dcDevelopmentRepository = {
         );
     },
 
+    async listCustomDocumentItems(filter: { archive_project_id: number; stage?: string | null }): Promise<DcDocumentCustomItemRow[]> {
+        const values: unknown[] = [filter.archive_project_id];
+        const conditions = ["archive_project_id = $1", "status <> 'DELETED'"];
+        if (filter.stage) {
+            values.push(filter.stage);
+            conditions.push(`stage = $${values.length}`);
+        }
+
+        const result = await pool.query<DcDocumentCustomItemRow>(
+            `SELECT id, archive_project_id, project_id, stage, title, slots, status,
+                    created_by_email, created_by_role, created_at, updated_at, deleted_at
+             FROM dc_document_custom_item
+             WHERE ${conditions.join(" AND ")}
+             ORDER BY id ASC`,
+            values
+        );
+        return result.rows;
+    },
+
+    async createCustomDocumentItem(archiveProject: DcArchiveProjectRow, input: CreateDcDocumentCustomItemInput): Promise<DcDocumentCustomItemRow> {
+        return withTransaction(async (client) => {
+            const result = await client.query<DcDocumentCustomItemRow>(
+                `INSERT INTO dc_document_custom_item (
+                    archive_project_id, project_id, stage, title, slots, status,
+                    created_by_email, created_by_role, created_at, updated_at
+                ) VALUES ($1,$2,$3,$4,$5::jsonb,'ACTIVE',$6,$7, timezone('Asia/Jakarta', now()), timezone('Asia/Jakarta', now()))
+                RETURNING id, archive_project_id, project_id, stage, title, slots, status,
+                    created_by_email, created_by_role, created_at, updated_at, deleted_at`,
+                [
+                    archiveProject.id,
+                    archiveProject.project_id,
+                    input.stage,
+                    input.title,
+                    JSON.stringify(input.slots),
+                    input.actor_email,
+                    input.actor_role
+                ]
+            );
+            const item = result.rows[0];
+            await insertActivityLog(client, {
+                project_id: archiveProject.project_id,
+                entity_type: "DC_DOCUMENT_CUSTOM_ITEM",
+                entity_id: item.id,
+                actor_email: input.actor_email,
+                actor_role: input.actor_role,
+                action: "CREATE_CUSTOM_DOCUMENT_ITEM",
+                status_after: item.status,
+                metadata: { stage: input.stage, title: input.title, slots: input.slots }
+            });
+            return item;
+        });
+    },
+
+    async findCustomDocumentItemById(id: number): Promise<DcDocumentCustomItemRow | null> {
+        const result = await pool.query<DcDocumentCustomItemRow>(
+            `SELECT id, archive_project_id, project_id, stage, title, slots, status,
+                    created_by_email, created_by_role, created_at, updated_at, deleted_at
+             FROM dc_document_custom_item
+             WHERE id = $1 AND status <> 'DELETED'
+             LIMIT 1`,
+            [id]
+        );
+        return result.rows[0] ?? null;
+    },
+
+    async softDeleteCustomDocumentItem(id: number, actor: { email: string; role: string }): Promise<DcDocumentCustomItemRow | null> {
+        return withTransaction(async (client) => {
+            const result = await client.query<DcDocumentCustomItemRow>(
+                `UPDATE dc_document_custom_item
+                 SET status = 'DELETED', deleted_at = timezone('Asia/Jakarta', now()), updated_at = timezone('Asia/Jakarta', now())
+                 WHERE id = $1 AND status <> 'DELETED'
+                 RETURNING id, archive_project_id, project_id, stage, title, slots, status,
+                    created_by_email, created_by_role, created_at, updated_at, deleted_at`,
+                [id]
+            );
+            const item = result.rows[0] ?? null;
+            if (item) {
+                await insertActivityLog(client, {
+                    project_id: item.project_id,
+                    entity_type: "DC_DOCUMENT_CUSTOM_ITEM",
+                    entity_id: item.id,
+                    actor_email: actor.email,
+                    actor_role: actor.role,
+                    action: "DELETE_CUSTOM_DOCUMENT_ITEM",
+                    status_before: "ACTIVE",
+                    status_after: "DELETED",
+                    metadata: { stage: item.stage, title: item.title }
+                });
+            }
+            return item;
+        });
+    },
+
     async findProjectMember(projectId: number, email: string): Promise<DcProjectMemberRow | null> {
         const result = await pool.query<DcProjectMemberRow>(
             `SELECT id, project_id, email, role, member_type, access_level,
@@ -1400,7 +1509,7 @@ export const dcDevelopmentRepository = {
             );
 
             const documentId = documentResult.rows[0].id;
-            
+
             if (version || input.notes) {
                 await client.query(
                     `INSERT INTO dc_document_version (

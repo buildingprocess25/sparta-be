@@ -8,6 +8,9 @@ import {
     createDcVendorSchema,
     createDcVendorUserSchema,
     createDcDocumentSchema,
+    createDcDocumentCustomItemSchema,
+    dcDocumentCustomItemListQuerySchema,
+    deleteDcDocumentCustomItemSchema,
     dcDocumentActorQuerySchema,
     dcApprovalListQuerySchema,
     dcArchiveProjectListQuerySchema,
@@ -66,6 +69,32 @@ export const createDcArchiveProject = asyncHandler(async (req: Request, res: Res
     res.status(201).json({
         status: "success",
         message: "Data arsip dokumen DC berhasil dibuat",
+        data
+    });
+});
+
+export const listDcDocumentCustomItems = asyncHandler(async (req: Request, res: Response) => {
+    const query = withSessionActor(req, dcDocumentCustomItemListQuerySchema.parse(req.query));
+    const data = await dcDevelopmentService.listCustomDocumentItems(req.params.id, query);
+    res.json({ status: "success", data });
+});
+
+export const createDcDocumentCustomItem = asyncHandler(async (req: Request, res: Response) => {
+    const input = withSessionActor(req, createDcDocumentCustomItemSchema.parse(req.body));
+    const data = await dcDevelopmentService.createCustomDocumentItem(req.params.id, input);
+    res.status(201).json({
+        status: "success",
+        message: "Item dokumen tambahan berhasil dibuat",
+        data
+    });
+});
+
+export const deleteDcDocumentCustomItem = asyncHandler(async (req: Request, res: Response) => {
+    const input = withSessionActor(req, deleteDcDocumentCustomItemSchema.parse(req.query));
+    const data = await dcDevelopmentService.deleteCustomDocumentItem(req.params.itemId, input);
+    res.json({
+        status: "success",
+        message: "Item dokumen tambahan berhasil dihapus",
         data
     });
 });
