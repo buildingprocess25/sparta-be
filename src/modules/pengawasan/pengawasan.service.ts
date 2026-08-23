@@ -422,12 +422,26 @@ const generateAndUploadPengawasanPdf = async (
     }
 };
 
-const regeneratePengawasanPdfForRow = async (row: Pick<PengawasanRow, "id_gantt" | "id_pengawasan_gantt">): Promise<void> => {
-    const info = await pengawasanRepository.findPengawasanGanttInfoById(row.id_pengawasan_gantt);
-    if (!info) return;
+const pdfGenerationDebounceMap = new Map<number, NodeJS.Timeout>();
 
-    generateAndUploadPengawasanPdf(row.id_gantt, row.id_pengawasan_gantt, info.tanggal_pengawasan)
-        .catch((err) => console.error("[berkas_pengawasan] background error:", err));
+const regeneratePengawasanPdfForRow = async (row: Pick<PengawasanRow, "id_gantt" | "id_pengawasan_gantt">): Promise<void> => {
+    const pgId = row.id_pengawasan_gantt;
+    
+    if (pdfGenerationDebounceMap.has(pgId)) {
+        clearTimeout(pdfGenerationDebounceMap.get(pgId));
+    }
+    
+    pdfGenerationDebounceMap.set(pgId, setTimeout(() => {
+        pdfGenerationDebounceMap.delete(pgId);
+        
+        pengawasanRepository.findPengawasanGanttInfoById(pgId)
+            .then(info => {
+                if (!info) return;
+                generateAndUploadPengawasanPdf(row.id_gantt, pgId, info.tanggal_pengawasan)
+                    .catch((err) => console.error("[berkas_pengawasan] background error:", err));
+            })
+            .catch(err => console.error("[berkas_pengawasan] debounce info fetch error:", err));
+    }, 5000));
 };
 
 const ensureProgressUsesNearestCheckpoint = async (item: CreatePengawasanData): Promise<void> => {
