@@ -1569,13 +1569,32 @@ export const dcDevelopmentRepository = {
         return result.rows[0] ?? null;
     },
 
-    async updateDocumentNotes(documentId: number, notes: string | null): Promise<void> {
-        await pool.query(
-            `UPDATE dc_document_version
-             SET notes = $2, updated_at = timezone('Asia/Jakarta', now())
-             WHERE document_id = $1 AND is_current = true`,
-            [documentId, notes]
-        );
+    async updateDocumentNotes(documentId: number, notes: string | null, actor: { email: string; role: string }): Promise<void> {
+        await withTransaction(async (client) => {
+            const updated = await client.query(
+                `UPDATE dc_document_version
+                 SET notes = $2, updated_at = timezone('Asia/Jakarta', now())
+                 WHERE document_id = $1 AND is_current = true`,
+                [documentId, notes]
+            );
+            if ((updated.rowCount ?? 0) > 0) return;
+
+            const versionNoResult = await client.query<{ version_no: number }>(
+                `SELECT COALESCE(MAX(version_no), 0) + 1 AS version_no
+                 FROM dc_document_version
+                 WHERE document_id = $1`,
+                [documentId]
+            );
+
+            await client.query(
+                `INSERT INTO dc_document_version (
+                    document_id, version_no, drive_file_id, drive_folder_id, link_dokumen, link_folder,
+                    file_name, mime_type, size_bytes, notes, uploaded_by_email, uploaded_by_role,
+                    is_current, created_at
+                ) VALUES ($1,$2,NULL,NULL,NULL,NULL,NULL,NULL,NULL,$3,$4,$5,true, timezone('Asia/Jakarta', now()))`,
+                [documentId, versionNoResult.rows[0]?.version_no ?? 1, notes, actor.email, actor.role]
+            );
+        });
     },
 
     async updateDocumentMetadata(

@@ -300,7 +300,7 @@ const buildDcDocumentExport = (
                         total++;
                         const documentType = formatDcDocumentType(jenis.key, slot.type);
                         const doc = documentMap.get(`${stage.key}#${documentType}`) ?? null;
-                        const isFilled = !!doc;
+                        const isFilled = !!(doc?.drive_file_id || doc?.file_name);
                         if (isFilled) filled++;
 
                         const notes = doc?.notes ?? null;
@@ -337,7 +337,7 @@ const buildDcDocumentExport = (
                 total++;
                 const documentType = formatDcDocumentType(`CUSTOM_K_${customItem.id}`, slotType);
                 const doc = documentMap.get(`${stage.key}#${documentType}`) ?? null;
-                const isFilled = !!doc;
+                const isFilled = !!(doc?.drive_file_id || doc?.file_name);
                 if (isFilled) filled++;
 
                 const notes = doc?.notes ?? null;
@@ -851,7 +851,7 @@ export const dcDevelopmentService = {
 
         if (typeof input.notes !== "undefined") {
             await ensureAccess(document.project_id, { email: input.actor_email, role: input.actor_role }, DC_MEMBER_ACCESS_LEVEL.UPLOAD);
-            await dcDevelopmentRepository.updateDocumentNotes(document.id, input.notes ?? null);
+            await dcDevelopmentRepository.updateDocumentNotes(document.id, input.notes ?? null, { email: input.actor_email, role: input.actor_role });
             updated = (await this.getDocumentDetail(id, { actor_email: input.actor_email, actor_role: input.actor_role })) || updated;
         }
 
