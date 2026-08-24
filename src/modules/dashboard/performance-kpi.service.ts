@@ -1,5 +1,5 @@
 import { pool } from "../../db/pool";
-import { avg, sum, buildPerformanceKpiFacts, dayDiff, normalizeName, normalizeUpper } from "./performance-kpi.facts";
+import { avg, sum, buildPerformanceKpiFacts, dayDiff, normalizeName, normalizeUpper, summarizePerformanceKpiValues } from "./performance-kpi.facts";
 import { BRANCH_GROUPS, normalizeBranchScopeName } from "../../common/branch-scope";
 
 import type {
@@ -364,11 +364,25 @@ const toDrilldownRow = (fact: PerformanceKpiFact, query: PerformanceKpiDrilldown
     const bangunan = query.card_type === "cost_m2" ? fact.values.costM2Bangunan : undefined;
     const area_terbuka = query.card_type === "cost_m2" ? fact.values.costM2Terbuka : undefined;
 
+    const scopes = Array.from(new Map(fact.rows.map((row) => {
+        const lingkup = normalizeUpper(row.lingkup) || "LAINNYA";
+        return [lingkup, {
+            lingkup_pekerjaan: lingkup,
+            toko_id: row.tokoId,
+            project_type: row.projectType,
+            has_rab: row.rabTotal !== null,
+            has_spk: row.spkTotal !== null,
+            has_st: row.stDate !== null,
+            has_opname: row.opnameFinalTotal !== null
+        }];
+    })).values());
+
     return {
         nomor_ulok: fact.nomorUlok,
         nama_toko: fact.namaToko,
         kode_toko: fact.kodeToko,
         cabang: fact.cabang,
+        scopes,
         supports: fact.supports,
         coordinators: fact.coordinators,
         value,
@@ -482,12 +496,22 @@ const buildDocumentOptionStats = (facts: PerformanceKpiFact[], selectedRole?: Pe
     });
 };
 const buildDetail = (fact: PerformanceKpiFact, query: PerformanceKpiDetailInput) => {
-    const approvalEvents = fact.approvals.filter((event) => {
+    const selectedScope = normalizeUpper(query.lingkup_pekerjaan);
+    const scopedRows = selectedScope
+        ? fact.rows.filter((row) => normalizeUpper(row.lingkup) === selectedScope)
+        : fact.rows;
+    const effectiveRows = scopedRows.length ? scopedRows : fact.rows;
+    const effectiveFact: PerformanceKpiFact = selectedScope
+        ? { ...fact, rows: effectiveRows, values: summarizePerformanceKpiValues(effectiveRows) }
+        : fact;
+    const approvalEvents = effectiveFact.approvals.filter((event) => {
+        if (selectedScope && normalizeUpper(event.lingkup) !== selectedScope) return false;
         if (query.card_type !== "sla_approval") return true;
         if (query.sla_role && event.role !== query.sla_role) return false;
         if (query.sla_doc && event.document !== query.sla_doc) return false;
         return true;
     });
+    const documents = effectiveFact.documents.filter((document) => !selectedScope || normalizeUpper(document.lingkup) === selectedScope);
 
     return {
         nomor_ulok: fact.nomorUlok,
@@ -499,18 +523,19 @@ const buildDetail = (fact: PerformanceKpiFact, query: PerformanceKpiDetailInput)
         supports: fact.supports,
         coordinators: fact.coordinators,
         selected_card: query.card_type,
-        selected_value: getCardValue(fact, query.card_type),
+        selected_scope: selectedScope || null,
+        selected_value: getCardValue(effectiveFact, query.card_type),
         sections: {
             cost_m2: {
-                terbangun: fact.values.costM2Terbangun,
-                bangunan: fact.values.costM2Bangunan,
-                area_terbuka: fact.values.costM2Terbuka,
+                terbangun: effectiveFact.values.costM2Terbangun,
+                bangunan: effectiveFact.values.costM2Bangunan,
+                area_terbuka: effectiveFact.values.costM2Terbuka,
                 formula: "pengajuan_spk.grand_total / luas RAB approved terakhir; terbangun = luas_bangunan + 1/2 luas_area_terbuka"
             },
             jhk: {
-                avg_days: fact.values.jhkActualDays,
-                avg_target_days: fact.values.jhkTargetDays,
-                scopes: fact.rows.map((row) => ({
+                avg_days: effectiveFact.values.jhkActualDays,
+                avg_target_days: effectiveFact.values.jhkTargetDays,
+                scopes: effectiveFact.rows.map((row) => ({
                     lingkup: row.lingkup,
                     project_type: row.projectType,
                     spk_start: row.spkStart,
@@ -523,40 +548,40 @@ const buildDetail = (fact: PerformanceKpiFact, query: PerformanceKpiDetailInput)
                 }))
             },
             denda: {
-                value: fact.values.dendaValue,
+                value: effectiveFact.values.dendaValue,
                 policy: "nilai representatif terkecil yang positif antar lingkup; nol diabaikan ketika ada nilai positif",
-                scopes: fact.rows.map((row) => ({ lingkup: row.lingkup, hari_denda: row.dendaDays, nilai_denda: row.dendaValue }))
+                scopes: effectiveFact.rows.map((row) => ({ lingkup: row.lingkup, hari_denda: row.dendaDays, nilai_denda: row.dendaValue }))
             },
             kerja_tambah_kurang: {
-                kerja_tambah: fact.values.kerjaTambah,
-                kerja_kurang: fact.values.kerjaKurang,
+                kerja_tambah: effectiveFact.values.kerjaTambah,
+                kerja_kurang: effectiveFact.values.kerjaKurang,
                 formula: "opname_final.grand_total_final/opname - pengajuan_spk.grand_total",
-                scopes: fact.rows.map((row) => ({ lingkup: row.lingkup, spk_total: row.spkTotal, opname_final_total: row.opnameFinalTotal }))
+                scopes: effectiveFact.rows.map((row) => ({ lingkup: row.lingkup, spk_total: row.spkTotal, opname_final_total: row.opnameFinalTotal }))
             },
             ketepatan_st: {
-                days: fact.values.ketepatanStDays,
+                days: effectiveFact.values.ketepatanStDays,
                 formula: "tanggal serah terima - (akhir SPK setelah tambah + 1 hari)",
-                scopes: fact.rows.map((row) => ({ lingkup: row.lingkup, spk_end_with_extension: row.spkEndWithExtension, st_date: row.stDate }))
+                scopes: effectiveFact.rows.map((row) => ({ lingkup: row.lingkup, spk_end_with_extension: row.spkEndWithExtension, st_date: row.stDate }))
             },
             sla_ktk: {
-                days: fact.values.slaKtkDays,
+                days: effectiveFact.values.slaKtkDays,
                 formula: "opname_final.waktu_persetujuan_direktur - tanggal serah terima",
-                director_approval: fact.rows.map((row) => ({ lingkup: row.lingkup, st_date: row.stDate, final_ktk_date: row.finalKtkDate }))
+                director_approval: effectiveFact.rows.map((row) => ({ lingkup: row.lingkup, st_date: row.stDate, final_ktk_date: row.finalKtkDate }))
             },
             sla_approval: {
                 events: approvalEvents,
                 avg_days: avg(approvalEvents.map((event) => event.durationDays))
             },
             support_metrics: {
-                jhk_notaris_to_end_spk: metricForSupport(fact, "jhk_notaris_to_end_spk"),
-                jhk_notaris_to_start_spk: metricForSupport(fact, "jhk_notaris_to_start_spk"),
-                persentase_temuan: metricForSupport(fact, "persentase_temuan"),
-                ketepatan_st: metricForSupport(fact, "ketepatan_st"),
-                deviasi_pe: metricForSupport(fact, "deviasi_pe"),
-                finalisasi_ktk: metricForSupport(fact, "finalisasi_ktk")
+                jhk_notaris_to_end_spk: metricForSupport(effectiveFact, "jhk_notaris_to_end_spk"),
+                jhk_notaris_to_start_spk: metricForSupport(effectiveFact, "jhk_notaris_to_start_spk"),
+                persentase_temuan: metricForSupport(effectiveFact, "persentase_temuan"),
+                ketepatan_st: metricForSupport(effectiveFact, "ketepatan_st"),
+                deviasi_pe: metricForSupport(effectiveFact, "deviasi_pe"),
+                finalisasi_ktk: metricForSupport(effectiveFact, "finalisasi_ktk")
             }
         },
-        documents: fact.documents,
+        documents,
         data_quality: fact.dataQuality
     };
 };

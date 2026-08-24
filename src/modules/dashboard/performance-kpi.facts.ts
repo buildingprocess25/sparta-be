@@ -85,13 +85,13 @@ const getTargetStDate = (spkEndWithExtension: string | null): string | null => {
     return calculateEffectiveStDate(endDate).effectiveStDate.toISOString();
 };
 
-const addDocument = (documents: PerformanceKpiDocumentLink[], seen: Set<string>, type: PerformanceKpiDocumentLink["type"], label: string, url: unknown, source: string) => {
+const addDocument = (documents: PerformanceKpiDocumentLink[], seen: Set<string>, type: PerformanceKpiDocumentLink["type"], label: string, url: unknown, source: string, lingkup?: string | null) => {
     const link = normalizeName(url);
     if (!link) return;
     const key = `${type}:${link}`;
     if (seen.has(key)) return;
     seen.add(key);
-    documents.push({ type, label, url: link, source });
+    documents.push({ type, label, url: link, source, lingkup: normalizeName(lingkup) || null });
 };
 
 const addApproval = (
@@ -99,6 +99,7 @@ const addApproval = (
     role: PerformanceKpiSlaRole,
     document: PerformanceKpiDocument,
     label: string,
+    lingkup: unknown,
     actorName: unknown,
     startAt: unknown,
     approvedAt: unknown,
@@ -110,6 +111,7 @@ const addApproval = (
         role,
         document,
         label,
+        lingkup: normalizeName(lingkup) || null,
         actorName: normalizeName(actorName) || null,
         startAt: toIso(startAt),
         approvedAt: approved,
@@ -158,7 +160,7 @@ const getScopeRow = (row: PerformanceKpiRawRow): PerformanceKpiScopeRow => {
     };
 };
 
-const summarizeValues = (rows: PerformanceKpiScopeRow[]) => {
+export const summarizePerformanceKpiValues = (rows: PerformanceKpiScopeRow[]) => {
     const spkTotal = average(rows.map((row) => row.spkTotal));
     const luasBangunan = average(rows.map((row) => row.luasBangunan));
     const luasTerbuka = average(rows.map((row) => row.luasTerbuka));
@@ -241,30 +243,30 @@ export const buildPerformanceKpiFacts = (sourceRows: PerformanceKpiRawRow[]): Pe
             addUnique(coordSet, row.il_coord_name);
             addUnique(coordSet, row.opname_coord_name);
 
-            addDocument(documents, docSeen, "rab", "RAB Gabungan", row.rab_pdf_gabungan, "rab.link_pdf_gabungan");
-            addDocument(documents, docSeen, "rab", "RAB Non SBO", row.rab_pdf_non_sbo, "rab.link_pdf_non_sbo");
-            addDocument(documents, docSeen, "rab", "RAB Rekapitulasi", row.rab_pdf_rekap, "rab.link_pdf_rekapitulasi");
-            addDocument(documents, docSeen, "sph", "SPH", row.rab_pdf_sph, "rab.link_pdf_sph");
-            addDocument(documents, docSeen, "rab", "RAB Materai", row.rab_pdf_materai, "rab.link_pdf_materai");
-            addDocument(documents, docSeen, "spk", "SPK", row.spk_pdf, "pengajuan_spk.link_pdf");
-            addDocument(documents, docSeen, "tambah_spk", "Tambah SPK", row.tambah_spk_pdf, "pertambahan_spk.link_pdf");
-            addDocument(documents, docSeen, "lampiran", "Lampiran Tambah SPK", row.tambah_spk_lampiran, "pertambahan_spk.link_lampiran_pendukung");
-            addDocument(documents, docSeen, "il", "Instruksi Lapangan Gabungan", row.il_pdf_gabungan, "instruksi_lapangan.link_pdf_gabungan");
-            addDocument(documents, docSeen, "il", "Instruksi Lapangan Non SBO", row.il_pdf_non_sbo, "instruksi_lapangan.link_pdf_non_sbo");
-            addDocument(documents, docSeen, "il", "Instruksi Lapangan Rekapitulasi", row.il_pdf_rekap, "instruksi_lapangan.link_pdf_rekapitulasi");
-            addDocument(documents, docSeen, "lampiran", "Lampiran IL", row.il_lampiran, "instruksi_lapangan.link_lampiran");
-            addDocument(documents, docSeen, "ktk", "Opname Final / KTK", row.opname_pdf, "opname_final.link_pdf_opname");
-            addDocument(documents, docSeen, "serah_terima", "Serah Terima", row.st_pdf, "berkas_serah_terima.link_pdf");
+            addDocument(documents, docSeen, "rab", "RAB Gabungan", row.rab_pdf_gabungan, "rab.link_pdf_gabungan", row.lingkup_pekerjaan);
+            addDocument(documents, docSeen, "rab", "RAB Non SBO", row.rab_pdf_non_sbo, "rab.link_pdf_non_sbo", row.lingkup_pekerjaan);
+            addDocument(documents, docSeen, "rab", "RAB Rekapitulasi", row.rab_pdf_rekap, "rab.link_pdf_rekapitulasi", row.lingkup_pekerjaan);
+            addDocument(documents, docSeen, "sph", "SPH", row.rab_pdf_sph, "rab.link_pdf_sph", row.lingkup_pekerjaan);
+            addDocument(documents, docSeen, "rab", "RAB Materai", row.rab_pdf_materai, "rab.link_pdf_materai", row.lingkup_pekerjaan);
+            addDocument(documents, docSeen, "spk", "SPK", row.spk_pdf, "pengajuan_spk.link_pdf", row.lingkup_pekerjaan);
+            addDocument(documents, docSeen, "tambah_spk", "Tambah SPK", row.tambah_spk_pdf, "pertambahan_spk.link_pdf", row.lingkup_pekerjaan);
+            addDocument(documents, docSeen, "lampiran", "Lampiran Tambah SPK", row.tambah_spk_lampiran, "pertambahan_spk.link_lampiran_pendukung", row.lingkup_pekerjaan);
+            addDocument(documents, docSeen, "il", "Instruksi Lapangan Gabungan", row.il_pdf_gabungan, "instruksi_lapangan.link_pdf_gabungan", row.lingkup_pekerjaan);
+            addDocument(documents, docSeen, "il", "Instruksi Lapangan Non SBO", row.il_pdf_non_sbo, "instruksi_lapangan.link_pdf_non_sbo", row.lingkup_pekerjaan);
+            addDocument(documents, docSeen, "il", "Instruksi Lapangan Rekapitulasi", row.il_pdf_rekap, "instruksi_lapangan.link_pdf_rekapitulasi", row.lingkup_pekerjaan);
+            addDocument(documents, docSeen, "lampiran", "Lampiran IL", row.il_lampiran, "instruksi_lapangan.link_lampiran", row.lingkup_pekerjaan);
+            addDocument(documents, docSeen, "ktk", "Opname Final / KTK", row.opname_pdf, "opname_final.link_pdf_opname", row.lingkup_pekerjaan);
+            addDocument(documents, docSeen, "serah_terima", "Serah Terima", row.st_pdf, "berkas_serah_terima.link_pdf", row.lingkup_pekerjaan);
 
-            addApproval(approvals, "coordinator", "rab", "RAB diketahui Coordinator", row.rab_coord_name, row.rab_created_at, row.rab_coord_at, "rab.created_at -> rab.waktu_persetujuan_koordinator");
-            addApproval(approvals, "bm_manager", "rab", "RAB disetujui B&M Manager", row.rab_manager_name, row.rab_coord_at, row.rab_manager_at, "rab.waktu_persetujuan_koordinator -> rab.waktu_persetujuan_manager");
-            addApproval(approvals, "branch_manager", "spk", "SPK disetujui Branch Manager", row.spk_approver, row.spk_created_at, row.spk_approved_at, "pengajuan_spk.created_at -> pengajuan_spk.waktu_persetujuan");
-            addApproval(approvals, "branch_manager", "tambah_spk", "Tambah SPK disetujui Branch Manager", row.tambah_spk_approver, row.tambah_spk_created_at, row.tambah_spk_approved_at, "pertambahan_spk.created_at -> pertambahan_spk.waktu_persetujuan");
-            addApproval(approvals, "coordinator", "il", "IL diketahui Coordinator", row.il_coord_name, row.il_created_at, row.il_coord_at, "instruksi_lapangan.created_at -> instruksi_lapangan.waktu_persetujuan_koordinator");
-            addApproval(approvals, "bm_manager", "il", "IL disetujui B&M Manager", row.il_manager_name, row.il_coord_at, row.il_manager_at, "instruksi_lapangan.waktu_persetujuan_koordinator -> instruksi_lapangan.waktu_persetujuan_manager");
-            addApproval(approvals, "support", "ktk", "KTK dibuat Support sampai diketahui Coordinator", row.opname_coord_name, row.opname_created_at, row.opname_coord_at, "opname_final.created_at -> opname_final.waktu_persetujuan_koordinator");
-            addApproval(approvals, "coordinator", "ktk", "KTK diketahui Coordinator", row.opname_coord_name, row.opname_created_at, row.opname_coord_at, "opname_final.created_at -> opname_final.waktu_persetujuan_koordinator");
-            addApproval(approvals, "bm_manager", "ktk", "KTK disetujui B&M Manager", row.opname_manager_name, row.opname_coord_at, row.opname_manager_at, "opname_final.waktu_persetujuan_koordinator -> opname_final.waktu_persetujuan_manager");
+            addApproval(approvals, "coordinator", "rab", "RAB diketahui Coordinator", row.lingkup_pekerjaan, row.rab_coord_name, row.rab_created_at, row.rab_coord_at, "rab.created_at -> rab.waktu_persetujuan_koordinator");
+            addApproval(approvals, "bm_manager", "rab", "RAB disetujui B&M Manager", row.lingkup_pekerjaan, row.rab_manager_name, row.rab_coord_at, row.rab_manager_at, "rab.waktu_persetujuan_koordinator -> rab.waktu_persetujuan_manager");
+            addApproval(approvals, "branch_manager", "spk", "SPK disetujui Branch Manager", row.lingkup_pekerjaan, row.spk_approver, row.spk_created_at, row.spk_approved_at, "pengajuan_spk.created_at -> pengajuan_spk.waktu_persetujuan");
+            addApproval(approvals, "branch_manager", "tambah_spk", "Tambah SPK disetujui Branch Manager", row.lingkup_pekerjaan, row.tambah_spk_approver, row.tambah_spk_created_at, row.tambah_spk_approved_at, "pertambahan_spk.created_at -> pertambahan_spk.waktu_persetujuan");
+            addApproval(approvals, "coordinator", "il", "IL diketahui Coordinator", row.lingkup_pekerjaan, row.il_coord_name, row.il_created_at, row.il_coord_at, "instruksi_lapangan.created_at -> instruksi_lapangan.waktu_persetujuan_koordinator");
+            addApproval(approvals, "bm_manager", "il", "IL disetujui B&M Manager", row.lingkup_pekerjaan, row.il_manager_name, row.il_coord_at, row.il_manager_at, "instruksi_lapangan.waktu_persetujuan_koordinator -> instruksi_lapangan.waktu_persetujuan_manager");
+            addApproval(approvals, "support", "ktk", "KTK dibuat Support sampai diketahui Coordinator", row.lingkup_pekerjaan, row.opname_coord_name, row.opname_created_at, row.opname_coord_at, "opname_final.created_at -> opname_final.waktu_persetujuan_koordinator");
+            addApproval(approvals, "coordinator", "ktk", "KTK diketahui Coordinator", row.lingkup_pekerjaan, row.opname_coord_name, row.opname_created_at, row.opname_coord_at, "opname_final.created_at -> opname_final.waktu_persetujuan_koordinator");
+            addApproval(approvals, "bm_manager", "ktk", "KTK disetujui B&M Manager", row.lingkup_pekerjaan, row.opname_manager_name, row.opname_coord_at, row.opname_manager_at, "opname_final.waktu_persetujuan_koordinator -> opname_final.waktu_persetujuan_manager");
         }
 
         const kpiMetrics = {
@@ -273,7 +275,7 @@ export const buildPerformanceKpiFacts = (sourceRows: PerformanceKpiRawRow[]): Pe
             persentaseTemuan: parseNumber(firstValue(rawRows.map((row) => row.persentase_temuan))),
             deviasiPe: parseNumber(firstValue(rawRows.map((row) => row.deviasi_pe)))
         };
-        const values = summarizeValues(scopeRows);
+        const values = summarizePerformanceKpiValues(scopeRows);
         const partial = { rows: scopeRows, approvals, values, kpiMetrics };
 
         return {

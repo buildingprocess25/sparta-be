@@ -59,6 +59,7 @@ export const performanceKpiDrilldownQuerySchema = z.object(scopeSchema).extend({
 
 export const performanceKpiDetailQuerySchema = z.object(scopeSchema).extend({
     nomor_ulok: z.string().trim().min(1),
+    lingkup_pekerjaan: z.string().trim().optional(),
     card_type: performanceKpiCardTypeSchema,
     sla_role: performanceKpiSlaRoleSchema,
     sla_doc: performanceKpiDocumentSchema,

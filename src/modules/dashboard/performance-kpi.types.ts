@@ -48,6 +48,7 @@ export type PerformanceKpiDrilldownInput = PerformanceKpiQueryInput & {
 
 export type PerformanceKpiDetailInput = PerformanceKpiQueryInput & {
     nomor_ulok: string;
+    lingkup_pekerjaan?: string;
     card_type: PerformanceKpiCardType;
     sla_role?: PerformanceKpiSlaRole;
     sla_doc?: PerformanceKpiDocument;
@@ -171,12 +172,14 @@ export type PerformanceKpiDocumentLink = {
     label: string;
     url: string;
     source: string;
+    lingkup?: string | null;
 };
 
 export type PerformanceKpiApprovalEvent = {
     role: PerformanceKpiSlaRole;
     document: PerformanceKpiDocument;
     label: string;
+    lingkup?: string | null;
     actorName: string | null;
     startAt: string | null;
     approvedAt: string | null;
