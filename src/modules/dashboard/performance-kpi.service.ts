@@ -155,6 +155,12 @@ const loadFacts = async (query: PerformanceKpiQueryInput): Promise<PerformanceKp
         WITH latest_rab AS (
             SELECT DISTINCT ON (id_toko)
                 id, id_toko, status, grand_total_final, luas_bangunan, luas_area_terbuka,
+                (
+                    SELECT SUM(total_harga) 
+                    FROM rab_item 
+                    WHERE id_rab = rab.id 
+                    AND (UPPER(kategori_pekerjaan) LIKE '%AREA TERBUKA%' OR UPPER(jenis_pekerjaan) LIKE '%AREA TERBUKA%')
+                ) as area_terbuka,
                 created_at, pemberi_persetujuan_koordinator, nama_persetujuan_koordinator,
                 waktu_persetujuan_koordinator, pemberi_persetujuan_manager, nama_persetujuan_manager,
                 waktu_persetujuan_manager, link_pdf_gabungan, link_pdf_non_sbo, link_pdf_rekapitulasi,
@@ -222,7 +228,7 @@ const loadFacts = async (query: PerformanceKpiQueryInput): Promise<PerformanceKp
             pic.plc_building_support AS support_name, pic.created_at AS support_created_at,
             r.id AS rab_id, r.status AS rab_status, r.grand_total_final AS rab_grand_total_final,
             r.luas_bangunan AS rab_luas_bangunan, r.luas_area_terbuka AS rab_luas_terbuka,
-            r.created_at AS rab_created_at,
+            r.area_terbuka AS rab_area_terbuka, r.created_at AS rab_created_at,
             COALESCE(r.nama_persetujuan_koordinator, r.pemberi_persetujuan_koordinator) AS rab_coord_name,
             r.waktu_persetujuan_koordinator AS rab_coord_at,
             COALESCE(r.nama_persetujuan_manager, r.pemberi_persetujuan_manager) AS rab_manager_name,
@@ -312,13 +318,19 @@ const aggregateCostM2 = (facts: PerformanceKpiFact[]) => {
     const rows = facts.flatMap((fact) => fact.rows);
     return {
         terbangun: weightedAverage(rows.map((row) => ({
-            numerator: row.spkTotal,
+            numerator: row.opnameFinalTotal ?? row.spkTotal,
             denominator: row.luasBangunan !== null || row.luasTerbuka !== null
                 ? (row.luasBangunan ?? 0) + ((row.luasTerbuka ?? 0) / 2)
                 : null
         }))),
-        bangunan: weightedAverage(rows.map((row) => ({ numerator: row.spkTotal, denominator: row.luasBangunan }))),
-        area_terbuka: weightedAverage(rows.map((row) => ({ numerator: row.spkTotal, denominator: row.luasTerbuka }))),
+        bangunan: weightedAverage(rows.map((row) => ({ 
+            numerator: row.spkTotal !== null ? Math.max(0, row.spkTotal - (row.rabAreaTerbuka ?? 0)) : null, 
+            denominator: row.luasBangunan 
+        }))),
+        area_terbuka: weightedAverage(rows.map((row) => ({ 
+            numerator: row.rabAreaTerbuka, 
+            denominator: row.luasTerbuka 
+        }))),
         count: facts.filter((fact) => fact.values.costM2Terbangun !== null).length
     };
 };

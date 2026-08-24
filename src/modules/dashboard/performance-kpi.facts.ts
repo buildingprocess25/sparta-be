@@ -17,9 +17,10 @@ export const normalizeUpper = (value: unknown): string => normalizeName(value).t
 export const parseNumber = (value: unknown): number | null => {
     if (value === null || value === undefined) return null;
     if (typeof value === "number") return Number.isFinite(value) ? value : null;
-    const normalized = String(value).replace(/[^0-9,.-]/g, "").replace(/,/g, "").trim();
-    if (!normalized) return null;
-    const parsed = Number(normalized);
+    const raw = String(value).trim();
+    if (!raw) return null;
+    const cleaned = raw.replace(/[^\d,.-]/g, "").replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", ".");
+    const parsed = Number(cleaned);
     return Number.isFinite(parsed) ? parsed : null;
 };
 
@@ -125,6 +126,11 @@ const getScopeRow = (row: PerformanceKpiRawRow): PerformanceKpiScopeRow => {
     const targetStDate = stDate ? null : getTargetStDate(spkEndWithExtension);
     const jhkActualDays = row.spk_start && stDate ? dayDiff(row.spk_start, stDate) : null;
     const jhkTargetDays = row.spk_start && targetStDate ? dayDiff(row.spk_start, targetStDate) : null;
+    
+    const rawLuasBangunan = parseNumber(row.rab_luas_bangunan);
+    const luasBangunan = rawLuasBangunan && rawLuasBangunan < 10000 ? rawLuasBangunan : null;
+    const rawLuasTerbuka = parseNumber(row.rab_luas_terbuka);
+    const luasTerbuka = rawLuasTerbuka && rawLuasTerbuka < 10000 ? rawLuasTerbuka : null;
 
     return {
         tokoId: row.toko_id,
@@ -141,8 +147,9 @@ const getScopeRow = (row: PerformanceKpiRawRow): PerformanceKpiScopeRow => {
         targetStDate,
         extensionDays: parseNumber(row.tambah_spk_days),
         rabTotal: parseNumber(row.rab_grand_total_final),
-        luasBangunan: parseNumber(row.rab_luas_bangunan),
-        luasTerbuka: parseNumber(row.rab_luas_terbuka),
+        luasBangunan,
+        luasTerbuka,
+        rabAreaTerbuka: parseNumber(row.rab_area_terbuka),
         opnameFinalTotal: opnameTotal,
         dendaValue: parseNumber(row.opname_nilai_denda),
         dendaDays: row.opname_hari_denda ?? null,
@@ -155,6 +162,8 @@ const summarizeValues = (rows: PerformanceKpiScopeRow[]) => {
     const spkTotal = average(rows.map((row) => row.spkTotal));
     const luasBangunan = average(rows.map((row) => row.luasBangunan));
     const luasTerbuka = average(rows.map((row) => row.luasTerbuka));
+    const rabAreaTerbuka = average(rows.map((row) => row.rabAreaTerbuka));
+    const opnameFinalTotal = average(rows.map((row) => row.opnameFinalTotal));
     const luasTerbangun = luasBangunan !== null || luasTerbuka !== null ? (luasBangunan ?? 0) + ((luasTerbuka ?? 0) / 2) : null;
 
     const positiveDenda = rows
@@ -179,9 +188,9 @@ const summarizeValues = (rows: PerformanceKpiScopeRow[]) => {
     const slaKtkDays = latestSt && finalKtkDate ? dayDiff(latestSt, finalKtkDate) : null;
 
     return {
-        costM2Terbangun: spkTotal !== null && luasTerbangun && luasTerbangun > 0 ? spkTotal / luasTerbangun : null,
-        costM2Bangunan: spkTotal !== null && luasBangunan && luasBangunan > 0 ? spkTotal / luasBangunan : null,
-        costM2Terbuka: spkTotal !== null && luasTerbuka && luasTerbuka > 0 ? spkTotal / luasTerbuka : null,
+        costM2Terbangun: opnameFinalTotal !== null && luasTerbangun && luasTerbangun > 0 ? opnameFinalTotal / luasTerbangun : null,
+        costM2Bangunan: spkTotal !== null && luasBangunan && luasBangunan > 0 ? Math.max(0, spkTotal - (rabAreaTerbuka ?? 0)) / luasBangunan : null,
+        costM2Terbuka: rabAreaTerbuka !== null && luasTerbuka && luasTerbuka > 0 ? rabAreaTerbuka / luasTerbuka : null,
         jhkDays: average(rows.map((row) => row.jhkActualDays)),
         jhkActualDays: average(rows.map((row) => row.jhkActualDays)),
         jhkTargetDays: average(rows.map((row) => row.jhkTargetDays)),

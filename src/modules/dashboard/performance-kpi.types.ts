@@ -89,6 +89,7 @@ export type PerformanceKpiRawRow = {
     rab_grand_total_final: string | null;
     rab_luas_bangunan: string | null;
     rab_luas_terbuka: string | null;
+    rab_area_terbuka: string | number | null;
     rab_created_at: string | Date | null;
     rab_coord_name: string | null;
     rab_coord_at: string | Date | null;
@@ -198,6 +199,7 @@ export type PerformanceKpiScopeRow = {
     rabTotal: number | null;
     luasBangunan: number | null;
     luasTerbuka: number | null;
+    rabAreaTerbuka: number | null;
     opnameFinalTotal: number | null;
     dendaValue: number | null;
     dendaDays: number | null;
