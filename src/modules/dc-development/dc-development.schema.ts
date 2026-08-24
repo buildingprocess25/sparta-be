@@ -208,6 +208,7 @@ export const deleteDcDocumentCustomItemSchema = z.object({
 export const dcArchiveProjectListQuerySchema = z.object({
     search: z.string().trim().optional(),
     branch_name: z.string().trim().optional(),
+    archive_type: z.string().trim().optional(),
     status: z.enum(["all", "lengkap", "belum"]).optional(),
     actor_email: z.string().email(),
     actor_role: z.string().trim().min(1)
@@ -219,6 +220,11 @@ export const createDcArchiveProjectSchema = z.object({
     branch_name: z.string().trim().min(1),
     location_name: z.string().trim().optional(),
     project_type: z.string().trim().min(1),
+    archive_type: z.string().trim().optional(),
+    initial_code: z.string().trim().optional(),
+    parent_dc_code: z.string().trim().optional(),
+    parent_dc_name: z.string().trim().optional(),
+    parent_branch_name: z.string().trim().optional(),
     address: z.string().trim().optional(),
     notes: z.string().trim().optional(),
     actor_email: z.string().email(),

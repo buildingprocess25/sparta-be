@@ -173,6 +173,11 @@ export type DcArchiveProjectRow = {
     branch_name: string;
     location_name: string | null;
     project_type: string;
+    archive_type: string | null;
+    initial_code: string | null;
+    parent_dc_code: string | null;
+    parent_dc_name: string | null;
+    parent_branch_name: string | null;
     address: string | null;
     notes: string | null;
     created_by_email: string | null;
@@ -322,7 +327,11 @@ export const dcDevelopmentRepository = {
         }
         if (filter.branch_name) {
             values.push(filter.branch_name);
-            conditions.push(`a.branch_name = $${values.length}`);
+            conditions.push(`(a.branch_name = $${values.length} OR a.parent_branch_name = $${values.length})`);
+        }
+        if (filter.archive_type && filter.archive_type !== "all") {
+            values.push(filter.archive_type);
+            conditions.push(`a.archive_type = $${values.length}`);
         }
         if (filter.search) {
             values.push(`%${filter.search}%`);
@@ -330,6 +339,10 @@ export const dcDevelopmentRepository = {
                 a.archive_code ILIKE $${values.length}
                 OR a.archive_name ILIKE $${values.length}
                 OR COALESCE(a.location_name, '') ILIKE $${values.length}
+                OR COALESCE(a.initial_code, '') ILIKE $${values.length}
+                OR COALESCE(a.parent_dc_code, '') ILIKE $${values.length}
+                OR COALESCE(a.parent_dc_name, '') ILIKE $${values.length}
+                OR COALESCE(a.parent_branch_name, '') ILIKE $${values.length}
                 OR a.branch_name ILIKE $${values.length}
             )`);
         }
@@ -355,6 +368,11 @@ export const dcDevelopmentRepository = {
                 a.branch_name,
                 a.location_name,
                 a.project_type,
+                a.archive_type,
+                a.initial_code,
+                a.parent_dc_code,
+                a.parent_dc_name,
+                a.parent_branch_name,
                 a.address,
                 a.notes,
                 a.created_by_email,
@@ -417,11 +435,13 @@ export const dcDevelopmentRepository = {
             const archiveResult = await client.query<DcArchiveProjectRow>(
                 `INSERT INTO dc_archive_project (
                     project_id, archive_code, archive_name, branch_name, location_name,
-                    project_type, address, notes, created_by_email, created_by_role,
+                    project_type, archive_type, initial_code, parent_dc_code, parent_dc_name,
+                    parent_branch_name, address, notes, created_by_email, created_by_role,
                     created_at, updated_at
-                ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, timezone('Asia/Jakarta', now()), timezone('Asia/Jakarta', now()))
+                ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15, timezone('Asia/Jakarta', now()), timezone('Asia/Jakarta', now()))
                 RETURNING id, project_id, archive_code, archive_name, branch_name, location_name,
-                    project_type, address, notes, created_by_email, created_by_role,
+                    project_type, archive_type, initial_code, parent_dc_code, parent_dc_name,
+                    parent_branch_name, address, notes, created_by_email, created_by_role,
                     created_at, updated_at, 0::int AS jumlah_dokumen,
                     0::int AS docs_pembangunan, 0::int AS docs_renovasi, 0::int AS docs_perluasan,
                     '{}'::jsonb AS kategori_counts`,
@@ -432,6 +452,11 @@ export const dcDevelopmentRepository = {
                     input.branch_name,
                     input.location_name ?? null,
                     input.project_type,
+                    input.archive_type ?? input.project_type,
+                    input.initial_code ?? null,
+                    input.parent_dc_code ?? null,
+                    input.parent_dc_name ?? null,
+                    input.parent_branch_name ?? input.branch_name,
                     input.address ?? null,
                     input.notes ?? null,
                     input.actor_email,
@@ -576,6 +601,11 @@ export const dcDevelopmentRepository = {
                 branch_name,
                 location_name,
                 project_type,
+                archive_type,
+                initial_code,
+                parent_dc_code,
+                parent_dc_name,
+                parent_branch_name,
                 address,
                 notes,
                 created_by_email,

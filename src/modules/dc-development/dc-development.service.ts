@@ -243,6 +243,10 @@ const applyDcWorksheetFormatting = (worksheet: xlsx.WorkSheet, rows: DcDocumentE
         { wch: 16 },
         { wch: 28 },
         { wch: 18 },
+        { wch: 18 },
+        { wch: 18 },
+        { wch: 28 },
+        { wch: 18 },
         { wch: 16 },
         { wch: 24 },
         { wch: 14 },
@@ -267,6 +271,10 @@ const buildDcDocumentExport = (
         branch_name: string;
         location_name: string | null;
         project_type: string;
+        archive_type?: string | null;
+        parent_dc_code?: string | null;
+        parent_dc_name?: string | null;
+        parent_branch_name?: string | null;
     },
     documents: DcDocumentRow[],
     customItems: DcDocumentCustomItemRow[] = [],
@@ -317,6 +325,9 @@ const buildDcDocumentExport = (
                             "Kode Proyek": project.archive_code,
                             "Nama Proyek": project.archive_name,
                             "Cabang": project.branch_name,
+                            "Induk Cabang": project.parent_branch_name ?? project.branch_name,
+                            "Tipe Lokasi": project.archive_type ?? project.project_type,
+                            "DC Induk": project.parent_dc_code ? `${project.parent_dc_code} - ${project.parent_dc_name ?? ""}`.trim() : "",
                             "Tipe Proyek": project.project_type,
                             "Lokasi": project.location_name ?? "",
                             "Tahap": stage.label,
@@ -354,6 +365,9 @@ const buildDcDocumentExport = (
                     "Kode Proyek": project.archive_code,
                     "Nama Proyek": project.archive_name,
                     "Cabang": project.branch_name,
+                    "Induk Cabang": project.parent_branch_name ?? project.branch_name,
+                    "Tipe Lokasi": project.archive_type ?? project.project_type,
+                    "DC Induk": project.parent_dc_code ? `${project.parent_dc_code} - ${project.parent_dc_name ?? ""}`.trim() : "",
                     "Tipe Proyek": project.project_type,
                     "Lokasi": project.location_name ?? "",
                     "Tahap": stage.label,
