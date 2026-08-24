@@ -10,6 +10,7 @@ import { scheduleAutomaticSerahTerimaIfReady } from "../serah-terima/serah-terim
 import { opnameService, uploadFotoOpnameToDrive } from "../opname/opname.service";
 import { type PoolClient } from "pg";
 import { pengawasanRepository, type PengawasanRow } from "./pengawasan.repository";
+import { assertPengawasanItemsBelongToGanttScope } from "./pengawasan-scope-guard";
 import type {
     BulkUpdatePengawasanItemInput,
     CreatePengawasanData,
@@ -479,6 +480,14 @@ const ensureSelesaiBackfillDoesNotLeaveFutureBlocker = async (item: CreatePengaw
         409
     );
 };
+const ensurePengawasanItemBelongsToScope = async (item: Pick<CreatePengawasanData, "id_gantt" | "kategori_pekerjaan" | "jenis_pekerjaan">, index?: number | string): Promise<void> => {
+    await assertPengawasanItemsBelongToGanttScope([{ ...item, index }]);
+};
+
+const ensurePengawasanItemsBelongToScope = async (items: Array<Pick<CreatePengawasanData, "id_gantt" | "kategori_pekerjaan" | "jenis_pekerjaan">>): Promise<void> => {
+    await assertPengawasanItemsBelongToGanttScope(items.map((item, index) => ({ ...item, index })));
+};
+
 const hasAnyUpdateField = (input: UpdatePengawasanInput): boolean =>
     typeof input.kategori_pekerjaan !== "undefined"
     || typeof input.jenis_pekerjaan !== "undefined"
@@ -616,6 +625,7 @@ export const pengawasanService = {
                     ...inputWithoutTanggal,
                     id_pengawasan_gantt: idPengawasanGantt
                 };
+                    await ensurePengawasanItemBelongsToScope(payload);
                     await ensureProgressUsesNearestCheckpoint(payload);
                     await ensureSelesaiBackfillDoesNotLeaveFutureBlocker(payload);
 
@@ -674,6 +684,7 @@ export const pengawasanService = {
             let rows: PengawasanRow[];
 
             if (uploadedDokumentasiFiles.length === 0) {
+                await ensurePengawasanItemsBelongToScope(basePayloads);
                 for (const payload of basePayloads) {
                     await ensureProgressUsesNearestCheckpoint(payload);
                     await ensureSelesaiBackfillDoesNotLeaveFutureBlocker(payload);
@@ -721,6 +732,8 @@ export const pengawasanService = {
                     };
                 }
 
+                await ensurePengawasanItemsBelongToScope(payloadWithDokumentasi);
+                await ensurePengawasanItemsBelongToScope(payloadWithDokumentasi);
                 for (const payload of payloadWithDokumentasi) {
                     await ensureProgressUsesNearestCheckpoint(payload);
                     await ensureSelesaiBackfillDoesNotLeaveFutureBlocker(payload);
@@ -860,6 +873,12 @@ export const pengawasanService = {
                 ? { ...input, dokumentasi: dokumentasiLink }
                 : input;
 
+            await ensurePengawasanItemBelongsToScope({
+                id_gantt: existing.id_gantt,
+                kategori_pekerjaan: payload.kategori_pekerjaan ?? existing.kategori_pekerjaan,
+                jenis_pekerjaan: payload.jenis_pekerjaan ?? existing.jenis_pekerjaan
+            });
+
             const data = await pengawasanRepository.updateById(id, payload);
             if (!data) {
                 throw new AppError("Data pengawasan tidak ditemukan", 404);
@@ -967,6 +986,12 @@ export const pengawasanService = {
                 const finalPayload = dokumentasiLink
                     ? { ...payload, dokumentasi: dokumentasiLink }
                     : payload;
+
+                await ensurePengawasanItemBelongsToScope({
+                    id_gantt: existing.id_gantt,
+                    kategori_pekerjaan: finalPayload.kategori_pekerjaan ?? existing.kategori_pekerjaan,
+                    jenis_pekerjaan: finalPayload.jenis_pekerjaan ?? existing.jenis_pekerjaan
+                }, index);
 
                 finalItemsToUpdate.push({ id, finalPayload });
             }

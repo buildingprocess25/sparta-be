@@ -4,6 +4,7 @@ import { AppError } from "../../common/app-error";
 import { pool, withTransaction } from "../../db/pool";
 import { activityLogRepository } from "../activity-log/activity-log.repository";
 import type { PengawasanMigrationAction, PengawasanMigrationCommitInput } from "./pengawasan-migration.schema";
+import { assertPengawasanItemsBelongToGanttScope } from "./pengawasan-scope-guard";
 
 type CellRecord = Record<string, unknown>;
 
@@ -1029,6 +1030,16 @@ const savePendingPdf = async (client: PoolClient, item: WorkItem): Promise<numbe
 
 const insertPengawasanItems = async (client: PoolClient, item: WorkItem, idPengawasanGantt: number): Promise<number> => {
     if (!item.target?.gantt_id) return 0;
+    await assertPengawasanItemsBelongToGanttScope(
+        item.pekerjaan.map((pekerjaan, index) => ({
+            id_gantt: item.target!.gantt_id!,
+            kategori_pekerjaan: pekerjaan.kategori_pekerjaan,
+            jenis_pekerjaan: pekerjaan.jenis_pekerjaan,
+            index
+        })),
+        client
+    );
+
     const chunkSize = 300;
     let inserted = 0;
     for (let offset = 0; offset < item.pekerjaan.length; offset += chunkSize) {
