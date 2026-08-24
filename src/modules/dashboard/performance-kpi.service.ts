@@ -360,6 +360,10 @@ const toDrilldownRow = (fact: PerformanceKpiFact, query: PerformanceKpiDrilldown
     const value = query.card_type === "sla_approval"
         ? avg(fact.approvals.filter(approvalFilter(query)).map((event) => event.durationDays))
         : getCardValue(fact, query.card_type);
+    
+    const bangunan = query.card_type === "cost_m2" ? fact.values.costM2Bangunan : undefined;
+    const area_terbuka = query.card_type === "cost_m2" ? fact.values.costM2Terbuka : undefined;
+
     return {
         nomor_ulok: fact.nomorUlok,
         nama_toko: fact.namaToko,
@@ -370,7 +374,9 @@ const toDrilldownRow = (fact: PerformanceKpiFact, query: PerformanceKpiDrilldown
         value,
         value_label: formatNumber(value),
         secondary_label: fact.dataQuality.length ? `${fact.dataQuality.length} catatan data` : "Data lengkap",
-        data_quality: fact.dataQuality
+        data_quality: fact.dataQuality,
+        bangunan,
+        area_terbuka
     };
 };
 
@@ -406,13 +412,27 @@ const docLabels: Record<string, string> = {
     ktk: "KTK / Opname Final"
 };
 
-const optionStat = (id: string, label: string, values: Array<number | null | undefined>, facts: PerformanceKpiFact[]): PerformanceKpiOptionStat => ({
-    id,
-    label,
-    value: avg(values),
-    count: values.filter((value) => typeof value === "number" && Number.isFinite(value)).length,
-    incomplete_count: facts.filter((fact) => fact.dataQuality.length > 0).length
-});
+const optionStat = (id: string, label: string, values: Array<number | null | undefined>, facts: PerformanceKpiFact[], cardType?: PerformanceKpiCardType): PerformanceKpiOptionStat => {
+    let statValue = avg(values);
+    let bangunan: number | null = null;
+    let area_terbuka: number | null = null;
+
+    if (cardType === "cost_m2") {
+        const agg = aggregateCostM2(facts);
+        statValue = agg.terbangun;
+        bangunan = agg.bangunan;
+        area_terbuka = agg.area_terbuka;
+    }
+
+    return {
+        id,
+        label,
+        value: statValue,
+        count: values.filter((value) => typeof value === "number" && Number.isFinite(value)).length,
+        incomplete_count: facts.filter((fact) => fact.dataQuality.length > 0).length,
+        ...(cardType === "cost_m2" ? { bangunan, area_terbuka } : {})
+    };
+};
 
 const cardValueForStats = (fact: PerformanceKpiFact, cardType: PerformanceKpiCardType): number | null => getCardValue(fact, cardType);
 
@@ -423,10 +443,10 @@ const buildRoleOptionStats = (facts: PerformanceKpiFact[], cardType: Performance
     roles.map((role) => {
         if (cardType === "sla_approval") {
             const events = facts.flatMap((fact) => fact.approvals).filter((event) => event.role === role && event.durationDays !== null);
-            return optionStat(role, roleLabels[role] ?? role, events.map((event) => event.durationDays), facts);
+            return optionStat(role, roleLabels[role] ?? role, events.map((event) => event.durationDays), facts, cardType);
         }
         const roleFacts = facts.filter((fact) => role === "support" ? fact.supports.length > 0 : fact.coordinators.length > 0);
-        return optionStat(role, roleLabels[role] ?? role, roleFacts.map((fact) => cardValueForStats(fact, cardType)), roleFacts);
+        return optionStat(role, roleLabels[role] ?? role, roleFacts.map((fact) => cardValueForStats(fact, cardType)), roleFacts, cardType);
     });
 
 const buildPeopleOptionStats = (facts: PerformanceKpiFact[], cardType: PerformanceKpiCardType, selectedRole?: PerformanceKpiSlaRole | PerformanceKpiPersonRole): PerformanceKpiOptionStat[] => {
@@ -436,14 +456,14 @@ const buildPeopleOptionStats = (facts: PerformanceKpiFact[], cardType: Performan
         return names.map((name) => {
             const events = facts.flatMap((fact) => fact.approvals).filter((event) => event.role === selectedRole && normalizeUpper(event.actorName) === normalizeUpper(name) && event.durationDays !== null);
             const relatedFacts = facts.filter((fact) => fact.approvals.some((event) => event.role === selectedRole && normalizeUpper(event.actorName) === normalizeUpper(name)));
-            return optionStat(name, name, events.map((event) => event.durationDays), relatedFacts);
+            return optionStat(name, name, events.map((event) => event.durationDays), relatedFacts, cardType);
         });
     }
     if (selectedRole !== "support" && selectedRole !== "coordinator") return [];
     const names = Array.from(new Set(facts.flatMap((fact) => selectedRole === "support" ? fact.supports : fact.coordinators))).sort();
     return names.map((name) => {
         const personFacts = optionFactsByPerson(facts, selectedRole, name);
-        return optionStat(name, name, personFacts.map((fact) => cardValueForStats(fact, cardType)), personFacts);
+        return optionStat(name, name, personFacts.map((fact) => cardValueForStats(fact, cardType)), personFacts, cardType);
     });
 };
 

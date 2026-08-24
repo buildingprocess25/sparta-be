@@ -69,6 +69,8 @@ export type PerformanceKpiOptionStat = {
     value: number | null;
     count: number;
     incomplete_count: number;
+    bangunan?: number | null;
+    area_terbuka?: number | null;
 };
 
 export type PerformanceKpiRawRow = {
