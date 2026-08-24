@@ -77,6 +77,14 @@ export type PengawasanDocumentFallbackInput = {
     excludeIdPengawasanGantt?: number;
 };
 
+export type PengawasanCarryForwardInput = {
+    id_gantt: number;
+    id_pengawasan_gantt: number;
+    kategori_pekerjaan: string;
+    jenis_pekerjaan: string;
+    catatan?: string | null;
+};
+
 export type PengawasanRowWithBerkas = PengawasanRow & {
     berkas_pengawasan: BerkasPengawasanRow | null;
 };
@@ -161,6 +169,68 @@ export const pengawasanRepository = {
             );
             return result.rows;
         }, existingClient);
+    },
+
+    async createNextTerlambatCarryForwardIfMissing(
+        input: PengawasanCarryForwardInput,
+        existingClient?: PoolClient
+    ): Promise<PengawasanRow | null> {
+        const client = existingClient ?? pool;
+        const result = await client.query<PengawasanRow>(
+            `
+            WITH current_checkpoint AS (
+                SELECT id_gantt, to_date(tanggal_pengawasan, 'DD/MM/YYYY') AS tanggal
+                FROM pengawasan_gantt
+                WHERE id = $2
+                  AND id_gantt = $1
+            ), next_checkpoint AS (
+                SELECT pg.id
+                FROM pengawasan_gantt pg
+                JOIN current_checkpoint cp ON cp.id_gantt = pg.id_gantt
+                WHERE to_date(pg.tanggal_pengawasan, 'DD/MM/YYYY') > cp.tanggal
+                ORDER BY to_date(pg.tanggal_pengawasan, 'DD/MM/YYYY') ASC, pg.id ASC
+                LIMIT 1
+            )
+            INSERT INTO pengawasan (
+                id_gantt,
+                id_pengawasan_gantt,
+                kategori_pekerjaan,
+                jenis_pekerjaan,
+                catatan,
+                dokumentasi,
+                dokumentasi_base64,
+                status
+            )
+            SELECT
+                $1,
+                next_checkpoint.id,
+                $3,
+                $4,
+                $5,
+                NULL,
+                NULL,
+                'terlambat'
+            FROM next_checkpoint
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM pengawasan p
+                WHERE p.id_gantt = $1
+                  AND p.id_pengawasan_gantt = next_checkpoint.id
+                  AND UPPER(TRIM(COALESCE(p.kategori_pekerjaan, ''))) = UPPER(TRIM($3))
+                  AND UPPER(TRIM(COALESCE(p.jenis_pekerjaan, ''))) = UPPER(TRIM($4))
+            )
+            RETURNING id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, dokumentasi_base64, status, created_at
+            `,
+            [
+                input.id_gantt,
+                input.id_pengawasan_gantt,
+                input.kategori_pekerjaan,
+                input.jenis_pekerjaan,
+                input.catatan ?? null
+            ]
+        );
+
+        return result.rows[0] ?? null;
     },
 
     async findLatestNonNullDokumentasiForItem(

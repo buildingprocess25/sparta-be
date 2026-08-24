@@ -488,6 +488,31 @@ const ensurePengawasanItemsBelongToScope = async (items: Array<Pick<CreatePengaw
     await assertPengawasanItemsBelongToGanttScope(items.map((item, index) => ({ ...item, index })));
 };
 
+const createTerlambatCarryForwardRows = async (
+    rows: PengawasanRow[],
+    client?: PoolClient
+): Promise<PengawasanRow[]> => {
+    const carryForwardRows: PengawasanRow[] = [];
+
+    for (const row of rows) {
+        if (String(row.status || '').toLowerCase() !== 'terlambat') continue;
+
+        const carryForward = await pengawasanRepository.createNextTerlambatCarryForwardIfMissing({
+            id_gantt: row.id_gantt,
+            id_pengawasan_gantt: row.id_pengawasan_gantt,
+            kategori_pekerjaan: row.kategori_pekerjaan,
+            jenis_pekerjaan: row.jenis_pekerjaan,
+            catatan: row.catatan
+        }, client);
+
+        if (carryForward) {
+            carryForwardRows.push(carryForward);
+        }
+    }
+
+    return carryForwardRows;
+};
+
 const hasAnyUpdateField = (input: UpdatePengawasanInput): boolean =>
     typeof input.kategori_pekerjaan !== "undefined"
     || typeof input.jenis_pekerjaan !== "undefined"
@@ -630,13 +655,22 @@ export const pengawasanService = {
                     await ensureSelesaiBackfillDoesNotLeaveFutureBlocker(payload);
 
             const payloadWithFallback = await withPengawasanDocumentFallback(payload);
-            const row = await pengawasanRepository.create(payloadWithFallback);
+            let carryForwardRows: PengawasanRow[] = [];
+            const row = await withTransaction(async (client) => {
+                const [createdRow] = await pengawasanRepository.createBulk([payloadWithFallback], client);
+                carryForwardRows = await createTerlambatCarryForwardRows([createdRow], client);
+                return createdRow;
+            });
 
             // Generate PDF & upsert berkas_pengawasan (fire-and-forget)
             generateAndUploadPengawasanPdf(input.id_gantt, idPengawasanGantt, normalizedTanggal)
                 .catch((err) => console.error("[berkas_pengawasan] background error:", err));
+            for (const carryRow of carryForwardRows) {
+                regeneratePengawasanPdfForRow(carryRow)
+                    .catch((err) => console.error("[berkas_pengawasan] carry-forward regenerate error:", err));
+            }
 
-            await scheduleAutomaticSerahTerimaForRows([row]);
+            await scheduleAutomaticSerahTerimaForRows([row, ...carryForwardRows]);
             return row;
         } catch (error) {
             return mapPgError(error);
@@ -682,6 +716,7 @@ export const pengawasanService = {
             const opnamePayloads = await preUploadOpnameFotos(items, uploadedFotoOpnameFiles, uploadedFotoOpnameIndexes, fallbackIdToko);
 
             let rows: PengawasanRow[];
+            const carryForwardRows: PengawasanRow[] = [];
 
             if (uploadedDokumentasiFiles.length === 0) {
                 await ensurePengawasanItemsBelongToScope(basePayloads);
@@ -693,6 +728,7 @@ export const pengawasanService = {
                 rows = await withTransaction(async (client) => {
                     const payloadsReadyToInsert = await withPengawasanDocumentFallbacks(basePayloads, client);
                     const result = await pengawasanRepository.createBulk(payloadsReadyToInsert, client);
+                    carryForwardRows.push(...await createTerlambatCarryForwardRows(result, client));
                     await processOpnameDataForPengawasanBulk(opnamePayloads, emailPembuat || "", client);
                     return result;
                 });
@@ -733,7 +769,6 @@ export const pengawasanService = {
                 }
 
                 await ensurePengawasanItemsBelongToScope(payloadWithDokumentasi);
-                await ensurePengawasanItemsBelongToScope(payloadWithDokumentasi);
                 for (const payload of payloadWithDokumentasi) {
                     await ensureProgressUsesNearestCheckpoint(payload);
                     await ensureSelesaiBackfillDoesNotLeaveFutureBlocker(payload);
@@ -742,6 +777,7 @@ export const pengawasanService = {
                 rows = await withTransaction(async (client) => {
                     const payloadsReadyToInsert = await withPengawasanDocumentFallbacks(payloadWithDokumentasi, client);
                     const result = await pengawasanRepository.createBulk(payloadsReadyToInsert, client);
+                    carryForwardRows.push(...await createTerlambatCarryForwardRows(result, client));
                     await processOpnameDataForPengawasanBulk(opnamePayloads, emailPembuat || "", client);
                     return result;
                 });
@@ -772,6 +808,7 @@ export const pengawasanService = {
                     });
                 }
 
+                await ensurePengawasanItemsBelongToScope(payloadWithDokumentasi);
                 for (const payload of payloadWithDokumentasi) {
                     await ensureProgressUsesNearestCheckpoint(payload);
                     await ensureSelesaiBackfillDoesNotLeaveFutureBlocker(payload);
@@ -780,6 +817,7 @@ export const pengawasanService = {
                 rows = await withTransaction(async (client) => {
                     const payloadsReadyToInsert = await withPengawasanDocumentFallbacks(payloadWithDokumentasi, client);
                     const result = await pengawasanRepository.createBulk(payloadsReadyToInsert, client);
+                    carryForwardRows.push(...await createTerlambatCarryForwardRows(result, client));
                     await processOpnameDataForPengawasanBulk(opnamePayloads, emailPembuat || "", client);
                     return result;
                 });
@@ -791,8 +829,12 @@ export const pengawasanService = {
                 generateAndUploadPengawasanPdf(idGantt, idPengawasanGantt, tanggal)
                     .catch((err) => console.error("[berkas_pengawasan] background error:", err));
             }
+            for (const carryRow of carryForwardRows) {
+                regeneratePengawasanPdfForRow(carryRow)
+                    .catch((err) => console.error("[berkas_pengawasan] carry-forward regenerate error:", err));
+            }
 
-            await scheduleAutomaticSerahTerimaForRows(rows);
+            await scheduleAutomaticSerahTerimaForRows([...rows, ...carryForwardRows]);
             return rows;
         } catch (error) {
             return mapPgError(error);
@@ -879,14 +921,23 @@ export const pengawasanService = {
                 jenis_pekerjaan: payload.jenis_pekerjaan ?? existing.jenis_pekerjaan
             });
 
-            const data = await pengawasanRepository.updateById(id, payload);
-            if (!data) {
-                throw new AppError("Data pengawasan tidak ditemukan", 404);
-            }
+            let carryForwardRows: PengawasanRow[] = [];
+            const data = await withTransaction(async (client) => {
+                const updated = await pengawasanRepository.updateById(id, payload, client);
+                if (!updated) {
+                    throw new AppError("Data pengawasan tidak ditemukan", 404);
+                }
+                carryForwardRows = await createTerlambatCarryForwardRows([updated], client);
+                return updated;
+            });
 
             await regeneratePengawasanPdfForRow(data);
+            for (const carryRow of carryForwardRows) {
+                regeneratePengawasanPdfForRow(carryRow)
+                    .catch((err) => console.error("[berkas_pengawasan] carry-forward regenerate error:", err));
+            }
 
-            await scheduleAutomaticSerahTerimaForRows([data]);
+            await scheduleAutomaticSerahTerimaForRows([data, ...carryForwardRows]);
             return data;
         } catch (error) {
             if (error instanceof AppError) {
@@ -953,6 +1004,7 @@ export const pengawasanService = {
 
             const usedIds = new Set<number>();
             const updatedRows: PengawasanRow[] = [];
+            const carryForwardRows: PengawasanRow[] = [];
             const ganttIdsToRegenerate = new Set<number>();
 
             const finalItemsToUpdate: { id: string | number, finalPayload: any }[] = [];
@@ -1013,6 +1065,7 @@ export const pengawasanService = {
                     ganttIdsToRegenerate.add(data.id_pengawasan_gantt);
                 }
                 
+                carryForwardRows.push(...await createTerlambatCarryForwardRows(results, client));
                 await processOpnameDataForPengawasanBulk(opnamePayloads, emailPembuat || "", client);
                 
                 return results;
@@ -1028,8 +1081,12 @@ export const pengawasanService = {
                         .catch((err) => console.error("[berkas_pengawasan] bulk regenerate error:", err));
                 }
             }
+            for (const carryRow of carryForwardRows) {
+                regeneratePengawasanPdfForRow(carryRow)
+                    .catch((err) => console.error("[berkas_pengawasan] carry-forward regenerate error:", err));
+            }
 
-            await scheduleAutomaticSerahTerimaForRows(updatedRows);
+            await scheduleAutomaticSerahTerimaForRows([...updatedRows, ...carryForwardRows]);
             return updatedRows;
         } catch (error) {
             if (error instanceof AppError) {
