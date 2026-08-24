@@ -234,6 +234,8 @@ const buildUnifiedSupervisionMetadata = (scopes: any[]) => {
             tanggal_pengawasan: date,
             total_items: scopeCheckpoints.reduce((sum, item) => sum + Number(item.checkpoint?.total_items || 0), 0),
             selesai_items: scopeCheckpoints.reduce((sum, item) => sum + Number(item.checkpoint?.selesai_items || 0), 0),
+            documented_items: scopeCheckpoints.reduce((sum, item) => sum + Number(item.checkpoint?.documented_items || 0), 0),
+            missing_documentation_items: scopeCheckpoints.reduce((sum, item) => sum + Number(item.checkpoint?.missing_documentation_items || 0), 0),
             ready_opname_items: scopeCheckpoints.reduce((sum, item) => sum + Number(item.checkpoint?.ready_opname_items || 0), 0),
             opname_items: scopeCheckpoints.reduce((sum, item) => sum + Number(item.checkpoint?.opname_items || 0), 0),
             scopes: scopeCheckpoints,
