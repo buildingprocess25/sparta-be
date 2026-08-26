@@ -210,6 +210,7 @@ export type PerformanceKpiScopeRow = {
     dendaValue: number | null;
     dendaDays: number | null;
     stDate: string | null;
+    ktkCreatedDate: string | null;
     finalKtkDate: string | null;
 };
 

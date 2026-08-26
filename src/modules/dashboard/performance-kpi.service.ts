@@ -257,7 +257,6 @@ const loadFacts = async (query: PerformanceKpiQueryInput): Promise<PerformanceKp
         latest_st AS (
             SELECT DISTINCT ON (id_toko) id_toko, created_at, link_pdf
             FROM berkas_serah_terima
-            WHERE COALESCE(link_pdf, '') <> ''
             ORDER BY id_toko, created_at DESC NULLS LAST, id DESC
         ),
         latest_pic AS (
@@ -443,13 +442,15 @@ const metricForSupport = (fact: PerformanceKpiFact, metric: PerformanceKpiTableM
     const notarisEnd = fact.kpiMetrics.tanggalNotarisEnd;
     const latestSpkStart = fact.rows.map((row) => row.spkStart).filter(Boolean).sort().at(-1) ?? null;
     const latestSpkEnd = fact.rows.map((row) => row.spkEndWithExtension).filter(Boolean).sort().at(-1) ?? null;
+    const latestSt = fact.rows.map((row) => row.stDate).filter(Boolean).sort().at(-1) ?? null;
+    const latestKtkCreated = fact.rows.map((row) => row.ktkCreatedDate).filter(Boolean).sort().at(-1) ?? null;
     switch (metric) {
         case "jhk_notaris_to_end_spk": return notarisStart && latestSpkEnd ? dayDiff(notarisStart, latestSpkEnd) : null;
         case "jhk_notaris_to_start_spk": return notarisStart && latestSpkStart ? dayDiff(notarisStart, latestSpkStart) : null;
         case "persentase_temuan": return fact.kpiMetrics.persentaseTemuan;
         case "ketepatan_st": return fact.values.ketepatanStDays;
         case "deviasi_pe": return fact.kpiMetrics.deviasiPe;
-        case "finalisasi_ktk": return fact.values.slaKtkDays;
+        case "finalisasi_ktk": return latestSt && latestKtkCreated ? dayDiff(latestSt, latestKtkCreated) : null;
         default: return null;
     }
 };
@@ -610,7 +611,7 @@ const buildDetail = (fact: PerformanceKpiFact, query: PerformanceKpiDetailInput)
             sla_ktk: {
                 days: effectiveFact.values.slaKtkDays,
                 formula: "opname_final.waktu_persetujuan_direktur - tanggal serah terima",
-                director_approval: effectiveFact.rows.map((row) => ({ lingkup: row.lingkup, st_date: row.stDate, final_ktk_date: row.finalKtkDate }))
+                director_approval: effectiveFact.rows.map((row) => ({ lingkup: row.lingkup, st_date: row.stDate, ktk_created_date: row.ktkCreatedDate, final_ktk_date: row.finalKtkDate }))
             },
             sla_approval: {
                 events: approvalEvents,

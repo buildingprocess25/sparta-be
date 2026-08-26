@@ -156,6 +156,7 @@ const getScopeRow = (row: PerformanceKpiRawRow): PerformanceKpiScopeRow => {
         dendaValue: parseNumber(row.opname_nilai_denda),
         dendaDays: row.opname_hari_denda ?? null,
         stDate,
+        ktkCreatedDate: toIso(row.opname_created_at),
         finalKtkDate: toIso(row.opname_director_at)
     };
 };
