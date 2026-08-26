@@ -22,6 +22,34 @@ const pushParam = (params: unknown[], value: unknown): string => {
     return `$${params.length}`;
 };
 
+const SUBDIVIDED_BRANCH_PARENTS = new Set(["CIKOKOL", "CILEUNGSI"]);
+
+const getBranchGroupParent = (branch?: string | null): string | null => {
+    const normalized = normalizeBranchScopeName(branch);
+    if (!normalized) return null;
+    const entry = Object.entries(BRANCH_GROUPS).find(([, branches]) => branches.map(normalizeBranchScopeName).includes(normalized));
+    return entry?.[0] ?? null;
+};
+
+const getPerformanceCabangOptions = (facts: PerformanceKpiFact[], query: PerformanceKpiQueryInput): string[] => {
+    const optionSet = new Set<string>();
+    const allowedBranches = query.cabang_array?.map(normalizeBranchScopeName).filter(Boolean) ?? [];
+
+    for (const fact of facts) {
+        const branch = normalizeBranchScopeName(fact.cabang);
+        if (!branch) continue;
+
+        const parent = getBranchGroupParent(branch);
+        if (parent && SUBDIVIDED_BRANCH_PARENTS.has(parent)) {
+            if (branch !== parent || allowedBranches.includes(parent)) optionSet.add(branch);
+            continue;
+        }
+
+        optionSet.add(parent ?? branch);
+    }
+
+    return Array.from(optionSet).sort();
+};
 const isAll = (value: unknown) => {
     const normalized = normalizeUpper(value);
     return !normalized || normalized === "ALL" || normalized === "SEMUA" || normalized === "SEMUA CABANG";
@@ -675,7 +703,7 @@ export const performanceKpiService = {
         }
 
         return {
-            cabangs: Array.from(new Set(facts.map((fact) => fact.cabang ? normalizeBranchScopeName(fact.cabang) : null).filter(Boolean))).sort(),
+            cabangs: getPerformanceCabangOptions(facts, query),
             coordinators: Array.from(new Set(facts.flatMap((fact) => fact.coordinators))).sort(),
             supports: Array.from(new Set(facts.flatMap((fact) => fact.supports))).sort(),
             approvalActors: {

@@ -25,18 +25,26 @@ import {
 } from "./dashboard-performance.controller";
 
 
+const normalizeRole = (role: string): string => role.trim().toUpperCase();
+
 const isSuperHuman = (req: Request): boolean =>
-    Boolean(req.user?.roles.some((role) => role.trim().toUpperCase().includes("SUPER HUMAN")));
+    Boolean(req.user?.roles.some((role) => normalizeRole(role).includes("SUPER HUMAN")));
+
+const isContractorPerformanceBlocked = (req: Request): boolean =>
+    Boolean(req.user?.roles.some((role) => {
+        const normalized = normalizeRole(role);
+        return normalized.includes("KONTRAKTOR") || normalized === "DIREKTUR";
+    }));
 
 const requireSuperHumanForPerformance = (req: Request, res: Response, next: NextFunction) => {
-    if (isSuperHuman(req)) {
+    if (isSuperHuman(req) && !isContractorPerformanceBlocked(req)) {
         next();
         return;
     }
 
     res.status(403).json({
         status: "coming_soon",
-        message: "Performance Internal SAT sedang disiapkan dan sementara hanya tersedia untuk Super Human."
+        message: "Performance Internal SAT sedang disiapkan dan tidak tersedia untuk kontraktor atau direktur kontraktor."
     });
 };
 const dashboardRouter = Router();
