@@ -119,6 +119,30 @@ export const pengawasanRepository = {
         return result.rows;
     },
 
+    async checkIsPengawasanMigrated(idPengawasanGantt: number): Promise<boolean> {
+        const result = await pool.query<{ is_migrated: boolean }>(
+            `
+            SELECT (COUNT(*) > 0 AND COUNT(dokumentasi) = 0) as is_migrated
+            FROM pengawasan 
+            WHERE id_pengawasan_gantt = $1
+            `,
+            [idPengawasanGantt]
+        );
+        return result.rows[0]?.is_migrated ?? false;
+    },
+
+    async findLatestUploadDateByIdPengawasanGantt(idPengawasanGantt: number): Promise<Date | null> {
+        const result = await pool.query<{ max_date: Date }>(
+            `
+            SELECT MAX(created_at) as max_date
+            FROM pengawasan
+            WHERE id_pengawasan_gantt = $1 AND dokumentasi IS NOT NULL
+            `,
+            [idPengawasanGantt]
+        );
+        return result.rows[0]?.max_date ?? null;
+    },
+
     async create(input: CreatePengawasanData): Promise<PengawasanRow> {
         const result = await pool.query<PengawasanRow>(
             `

@@ -341,6 +341,37 @@ const buildPengawasanPdfBuffer = async (
     }
 
     const picPengawasan = await pengawasanRepository.findPicPengawasanByPengawasanGanttId(idPengawasanGantt);
+    
+    // Cari tanggal terakhir upload foto untuk id_pengawasan_gantt ini
+    const latestUploadDate = await pengawasanRepository.findLatestUploadDateByIdPengawasanGantt(idPengawasanGantt);
+    
+    let baseDateForDibuatPada = new Date();
+    if (latestUploadDate) {
+        // Jika ada foto, gunakan tanggal upload foto tersebut
+        baseDateForDibuatPada = new Date(latestUploadDate);
+    } else if (tanggalPengawasan) {
+        // Fallback ke tanggal pengawasan (Gantt) jika tidak ada foto (meski seharusnya sudah di-skip jika migrasi)
+        const parts = tanggalPengawasan.split("/");
+        if (parts.length === 3) {
+            const day = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1;
+            const year = parseInt(parts[2], 10);
+            baseDateForDibuatPada = new Date(year, month, day);
+        } else {
+            const parsed = new Date(tanggalPengawasan);
+            if (!isNaN(parsed.getTime())) {
+                baseDateForDibuatPada = parsed;
+            }
+        }
+    }
+
+    const generatedAtFormatted = new Intl.DateTimeFormat("id-ID", {
+        timeZone: "Asia/Jakarta",
+        year: "numeric",
+        month: "long",
+        day: "numeric"
+    }).format(baseDateForDibuatPada);
+
     const templatePath = await resolveTemplatePath("pengawasan_report.njk");
     const html = await renderHtmlTemplate(templatePath, {
         id_gantt: idGantt,
@@ -350,7 +381,7 @@ const buildPengawasanPdfBuffer = async (
         count_progress: countProgress,
         count_selesai: countSelesai,
         count_terlambat: countTerlambat,
-        generated_at: formatJakartaTimestamp(),
+        generated_at: generatedAtFormatted,
         logo_watermark: staticAssetPath(["building-logo.png", "Building-Logo.png"])
     });
 
@@ -363,6 +394,12 @@ const generateAndUploadPengawasanPdf = async (
     tanggalPengawasan: string
 ): Promise<void> => {
     try {
+        const isMigrated = await pengawasanRepository.checkIsPengawasanMigrated(idPengawasanGantt);
+        if (isMigrated) {
+            console.log(`[berkas_pengawasan] Skip generate PDF untuk id_pengawasan_gantt=${idPengawasanGantt} karena merupakan dokumen hasil migrasi V1.`);
+            return;
+        }
+
         const pdfBuffer = await buildPengawasanPdfBuffer(idGantt, idPengawasanGantt, tanggalPengawasan);
 
         // 5. Upload ke Google Drive (timpa berdasarkan nama unik per id_pengawasan_gantt)
