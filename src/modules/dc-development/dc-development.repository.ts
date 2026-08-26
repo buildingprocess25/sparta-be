@@ -352,9 +352,11 @@ export const dcDevelopmentRepository = {
             conditions.push(`(
                 SELECT COUNT(DISTINCT d.document_type)
                 FROM dc_document d
+                LEFT JOIN dc_document_version v ON v.document_id = d.id AND v.is_current = true
                 WHERE d.entity_type = 'DC_ARCHIVE_PROJECT'
                   AND d.project_id = a.project_id
                   AND d.status <> 'DELETED'
+                  AND v.drive_file_id IS NOT NULL
             ) ${comparator} 0`);
         }
 
@@ -379,10 +381,10 @@ export const dcDevelopmentRepository = {
                 a.created_by_role,
                 a.created_at,
                 a.updated_at,
-                COUNT(DISTINCT d.id)::int AS jumlah_dokumen,
-                COUNT(DISTINCT split_part(d.document_type, '__', 1)) FILTER (WHERE UPPER(COALESCE(d.stage, '')) = 'PEMBANGUNAN' AND split_part(d.document_type, '__', 1) !~ '^(H|I|J|L)_')::int AS docs_pembangunan,
-                COUNT(DISTINCT split_part(d.document_type, '__', 1)) FILTER (WHERE UPPER(COALESCE(d.stage, '')) = 'RENOVASI')::int AS docs_renovasi,
-                COUNT(DISTINCT split_part(d.document_type, '__', 1)) FILTER (WHERE UPPER(COALESCE(d.stage, '')) = 'PERLUASAN')::int AS docs_perluasan,
+                COUNT(DISTINCT d.id) FILTER (WHERE v.drive_file_id IS NOT NULL)::int AS jumlah_dokumen,
+                COUNT(DISTINCT split_part(d.document_type, '__', 1)) FILTER (WHERE UPPER(COALESCE(d.stage, '')) = 'PEMBANGUNAN' AND split_part(d.document_type, '__', 1) !~ '^(H|I|J|L)_' AND v.drive_file_id IS NOT NULL)::int AS docs_pembangunan,
+                COUNT(DISTINCT split_part(d.document_type, '__', 1)) FILTER (WHERE UPPER(COALESCE(d.stage, '')) = 'RENOVASI' AND v.drive_file_id IS NOT NULL)::int AS docs_renovasi,
+                COUNT(DISTINCT split_part(d.document_type, '__', 1)) FILTER (WHERE UPPER(COALESCE(d.stage, '')) = 'PERLUASAN' AND v.drive_file_id IS NOT NULL)::int AS docs_perluasan,
                 COALESCE(
                     jsonb_object_agg(d.document_type, doc_counts.total) FILTER (WHERE d.document_type IS NOT NULL),
                     '{}'::jsonb
@@ -390,17 +392,21 @@ export const dcDevelopmentRepository = {
              FROM dc_archive_project a
              ${joins.join("\n")}
              LEFT JOIN (
-                SELECT project_id, document_type, COUNT(*)::int AS total
-                FROM dc_document
-                WHERE entity_type = 'DC_ARCHIVE_PROJECT'
-                  AND status <> 'DELETED'
-                GROUP BY project_id, document_type
+                SELECT d2.project_id, d2.document_type, COUNT(*)::int AS total
+                FROM dc_document d2
+                LEFT JOIN dc_document_version v2 ON v2.document_id = d2.id AND v2.is_current = true
+                WHERE d2.entity_type = 'DC_ARCHIVE_PROJECT'
+                  AND d2.status <> 'DELETED'
+                  AND v2.drive_file_id IS NOT NULL
+                GROUP BY d2.project_id, d2.document_type
              ) doc_counts ON doc_counts.project_id = a.project_id
              LEFT JOIN dc_document d
                 ON d.entity_type = 'DC_ARCHIVE_PROJECT'
                AND d.project_id = a.project_id
                AND d.status <> 'DELETED'
                AND d.document_type = doc_counts.document_type
+             LEFT JOIN dc_document_version v
+                ON v.document_id = d.id AND v.is_current = true
              ${whereClause}
              GROUP BY a.id
              ORDER BY a.updated_at DESC, a.id DESC`,
