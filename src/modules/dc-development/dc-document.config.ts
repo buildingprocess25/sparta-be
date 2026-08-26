@@ -29,7 +29,7 @@ export const DC_DOCUMENT_CONFIG: DokumenUtama[] = [
     details: [
       {
         no: '1',
-        title: '(Pembangunan & / PERLUASAN)',
+        title: 'Tata letak lahan dan bangunan office branch',
         jenis: [
           {
             key: 'SITEPLAN_1',
@@ -49,7 +49,7 @@ export const DC_DOCUMENT_CONFIG: DokumenUtama[] = [
     details: [
       {
         no: 'A_DETAIL',
-        title: '(Pembangunan & / PERLUASAN)',
+        title: 'Perizinan dan sertifikasi legal proyek',
         jenis: [
           { key: 'A_1', title: 'Sertifikat Tanah', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }] },
           { key: 'A_2', title: 'IMB atau PPG', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }] },
@@ -69,7 +69,7 @@ export const DC_DOCUMENT_CONFIG: DokumenUtama[] = [
     details: [
       {
         no: 'B_DETAIL',
-        title: '(Pembangunan & / PERLUASAN)',
+        title: 'Hasil uji tanah dan elevasi kontur permukaan',
         jenis: [
           { key: 'B_1', title: 'Titik Sondir dan Boring', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }, { type: 'AUTOCAD', label: 'Upload AUTOCAD' }] },
           { key: 'B_2', title: 'Penawaran Harga (Pemenang)', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }] },
@@ -87,7 +87,7 @@ export const DC_DOCUMENT_CONFIG: DokumenUtama[] = [
     details: [
       {
         no: 'C_DETAIL',
-        title: '(Pembangunan & / PERLUASAN)',
+        title: 'Perencanaan arsitektur, struktur, dan MEP',
         jenis: [
           { key: 'C_1', title: 'KAK & TOR', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }] },
           { key: 'C_2', title: 'Penawaran Harga (Pemenang)', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }] },
@@ -107,7 +107,7 @@ export const DC_DOCUMENT_CONFIG: DokumenUtama[] = [
     details: [
       {
         no: 'D_DETAIL',
-        title: '(Pembangunan & / PERLUASAN)',
+        title: 'Pengawasan mutu dan progres lapangan',
         jenis: [
           { key: 'D_1', title: 'KAK & TOR', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }] },
           { key: 'D_2', title: 'Penawaran Harga (Pemenang)', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }] },
@@ -125,7 +125,7 @@ export const DC_DOCUMENT_CONFIG: DokumenUtama[] = [
     details: [
       {
         no: 'E_DETAIL',
-        title: '(Pembangunan & / PERLUASAN)',
+        title: 'Pekerjaan pondasi dan tiang pancang',
         jenis: [
           { key: 'E_1', title: 'Penawaran Harga (Pemenang)', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }] },
           { key: 'E_2', title: 'SPK Kontraktor Pancang', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }] },
@@ -143,7 +143,7 @@ export const DC_DOCUMENT_CONFIG: DokumenUtama[] = [
     details: [
       {
         no: 'F_DETAIL',
-        title: '(Pembangunan & / PERLUASAN)',
+        title: 'Pekerjaan perataan tanah dan galian',
         jenis: [
           { key: 'F_1', title: 'Proposal Peserta Tender', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }] },
           { key: 'F_2', title: 'KAK & TOR', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }] },
@@ -168,7 +168,7 @@ export const DC_DOCUMENT_CONFIG: DokumenUtama[] = [
     details: [
       {
         no: 'G_DETAIL',
-        title: '(Pembangunan & / PERLUASAN)',
+        title: 'Pekerjaan konstruksi utama bangunan',
         jenis: [
           { key: 'G_1', title: 'Proposal Peserta Tender', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }] },
           { key: 'G_2', title: 'KAK & TOR', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }] },
@@ -193,7 +193,7 @@ export const DC_DOCUMENT_CONFIG: DokumenUtama[] = [
     details: [
       {
         no: 'H_DETAIL',
-        title: '(Pembangunan & / PERLUASAN)',
+        title: 'Instalasi sistem pemadam kebakaran hydrant',
         jenis: [
           { key: 'H_1', title: 'KAK & TOR', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }] },
           { key: 'H_2', title: 'Penawaran Harga (Pemenang)', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }, { type: 'EXCEL', label: 'Upload EXCEL' }] },
@@ -216,7 +216,7 @@ export const DC_DOCUMENT_CONFIG: DokumenUtama[] = [
     details: [
       {
         no: 'I_DETAIL',
-        title: '(Pembangunan & / PERLUASAN)',
+        title: 'Konstruksi struktur lantai mezanin',
         jenis: [
           { key: 'I_1', title: 'KAK & TOR', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }] },
           { key: 'I_2', title: 'Penawaran Harga (Pemenang)', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }, { type: 'EXCEL', label: 'Upload EXCEL' }] },
@@ -238,7 +238,7 @@ export const DC_DOCUMENT_CONFIG: DokumenUtama[] = [
     details: [
       {
         no: 'J_DETAIL',
-        title: '(Pembangunan & / PERLUASAN)',
+        title: 'Instalasi ruang pendingin / cold storage',
         jenis: [
           { key: 'J_1', title: 'Penawaran Harga (Pemenang)', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }] },
           { key: 'J_2', title: 'SPK Suplier Cold Storage', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }] },
@@ -257,7 +257,7 @@ export const DC_DOCUMENT_CONFIG: DokumenUtama[] = [
     details: [
       {
         no: 'L_DETAIL',
-        title: '(Renovasi)',
+        title: 'Pekerjaan tambahan kontraktor renovasi',
         jenis: [
           { key: 'L_1', title: 'KAK & TOR', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }] },
           { key: 'L_2', title: 'Penawaran Harga (Pemenang)', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }, { type: 'EXCEL', label: 'Upload EXCEL' }] },
@@ -280,7 +280,7 @@ export const DC_DOCUMENT_CONFIG: DokumenUtama[] = [
     details: [
       {
         no: 'K_DETAIL',
-        title: '(Pembangunan & / PERLUASAN)',
+        title: 'Dokumentasi progres, rapat, dan arsip pendukung',
         jenis: [
           { key: 'K_1', title: 'Foto 0%', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }, { type: 'PPT', label: 'Upload PPT' }] },
           { key: 'K_2', title: 'Foto Progress Mingguan', slots: [{ type: 'PDF/JPEG', label: 'Upload PDF/JPEG' }, { type: 'PPT', label: 'Upload PPT' }] },
