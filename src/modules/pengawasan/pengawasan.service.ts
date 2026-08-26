@@ -910,6 +910,35 @@ export const pengawasanService = {
             throw new AppError("Data pengawasan tidak ditemukan", 404);
         }
 
+        const isMigrated = await pengawasanRepository.checkIsPengawasanMigrated(idPengawasanGantt);
+        if (isMigrated) {
+            const berkas = await pengawasanRepository.findBerkasByPengawasanGanttId(idPengawasanGantt);
+            if (berkas?.link_pdf_pengawasan) {
+                const fileIdMatch = /\/d\/([a-zA-Z0-9_-]+)/.exec(berkas.link_pdf_pengawasan);
+                if (fileIdMatch?.[1]) {
+                    const gp = GoogleProvider.instance;
+                    if (gp.spartaDrive) {
+                        try {
+                            const response = await gp.spartaDrive.files.get(
+                                { fileId: fileIdMatch[1], alt: 'media', supportsAllDrives: true },
+                                { responseType: 'arraybuffer' }
+                            );
+                            return { 
+                                buffer: Buffer.from(response.data as ArrayBuffer), 
+                                filename: `PENGAWASAN_REPORT_GANTT${info.id_gantt}_PG${info.id}_MIGRATED.pdf` 
+                            };
+                        } catch (error) {
+                            console.error("[downloadPdf] Gagal mengunduh PDF migrasi dari Google Drive:", error);
+                            throw new AppError("Gagal mengunduh PDF migrasi dari Google Drive.", 500);
+                        }
+                    } else {
+                        throw new AppError("Google Drive tidak terkonfigurasi.", 500);
+                    }
+                }
+            }
+            throw new AppError("Dokumen ini adalah hasil migrasi dan link PDF tidak ditemukan.", 404);
+        }
+
         const buffer = await buildPengawasanPdfBuffer(
             info.id_gantt,
             info.id,
