@@ -148,3 +148,12 @@ test("approval events exclude contractor and include internal SAT roles", () => 
     assert.ok(fact.approvals.some((event) => event.role === "branch_manager" && event.document === "spk"));
     assert.equal(fact.approvals.some((event) => event.actorName === "DIREKTUR KONTRAKTOR"), false);
 });
+
+test("KTK support approval uses PIC support instead of coordinator actor", () => {
+    const [fact] = buildPerformanceKpiFacts([baseRow({
+        support_name: "SUPPORT B",
+        opname_coord_name: "COORD KTK"
+    })]);
+    const supportKtk = fact.approvals.find((event) => event.role === "support" && event.document === "ktk");
+    assert.equal(supportKtk?.actorName, "SUPPORT B");
+});

@@ -30,6 +30,7 @@ const isAll = (value: unknown) => {
 
 type IdentityAliasMap = Map<string, string>;
 type IdentityAliases = { map: IdentityAliasMap; validNames: Set<string> };
+type IdentityRole = "support" | "coordinator" | "bm_manager" | "branch_manager";
 
 const isEmailAddress = (value: string | null | undefined): boolean => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeName(value));
 
@@ -40,60 +41,68 @@ const addIdentityAlias = (aliases: IdentityAliases, label: string | null | undef
     if (normalizedAlias && normalizedLabel) aliases.map.set(normalizedAlias, normalizedLabel);
 };
 
-const loadIdentityAliasMaps = async (): Promise<{ support: IdentityAliases; coordinator: IdentityAliases }> => {
+const emptyAliases = (): IdentityAliases => ({ map: new Map<string, string>(), validNames: new Set<string>() });
+
+const roleFromJabatan = (jabatan: string | null | undefined): IdentityRole | null => {
+    const normalized = normalizeUpper(jabatan);
+    if (!normalized) return null;
+    if (normalized.includes("SUPPORT") || normalized.includes("PENGAWAS")) return "support";
+    if (normalized.includes("COORD") || normalized.includes("KOORD")) return "coordinator";
+    if (normalized.includes("BRANCH") && normalized.includes("MANAGER")) return "branch_manager";
+    if (normalized.includes("MANAGER")) return "bm_manager";
+    return null;
+};
+
+const loadIdentityAliasMaps = async (): Promise<Record<IdentityRole, IdentityAliases>> => {
     const result = await pool.query<{ nama_lengkap: string | null; email_sat: string | null; jabatan: string | null }>(`
         SELECT nama_lengkap, email_sat, jabatan
         FROM user_cabang
         WHERE COALESCE(nama_lengkap, '') <> '' OR COALESCE(email_sat, '') <> ''
     `);
-    const support: IdentityAliases = { map: new Map<string, string>(), validNames: new Set<string>() };
-    const coordinator: IdentityAliases = { map: new Map<string, string>(), validNames: new Set<string>() };
+    const aliases: Record<IdentityRole, IdentityAliases> = {
+        support: emptyAliases(),
+        coordinator: emptyAliases(),
+        bm_manager: emptyAliases(),
+        branch_manager: emptyAliases()
+    };
     for (const row of result.rows) {
-        const jabatan = normalizeUpper(row.jabatan);
-        const target = jabatan.includes("SUPPORT")
-            ? support
-            : (jabatan.includes("COORD") || jabatan.includes("KOORD"))
-                ? coordinator
-                : null;
-        if (!target) continue;
+        const role = roleFromJabatan(row.jabatan);
+        if (!role) continue;
+        const target = aliases[role];
         const label = normalizeName(row.nama_lengkap) || normalizeName(row.email_sat);
         addIdentityAlias(target, label, row.nama_lengkap);
         addIdentityAlias(target, label, row.email_sat);
     }
-    return { support, coordinator };
+    return aliases;
 };
-
 const canonicalizeName = (value: string | null | undefined, aliases: IdentityAliases): string | null => {
     const raw = normalizeName(value);
     if (!raw) return null;
     const mapped = aliases.map.get(normalizeUpper(raw));
     if (mapped) return mapped;
     if (isEmailAddress(raw)) return null;
-    return aliases.validNames.has(raw) ? raw : null;
+    return raw;
 };
 
 const canonicalizeNames = (values: string[], aliases: IdentityAliases): string[] =>
     Array.from(new Set(values.map((value) => canonicalizeName(value, aliases)).filter((value): value is string => Boolean(value))))
         .sort((a, b) => a.localeCompare(b));
 
-const canonicalizeApprovalActors = (fact: PerformanceKpiFact, aliases: { support: IdentityAliases; coordinator: IdentityAliases }): PerformanceKpiApprovalEvent[] =>
+const canonicalizeApprovalActors = (fact: PerformanceKpiFact, aliases: Record<IdentityRole, IdentityAliases>): PerformanceKpiApprovalEvent[] =>
     fact.approvals.map((event) => {
-        const actorName = event.role === "support"
-            ? canonicalizeName(event.actorName, aliases.support)
-            : event.role === "coordinator"
-                ? canonicalizeName(event.actorName, aliases.coordinator)
-                : event.actorName;
+        const actorAliases = aliases[event.role];
+        const actorName = actorAliases ? canonicalizeName(event.actorName, actorAliases) : event.actorName;
         return { ...event, actorName };
     });
 
-const normalizeFactPeople = (fact: PerformanceKpiFact, aliases: { support: IdentityAliases; coordinator: IdentityAliases }): PerformanceKpiFact => ({
+const normalizeFactPeople = (fact: PerformanceKpiFact, aliases: Record<IdentityRole, IdentityAliases>): PerformanceKpiFact => ({
     ...fact,
     supports: canonicalizeNames(fact.supports, aliases.support),
     coordinators: canonicalizeNames(fact.coordinators, aliases.coordinator),
     approvals: canonicalizeApprovalActors(fact, aliases)
 });
 
-const filterFactsByPeople = (facts: PerformanceKpiFact[], query: PerformanceKpiQueryInput, aliases: { support: IdentityAliases; coordinator: IdentityAliases }) => {
+const filterFactsByPeople = (facts: PerformanceKpiFact[], query: PerformanceKpiQueryInput, aliases: Record<IdentityRole, IdentityAliases>) => {
     const supportFilter = isAll(query.support) ? null : (canonicalizeName(query.support, aliases.support) ?? "__NO_MATCH__");
     const coordinatorFilter = isAll(query.coordinator) ? null : (canonicalizeName(query.coordinator, aliases.coordinator) ?? "__NO_MATCH__");
     return facts.filter((fact) => {
@@ -102,7 +111,6 @@ const filterFactsByPeople = (facts: PerformanceKpiFact[], query: PerformanceKpiQ
         return true;
     });
 };
-
 const projectTypePredicate = (alias: string, placeholder: string) => `(
     (${placeholder} = 'REGULER' AND UPPER(TRIM(COALESCE(${alias}.proyek, ''))) IN ('REGULER', 'ALFAMART REGULER'))
     OR (${placeholder} = 'RENOVASI' AND (
@@ -156,9 +164,9 @@ const loadFacts = async (query: PerformanceKpiQueryInput): Promise<PerformanceKp
             SELECT DISTINCT ON (id_toko)
                 id, id_toko, status, grand_total_final, luas_bangunan, luas_area_terbuka,
                 (
-                    SELECT SUM(total_harga) 
-                    FROM rab_item 
-                    WHERE id_rab = rab.id 
+                    SELECT SUM(total_harga)
+                    FROM rab_item
+                    WHERE id_rab = rab.id
                     AND (UPPER(kategori_pekerjaan) LIKE '%AREA TERBUKA%' OR UPPER(jenis_pekerjaan) LIKE '%AREA TERBUKA%')
                 ) as area_terbuka,
                 created_at, pemberi_persetujuan_koordinator, nama_persetujuan_koordinator,
@@ -217,10 +225,10 @@ const loadFacts = async (query: PerformanceKpiQueryInput): Promise<PerformanceKp
             ORDER BY id_toko, created_at DESC NULLS LAST, id DESC
         ),
         latest_pic AS (
-            SELECT DISTINCT ON (id_toko) id_toko, plc_building_support, created_at
+            SELECT DISTINCT ON (UPPER(TRIM(nomor_ulok))) nomor_ulok, plc_building_support, created_at
             FROM pic_pengawasan
-            WHERE COALESCE(plc_building_support, '') <> ''
-            ORDER BY id_toko, created_at DESC NULLS LAST, id DESC
+            WHERE COALESCE(plc_building_support, '') <> '' AND COALESCE(nomor_ulok, '') <> ''
+            ORDER BY UPPER(TRIM(nomor_ulok)), created_at DESC NULLS LAST, id DESC
         )
         SELECT
             t.id AS toko_id, t.nomor_ulok, t.lingkup_pekerjaan, t.proyek, t.nama_toko, t.kode_toko,
@@ -276,7 +284,7 @@ const loadFacts = async (query: PerformanceKpiQueryInput): Promise<PerformanceKp
         LEFT JOIN latest_il il ON il.id_toko = t.id
         LEFT JOIN latest_opname ofn ON ofn.id_toko = t.id
         LEFT JOIN latest_st st ON st.id_toko = t.id
-        LEFT JOIN latest_pic pic ON pic.id_toko = t.id
+        LEFT JOIN latest_pic pic ON UPPER(TRIM(pic.nomor_ulok)) = UPPER(TRIM(t.nomor_ulok))
         LEFT JOIN toko_kpi_metrics km ON km.id_toko = t.id
         WHERE ${scoped.where}
         ORDER BY t.nomor_ulok, t.id
@@ -323,13 +331,13 @@ const aggregateCostM2 = (facts: PerformanceKpiFact[]) => {
                 ? (row.luasBangunan ?? 0) + ((row.luasTerbuka ?? 0) / 2)
                 : null
         }))),
-        bangunan: weightedAverage(rows.map((row) => ({ 
-            numerator: row.spkTotal !== null ? Math.max(0, row.spkTotal - (row.rabAreaTerbuka ?? 0)) : null, 
-            denominator: row.luasBangunan 
+        bangunan: weightedAverage(rows.map((row) => ({
+            numerator: row.spkTotal !== null ? Math.max(0, row.spkTotal - (row.rabAreaTerbuka ?? 0)) : null,
+            denominator: row.luasBangunan
         }))),
-        area_terbuka: weightedAverage(rows.map((row) => ({ 
-            numerator: row.rabAreaTerbuka, 
-            denominator: row.luasTerbuka 
+        area_terbuka: weightedAverage(rows.map((row) => ({
+            numerator: row.rabAreaTerbuka,
+            denominator: row.luasTerbuka
         }))),
         count: facts.filter((fact) => fact.values.costM2Terbangun !== null).length
     };
@@ -360,7 +368,7 @@ const toDrilldownRow = (fact: PerformanceKpiFact, query: PerformanceKpiDrilldown
     const value = query.card_type === "sla_approval"
         ? avg(fact.approvals.filter(approvalFilter(query)).map((event) => event.durationDays))
         : getCardValue(fact, query.card_type);
-    
+
     const bangunan = query.card_type === "cost_m2" ? fact.values.costM2Bangunan : undefined;
     const area_terbuka = query.card_type === "cost_m2" ? fact.values.costM2Terbuka : undefined;
 

@@ -128,7 +128,7 @@ const getScopeRow = (row: PerformanceKpiRawRow): PerformanceKpiScopeRow => {
     const targetStDate = stDate ? null : getTargetStDate(spkEndWithExtension);
     const jhkActualDays = row.spk_start && stDate ? dayDiff(row.spk_start, stDate) : null;
     const jhkTargetDays = row.spk_start && targetStDate ? dayDiff(row.spk_start, targetStDate) : null;
-    
+
     const rawLuasBangunan = parseNumber(row.rab_luas_bangunan);
     const luasBangunan = rawLuasBangunan && rawLuasBangunan < 10000 ? rawLuasBangunan : null;
     const rawLuasTerbuka = parseNumber(row.rab_luas_terbuka);
@@ -264,7 +264,7 @@ export const buildPerformanceKpiFacts = (sourceRows: PerformanceKpiRawRow[]): Pe
             addApproval(approvals, "branch_manager", "tambah_spk", "Tambah SPK disetujui Branch Manager", row.lingkup_pekerjaan, row.tambah_spk_approver, row.tambah_spk_created_at, row.tambah_spk_approved_at, "pertambahan_spk.created_at -> pertambahan_spk.waktu_persetujuan");
             addApproval(approvals, "coordinator", "il", "IL diketahui Coordinator", row.lingkup_pekerjaan, row.il_coord_name, row.il_created_at, row.il_coord_at, "instruksi_lapangan.created_at -> instruksi_lapangan.waktu_persetujuan_koordinator");
             addApproval(approvals, "bm_manager", "il", "IL disetujui B&M Manager", row.lingkup_pekerjaan, row.il_manager_name, row.il_coord_at, row.il_manager_at, "instruksi_lapangan.waktu_persetujuan_koordinator -> instruksi_lapangan.waktu_persetujuan_manager");
-            addApproval(approvals, "support", "ktk", "KTK dibuat Support sampai diketahui Coordinator", row.lingkup_pekerjaan, row.opname_coord_name, row.opname_created_at, row.opname_coord_at, "opname_final.created_at -> opname_final.waktu_persetujuan_koordinator");
+            addApproval(approvals, "support", "ktk", "KTK dibuat Support sampai diketahui Coordinator", row.lingkup_pekerjaan, row.support_name, row.opname_created_at, row.opname_coord_at, "opname_final.created_at -> opname_final.waktu_persetujuan_koordinator");
             addApproval(approvals, "coordinator", "ktk", "KTK diketahui Coordinator", row.lingkup_pekerjaan, row.opname_coord_name, row.opname_created_at, row.opname_coord_at, "opname_final.created_at -> opname_final.waktu_persetujuan_koordinator");
             addApproval(approvals, "bm_manager", "ktk", "KTK disetujui B&M Manager", row.lingkup_pekerjaan, row.opname_manager_name, row.opname_coord_at, row.opname_manager_at, "opname_final.waktu_persetujuan_koordinator -> opname_final.waktu_persetujuan_manager");
         }
