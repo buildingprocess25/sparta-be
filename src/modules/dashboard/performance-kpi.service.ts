@@ -600,7 +600,7 @@ const buildDetail = (fact: PerformanceKpiFact, query: PerformanceKpiDetailInput)
             kerja_tambah_kurang: {
                 kerja_tambah: effectiveFact.values.kerjaTambah,
                 kerja_kurang: effectiveFact.values.kerjaKurang,
-                formula: "opname_final.grand_total_final/opname - pengajuan_spk.grand_total",
+                formula: "Total Nilai Opname Final dikurangi Total Nilai SPK",
                 scopes: effectiveFact.rows.map((row) => ({ lingkup: row.lingkup, spk_total: row.spkTotal, opname_final_total: row.opnameFinalTotal }))
             },
             ketepatan_st: {
@@ -610,7 +610,7 @@ const buildDetail = (fact: PerformanceKpiFact, query: PerformanceKpiDetailInput)
             },
             sla_ktk: {
                 days: effectiveFact.values.slaKtkDays,
-                formula: "opname_final.waktu_persetujuan_direktur - tanggal serah terima",
+                formula: "Waktu Persetujuan Direktur dikurangi Tanggal Serah Terima",
                 director_approval: effectiveFact.rows.map((row) => ({ lingkup: row.lingkup, st_date: row.stDate, ktk_created_date: row.ktkCreatedDate, final_ktk_date: row.finalKtkDate }))
             },
             sla_approval: {
