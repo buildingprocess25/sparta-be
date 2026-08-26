@@ -15,7 +15,7 @@ export const performanceKpiCardTypeSchema = z.enum([
 ]);
 export const performanceKpiSlaRoleSchema = z.enum(["support", "coordinator", "bm_manager", "branch_manager"]).optional();
 export const performanceKpiDocumentSchema = z.enum(["rab", "spk", "tambah_spk", "il", "ktk"]).optional();
-export const performanceKpiPersonRoleSchema = z.enum(["coordinator", "support"]).optional();
+export const performanceKpiPersonRoleSchema = z.enum(["coordinator", "support", "bm_manager", "branch_manager"]).optional();
 export const performanceKpiTableMetricSchema = z.enum([
     "jhk_notaris_to_end_spk",
     "jhk_notaris_to_start_spk",

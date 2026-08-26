@@ -13,7 +13,7 @@ export type PerformanceKpiCardType =
     | "all";
 
 export type PerformanceKpiSlaRole = "support" | "coordinator" | "bm_manager" | "branch_manager";
-export type PerformanceKpiPersonRole = "coordinator" | "support";
+export type PerformanceKpiPersonRole = "coordinator" | "support" | "bm_manager" | "branch_manager";
 export type PerformanceKpiDocument = "rab" | "spk" | "tambah_spk" | "il" | "ktk";
 export type PerformanceKpiTableMetric =
     | "jhk_notaris_to_end_spk"
