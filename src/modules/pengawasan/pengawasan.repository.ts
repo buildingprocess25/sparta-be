@@ -226,11 +226,11 @@ export const pengawasanRepository = {
                 status
             )
             SELECT
-                $1,
+                $1::int,
                 next_checkpoint.id,
-                $3,
-                $4,
-                $5,
+                $3::text,
+                $4::text,
+                $5::text,
                 NULL,
                 NULL,
                 'terlambat'
@@ -238,10 +238,10 @@ export const pengawasanRepository = {
             WHERE NOT EXISTS (
                 SELECT 1
                 FROM pengawasan p
-                WHERE p.id_gantt = $1
+                WHERE p.id_gantt = $1::int
                   AND p.id_pengawasan_gantt = next_checkpoint.id
-                  AND UPPER(TRIM(COALESCE(p.kategori_pekerjaan, ''))) = UPPER(TRIM($3))
-                  AND UPPER(TRIM(COALESCE(p.jenis_pekerjaan, ''))) = UPPER(TRIM($4))
+                  AND UPPER(TRIM(COALESCE(p.kategori_pekerjaan, ''))) = UPPER(TRIM($3::text))
+                  AND UPPER(TRIM(COALESCE(p.jenis_pekerjaan, ''))) = UPPER(TRIM($4::text))
             )
             RETURNING id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, dokumentasi_base64, status, created_at
             `,
