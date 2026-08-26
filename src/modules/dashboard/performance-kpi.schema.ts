@@ -10,7 +10,8 @@ export const performanceKpiCardTypeSchema = z.enum([
     "kerja_tambah",
     "kerja_kurang",
     "ketepatan_st",
-    "sla_ktk"
+    "sla_ktk",
+    "all"
 ]);
 export const performanceKpiSlaRoleSchema = z.enum(["support", "coordinator", "bm_manager", "branch_manager"]).optional();
 export const performanceKpiDocumentSchema = z.enum(["rab", "spk", "tambah_spk", "il", "ktk"]).optional();
