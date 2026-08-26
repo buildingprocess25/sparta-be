@@ -28,6 +28,7 @@ export type PerformanceKpiQueryInput = {
     actor_company?: string;
     cabang?: string;
     cabang_array?: string[];
+    _is_global_access?: boolean;
     coordinator?: string;
     support?: string;
     job_type?: PerformanceKpiJobType;

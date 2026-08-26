@@ -31,17 +31,25 @@ const getBranchGroupParent = (branch?: string | null): string | null => {
     return entry?.[0] ?? null;
 };
 
+const isPerformanceGlobalBranchView = (query: PerformanceKpiQueryInput): boolean =>
+    query._is_global_access === true || normalizeBranchScopeName(query.actor_cabang) === "HEAD OFFICE";
+
 const getPerformanceCabangOptions = (facts: PerformanceKpiFact[], query: PerformanceKpiQueryInput): string[] => {
     const optionSet = new Set<string>();
-    const allowedBranches = query.cabang_array?.map(normalizeBranchScopeName).filter(Boolean) ?? [];
+    const useParentBranchOptions = isPerformanceGlobalBranchView(query);
 
     for (const fact of facts) {
         const branch = normalizeBranchScopeName(fact.cabang);
         if (!branch) continue;
 
         const parent = getBranchGroupParent(branch);
+        if (useParentBranchOptions) {
+            optionSet.add(parent ?? branch);
+            continue;
+        }
+
         if (parent && SUBDIVIDED_BRANCH_PARENTS.has(parent)) {
-            if (branch !== parent || allowedBranches.includes(parent)) optionSet.add(branch);
+            if (branch !== parent) optionSet.add(branch);
             continue;
         }
 
