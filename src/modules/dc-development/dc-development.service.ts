@@ -320,18 +320,19 @@ const buildDcDocumentExport = (
                             notes
                         });
 
+                        const catNoteKey = `CAT_NOTE_${utama.id}`;
+                        const catNoteDoc = documentMap.get(`${stage.key}#${catNoteKey}`);
+                        const catatanKategori = catNoteDoc?.notes ?? "";
+
                         rows.push({
                             "No": rowNumber++,
                             "Kode Proyek": project.archive_code,
                             "Nama Proyek": project.archive_name,
-                            "Cabang": project.branch_name,
-                            "Induk Cabang": project.parent_branch_name ?? project.branch_name,
-                            "Tipe Lokasi": project.archive_type ?? project.project_type,
                             "DC Induk": project.parent_dc_code ? `${project.parent_dc_code} - ${project.parent_dc_name ?? ""}`.trim() : "",
                             "Tipe Proyek": project.project_type,
-                            "Lokasi": project.location_name ?? "",
                             "Tahap": stage.label,
                             "Kategori Utama": utama.title,
+                            "Catatan Kategori Utama": catatanKategori,
                             "Sub Kategori": detail.title,
                             "Jenis Dokumen": jenis.title,
                             "Format Dokumen": slot.type,
@@ -364,14 +365,11 @@ const buildDcDocumentExport = (
                     "No": rowNumber++,
                     "Kode Proyek": project.archive_code,
                     "Nama Proyek": project.archive_name,
-                    "Cabang": project.branch_name,
-                    "Induk Cabang": project.parent_branch_name ?? project.branch_name,
-                    "Tipe Lokasi": project.archive_type ?? project.project_type,
                     "DC Induk": project.parent_dc_code ? `${project.parent_dc_code} - ${project.parent_dc_name ?? ""}`.trim() : "",
                     "Tipe Proyek": project.project_type,
-                    "Lokasi": project.location_name ?? "",
                     "Tahap": stage.label,
                     "Kategori Utama": "DATA PENTING LAINNYA",
+                    "Catatan Kategori Utama": "-",
                     "Sub Kategori": "Item Tambahan",
                     "Jenis Dokumen": customItem.title,
                     "Format Dokumen": slotType,
