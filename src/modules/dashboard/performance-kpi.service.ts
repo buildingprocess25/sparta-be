@@ -385,15 +385,28 @@ const approvalFilter = (query: Pick<PerformanceKpiDrilldownInput, "sla_role" | "
     return event.durationDays !== null;
 };
 
-const matchesPerson = (fact: PerformanceKpiFact, role?: PerformanceKpiPersonRole, person?: string) => {
-    if (!role || isAll(person)) return true;
-    const names = role === "support" ? fact.supports : fact.coordinators;
-    return names.some((name) => normalizeUpper(name) === normalizeUpper(person));
+const matchesPerson = (fact: PerformanceKpiFact, role?: string, person?: string) => {
+    if (!person || isAll(person)) return true;
+    const targetPerson = normalizeUpper(person);
+    
+    if (role === "support") return fact.supports.some((name) => normalizeUpper(name) === targetPerson);
+    if (role === "coordinator") return fact.coordinators.some((name) => normalizeUpper(name) === targetPerson);
+    if (role === "bm_manager" || role === "branch_manager") {
+        return fact.approvals.some((a) => a.role === role && normalizeUpper(a.actorName) === targetPerson);
+    }
+    if (!role) {
+        if (fact.supports.some((name) => normalizeUpper(name) === targetPerson)) return true;
+        if (fact.coordinators.some((name) => normalizeUpper(name) === targetPerson)) return true;
+        if (fact.approvals.some((a) => normalizeUpper(a.actorName) === targetPerson)) return true;
+        return false;
+    }
+    return false;
 };
 
 const matchesDrilldown = (fact: PerformanceKpiFact, query: PerformanceKpiDrilldownInput) => {
     if (!matchesPerson(fact, query.person_role, query.person_name)) return false;
     if (query.support_metric) return fact.supports.length > 0;
+    if (query.card_type === "all") return true;
     if (query.card_type === "sla_approval") return fact.approvals.some(approvalFilter(query));
     const value = getCardValue(fact, query.card_type);
     return value !== null && (query.card_type !== "denda" || value > 0);

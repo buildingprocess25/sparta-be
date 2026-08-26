@@ -9,7 +9,8 @@ export type PerformanceKpiCardType =
     | "kerja_tambah"
     | "kerja_kurang"
     | "ketepatan_st"
-    | "sla_ktk";
+    | "sla_ktk"
+    | "all";
 
 export type PerformanceKpiSlaRole = "support" | "coordinator" | "bm_manager" | "branch_manager";
 export type PerformanceKpiPersonRole = "coordinator" | "support";
