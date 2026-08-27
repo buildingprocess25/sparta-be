@@ -6,9 +6,11 @@ import { pool, withTransaction } from "../../db/pool";
 import fs from "fs";
 import path from "path";
 import sharp from "sharp";
-import { scheduleAutomaticSerahTerimaIfReady } from "../serah-terima/serah-terima.service";
+import type { PoolClient } from "pg";
+import type { AuthenticatedUser } from "../auth/auth-session.service";
+import { opnameRepository } from "../opname/opname.repository";
 import { opnameService, uploadFotoOpnameToDrive } from "../opname/opname.service";
-import { type PoolClient } from "pg";
+import { scheduleAutomaticSerahTerimaIfReady } from "../serah-terima/serah-terima.service";
 import { pengawasanRepository, type PengawasanRow } from "./pengawasan.repository";
 import { assertPengawasanItemsBelongToGanttScope } from "./pengawasan-scope-guard";
 import type {
@@ -16,9 +18,9 @@ import type {
     CreatePengawasanData,
     CreatePengawasanInput,
     ListPengawasanQueryInput,
+    PengawasanOpnameReviewInput,
     UpdatePengawasanInput
 } from "./pengawasan.schema";
-
 type UploadedFotoOpnameFile = UploadedDokumentasiFile;
 
 type UploadedDokumentasiFile = {
@@ -623,6 +625,55 @@ const preUploadOpnameFotos = async (
     return opnamePayloads;
 };
 
+const normalizeActorRoles = (actor?: AuthenticatedUser | null): string[] =>
+    (actor?.roles?.length ? actor.roles : [actor?.jabatan])
+        .map((role) => String(role ?? "").trim().toUpperCase())
+        .filter(Boolean);
+
+const assertSupportCanReviewOpname = (actor?: AuthenticatedUser | null): void => {
+    const roles = normalizeActorRoles(actor);
+    const allowed = roles.some((role) => role.includes("BRANCH BUILDING SUPPORT") || role.includes("SUPER HUMAN"));
+    if (!allowed) throw new AppError("Hanya Branch Building Support yang dapat mereview opname kontraktor.", 403);
+};
+
+const processOpnameReviewsForPengawasanBulk = async (
+    reviews: PengawasanOpnameReviewInput[] | undefined,
+    actor: AuthenticatedUser | undefined,
+    existingClient: PoolClient
+): Promise<void> => {
+    if (!reviews || reviews.length === 0) return;
+    assertSupportCanReviewOpname(actor);
+
+    const reviewerEmail = actor?.email_sat;
+    if (!reviewerEmail) throw new AppError("User tidak terautentikasi", 401);
+
+    const usedIds = new Set<number>();
+    for (const review of reviews) {
+        if (usedIds.has(review.id_opname_item)) {
+            throw new AppError(`Review opname duplikat untuk item ${review.id_opname_item}`, 400);
+        }
+        usedIds.add(review.id_opname_item);
+
+        const existing = await opnameRepository.findByIdForUpdate(review.id_opname_item, existingClient);
+        if (!existing) throw new AppError(`Data opname tidak ditemukan (id=${review.id_opname_item})`, 404);
+        const updated = await opnameRepository.updateSupportReview({
+            id_opname_item: review.id_opname_item,
+            decision: review.decision,
+            alasan_penolakan_support: review.alasan_penolakan_support,
+            reviewer_email: reviewerEmail,
+        }, existingClient);
+
+        await opnameRepository.insertRevisionHistory({
+            id_opname_item: updated.id,
+            revision_no: updated.revision_no,
+            previous_status: existing.status,
+            next_status: updated.status,
+            actor_email: reviewerEmail,
+            actor_role: normalizeActorRoles(actor).join(", "),
+            snapshot: updated,
+        }, existingClient);
+    }
+};
 const processOpnameDataForPengawasanBulk = async (
     opnamePayloads: any[],
     emailPembuat: string,
@@ -720,7 +771,9 @@ export const pengawasanService = {
         uploadedDokumentasiIndexes?: number[],
         uploadedFotoOpnameFiles: UploadedFotoOpnameFile[] = [],
         uploadedFotoOpnameIndexes?: number[],
-        emailPembuat?: string
+        emailPembuat?: string,
+        actor?: AuthenticatedUser,
+        opnameReviews: PengawasanOpnameReviewInput[] = []
     ): Promise<PengawasanRow[]> {
         try {
             const resolvedGanttIds = new Map<number, { idPengawasanGantt: number; tanggal: string }>();
@@ -751,6 +804,9 @@ export const pengawasanService = {
             if (firstOpname && firstOpname.id_toko) fallbackIdToko = firstOpname.id_toko;
             
             const opnamePayloads = await preUploadOpnameFotos(items, uploadedFotoOpnameFiles, uploadedFotoOpnameIndexes, fallbackIdToko);
+            if (opnameReviews.length > 0 && opnamePayloads.length > 0) {
+                throw new AppError("Review opname kontraktor tidak boleh digabung dengan opname_data alur lama.", 409);
+            }
 
             let rows: PengawasanRow[];
             const carryForwardRows: PengawasanRow[] = [];
@@ -766,6 +822,7 @@ export const pengawasanService = {
                     const payloadsReadyToInsert = await withPengawasanDocumentFallbacks(basePayloads, client);
                     const result = await pengawasanRepository.createBulk(payloadsReadyToInsert, client);
                     carryForwardRows.push(...await createTerlambatCarryForwardRows(result, client));
+                    await processOpnameReviewsForPengawasanBulk(opnameReviews, actor, client);
                     await processOpnameDataForPengawasanBulk(opnamePayloads, emailPembuat || "", client);
                     return result;
                 });
@@ -815,6 +872,7 @@ export const pengawasanService = {
                     const payloadsReadyToInsert = await withPengawasanDocumentFallbacks(payloadWithDokumentasi, client);
                     const result = await pengawasanRepository.createBulk(payloadsReadyToInsert, client);
                     carryForwardRows.push(...await createTerlambatCarryForwardRows(result, client));
+                    await processOpnameReviewsForPengawasanBulk(opnameReviews, actor, client);
                     await processOpnameDataForPengawasanBulk(opnamePayloads, emailPembuat || "", client);
                     return result;
                 });
@@ -855,6 +913,7 @@ export const pengawasanService = {
                     const payloadsReadyToInsert = await withPengawasanDocumentFallbacks(payloadWithDokumentasi, client);
                     const result = await pengawasanRepository.createBulk(payloadsReadyToInsert, client);
                     carryForwardRows.push(...await createTerlambatCarryForwardRows(result, client));
+                    await processOpnameReviewsForPengawasanBulk(opnameReviews, actor, client);
                     await processOpnameDataForPengawasanBulk(opnamePayloads, emailPembuat || "", client);
                     return result;
                 });
@@ -1020,7 +1079,9 @@ export const pengawasanService = {
         uploadedDokumentasiIndexes?: number[],
         uploadedFotoOpnameFiles: UploadedFotoOpnameFile[] = [],
         uploadedFotoOpnameIndexes?: number[],
-        emailPembuat?: string
+        emailPembuat?: string,
+        actor?: AuthenticatedUser,
+        opnameReviews: PengawasanOpnameReviewInput[] = []
     ): Promise<PengawasanRow[]> {
         try {
             const fileByItemIndex = new Map<number, UploadedDokumentasiFile>();
@@ -1119,6 +1180,9 @@ export const pengawasanService = {
             if (firstOpname && firstOpname.id_toko) fallbackIdToko = firstOpname.id_toko;
             
             const opnamePayloads = await preUploadOpnameFotos(items, uploadedFotoOpnameFiles, uploadedFotoOpnameIndexes, fallbackIdToko);
+            if (opnameReviews.length > 0 && opnamePayloads.length > 0) {
+                throw new AppError("Review opname kontraktor tidak boleh digabung dengan opname_data alur lama.", 409);
+            }
 
             const updatedRowsArray = await withTransaction(async (client) => {
                 const results = [];
@@ -1132,6 +1196,7 @@ export const pengawasanService = {
                 }
                 
                 carryForwardRows.push(...await createTerlambatCarryForwardRows(results, client));
+                await processOpnameReviewsForPengawasanBulk(opnameReviews, actor, client);
                 await processOpnameDataForPengawasanBulk(opnamePayloads, emailPembuat || "", client);
                 
                 return results;
