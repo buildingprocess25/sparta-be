@@ -1423,7 +1423,6 @@ export const ganttRepository = {
         };
     },
 
-    /** Hapus pengawasan berdasarkan tanggal pengawasan */
     async removePengawasan(
         ganttId: string,
         tanggalPengawasan: string
@@ -1434,6 +1433,16 @@ export const ganttRepository = {
             [ganttId, tanggalPengawasan]
         );
         return (result.rowCount ?? 0) > 0;
+    },
+
+    async getPengawasanGanttByIdGantt(ganttId: string | number): Promise<{ id_pic_pengawasan: number | null, tanggal_pengawasan: string }[]> {
+        const result = await pool.query<{ id_pic_pengawasan: number | null, tanggal_pengawasan: string }>(
+            `SELECT id_pic_pengawasan, tanggal_pengawasan
+             FROM pengawasan_gantt
+             WHERE id_gantt = $1`,
+            [ganttId]
+        );
+        return result.rows;
     },
 
     async ensureLastPengawasanMatchesEffectiveSpkEnd(nomorUlok: string): Promise<{ tanggal_pengawasan: string | null; inserted_count: number }> {

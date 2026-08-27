@@ -255,6 +255,77 @@ const buildUnifiedSupervisionMetadata = (scopes: any[]) => {
     };
 };
 
+async function autoSyncPicPengawasanForGantt(
+    tokoId: number, 
+    ganttId: number, 
+    nomorUlok: string
+) {
+    try {
+        const { tokoRepository } = await import("../toko/toko.repository");
+        const siblings = await tokoRepository.findAllByNomorUlok(nomorUlok);
+        if (siblings.length <= 1) return;
+
+        let sourcePicInfo: { pic: any, dates: string[] } | null = null;
+        for (const sibling of siblings) {
+            if (sibling.id === tokoId) continue;
+            
+            const { ganttRepository } = await import("./gantt.repository");
+            const siblingGantt = await ganttRepository.findLatestActiveByTokoId(sibling.id);
+            if (!siblingGantt) continue;
+            
+            const pgList = await ganttRepository.getPengawasanGanttByIdGantt(siblingGantt.id);
+            if (pgList.length === 0) continue;
+            
+            const picId = pgList.find(p => p.id_pic_pengawasan)?.id_pic_pengawasan;
+            if (picId) {
+                const { picPengawasanService } = await import("../pic-pengawasan/pic-pengawasan.service");
+                const pic = await picPengawasanService.getById(String(picId));
+                if (pic) {
+                    sourcePicInfo = {
+                        pic,
+                        dates: pgList.map(p => p.tanggal_pengawasan)
+                    };
+                    break;
+                }
+            }
+        }
+        
+        if (!sourcePicInfo) return;
+        
+        const { pool } = await import("../../db/pool");
+        const spkRes = await pool.query(`SELECT id, durasi, waktu_mulai FROM pengajuan_spk WHERE id_toko = $1 AND UPPER(TRIM(COALESCE(status, ''))) IN ('DISETUJUI', 'APPROVED') ORDER BY id DESC LIMIT 1`, [tokoId]);
+        const currentSpk = spkRes.rows[0];
+        if (!currentSpk) return;
+        
+        const rabRes = await pool.query(`SELECT id FROM rab WHERE id_toko = $1 AND UPPER(TRIM(COALESCE(status, ''))) IN ('DISETUJUI', 'APPROVED') ORDER BY id DESC LIMIT 1`, [tokoId]);
+        const currentRabId = rabRes.rows[0]?.id;
+        if (!currentRabId) return;
+
+        const { picPengawasanService } = await import("../pic-pengawasan/pic-pengawasan.service");
+        const newPic = await picPengawasanService.create({
+            id_toko: tokoId,
+            nomor_ulok: nomorUlok,
+            id_rab: currentRabId,
+            id_spk: currentSpk.id,
+            kategori_lokasi: sourcePicInfo.pic.kategori_lokasi || '-',
+            durasi: currentSpk.durasi ? `${currentSpk.durasi} Hari` : sourcePicInfo.pic.durasi,
+            tanggal_mulai_spk: currentSpk.waktu_mulai || sourcePicInfo.pic.tanggal_mulai_spk,
+            plc_building_support: sourcePicInfo.pic.plc_building_support,
+        });
+
+        const { ganttRepository } = await import("./gantt.repository");
+        await ganttRepository.addPengawasan(
+            String(ganttId), 
+            sourcePicInfo.dates, 
+            newPic.id
+        );
+        
+        console.log(`[AutoSync] Successfully synced PIC Pengawasan from sibling to Gantt ${ganttId}`);
+    } catch (e) {
+        console.error(`[AutoSync] Failed to sync PIC Pengawasan for Gantt ${ganttId}:`, e);
+    }
+}
+
 export const ganttService = {
     async getSupervisionWorkspace(nomorUlok: string) {
         const scopes = await ganttRepository.findSupervisionWorkspace(nomorUlok);
@@ -329,6 +400,8 @@ export const ganttService = {
 
                 await releaseRabApprovalAfterGantt(existingToko.id, "SUBMIT");
 
+                await autoSyncPicPengawasanForGantt(refreshed.gantt.id_toko, refreshed.gantt.id, payload.nomor_ulok);
+
                 return {
                     ...refreshed.gantt,
                     toko_id: refreshed.gantt.id_toko,
@@ -356,6 +429,8 @@ export const ganttService = {
         });
 
         await releaseRabApprovalAfterGantt(gantt.toko_id, "SUBMIT");
+
+        await autoSyncPicPengawasanForGantt(gantt.toko_id, gantt.id, payload.nomor_ulok);
 
         return gantt;
     },

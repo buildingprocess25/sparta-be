@@ -82,6 +82,18 @@ export const tokoRepository = {
         return result.rows[0] ?? null;
     },
 
+    async findAllByNomorUlok(nomorUlok: string): Promise<TokoRow[]> {
+        const result = await pool.query<TokoRow>(
+            `SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor
+             FROM toko
+             WHERE UPPER(nomor_ulok) = UPPER($1)
+             ORDER BY id DESC`,
+            [nomorUlok]
+        );
+
+        return result.rows;
+    },
+
     async findByNomorUlokAndLingkup(nomorUlok: string, lingkupPekerjaan?: string | null): Promise<TokoRow | null> {
         const normalizedLingkup = lingkupPekerjaan?.trim().toUpperCase() || null;
         console.log('[TOKO DEBUG] findByNomorUlokAndLingkup called:', {
