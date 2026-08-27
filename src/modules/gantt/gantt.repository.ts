@@ -467,7 +467,7 @@ export const ganttRepository = {
                 FROM target_pengawasan_gantt tpg
                 LEFT JOIN pengawasan_per_date p
                     ON p.id_pengawasan_gantt = tpg.id_pengawasan_gantt
-                GROUP BY tpg.id_toko, tpg.id_pengawasan_gantt, tpg.tanggal_pengawasan
+                GROUP BY tpg.id_toko, tpg.id_pengawasan_gantt, tpg.tanggal_pengawasan, tpg.workflow_version
             )
             SELECT
                 s.*,
@@ -859,7 +859,7 @@ export const ganttRepository = {
 
         // Pengawasan
         const pengawasanRes = await pool.query<PengawasanGanttRow>(
-            `SELECT id, id_gantt, id_pic_pengawasan, tanggal_pengawasan
+            `SELECT id, id_gantt, id_pic_pengawasan, tanggal_pengawasan, workflow_version
              FROM pengawasan_gantt
              WHERE id_gantt = $1
              ORDER BY id ASC`,
@@ -1437,7 +1437,7 @@ export const ganttRepository = {
 
     async getPengawasanGanttByIdGantt(ganttId: string | number): Promise<{ id_pic_pengawasan: number | null, tanggal_pengawasan: string }[]> {
         const result = await pool.query<{ id_pic_pengawasan: number | null, tanggal_pengawasan: string }>(
-            `SELECT id_pic_pengawasan, tanggal_pengawasan
+            `SELECT id_pic_pengawasan, tanggal_pengawasan, workflow_version
              FROM pengawasan_gantt
              WHERE id_gantt = $1`,
             [ganttId]
@@ -1595,7 +1595,7 @@ export const ganttRepository = {
 
         // 7. Pengawasan
         const pengawasanRes = await pool.query<PengawasanGanttRow>(
-            `SELECT id, id_gantt, id_pic_pengawasan, tanggal_pengawasan
+            `SELECT id, id_gantt, id_pic_pengawasan, tanggal_pengawasan, workflow_version
              FROM pengawasan_gantt
              WHERE id_gantt = $1
              ORDER BY id ASC`,
