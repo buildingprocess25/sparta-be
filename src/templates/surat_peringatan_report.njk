@@ -377,6 +377,12 @@
   {% endfor %}
   {% endif %}
 
+  {% if generatePdfHeaderTemplate %}
+  <div class="page-break"></div>
+  {{ sparta_header("Surat Peringatan " ~ spLevelRomawi ~ " - Lampiran", (nomorUlok and nomorUlok != '-') and (nomorUlok ~ ((namaToko and namaToko != '-') and (" - " ~ namaToko) or "")) or (namaKontraktor or "-")) | safe }}
+  <div class="section-title">Lampiran Dokumen</div>
+  {% endif %}
+
   </div>
 </body>
 </html>

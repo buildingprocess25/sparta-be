@@ -204,6 +204,7 @@ const buildAndUploadSpPdf = async (input: {
         submittedBy: input.submittedBy,
         submittedAt: input.submittedAt ?? input.action.submitted_at ?? input.action.created_at,
         lampiranImages: lampiranImagesBase64,
+        generatePdfHeaderTemplate: lampiranPdfBuffers.length > 0,
     });
 
     const safeUlok = sanitizeFilenamePart(input.action.nomor_ulok, "ULOK");
@@ -216,15 +217,34 @@ const buildAndUploadSpPdf = async (input: {
     if (lampiranPdfBuffers.length > 0) {
         try {
             const mainPdf = await PDFDocument.load(pdfBuffer);
+            const templatePageIndex = mainPdf.getPageCount() - 1;
+
             for (const buffer of lampiranPdfBuffers) {
                 try {
                     const attachmentPdf = await PDFDocument.load(buffer);
-                    const copiedPages = await mainPdf.copyPages(attachmentPdf, attachmentPdf.getPageIndices());
-                    copiedPages.forEach(page => mainPdf.addPage(page));
+                    const embeddedPages = await mainPdf.embedPages(attachmentPdf.getPages());
+                    
+                    for (const embeddedPage of embeddedPages) {
+                        const [clonedPage] = await mainPdf.copyPages(mainPdf, [templatePageIndex]);
+                        const { width, height } = clonedPage.getSize();
+                        
+                        const availableWidth = width - 40; 
+                        const availableHeight = height - 200;
+                        const dims = embeddedPage.scaleToFit(availableWidth, availableHeight);
+                        
+                        clonedPage.drawPage(embeddedPage, {
+                            x: width / 2 - dims.width / 2,
+                            y: height - 160 - dims.height,
+                            width: dims.width,
+                            height: dims.height,
+                        });
+                        mainPdf.addPage(clonedPage);
+                    }
                 } catch (err: any) {
                     console.warn(`[SP Service] Failed to merge PDF attachment:`, err?.message);
                 }
             }
+            mainPdf.removePage(templatePageIndex);
             finalPdfBuffer = Buffer.from(await mainPdf.save());
         } catch (err: any) {
             console.error("[SP Service] Failed to merge PDFs:", err?.message);
