@@ -4,6 +4,7 @@ import { env } from "../../config/env";
 import type { AuthenticatedUser } from "../auth/auth-session.service";
 import { calculateDendaByTokoId } from "../denda/denda-keterlambatan";
 import { opnameFinalService } from "../opname-final/opname-final.service";
+import { opnameRepository } from "../opname/opname.repository";
 import { canManageSystemMaintenance } from "../system-maintenance/system-maintenance.service";
 import {
     buildSerahTerimaPdfBuffer,
@@ -166,6 +167,14 @@ const getSerahTerimaReadiness = async (idToko: number) => {
             return {
                 ready: false,
                 reason: `Masih ada ${readyOpnameItems} pekerjaan selesai yang belum masuk Opname pada lingkup ${scope.lingkup_pekerjaan}`,
+            };
+        }
+
+        const contractorFirstBlockers = await opnameRepository.findContractorFirstApprovalBlockersByToko(Number(scope.id_toko));
+        if (contractorFirstBlockers.length > 0) {
+            return {
+                ready: false,
+                reason: `Masih ada ${contractorFirstBlockers.length} item opname kontraktor yang belum disetujui pada lingkup ${scope.lingkup_pekerjaan}`,
             };
         }
 
