@@ -14,6 +14,7 @@ type BuildSpPdfInput = {
     submittedAt?: string | null;
     spkWaktuMulai?: string | null;
     spkWaktuSelesai?: string | null;
+    lampiranImages?: string[];
 };
 
 const JAKARTA_TIME_ZONE = "Asia/Jakarta";
@@ -125,6 +126,7 @@ export async function buildSuratPeringatanPdfBuffer(input: BuildSpPdfInput): Pro
         submittedBy: input.submittedBy,
         submittedAt: input.submittedAt ?? null,
         submittedAtText: formatTanggalJamWib(input.submittedAt),
+        lampiranImages: input.lampiranImages ?? [],
     };
 
     const html = await renderHtmlTemplate(templatePath, data);
