@@ -260,3 +260,48 @@ export const getApprovalBranchesForUser = async (input: {
 
     return { branches: getBranchGroupOrFallback(normalizedCabang), source: "branch_group" };
 };
+
+/**
+ * Branch scope khusus Dashboard Monitoring.
+ * Prioritas utama: jika user memiliki coverage di DB, GUNAKAN coverage tersebut.
+ * Jika tidak punya, baru fallback ke role (Global / Branch Group).
+ */
+export const getDashboardBranchesForUser = async (input: {
+    emailSat: string;
+    cabang: string;
+    roles: string[];
+}): Promise<{ branches: string[]; source: "global" | "support" | "coverage" | "branch_group" | "fallback" }> => {
+    const { emailSat, cabang, roles } = input;
+    const normalizedCabang = normalizeBranchScopeName(cabang);
+
+    // 1. PRIORITAS UTAMA: Cek Coverage Database
+    const coverage = await getUserCoverageBranches(emailSat, cabang);
+    if (coverage.length > 0) {
+        return { branches: coverage.sort(), source: "coverage" };
+    }
+
+    // 2. Jika tidak ada coverage, jalankan logic standar
+    if (hasGlobalAccess(cabang, roles)) {
+        return { branches: ALL_BRANCHES, source: "global" };
+    }
+
+    if (isBranchSupportRole(roles)) {
+        const branchGroup = getBranchScopeCandidates(normalizedCabang);
+        return { branches: branchGroup.sort(), source: "support" };
+    }
+
+    const hasSpecificRules = hasSpecificCoverageRules(normalizedCabang);
+    if (hasSpecificRules) {
+        if (isKontraktorRole(roles)) {
+            const branchGroup = getBranchScopeCandidates(normalizedCabang);
+            return { branches: branchGroup.sort(), source: "branch_group" };
+        }
+        return { 
+            branches: normalizedCabang ? [normalizedCabang] : [], 
+            source: "fallback" 
+        };
+    }
+
+    const branchGroup = getBranchScopeCandidates(normalizedCabang);
+    return { branches: branchGroup.sort(), source: "branch_group" };
+};
