@@ -4,8 +4,11 @@ import { asyncHandler } from "../../common/async-handler";
 import { GoogleProvider } from "../../common/google";
 import {
     bulkCreateOpnameSchema,
+    contractorCheckpointOpnameSubmitSchema,
+    contractorOpnameRevisionSchema,
     createOpnameSchema,
     listOpnameQuerySchema,
+    supportOpnameReviewDecisionSchema,
     updateOpnameSchema
 } from "./opname.schema";
 import { opnameService } from "./opname.service";
@@ -121,6 +124,48 @@ export const createBulkOpname = asyncHandler(async (req: Request, res: Response)
     });
 });
 
+export const createCheckpointOpname = asyncHandler(async (req: Request, res: Response) => {
+    const payload = contractorCheckpointOpnameSubmitSchema.parse(req.body);
+    const data = await opnameService.submitContractorCheckpointOpname(payload, req.user ?? null);
+
+    res.status(201).json({
+        status: "success",
+        message: "Opname kontraktor berhasil disimpan",
+        data
+    });
+});
+
+export const listContractorFirstOpname = asyncHandler(async (req: Request, res: Response) => {
+    const query = listOpnameQuerySchema.parse(req.query);
+    const { toko, items, instruksi_lapangan_items } = await opnameService.listContractorFirst(query);
+
+    res.json({ status: "success", toko, instruksi_lapangan_items, data: items });
+});
+
+export const reviewContractorFirstOpname = asyncHandler(async (req: Request, res: Response) => {
+    const payload = supportOpnameReviewDecisionSchema.parse({
+        ...req.body,
+        id_opname_item: req.params.id
+    });
+    const data = await opnameService.reviewContractorFirstOpnameItem(req.params.id, payload, req.user ?? null);
+
+    res.json({
+        status: "success",
+        message: "Review opname kontraktor berhasil disimpan",
+        data
+    });
+});
+
+export const reviseContractorFirstOpname = asyncHandler(async (req: Request, res: Response) => {
+    const payload = contractorOpnameRevisionSchema.parse(req.body);
+    const data = await opnameService.reviseContractorFirstOpnameItem(req.params.id, payload, req.user ?? null);
+
+    res.json({
+        status: "success",
+        message: "Revisi opname kontraktor berhasil disimpan",
+        data
+    });
+});
 export const listOpname = asyncHandler(async (req: Request, res: Response) => {
     const query = listOpnameQuerySchema.parse(req.query);
     const { toko, items, instruksi_lapangan_items } = await opnameService.list(query);
@@ -163,3 +208,4 @@ export const deleteOpname = asyncHandler(async (req: Request, res: Response) => 
         data
     });
 });
+

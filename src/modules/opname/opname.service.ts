@@ -1,23 +1,27 @@
 import { AppError } from "../../common/app-error";
-import { pool } from "../../db/pool";
+import { pool, withTransaction } from "../../db/pool";
 import type { PoolClient } from "pg";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
+import type { AuthenticatedUser } from "../auth/auth-session.service";
 import { calculateDendaByTokoId } from "../denda/denda-keterlambatan";
 import { instruksiLapanganRepository } from "../instruksi-lapangan/instruksi-lapangan.repository";
 import { opnameFinalRepository } from "../opname-final/opname-final.repository";
 import { scheduleAutomaticSerahTerimaIfReady } from "../serah-terima/serah-terima.service";
 import { scheduleAutomaticUnifiedSerahTerimaIfReady } from "../serah-terima/serah-terima.service";
+import { subtractOneCalendarDay, workItemKey } from "./opname-checkpoint.rules";
 import { opnameRepository, type OpnameRow, type TokoSummaryRow } from "./opname.repository";
 import type {
+    ContractorCheckpointOpnameSubmitInput,
+    ContractorOpnameRevisionInput,
     CreateBulkOpnameItemData,
     CreateBulkOpnameItemInput,
     CreateOpnameData,
     CreateOpnameInput,
     ListOpnameQueryInput,
+    SupportOpnameReviewDecisionInput,
     UpdateOpnameInput
 } from "./opname.schema";
-
 type UploadedFotoOpnameFile = {
     originalname: string;
     mimetype: string;
@@ -202,6 +206,48 @@ const refreshOpnameFinalDenda = async (opnameFinalId: number, idToko: number, ex
     return denda;
 };
 
+const normalizeActorRoles = (actor?: AuthenticatedUser | null): string[] =>
+    (actor?.roles?.length ? actor.roles : [actor?.jabatan])
+        .map((role) => String(role ?? "").trim().toUpperCase())
+        .filter(Boolean);
+
+const actorEmail = (actor?: AuthenticatedUser | null, fallback?: string | null): string => {
+    const email = actor?.email_sat || fallback;
+    if (!email) throw new AppError("User belum terautentikasi", 401);
+    return email;
+};
+
+const assertContractorActor = (actor?: AuthenticatedUser | null): void => {
+    const roles = normalizeActorRoles(actor);
+    const isContractor = roles.some((role) => role.includes("KONTRAKTOR") || role.includes("DIREKTUR"));
+    if (!isContractor) throw new AppError("Hanya kontraktor yang dapat mengisi atau merevisi opname.", 403);
+};
+
+const assertSupportActor = (actor?: AuthenticatedUser | null): void => {
+    const roles = normalizeActorRoles(actor);
+    const isSupport = roles.some((role) => role.includes("BRANCH BUILDING SUPPORT") || role.includes("SUPER HUMAN"));
+    if (!isSupport) throw new AppError("Hanya Branch Building Support yang dapat mereview opname kontraktor.", 403);
+};
+
+const ddMmYyyyToIso = (value: string): string => {
+    const trimmed = value.trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) return trimmed.slice(0, 10);
+    const [dd, mm, yyyy] = trimmed.split("/");
+    if (!dd || !mm || !yyyy) throw new AppError("Format tanggal pengawasan tidak valid", 500);
+    return `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
+};
+
+const assertNoDuplicateOpnameSources = (items: Array<{ id_rab_item?: number | null; id_instruksi_lapangan_item?: number | null }>): void => {
+    const keys = new Set<string>();
+    for (const item of items) {
+        const key = workItemKey(item);
+        if (keys.has(key)) throw new AppError(`Item opname duplikat: ${key}`, 400);
+        keys.add(key);
+    }
+};
+
+const sumOpnameTotal = (items: Array<{ total_harga_opname?: number | null }>): string =>
+    String(items.reduce((total, item) => total + Number(item.total_harga_opname ?? 0), 0));
 const mapBulkCreateResponse = (created: Awaited<ReturnType<typeof opnameRepository.createBulkWithFinal>>) => ({
     opname_final: {
         id: created.opnameFinal.id,
@@ -385,6 +431,172 @@ export const opnameService = {
         }
     },
 
+    async submitContractorCheckpointOpname(
+        input: ContractorCheckpointOpnameSubmitInput,
+        actor?: AuthenticatedUser | null
+    ): Promise<{
+        id_pengawasan_gantt_target: number;
+        tanggal_slot_opname: string;
+        routed_to: "target_checkpoint" | "next_checkpoint" | "serah_terima";
+        items: OpnameRow[];
+    }> {
+        assertContractorActor(actor);
+        assertNoDuplicateOpnameSources(input.items);
+        const emailPembuat = actorEmail(actor, input.email_pembuat);
+
+        try {
+            return await withTransaction(async (client) => {
+                const checkpoint = await opnameRepository.findCheckpointForContractorOpname(input.id_pengawasan_gantt);
+                if (!checkpoint) throw new AppError("Checkpoint pengawasan tidak ditemukan", 404);
+                if (checkpoint.id_toko !== input.id_toko) {
+                    throw new AppError("Checkpoint pengawasan tidak sesuai dengan toko yang dipilih", 400);
+                }
+                if (checkpoint.workflow_version !== "contractor_first") {
+                    throw new AppError("Checkpoint ini masih memakai alur opname lama", 409);
+                }
+
+                const tanggalSlotOpname = subtractOneCalendarDay(ddMmYyyyToIso(checkpoint.tanggal_pengawasan));
+                let targetId = checkpoint.id;
+                let routedTo: "target_checkpoint" | "next_checkpoint" | "serah_terima" = "target_checkpoint";
+
+                if (await opnameRepository.isCheckpointFilled(checkpoint.id)) {
+                    const next = await opnameRepository.findNextUnfilledCheckpoint({
+                        id_gantt: checkpoint.id_gantt,
+                        after_tanggal_pengawasan: checkpoint.tanggal_pengawasan,
+                    });
+                    if (next) {
+                        targetId = next.id;
+                        routedTo = "next_checkpoint";
+                    } else {
+                        routedTo = "serah_terima";
+                    }
+                }
+
+                const opnameFinal = await opnameRepository.findOrCreateContractorFirstFinal({
+                    id_toko: input.id_toko,
+                    email_pembuat: emailPembuat,
+                    grand_total_opname: sumOpnameTotal(input.items),
+                    grand_total_rab: sumOpnameTotal(input.items),
+                    tipe_opname: "OPNAME",
+                }, client);
+
+                const items = await opnameRepository.createContractorFirstItems({
+                    id_toko: input.id_toko,
+                    id_opname_final: opnameFinal.id,
+                    id_pengawasan_gantt_target: targetId,
+                    tanggal_slot_opname: tanggalSlotOpname,
+                    submitted_by_email: emailPembuat,
+                    items: input.items,
+                }, client);
+
+                for (const item of items) {
+                    await opnameRepository.insertRevisionHistory({
+                        id_opname_item: item.id,
+                        revision_no: item.revision_no,
+                        previous_status: null,
+                        next_status: item.status,
+                        actor_email: emailPembuat,
+                        actor_role: normalizeActorRoles(actor).join(", "),
+                        snapshot: item,
+                    }, client);
+                }
+
+                await refreshOpnameFinalDenda(opnameFinal.id, input.id_toko, client);
+                await opnameFinalRepository.updateTotals(String(opnameFinal.id), client);
+
+                return {
+                    id_pengawasan_gantt_target: targetId,
+                    tanggal_slot_opname: tanggalSlotOpname,
+                    routed_to: routedTo,
+                    items: items.map((item) => normalizeOpnameFotoLink(item)),
+                };
+            });
+        } catch (error) {
+            if (error instanceof AppError) throw error;
+            return mapPgError(error);
+        }
+    },
+
+    async reviewContractorFirstOpnameItem(
+        id: string,
+        input: SupportOpnameReviewDecisionInput,
+        actor?: AuthenticatedUser | null
+    ): Promise<OpnameRow> {
+        assertSupportActor(actor);
+        const parsedId = parseOpnameId(id);
+        const reviewerEmail = actorEmail(actor, null);
+
+        try {
+            return await withTransaction(async (client) => {
+                const existing = await opnameRepository.findByIdForUpdate(parsedId, client);
+                if (!existing) throw new AppError("Data opname tidak ditemukan", 404);
+                const updated = await opnameRepository.updateSupportReview({
+                    id_opname_item: parsedId,
+                    decision: input.decision,
+                    alasan_penolakan_support: input.alasan_penolakan_support,
+                    reviewer_email: reviewerEmail,
+                }, client);
+                await opnameRepository.insertRevisionHistory({
+                    id_opname_item: updated.id,
+                    revision_no: updated.revision_no,
+                    previous_status: existing.status,
+                    next_status: updated.status,
+                    actor_email: reviewerEmail,
+                    actor_role: normalizeActorRoles(actor).join(", "),
+                    snapshot: updated,
+                }, client);
+                await opnameFinalRepository.updateTotals(String(updated.id_opname_final), client);
+                return normalizeOpnameFotoLink(updated);
+            });
+        } catch (error) {
+            if (error instanceof AppError) throw error;
+            return mapPgError(error);
+        }
+    },
+
+    async reviseContractorFirstOpnameItem(
+        id: string,
+        input: ContractorOpnameRevisionInput,
+        actor?: AuthenticatedUser | null
+    ): Promise<OpnameRow> {
+        assertContractorActor(actor);
+        const parsedId = parseOpnameId(id);
+        const submitterEmail = actorEmail(actor, null);
+
+        try {
+            return await withTransaction(async (client) => {
+                const existing = await opnameRepository.findByIdForUpdate(parsedId, client);
+                if (!existing) throw new AppError("Data opname tidak ditemukan", 404);
+                const updated = await opnameRepository.updateContractorRevision({
+                    id_opname_item: parsedId,
+                    actor_email: submitterEmail,
+                    item: input,
+                }, client);
+                await opnameRepository.insertRevisionHistory({
+                    id_opname_item: updated.id,
+                    revision_no: updated.revision_no,
+                    previous_status: existing.status,
+                    next_status: updated.status,
+                    actor_email: submitterEmail,
+                    actor_role: normalizeActorRoles(actor).join(", "),
+                    snapshot: updated,
+                }, client);
+                await opnameFinalRepository.updateTotals(String(updated.id_opname_final), client);
+                return normalizeOpnameFotoLink(updated);
+            });
+        } catch (error) {
+            if (error instanceof AppError) throw error;
+            return mapPgError(error);
+        }
+    },
+
+    async listContractorFirst(query: ListOpnameQueryInput): Promise<{ toko: TokoSummaryRow | null; items: OpnameRow[]; instruksi_lapangan_items: Awaited<ReturnType<typeof instruksiLapanganRepository.getApprovedItemsByTokoId>> }> {
+        const result = await this.list(query);
+        return {
+            ...result,
+            items: result.items.filter((item) => item.workflow_version === "contractor_first")
+        };
+    },
     async list(query: ListOpnameQueryInput): Promise<{ toko: TokoSummaryRow | null; items: OpnameRow[]; instruksi_lapangan_items: Awaited<ReturnType<typeof instruksiLapanganRepository.getApprovedItemsByTokoId>> }> {
         const items = await opnameRepository.findAll(query);
         const toko = typeof query.id_toko === "number"
@@ -513,3 +725,4 @@ export const opnameService = {
         return { id: parsedId, deleted: true };
     }
 };
+

@@ -3,11 +3,15 @@ import type { NextFunction, Request, Response } from "express";
 import multer from "multer";
 import {
     createBulkOpname,
+    createCheckpointOpname,
     createOpname,
     downloadOpnameFoto,
     deleteOpname,
     getOpnameById,
+    listContractorFirstOpname,
     listOpname,
+    reviewContractorFirstOpname,
+    reviseContractorFirstOpname,
     updateOpname
 } from "./opname.controller";
 
@@ -69,6 +73,10 @@ opnameRouter.post(
     ]),
     createBulkOpname
 );
+opnameRouter.post("/checkpoint-submit", createCheckpointOpname);
+opnameRouter.get("/contractor-first/list", listContractorFirstOpname);
+opnameRouter.patch("/:id/revision", reviseContractorFirstOpname);
+opnameRouter.patch("/:id/support-review", reviewContractorFirstOpname);
 opnameRouter.get("/", listOpname);
 opnameRouter.get("/:id", getOpnameById);
 opnameRouter.get("/:id/foto", downloadOpnameFoto);
@@ -82,3 +90,4 @@ opnameRouter.put(
 opnameRouter.delete("/:id", deleteOpname);
 
 export { opnameRouter };
+
