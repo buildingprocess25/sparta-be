@@ -3,10 +3,12 @@ import { AppError } from "../../common/app-error";
 import { pool, withTransaction } from "../../db/pool";
 import { OPNAME_FINAL_STATUS, REJECTED_OPNAME_FINAL_STATUSES } from "../opname-final/opname-final.constants";
 import type {
+    ContractorOpnameRevisionInput,
     CreateBulkOpnameItemData,
     CreateOpnameData,
     ListOpnameQueryInput,
-    UpdateOpnameInput
+    UpdateOpnameInput,
+    WorkflowVersion
 } from "./opname.schema";
 
 /**
@@ -47,6 +49,17 @@ export type OpnameRow = {
     spesifikasi: string | null;
     foto: string | null;
     catatan: string | null;
+    workflow_version: WorkflowVersion;
+    id_pengawasan_gantt_target: number | null;
+    tanggal_slot_opname: string | null;
+    submitted_by_email: string | null;
+    submitted_at: string | null;
+    reviewed_by_email: string | null;
+    reviewed_at: string | null;
+    alasan_penolakan_support: string | null;
+    revision_no: number;
+    revision_parent_id: number | null;
+    locked_at: string | null;
     created_at: string;
     rab_item?: {
         id: number;
@@ -100,7 +113,21 @@ export type OpnameFinalHeaderRow = {
     nilai_denda: string | null;
     tanggal_akhir_spk_denda: string | null;
     tanggal_serah_terima_denda: string | null;
+    workflow_version: WorkflowVersion;
     created_at: string;
+};
+
+export type ContractorFirstCheckpointRow = {
+    id: number;
+    id_gantt: number;
+    id_toko: number;
+    tanggal_pengawasan: string;
+    workflow_version: WorkflowVersion;
+};
+
+export type ContractorFirstRouteTargetRow = {
+    id: number;
+    tanggal_pengawasan: string;
 };
 
 export type TokoSummaryRow = {
@@ -131,6 +158,17 @@ const returningColumns = `
     spesifikasi,
     foto,
     catatan,
+    workflow_version,
+    id_pengawasan_gantt_target,
+    tanggal_slot_opname,
+    submitted_by_email,
+    submitted_at,
+    reviewed_by_email,
+    reviewed_at,
+    alasan_penolakan_support,
+    revision_no,
+    revision_parent_id,
+    locked_at,
     created_at
 `;
 
@@ -150,6 +188,17 @@ const returningColumnsFromOpnameItem = `
     oi.spesifikasi,
     oi.foto,
     oi.catatan,
+    oi.workflow_version,
+    oi.id_pengawasan_gantt_target,
+    oi.tanggal_slot_opname,
+    oi.submitted_by_email,
+    oi.submitted_at,
+    oi.reviewed_by_email,
+    oi.reviewed_at,
+    oi.alasan_penolakan_support,
+    oi.revision_no,
+    oi.revision_parent_id,
+    oi.locked_at,
     oi.created_at,
     CASE WHEN ri.id IS NULL THEN NULL ELSE json_build_object(
         'id', ri.id,
@@ -213,6 +262,7 @@ const opnameFinalColumns = `
     nilai_denda,
     tanggal_akhir_spk_denda,
     tanggal_serah_terima_denda,
+    workflow_version,
     created_at
 `;
 
@@ -234,9 +284,10 @@ export const opnameRepository = {
                 kualitas,
                 spesifikasi,
                 foto,
-                catatan
+                catatan,
+                workflow_version
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'legacy')
             RETURNING ${returningColumns}
             `,
             [
@@ -275,6 +326,7 @@ export const opnameRepository = {
                 SELECT ${opnameFinalColumns}
                 FROM opname_final
                 WHERE id_toko = $1 AND tipe_opname = ANY($2::text[])
+                  AND workflow_version = 'legacy'
                   AND EXISTS (
                       SELECT 1
                       FROM opname_item oi
@@ -323,7 +375,8 @@ export const opnameRepository = {
                         pemberi_persetujuan_koordinator = NULL,
                         waktu_persetujuan_koordinator = NULL,
                         pemberi_persetujuan_manager = NULL,
-                        waktu_persetujuan_manager = NULL
+                        waktu_persetujuan_manager = NULL,
+                        workflow_version = 'legacy'
                     WHERE id = $7
                     `,
                     [
@@ -346,9 +399,10 @@ export const opnameRepository = {
                         aksi,
                         grand_total_opname,
                         grand_total_rab,
-                        status_opname_final
+                        status_opname_final,
+                        workflow_version
                     )
-                    VALUES ($1, $2, $3, $4, $5, $6, $7)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, 'legacy')
                     RETURNING ${opnameFinalColumns}
                     `,
                     [
@@ -387,7 +441,10 @@ export const opnameRepository = {
                             kualitas = $11,
                             spesifikasi = $12,
                             foto = COALESCE($13, foto),
-                            catatan = $14
+                            catatan = $14,
+                            workflow_version = 'legacy',
+                            id_pengawasan_gantt_target = NULL,
+                            tanggal_slot_opname = NULL
                         WHERE id = $15
                         RETURNING ${returningColumns}
                         `,
@@ -429,11 +486,15 @@ export const opnameRepository = {
                         kualitas = $8,
                         spesifikasi = $9,
                         foto = COALESCE($10, foto),
-                        catatan = $11
+                        catatan = $11,
+                        workflow_version = 'legacy',
+                        id_pengawasan_gantt_target = NULL,
+                        tanggal_slot_opname = NULL
                     WHERE id = (
                         SELECT id
                         FROM opname_item
                         WHERE id_toko = $12
+                          AND workflow_version = 'legacy'
                           AND (
                             ($13::int IS NOT NULL AND id_rab_item = $13::int AND id_instruksi_lapangan_item IS NULL)
                             OR
@@ -483,9 +544,10 @@ export const opnameRepository = {
                         kualitas,
                         spesifikasi,
                         foto,
-                        catatan
+                        catatan,
+                        workflow_version
                     )
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'legacy')
                     RETURNING ${returningColumns}
                     `,
                     [
@@ -525,6 +587,471 @@ export const opnameRepository = {
         }, existingClient);
     },
 
+    async findCheckpointForContractorOpname(idPengawasanGantt: number): Promise<ContractorFirstCheckpointRow | null> {
+        const result = await pool.query<ContractorFirstCheckpointRow>(
+            `
+            SELECT
+                pg.id,
+                pg.id_gantt,
+                g.id_toko,
+                pg.tanggal_pengawasan,
+                pg.workflow_version
+            FROM pengawasan_gantt pg
+            JOIN gantt_chart g ON g.id = pg.id_gantt
+            WHERE pg.id = $1
+            LIMIT 1
+            `,
+            [idPengawasanGantt]
+        );
+
+        return result.rows[0] ?? null;
+    },
+
+    async isCheckpointFilled(idPengawasanGantt: number): Promise<boolean> {
+        const result = await pool.query<{ is_filled: boolean }>(
+            `
+            SELECT EXISTS (
+                SELECT 1
+                FROM pengawasan p
+                WHERE p.id_pengawasan_gantt = $1
+            ) AS is_filled
+            `,
+            [idPengawasanGantt]
+        );
+
+        return Boolean(result.rows[0]?.is_filled);
+    },
+
+    async findNextUnfilledCheckpoint(input: {
+        id_gantt: number;
+        after_tanggal_pengawasan: string;
+    }): Promise<ContractorFirstRouteTargetRow | null> {
+        const result = await pool.query<ContractorFirstRouteTargetRow>(
+            `
+            SELECT pg.id, pg.tanggal_pengawasan
+            FROM pengawasan_gantt pg
+            WHERE pg.id_gantt = $1
+              AND to_date(pg.tanggal_pengawasan, 'DD/MM/YYYY') > to_date($2, 'DD/MM/YYYY')
+              AND NOT EXISTS (
+                  SELECT 1 FROM pengawasan p WHERE p.id_pengawasan_gantt = pg.id
+              )
+            ORDER BY to_date(pg.tanggal_pengawasan, 'DD/MM/YYYY') ASC
+            LIMIT 1
+            `,
+            [input.id_gantt, input.after_tanggal_pengawasan]
+        );
+
+        return result.rows[0] ?? null;
+    },
+
+    async findOrCreateContractorFirstFinal(payload: {
+        id_toko: number;
+        email_pembuat: string;
+        grand_total_opname: string;
+        grand_total_rab: string;
+        tipe_opname?: string;
+    }, existingClient?: PoolClient): Promise<OpnameFinalHeaderRow> {
+        const db = existingClient ?? pool;
+        const tipeOpname = payload.tipe_opname || "OPNAME";
+        const existing = await db.query<OpnameFinalHeaderRow>(
+            `
+            SELECT ${opnameFinalColumns}
+            FROM opname_final
+            WHERE id_toko = $1
+              AND tipe_opname = $2
+              AND workflow_version = 'contractor_first'
+            ORDER BY id DESC
+            LIMIT 1
+            FOR UPDATE
+            `,
+            [payload.id_toko, tipeOpname]
+        );
+
+        if (existing.rows[0]) {
+            const row = existing.rows[0];
+            if (row.aksi === "terkunci") {
+                throw new AppError("Opname contractor-first sudah dikunci dan tidak bisa disubmit ulang.", 409);
+            }
+
+            const updated = await db.query<OpnameFinalHeaderRow>(
+                `
+                UPDATE opname_final
+                SET email_pembuat = $1,
+                    aksi = 'active',
+                    grand_total_opname = $2,
+                    grand_total_rab = $3,
+                    status_opname_final = $4,
+                    workflow_version = 'contractor_first'
+                WHERE id = $5
+                RETURNING ${opnameFinalColumns}
+                `,
+                [payload.email_pembuat, payload.grand_total_opname, payload.grand_total_rab, CONTRACTOR_PROCESS_STATUS, row.id]
+            );
+
+            return updated.rows[0];
+        }
+
+        const created = await db.query<OpnameFinalHeaderRow>(
+            `
+            INSERT INTO opname_final (
+                id_toko,
+                tipe_opname,
+                email_pembuat,
+                aksi,
+                grand_total_opname,
+                grand_total_rab,
+                status_opname_final,
+                workflow_version
+            )
+            VALUES ($1, $2, $3, 'active', $4, $5, $6, 'contractor_first')
+            RETURNING ${opnameFinalColumns}
+            `,
+            [payload.id_toko, tipeOpname, payload.email_pembuat, payload.grand_total_opname, payload.grand_total_rab, CONTRACTOR_PROCESS_STATUS]
+        );
+
+        return created.rows[0];
+    },
+
+    async findContractorFirstItemsForTarget(input: {
+        id_toko: number;
+        id_pengawasan_gantt_target: number;
+    }, existingClient?: PoolClient): Promise<OpnameRow[]> {
+        const db = existingClient ?? pool;
+        const result = await db.query<OpnameRow>(
+            `
+            SELECT ${returningColumnsFromOpnameItem}
+            FROM opname_item oi
+            JOIN opname_final ofn ON ofn.id = oi.id_opname_final
+            LEFT JOIN rab_item ri ON ri.id = oi.id_rab_item
+            LEFT JOIN instruksi_lapangan_item ili ON ili.id = oi.id_instruksi_lapangan_item
+            LEFT JOIN toko t ON t.id = oi.id_toko
+            WHERE oi.id_toko = $1
+              AND oi.id_pengawasan_gantt_target = $2
+              AND oi.workflow_version = 'contractor_first'
+            ORDER BY oi.id ASC
+            `,
+            [input.id_toko, input.id_pengawasan_gantt_target]
+        );
+
+        return result.rows;
+    },
+
+    async createContractorFirstItems(input: {
+        id_toko: number;
+        id_opname_final: number;
+        id_pengawasan_gantt_target: number;
+        tanggal_slot_opname: string;
+        submitted_by_email: string;
+        items: CreateBulkOpnameItemData[];
+    }, existingClient?: PoolClient): Promise<OpnameRow[]> {
+        return withTransaction(async (client) => {
+            const items: OpnameRow[] = [];
+
+            for (const item of input.items) {
+                const existing = await client.query<OpnameRow>(
+                    `
+                    SELECT ${returningColumns}
+                    FROM opname_item
+                    WHERE id_toko = $1
+                      AND id_pengawasan_gantt_target = $2
+                      AND workflow_version = 'contractor_first'
+                      AND (
+                        ($3::integer IS NOT NULL AND id_rab_item = $3 AND id_instruksi_lapangan_item IS NULL)
+                        OR
+                        ($4::integer IS NOT NULL AND id_instruksi_lapangan_item = $4 AND id_rab_item IS NULL)
+                      )
+                    ORDER BY id DESC
+                    LIMIT 1
+                    FOR UPDATE
+                    `,
+                    [input.id_toko, input.id_pengawasan_gantt_target, item.id_rab_item ?? null, item.id_instruksi_lapangan_item ?? null]
+                );
+
+                const existingRow = existing.rows[0];
+                if (existingRow?.locked_at) {
+                    throw new AppError("Item opname yang sudah disetujui tidak dapat diubah.", 409);
+                }
+
+                if (existingRow) {
+                    const updated = await client.query<OpnameRow>(
+                        `
+                        UPDATE opname_item
+                        SET id_opname_final = $1,
+                            status = 'pending',
+                            volume_akhir = $2,
+                            selisih_volume = $3,
+                            total_selisih = $4,
+                            total_harga_opname = $5,
+                            desain = $6,
+                            kualitas = $7,
+                            spesifikasi = $8,
+                            foto = COALESCE($9, foto),
+                            catatan = $10,
+                            submitted_by_email = $11,
+                            submitted_at = now(),
+                            reviewed_by_email = NULL,
+                            reviewed_at = NULL,
+                            locked_at = NULL
+                        WHERE id = $12
+                        RETURNING ${returningColumns}
+                        `,
+                        [
+                            input.id_opname_final,
+                            item.volume_akhir,
+                            item.selisih_volume,
+                            item.total_selisih,
+                            item.total_harga_opname,
+                            item.desain ?? null,
+                            item.kualitas ?? null,
+                            item.spesifikasi ?? null,
+                            sanitizeFotoValue(item.foto),
+                            item.catatan ?? null,
+                            input.submitted_by_email,
+                            existingRow.id
+                        ]
+                    );
+                    items.push(updated.rows[0]);
+                    continue;
+                }
+
+                const inserted = await client.query<OpnameRow>(
+                    `
+                    INSERT INTO opname_item (
+                        id_toko,
+                        id_opname_final,
+                        id_rab_item,
+                        id_instruksi_lapangan_item,
+                        status,
+                        volume_akhir,
+                        selisih_volume,
+                        total_selisih,
+                        total_harga_opname,
+                        desain,
+                        kualitas,
+                        spesifikasi,
+                        foto,
+                        catatan,
+                        workflow_version,
+                        id_pengawasan_gantt_target,
+                        tanggal_slot_opname,
+                        submitted_by_email,
+                        submitted_at
+                    )
+                    VALUES ($1, $2, $3, $4, 'pending', $5, $6, $7, $8, $9, $10, $11, $12, $13, 'contractor_first', $14, $15, $16, now())
+                    RETURNING ${returningColumns}
+                    `,
+                    [
+                        input.id_toko,
+                        input.id_opname_final,
+                        item.id_rab_item ?? null,
+                        item.id_instruksi_lapangan_item ?? null,
+                        item.volume_akhir,
+                        item.selisih_volume,
+                        item.total_selisih,
+                        item.total_harga_opname,
+                        item.desain ?? null,
+                        item.kualitas ?? null,
+                        item.spesifikasi ?? null,
+                        sanitizeFotoValue(item.foto),
+                        item.catatan ?? null,
+                        input.id_pengawasan_gantt_target,
+                        input.tanggal_slot_opname,
+                        input.submitted_by_email
+                    ]
+                );
+                items.push(inserted.rows[0]);
+            }
+
+            return items;
+        }, existingClient);
+    },
+
+    async findByIdForUpdate(id: number, existingClient?: PoolClient): Promise<OpnameRow | null> {
+        const db = existingClient ?? pool;
+        const result = await db.query<OpnameRow>(
+            `
+            SELECT ${returningColumns}
+            FROM opname_item
+            WHERE id = $1
+            FOR UPDATE
+            `,
+            [id]
+        );
+
+        return result.rows[0] ?? null;
+    },
+
+    async updateSupportReview(input: {
+        id_opname_item: number;
+        decision: "disetujui" | "ditolak";
+        alasan_penolakan_support?: string | null;
+        reviewer_email: string;
+    }, existingClient?: PoolClient): Promise<OpnameRow> {
+        const db = existingClient ?? pool;
+        const existing = await this.findByIdForUpdate(input.id_opname_item, existingClient);
+        if (!existing) throw new AppError("Data opname tidak ditemukan", 404);
+        if (existing.workflow_version !== "contractor_first") {
+            throw new AppError("Review support hanya berlaku untuk alur contractor-first.", 409);
+        }
+        if (existing.locked_at) {
+            throw new AppError("Item opname yang sudah disetujui tidak dapat direview ulang.", 409);
+        }
+        if (input.decision === "ditolak" && !input.alasan_penolakan_support?.trim()) {
+            throw new AppError("Alasan penolakan opname wajib diisi", 400);
+        }
+
+        const result = await db.query<OpnameRow>(
+            `
+            UPDATE opname_item
+            SET status = $2,
+                alasan_penolakan_support = CASE WHEN $2 = 'ditolak' THEN $3 ELSE NULL END,
+                reviewed_by_email = $4,
+                reviewed_at = now(),
+                locked_at = CASE WHEN $2 = 'disetujui' THEN COALESCE(locked_at, now()) ELSE NULL END
+            WHERE id = $1
+              AND workflow_version = 'contractor_first'
+              AND locked_at IS NULL
+            RETURNING ${returningColumns}
+            `,
+            [
+                input.id_opname_item,
+                input.decision,
+                input.alasan_penolakan_support?.trim() ?? null,
+                input.reviewer_email
+            ]
+        );
+
+        if (!result.rows[0]) throw new AppError("Data opname tidak dapat direview", 409);
+        return result.rows[0];
+    },
+
+    async updateContractorRevision(input: {
+        id_opname_item: number;
+        actor_email: string;
+        item: ContractorOpnameRevisionInput & { foto?: string };
+    }, existingClient?: PoolClient): Promise<OpnameRow> {
+        const db = existingClient ?? pool;
+        const existing = await this.findByIdForUpdate(input.id_opname_item, existingClient);
+        if (!existing) throw new AppError("Data opname tidak ditemukan", 404);
+        if (existing.workflow_version !== "contractor_first") {
+            throw new AppError("Revisi kontraktor hanya berlaku untuk alur contractor-first.", 409);
+        }
+        if (existing.locked_at || existing.status === "disetujui") {
+            throw new AppError("Item opname yang sudah disetujui tidak dapat direvisi.", 409);
+        }
+        if (existing.status !== "ditolak") {
+            throw new AppError("Hanya item opname yang ditolak support yang dapat direvisi kontraktor.", 409);
+        }
+
+        const result = await db.query<OpnameRow>(
+            `
+            UPDATE opname_item
+            SET status = 'pending',
+                volume_akhir = $2,
+                selisih_volume = $3,
+                total_selisih = $4,
+                total_harga_opname = $5,
+                desain = $6,
+                kualitas = $7,
+                spesifikasi = $8,
+                foto = COALESCE($9, foto),
+                catatan = $10,
+                submitted_by_email = $11,
+                submitted_at = now(),
+                reviewed_by_email = NULL,
+                reviewed_at = NULL,
+                revision_no = revision_no + 1
+            WHERE id = $1
+              AND workflow_version = 'contractor_first'
+              AND locked_at IS NULL
+              AND status = 'ditolak'
+            RETURNING ${returningColumns}
+            `,
+            [
+                input.id_opname_item,
+                input.item.volume_akhir,
+                input.item.selisih_volume,
+                input.item.total_selisih,
+                input.item.total_harga_opname,
+                input.item.desain,
+                input.item.kualitas,
+                input.item.spesifikasi,
+                sanitizeFotoValue(input.item.foto),
+                input.item.catatan ?? null,
+                input.actor_email
+            ]
+        );
+
+        if (!result.rows[0]) throw new AppError("Data opname tidak dapat direvisi", 409);
+        return result.rows[0];
+    },
+
+    async insertRevisionHistory(input: {
+        id_opname_item: number;
+        revision_no: number;
+        previous_status?: string | null;
+        next_status: string;
+        actor_email?: string | null;
+        actor_role?: string | null;
+        snapshot: Partial<OpnameRow>;
+    }, existingClient?: PoolClient): Promise<void> {
+        const db = existingClient ?? pool;
+        await db.query(
+            `
+            INSERT INTO opname_item_revision_history (
+                id_opname_item,
+                revision_no,
+                previous_status,
+                next_status,
+                volume_akhir,
+                desain,
+                kualitas,
+                spesifikasi,
+                foto,
+                catatan_kontraktor,
+                alasan_penolakan_support,
+                actor_email,
+                actor_role
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            `,
+            [
+                input.id_opname_item,
+                input.revision_no,
+                input.previous_status ?? null,
+                input.next_status,
+                input.snapshot.volume_akhir ?? null,
+                input.snapshot.desain ?? null,
+                input.snapshot.kualitas ?? null,
+                input.snapshot.spesifikasi ?? null,
+                input.snapshot.foto ?? null,
+                input.snapshot.catatan ?? null,
+                input.snapshot.alasan_penolakan_support ?? null,
+                input.actor_email ?? null,
+                input.actor_role ?? null
+            ]
+        );
+    },
+
+    async findContractorFirstApprovalBlockersByToko(idToko: number): Promise<OpnameRow[]> {
+        const result = await pool.query<OpnameRow>(
+            `
+            SELECT ${returningColumnsFromOpnameItem}
+            FROM opname_item oi
+            JOIN opname_final ofn ON ofn.id = oi.id_opname_final
+            LEFT JOIN rab_item ri ON ri.id = oi.id_rab_item
+            LEFT JOIN instruksi_lapangan_item ili ON ili.id = oi.id_instruksi_lapangan_item
+            LEFT JOIN toko t ON t.id = oi.id_toko
+            WHERE oi.id_toko = $1
+              AND oi.workflow_version = 'contractor_first'
+              AND oi.status <> 'disetujui'
+            ORDER BY oi.id ASC
+            `,
+            [idToko]
+        );
+
+        return result.rows;
+    },
     async findById(id: string): Promise<OpnameRow | null> {
         const result = await pool.query<OpnameRow>(
             `
@@ -715,3 +1242,4 @@ export const opnameRepository = {
         return (result.rowCount ?? 0) > 0;
     }
 };
+
