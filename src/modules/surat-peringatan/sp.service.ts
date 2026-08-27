@@ -230,7 +230,10 @@ const buildAndUploadSpPdf = async (input: {
                         
                         const availableWidth = width - 40; 
                         const availableHeight = height - 200;
-                        const dims = embeddedPage.scaleToFit(availableWidth, availableHeight);
+                        const pWidth = embeddedPage.width;
+                        const pHeight = embeddedPage.height;
+                        const scale = Math.min(availableWidth / pWidth, availableHeight / pHeight);
+                        const dims = { width: pWidth * scale, height: pHeight * scale };
                         
                         clonedPage.drawPage(embeddedPage, {
                             x: width / 2 - dims.width / 2,
