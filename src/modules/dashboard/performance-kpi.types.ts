@@ -35,6 +35,7 @@ export type PerformanceKpiQueryInput = {
     job_type?: PerformanceKpiJobType;
     period?: PerformanceKpiPeriod;
     search?: string;
+    tipe_bangunan?: "ALL" | "RUKO" | "NON_RUKO";
 };
 
 export type PerformanceKpiDrilldownInput = PerformanceKpiQueryInput & {
