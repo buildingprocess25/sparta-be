@@ -38,6 +38,20 @@ const buildScopeWhere = (query: DashboardKpiQueryInput, alias = "t") => {
         where.push(`UPPER(${alias}.lingkup_pekerjaan) = ${pushParam(params, normalizeUpper(query.job_type))}`);
     }
 
+    if (query.tipe_bangunan && normalizeUpper(query.tipe_bangunan) !== "ALL") {
+        if (normalizeUpper(query.tipe_bangunan) === "NON_RUKO") {
+            where.push(`(
+                EXISTS (SELECT 1 FROM rab r WHERE r.id_toko = ${alias}.id AND (UPPER(r.kategori_lokasi) LIKE '%NON RUKO%' OR UPPER(r.kategori_lokasi) LIKE '%NON_RUKO%'))
+                OR EXISTS (SELECT 1 FROM pic_pengawasan p WHERE p.id_toko = ${alias}.id AND (UPPER(p.kategori_lokasi) LIKE '%NON RUKO%' OR UPPER(p.kategori_lokasi) LIKE '%NON_RUKO%'))
+            )`);
+        } else if (normalizeUpper(query.tipe_bangunan) === "RUKO") {
+            where.push(`(
+                EXISTS (SELECT 1 FROM rab r WHERE r.id_toko = ${alias}.id AND UPPER(r.kategori_lokasi) LIKE '%RUKO%' AND UPPER(r.kategori_lokasi) NOT LIKE '%NON RUKO%' AND UPPER(r.kategori_lokasi) NOT LIKE '%NON_RUKO%')
+                OR EXISTS (SELECT 1 FROM pic_pengawasan p WHERE p.id_toko = ${alias}.id AND UPPER(p.kategori_lokasi) LIKE '%RUKO%' AND UPPER(p.kategori_lokasi) NOT LIKE '%NON RUKO%' AND UPPER(p.kategori_lokasi) NOT LIKE '%NON_RUKO%')
+            )`);
+        }
+    }
+
     return { where: where.join(" AND "), params };
 };
 

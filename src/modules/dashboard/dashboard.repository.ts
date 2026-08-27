@@ -894,13 +894,13 @@ export const dashboardRepository = {
         if (query.tipe_bangunan && query.tipe_bangunan !== "ALL") {
             if (query.tipe_bangunan === "NON_RUKO") {
                 filters.push(`(
-                    EXISTS (SELECT 1 FROM rab r WHERE r.id_toko = id AND UPPER(r.kategori_lokasi) LIKE '%NON RUKO%')
-                    OR EXISTS (SELECT 1 FROM pic_pengawasan p WHERE p.id_toko = id AND UPPER(p.kategori_lokasi) LIKE '%NON RUKO%')
+                    EXISTS (SELECT 1 FROM rab r WHERE r.id_toko = toko.id AND (UPPER(r.kategori_lokasi) LIKE '%NON RUKO%' OR UPPER(r.kategori_lokasi) LIKE '%NON_RUKO%'))
+                    OR EXISTS (SELECT 1 FROM pic_pengawasan p WHERE p.id_toko = toko.id AND (UPPER(p.kategori_lokasi) LIKE '%NON RUKO%' OR UPPER(p.kategori_lokasi) LIKE '%NON_RUKO%'))
                 )`);
             } else if (query.tipe_bangunan === "RUKO") {
                 filters.push(`(
-                    EXISTS (SELECT 1 FROM rab r WHERE r.id_toko = id AND UPPER(r.kategori_lokasi) LIKE '%RUKO%' AND UPPER(r.kategori_lokasi) NOT LIKE '%NON RUKO%')
-                    OR EXISTS (SELECT 1 FROM pic_pengawasan p WHERE p.id_toko = id AND UPPER(p.kategori_lokasi) LIKE '%RUKO%' AND UPPER(p.kategori_lokasi) NOT LIKE '%NON RUKO%')
+                    EXISTS (SELECT 1 FROM rab r WHERE r.id_toko = toko.id AND UPPER(r.kategori_lokasi) LIKE '%RUKO%' AND UPPER(r.kategori_lokasi) NOT LIKE '%NON RUKO%' AND UPPER(r.kategori_lokasi) NOT LIKE '%NON_RUKO%')
+                    OR EXISTS (SELECT 1 FROM pic_pengawasan p WHERE p.id_toko = toko.id AND UPPER(p.kategori_lokasi) LIKE '%RUKO%' AND UPPER(p.kategori_lokasi) NOT LIKE '%NON RUKO%' AND UPPER(p.kategori_lokasi) NOT LIKE '%NON_RUKO%')
                 )`);
             }
         }
@@ -1551,13 +1551,13 @@ export const dashboardRepository = {
         if (query.tipe_bangunan && query.tipe_bangunan !== "ALL") {
             if (query.tipe_bangunan === "NON_RUKO") {
                 filters.push(`(
-                    EXISTS (SELECT 1 FROM rab r WHERE r.id_toko = t.id AND UPPER(r.kategori_lokasi) LIKE '%NON RUKO%')
-                    OR EXISTS (SELECT 1 FROM pic_pengawasan p WHERE p.id_toko = t.id AND UPPER(p.kategori_lokasi) LIKE '%NON RUKO%')
+                    EXISTS (SELECT 1 FROM rab r WHERE r.id_toko = t.id AND (UPPER(r.kategori_lokasi) LIKE '%NON RUKO%' OR UPPER(r.kategori_lokasi) LIKE '%NON_RUKO%'))
+                    OR EXISTS (SELECT 1 FROM pic_pengawasan p WHERE p.id_toko = t.id AND (UPPER(p.kategori_lokasi) LIKE '%NON RUKO%' OR UPPER(p.kategori_lokasi) LIKE '%NON_RUKO%'))
                 )`);
             } else if (query.tipe_bangunan === "RUKO") {
                 filters.push(`(
-                    EXISTS (SELECT 1 FROM rab r WHERE r.id_toko = t.id AND UPPER(r.kategori_lokasi) LIKE '%RUKO%' AND UPPER(r.kategori_lokasi) NOT LIKE '%NON RUKO%')
-                    OR EXISTS (SELECT 1 FROM pic_pengawasan p WHERE p.id_toko = t.id AND UPPER(p.kategori_lokasi) LIKE '%RUKO%' AND UPPER(p.kategori_lokasi) NOT LIKE '%NON RUKO%')
+                    EXISTS (SELECT 1 FROM rab r WHERE r.id_toko = t.id AND UPPER(r.kategori_lokasi) LIKE '%RUKO%' AND UPPER(r.kategori_lokasi) NOT LIKE '%NON RUKO%' AND UPPER(r.kategori_lokasi) NOT LIKE '%NON_RUKO%')
+                    OR EXISTS (SELECT 1 FROM pic_pengawasan p WHERE p.id_toko = t.id AND UPPER(p.kategori_lokasi) LIKE '%RUKO%' AND UPPER(p.kategori_lokasi) NOT LIKE '%NON RUKO%' AND UPPER(p.kategori_lokasi) NOT LIKE '%NON_RUKO%')
                 )`);
             }
         }
