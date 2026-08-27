@@ -73,9 +73,9 @@ opnameRouter.post(
     ]),
     createBulkOpname
 );
-opnameRouter.post("/checkpoint-submit", createCheckpointOpname);
+opnameRouter.post("/checkpoint-submit", opnameUpload.any(), createCheckpointOpname);
 opnameRouter.get("/contractor-first/list", listContractorFirstOpname);
-opnameRouter.patch("/:id/revision", reviseContractorFirstOpname);
+opnameRouter.patch("/:id/revision", opnameUpload.any(), reviseContractorFirstOpname);
 opnameRouter.patch("/:id/support-review", reviewContractorFirstOpname);
 opnameRouter.get("/", listOpname);
 opnameRouter.get("/:id", getOpnameById);
@@ -90,4 +90,5 @@ opnameRouter.put(
 opnameRouter.delete("/:id", deleteOpname);
 
 export { opnameRouter };
+
 
