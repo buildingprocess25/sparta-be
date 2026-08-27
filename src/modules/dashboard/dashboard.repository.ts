@@ -891,6 +891,20 @@ export const dashboardRepository = {
             filters.push(`UPPER(TRIM(cabang)) = ANY($${idx}::text[])`);
         }
 
+        if (query.tipe_bangunan && query.tipe_bangunan !== "ALL") {
+            if (query.tipe_bangunan === "NON_RUKO") {
+                filters.push(`(
+                    EXISTS (SELECT 1 FROM rab r WHERE r.id_toko = id AND UPPER(r.kategori_lokasi) LIKE '%NON RUKO%')
+                    OR EXISTS (SELECT 1 FROM pic_pengawasan p WHERE p.id_toko = id AND UPPER(p.kategori_lokasi) LIKE '%NON RUKO%')
+                )`);
+            } else if (query.tipe_bangunan === "RUKO") {
+                filters.push(`(
+                    EXISTS (SELECT 1 FROM rab r WHERE r.id_toko = id AND UPPER(r.kategori_lokasi) LIKE '%RUKO%' AND UPPER(r.kategori_lokasi) NOT LIKE '%NON RUKO%')
+                    OR EXISTS (SELECT 1 FROM pic_pengawasan p WHERE p.id_toko = id AND UPPER(p.kategori_lokasi) LIKE '%RUKO%' AND UPPER(p.kategori_lokasi) NOT LIKE '%NON RUKO%')
+                )`);
+            }
+        }
+
         const whereClause = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
         const tokoResult = await pool.query<DashboardTokoRow>(
             `
@@ -1532,6 +1546,20 @@ export const dashboardRepository = {
         if (query.cabang && query.cabang.toUpperCase() !== "ALL") {
             values.push(query.cabang.toUpperCase());
             filters.push(`UPPER(COALESCE(t.cabang, '')) = $${values.length}`);
+        }
+
+        if (query.tipe_bangunan && query.tipe_bangunan !== "ALL") {
+            if (query.tipe_bangunan === "NON_RUKO") {
+                filters.push(`(
+                    EXISTS (SELECT 1 FROM rab r WHERE r.id_toko = t.id AND UPPER(r.kategori_lokasi) LIKE '%NON RUKO%')
+                    OR EXISTS (SELECT 1 FROM pic_pengawasan p WHERE p.id_toko = t.id AND UPPER(p.kategori_lokasi) LIKE '%NON RUKO%')
+                )`);
+            } else if (query.tipe_bangunan === "RUKO") {
+                filters.push(`(
+                    EXISTS (SELECT 1 FROM rab r WHERE r.id_toko = t.id AND UPPER(r.kategori_lokasi) LIKE '%RUKO%' AND UPPER(r.kategori_lokasi) NOT LIKE '%NON RUKO%')
+                    OR EXISTS (SELECT 1 FROM pic_pengawasan p WHERE p.id_toko = t.id AND UPPER(p.kategori_lokasi) LIKE '%RUKO%' AND UPPER(p.kategori_lokasi) NOT LIKE '%NON RUKO%')
+                )`);
+            }
         }
 
         const tokoResult = await pool.query<DashboardTokoRow>(

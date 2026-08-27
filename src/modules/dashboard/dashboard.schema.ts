@@ -12,7 +12,8 @@ export type DashboardQueryInput = z.infer<typeof dashboardQuerySchema>;
 
 export const dashboardAllQuerySchema = z.object({
     search: z.string().trim().min(1).optional(),
-    cabang_array: z.array(z.string()).optional()
+    cabang_array: z.array(z.string()).optional(),
+    tipe_bangunan: z.enum(["ALL", "RUKO", "NON_RUKO"]).optional()
 });
 
 export type DashboardAllQueryInput = z.infer<typeof dashboardAllQuerySchema>;
@@ -31,7 +32,8 @@ export const dashboardExportQuerySchema = z.object({
     spk_status: z.enum(["all", "with_spk", "without_spk"]).default("all"),
     actor_role: z.string().trim().min(1),
     actor_cabang: z.string().trim().min(1),
-    cabang_array: z.array(z.string()).optional()
+    cabang_array: z.array(z.string()).optional(),
+    tipe_bangunan: z.enum(["ALL", "RUKO", "NON_RUKO"]).optional()
 });
 
 export type DashboardExportQueryInput = z.infer<typeof dashboardExportQuerySchema>;
@@ -43,6 +45,7 @@ const dashboardScopeSchema = {
     cabang: z.string().trim().optional(),
     search: z.string().trim().optional(),
     cabang_array: z.array(z.string()).optional(),
+    tipe_bangunan: z.enum(["ALL", "RUKO", "NON_RUKO"]).optional(),
 };
 
 export const dashboardSummaryQuerySchema = z.object({
