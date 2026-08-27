@@ -16,6 +16,7 @@
         "repair:denda:first-st": "tsx src/scripts/repair-first-serah-terima-penalty.ts",
         "test:denda": "tsx --test src/modules/denda/denda-keterlambatan.test.ts",
         "test:opname-financial": "tsx --test src/modules/opname-final/opname-final.financial.test.ts",
+        "test:opname-checkpoint": "tsx --test src/modules/opname/opname-checkpoint.rules.test.ts",
         "test:opname-schema": "tsx --test src/modules/opname/opname.schema.test.ts",
         "test:performance-kpi": "tsx --test src/modules/dashboard/performance-kpi.facts.test.ts",
         "migrate:full-db": "tsx src/scripts/migrate-full-database.ts",

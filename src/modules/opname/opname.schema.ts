@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const opnameStatusSchema = z.enum(["pending", "disetujui", "ditolak"]);
+export const workflowVersionSchema = z.enum(["legacy", "contractor_first"]);
 
 const normalizeVerificationValue = (value: unknown, options: readonly string[]) => {
     if (typeof value !== "string") return value;
@@ -132,6 +133,53 @@ export const listOpnameQuerySchema = z.object({
     tipe_opname: z.enum(["OPNAME", "OPNAME_FINAL"]).optional()
 });
 
+export const contractorCheckpointOpnameItemSchema = z.object({
+    id_rab_item: z.coerce.number().int().positive().optional(),
+    id_instruksi_lapangan_item: z.coerce.number().int().positive().optional(),
+    volume_akhir: z.coerce.number(),
+    selisih_volume: z.coerce.number(),
+    total_selisih: z.coerce.number().int(),
+    total_harga_opname: z.coerce.number().int().optional().default(0),
+    desain: desainSchema,
+    kualitas: kualitasSchema,
+    spesifikasi: spesifikasiSchema,
+    catatan: z.string().trim().optional(),
+    foto: z.string().trim().min(1)
+}).refine(
+    (data) =>
+        (typeof data.id_rab_item !== "undefined" && typeof data.id_instruksi_lapangan_item === "undefined")
+        || (typeof data.id_rab_item === "undefined" && typeof data.id_instruksi_lapangan_item !== "undefined"),
+    { message: "Isi tepat salah satu: id_rab_item atau id_instruksi_lapangan_item" }
+);
+
+export const contractorCheckpointOpnameSubmitSchema = z.object({
+    id_toko: z.coerce.number().int().positive(),
+    id_pengawasan_gantt: z.coerce.number().int().positive(),
+    email_pembuat: z.string().email(),
+    items: z.array(contractorCheckpointOpnameItemSchema).min(1)
+});
+
+export const supportOpnameReviewDecisionSchema = z.object({
+    id_opname_item: z.coerce.number().int().positive(),
+    decision: z.enum(["disetujui", "ditolak"]),
+    alasan_penolakan_support: z.string().trim().optional()
+}).superRefine((data, ctx) => {
+    if (data.decision === "ditolak" && !data.alasan_penolakan_support) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Alasan penolakan wajib diisi" });
+    }
+});
+
+export const contractorOpnameRevisionSchema = z.object({
+    volume_akhir: z.coerce.number(),
+    selisih_volume: z.coerce.number(),
+    total_selisih: z.coerce.number().int(),
+    total_harga_opname: z.coerce.number().int().optional().default(0),
+    desain: desainSchema,
+    kualitas: kualitasSchema,
+    spesifikasi: spesifikasiSchema,
+    catatan: z.string().trim().optional(),
+    foto: z.string().trim().min(1)
+});
 export type CreateOpnameInput = z.infer<typeof createOpnameSchema>;
 export type CreateOpnameData = CreateOpnameInput & { foto?: string };
 export type CreateBulkOpnameItemInput = z.infer<typeof bulkCreateOpnameItemSchema>;
@@ -139,3 +187,8 @@ export type CreateBulkOpnameItemData = CreateBulkOpnameItemInput & { foto?: stri
 export type BulkCreateOpnameInput = z.infer<typeof bulkCreateOpnameSchema>;
 export type UpdateOpnameInput = z.infer<typeof updateOpnameSchema>;
 export type ListOpnameQueryInput = z.infer<typeof listOpnameQuerySchema>;
+export type WorkflowVersion = z.infer<typeof workflowVersionSchema>;
+export type ContractorCheckpointOpnameItemInput = z.infer<typeof contractorCheckpointOpnameItemSchema>;
+export type ContractorCheckpointOpnameSubmitInput = z.infer<typeof contractorCheckpointOpnameSubmitSchema>;
+export type SupportOpnameReviewDecisionInput = z.infer<typeof supportOpnameReviewDecisionSchema>;
+export type ContractorOpnameRevisionInput = z.infer<typeof contractorOpnameRevisionSchema>;

@@ -194,7 +194,10 @@ CREATE TABLE pengawasan_gantt (
     id_gantt INT,
     id_pic_pengawasan INT,
     tanggal_pengawasan VARCHAR(255),
-    CONSTRAINT fk_pengawasan_gantt FOREIGN KEY (id_gantt) REFERENCES gantt_chart(id) ON DELETE CASCADE
+    workflow_version TEXT NOT NULL DEFAULT 'contractor_first',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT fk_pengawasan_gantt FOREIGN KEY (id_gantt) REFERENCES gantt_chart(id) ON DELETE CASCADE,
+    CONSTRAINT chk_pengawasan_gantt_workflow_version CHECK (workflow_version IN ('legacy', 'contractor_first'))
 );
 
 -- Jika tabel pengawasan_gantt sudah ada di environment lama, jalankan migration berikut:
@@ -215,6 +218,31 @@ BEGIN
     END IF;
 
 END $$;
+
+ALTER TABLE pengawasan_gantt
+    ADD COLUMN IF NOT EXISTS workflow_version TEXT,
+    ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ;
+
+UPDATE pengawasan_gantt
+SET workflow_version = 'legacy'
+WHERE workflow_version IS NULL;
+
+UPDATE pengawasan_gantt
+SET created_at = now()
+WHERE created_at IS NULL;
+
+ALTER TABLE pengawasan_gantt
+    ALTER COLUMN workflow_version SET DEFAULT 'contractor_first',
+    ALTER COLUMN workflow_version SET NOT NULL,
+    ALTER COLUMN created_at SET DEFAULT now(),
+    ALTER COLUMN created_at SET NOT NULL;
+
+ALTER TABLE pengawasan_gantt
+    DROP CONSTRAINT IF EXISTS chk_pengawasan_gantt_workflow_version;
+
+ALTER TABLE pengawasan_gantt
+    ADD CONSTRAINT chk_pengawasan_gantt_workflow_version
+    CHECK (workflow_version IN ('legacy', 'contractor_first'));
 
 CREATE INDEX IF NOT EXISTS idx_pengawasan_gantt_id_pic_pengawasan ON pengawasan_gantt(id_pic_pengawasan);
 
@@ -372,8 +400,10 @@ CREATE TABLE IF NOT EXISTS opname_final (
     nilai_denda NUMERIC(18,2) NOT NULL DEFAULT 0,
     tanggal_akhir_spk_denda DATE,
     tanggal_serah_terima_denda DATE,
+    workflow_version TEXT NOT NULL DEFAULT 'contractor_first',
     created_at TIMESTAMP NOT NULL DEFAULT timezone('Asia/Jakarta', now()),
-    CONSTRAINT fk_opname_final_toko FOREIGN KEY (id_toko) REFERENCES toko(id) ON DELETE CASCADE
+    CONSTRAINT fk_opname_final_toko FOREIGN KEY (id_toko) REFERENCES toko(id) ON DELETE CASCADE,
+    CONSTRAINT chk_opname_final_workflow_version CHECK (workflow_version IN ('legacy', 'contractor_first'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_opname_final_id_toko ON opname_final(id_toko);
@@ -420,7 +450,23 @@ ALTER TABLE opname_final
     ADD COLUMN IF NOT EXISTS hari_denda INTEGER NOT NULL DEFAULT 0,
     ADD COLUMN IF NOT EXISTS nilai_denda NUMERIC(18,2) NOT NULL DEFAULT 0,
     ADD COLUMN IF NOT EXISTS tanggal_akhir_spk_denda DATE,
-    ADD COLUMN IF NOT EXISTS tanggal_serah_terima_denda DATE;
+    ADD COLUMN IF NOT EXISTS tanggal_serah_terima_denda DATE,
+    ADD COLUMN IF NOT EXISTS workflow_version TEXT;
+
+UPDATE opname_final
+SET workflow_version = 'legacy'
+WHERE workflow_version IS NULL;
+
+ALTER TABLE opname_final
+    ALTER COLUMN workflow_version SET DEFAULT 'contractor_first',
+    ALTER COLUMN workflow_version SET NOT NULL;
+
+ALTER TABLE opname_final
+    DROP CONSTRAINT IF EXISTS chk_opname_final_workflow_version;
+
+ALTER TABLE opname_final
+    ADD CONSTRAINT chk_opname_final_workflow_version
+    CHECK (workflow_version IN ('legacy', 'contractor_first'));
 
 -- 8c) OPNAME_ITEM (rename dari tabel opname lama)
 DO $$
@@ -440,7 +486,8 @@ CREATE TABLE IF NOT EXISTS opname_item (
     id SERIAL PRIMARY KEY,
     id_toko INT NOT NULL,
     id_opname_final INT NOT NULL,
-    id_rab_item INT NOT NULL,
+    id_rab_item INT,
+    id_instruksi_lapangan_item INT,
     status VARCHAR(50) NOT NULL DEFAULT 'pending',
     volume_akhir DOUBLE PRECISION NOT NULL,
     selisih_volume DOUBLE PRECISION NOT NULL,
@@ -451,22 +498,56 @@ CREATE TABLE IF NOT EXISTS opname_item (
     spesifikasi VARCHAR(255),
     foto VARCHAR(500),
     catatan VARCHAR(500),
+    workflow_version TEXT NOT NULL DEFAULT 'contractor_first',
+    id_pengawasan_gantt_target INTEGER,
+    tanggal_slot_opname DATE,
+    submitted_by_email TEXT,
+    submitted_at TIMESTAMPTZ,
+    reviewed_by_email TEXT,
+    reviewed_at TIMESTAMPTZ,
+    alasan_penolakan_support TEXT,
+    revision_no INTEGER NOT NULL DEFAULT 0,
+    revision_parent_id INTEGER,
+    locked_at TIMESTAMPTZ,
     created_at TIMESTAMP NOT NULL DEFAULT timezone('Asia/Jakarta', now()),
     CONSTRAINT fk_opname_item_toko FOREIGN KEY (id_toko) REFERENCES toko(id) ON DELETE CASCADE,
     CONSTRAINT fk_opname_item_opname_final FOREIGN KEY (id_opname_final) REFERENCES opname_final(id) ON DELETE CASCADE,
     CONSTRAINT fk_opname_item_rab_item FOREIGN KEY (id_rab_item) REFERENCES rab_item(id) ON DELETE CASCADE,
-    CONSTRAINT chk_opname_item_status CHECK (status IN ('pending', 'disetujui', 'ditolak'))
+    CONSTRAINT fk_opname_item_pengawasan_gantt_target FOREIGN KEY (id_pengawasan_gantt_target) REFERENCES pengawasan_gantt(id) ON DELETE SET NULL,
+    CONSTRAINT fk_opname_item_revision_parent FOREIGN KEY (revision_parent_id) REFERENCES opname_item(id) ON DELETE SET NULL,
+    CONSTRAINT chk_opname_item_status CHECK (status IN ('pending', 'disetujui', 'ditolak')),
+    CONSTRAINT chk_opname_item_source CHECK (
+        (id_rab_item IS NOT NULL AND id_instruksi_lapangan_item IS NULL)
+        OR
+        (id_rab_item IS NULL AND id_instruksi_lapangan_item IS NOT NULL)
+    ),
+    CONSTRAINT chk_opname_item_workflow_version CHECK (workflow_version IN ('legacy', 'contractor_first')),
+    CONSTRAINT chk_opname_item_contractor_first_target CHECK (
+        workflow_version = 'legacy'
+        OR (id_pengawasan_gantt_target IS NOT NULL AND tanggal_slot_opname IS NOT NULL)
+    ),
+    CONSTRAINT chk_opname_item_support_reject_reason CHECK (
+        workflow_version = 'legacy'
+        OR status <> 'ditolak'
+        OR nullif(trim(alasan_penolakan_support), '') IS NOT NULL
+    )
 );
 
 CREATE INDEX IF NOT EXISTS idx_opname_item_id_toko ON opname_item(id_toko);
 CREATE INDEX IF NOT EXISTS idx_opname_item_id_opname_final ON opname_item(id_opname_final);
 CREATE INDEX IF NOT EXISTS idx_opname_item_id_rab_item ON opname_item(id_rab_item);
+CREATE INDEX IF NOT EXISTS idx_opname_item_id_instruksi_lapangan_item ON opname_item(id_instruksi_lapangan_item);
+CREATE INDEX IF NOT EXISTS idx_opname_item_workflow_target_status ON opname_item(workflow_version, id_pengawasan_gantt_target, status);
+CREATE INDEX IF NOT EXISTS idx_opname_item_rab_target ON opname_item(id_toko, id_rab_item, id_pengawasan_gantt_target);
+CREATE INDEX IF NOT EXISTS idx_opname_item_il_target ON opname_item(id_toko, id_instruksi_lapangan_item, id_pengawasan_gantt_target);
+CREATE INDEX IF NOT EXISTS idx_opname_item_status_workflow ON opname_item(status, workflow_version);
 
 -- Migration safety untuk environment lama (dari tabel opname lama).
 ALTER TABLE opname_item
     ADD COLUMN IF NOT EXISTS id_toko INT,
     ADD COLUMN IF NOT EXISTS id_opname_final INT,
     ADD COLUMN IF NOT EXISTS id_rab_item INT,
+    ADD COLUMN IF NOT EXISTS id_instruksi_lapangan_item INT,
     ADD COLUMN IF NOT EXISTS status VARCHAR(50),
     ADD COLUMN IF NOT EXISTS volume_akhir DOUBLE PRECISION,
     ADD COLUMN IF NOT EXISTS selisih_volume DOUBLE PRECISION,
@@ -477,6 +558,17 @@ ALTER TABLE opname_item
     ADD COLUMN IF NOT EXISTS spesifikasi VARCHAR(255),
     ADD COLUMN IF NOT EXISTS foto VARCHAR(500),
     ADD COLUMN IF NOT EXISTS catatan VARCHAR(500),
+    ADD COLUMN IF NOT EXISTS workflow_version TEXT,
+    ADD COLUMN IF NOT EXISTS id_pengawasan_gantt_target INTEGER,
+    ADD COLUMN IF NOT EXISTS tanggal_slot_opname DATE,
+    ADD COLUMN IF NOT EXISTS submitted_by_email TEXT,
+    ADD COLUMN IF NOT EXISTS submitted_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS reviewed_by_email TEXT,
+    ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS alasan_penolakan_support TEXT,
+    ADD COLUMN IF NOT EXISTS revision_no INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS revision_parent_id INTEGER,
+    ADD COLUMN IF NOT EXISTS locked_at TIMESTAMPTZ,
     ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT timezone('Asia/Jakarta', now());
 
 UPDATE opname_item
@@ -579,6 +671,60 @@ BEGIN
         ALTER TABLE opname_item DROP CONSTRAINT chk_opname_item_status;
     END IF;
 
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.table_constraints
+        WHERE constraint_name = 'chk_opname_item_source'
+          AND table_name = 'opname_item'
+    ) THEN
+        ALTER TABLE opname_item DROP CONSTRAINT chk_opname_item_source;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.table_constraints
+        WHERE constraint_name = 'fk_opname_item_pengawasan_gantt_target'
+          AND table_name = 'opname_item'
+    ) THEN
+        ALTER TABLE opname_item DROP CONSTRAINT fk_opname_item_pengawasan_gantt_target;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.table_constraints
+        WHERE constraint_name = 'fk_opname_item_revision_parent'
+          AND table_name = 'opname_item'
+    ) THEN
+        ALTER TABLE opname_item DROP CONSTRAINT fk_opname_item_revision_parent;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.table_constraints
+        WHERE constraint_name = 'chk_opname_item_workflow_version'
+          AND table_name = 'opname_item'
+    ) THEN
+        ALTER TABLE opname_item DROP CONSTRAINT chk_opname_item_workflow_version;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.table_constraints
+        WHERE constraint_name = 'chk_opname_item_contractor_first_target'
+          AND table_name = 'opname_item'
+    ) THEN
+        ALTER TABLE opname_item DROP CONSTRAINT chk_opname_item_contractor_first_target;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.table_constraints
+        WHERE constraint_name = 'chk_opname_item_support_reject_reason'
+          AND table_name = 'opname_item'
+    ) THEN
+        ALTER TABLE opname_item DROP CONSTRAINT chk_opname_item_support_reject_reason;
+    END IF;
+
     ALTER TABLE opname_item
         DROP COLUMN IF EXISTS kategori_pekerjaan,
         DROP COLUMN IF EXISTS jenis_pekerjaan,
@@ -603,12 +749,24 @@ BEGIN
     SET status = 'pending'
     WHERE status IS NULL OR status NOT IN ('pending', 'disetujui', 'ditolak');
 
+    UPDATE opname_item
+    SET workflow_version = 'legacy'
+    WHERE workflow_version IS NULL;
+
+    UPDATE opname_item
+    SET revision_no = 0
+    WHERE revision_no IS NULL;
+
     ALTER TABLE opname_item
         ALTER COLUMN status SET DEFAULT 'pending',
         ALTER COLUMN status SET NOT NULL,
         ALTER COLUMN id_toko SET NOT NULL,
         ALTER COLUMN id_opname_final SET NOT NULL,
-        ALTER COLUMN id_rab_item SET NOT NULL;
+        ALTER COLUMN id_rab_item DROP NOT NULL,
+        ALTER COLUMN workflow_version SET DEFAULT 'contractor_first',
+        ALTER COLUMN workflow_version SET NOT NULL,
+        ALTER COLUMN revision_no SET DEFAULT 0,
+        ALTER COLUMN revision_no SET NOT NULL;
 
     ALTER TABLE opname_item
         ADD CONSTRAINT fk_opname_item_toko
@@ -623,9 +781,75 @@ BEGIN
         FOREIGN KEY (id_rab_item) REFERENCES rab_item(id) ON DELETE CASCADE;
 
     ALTER TABLE opname_item
+        ADD CONSTRAINT fk_opname_item_pengawasan_gantt_target
+        FOREIGN KEY (id_pengawasan_gantt_target) REFERENCES pengawasan_gantt(id) ON DELETE SET NULL;
+
+    ALTER TABLE opname_item
+        ADD CONSTRAINT fk_opname_item_revision_parent
+        FOREIGN KEY (revision_parent_id) REFERENCES opname_item(id) ON DELETE SET NULL;
+
+    ALTER TABLE opname_item
         ADD CONSTRAINT chk_opname_item_status
         CHECK (status IN ('pending', 'disetujui', 'ditolak'));
+
+    ALTER TABLE opname_item
+        ADD CONSTRAINT chk_opname_item_source
+        CHECK (
+            (id_rab_item IS NOT NULL AND id_instruksi_lapangan_item IS NULL)
+            OR
+            (id_rab_item IS NULL AND id_instruksi_lapangan_item IS NOT NULL)
+        );
+
+    ALTER TABLE opname_item
+        ADD CONSTRAINT chk_opname_item_workflow_version
+        CHECK (workflow_version IN ('legacy', 'contractor_first'));
+
+    ALTER TABLE opname_item
+        ADD CONSTRAINT chk_opname_item_contractor_first_target
+        CHECK (
+            workflow_version = 'legacy'
+            OR (id_pengawasan_gantt_target IS NOT NULL AND tanggal_slot_opname IS NOT NULL)
+        );
+
+    ALTER TABLE opname_item
+        ADD CONSTRAINT chk_opname_item_support_reject_reason
+        CHECK (
+            workflow_version = 'legacy'
+            OR status <> 'ditolak'
+            OR nullif(trim(alasan_penolakan_support), '') IS NOT NULL
+        );
 END $$;
+
+CREATE INDEX IF NOT EXISTS idx_opname_item_id_instruksi_lapangan_item
+    ON opname_item(id_instruksi_lapangan_item);
+CREATE INDEX IF NOT EXISTS idx_opname_item_workflow_target_status
+    ON opname_item(workflow_version, id_pengawasan_gantt_target, status);
+CREATE INDEX IF NOT EXISTS idx_opname_item_rab_target
+    ON opname_item(id_toko, id_rab_item, id_pengawasan_gantt_target);
+CREATE INDEX IF NOT EXISTS idx_opname_item_il_target
+    ON opname_item(id_toko, id_instruksi_lapangan_item, id_pengawasan_gantt_target);
+CREATE INDEX IF NOT EXISTS idx_opname_item_status_workflow
+    ON opname_item(status, workflow_version);
+
+CREATE TABLE IF NOT EXISTS opname_item_revision_history (
+    id SERIAL PRIMARY KEY,
+    id_opname_item INTEGER NOT NULL,
+    revision_no INTEGER NOT NULL DEFAULT 0,
+    previous_status VARCHAR,
+    next_status VARCHAR NOT NULL,
+    volume_akhir NUMERIC,
+    desain VARCHAR,
+    kualitas VARCHAR,
+    spesifikasi VARCHAR,
+    foto TEXT,
+    catatan_kontraktor TEXT,
+    alasan_penolakan_support TEXT,
+    actor_email TEXT,
+    actor_role TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT fk_opname_item_revision_history_item
+        FOREIGN KEY (id_opname_item) REFERENCES opname_item(id) ON DELETE CASCADE
+);
 
 -- 9) DEPENDENCY_GANTT
 CREATE TABLE dependency_gantt (
@@ -1058,6 +1282,22 @@ CREATE TABLE IF NOT EXISTS instruksi_lapangan_item (
 );
 
 CREATE INDEX IF NOT EXISTS idx_instruksi_lapangan_item_header ON instruksi_lapangan_item(id_instruksi_lapangan);
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.table_constraints
+        WHERE table_name = 'opname_item'
+          AND constraint_name = 'fk_opname_item_instruksi_lapangan_item'
+    ) THEN
+        ALTER TABLE opname_item
+            ADD CONSTRAINT fk_opname_item_instruksi_lapangan_item
+            FOREIGN KEY (id_instruksi_lapangan_item)
+            REFERENCES instruksi_lapangan_item(id)
+            ON DELETE CASCADE;
+    END IF;
+END $$;
 
 -- 16) BERKAS_SERAH_TERIMA
 CREATE TABLE IF NOT EXISTS berkas_serah_terima (
