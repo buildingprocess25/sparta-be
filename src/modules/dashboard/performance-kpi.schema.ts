@@ -35,7 +35,8 @@ const scopeSchema = {
     support: z.string().trim().optional(),
     job_type: performanceKpiJobTypeSchema,
     period: performanceKpiPeriodSchema,
-    search: z.string().trim().optional()
+    search: z.string().trim().optional(),
+    tipe_bangunan: z.enum(["ALL", "RUKO", "NON_RUKO"]).optional(),
 };
 
 export const performanceKpiSummaryQuerySchema = z.object(scopeSchema);
