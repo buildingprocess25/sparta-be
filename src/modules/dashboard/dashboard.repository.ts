@@ -512,8 +512,16 @@ export const dashboardRepository = {
             pool.query<DashboardPengawasanGanttRow>(
                 `
                 SELECT id, id_gantt, id_pic_pengawasan, tanggal_pengawasan
-                FROM pengawasan_gantt
+                FROM pengawasan_gantt pg
                 WHERE id_gantt = ANY($1::int[])
+                  AND (
+                      EXISTS (
+                          SELECT 1 FROM berkas_pengawasan bp WHERE bp.id_pengawasan_gantt = pg.id
+                      )
+                      OR EXISTS (
+                          SELECT 1 FROM pengawasan p2 WHERE p2.id_pengawasan_gantt = pg.id AND p2.dokumentasi IS NOT NULL
+                      )
+                  )
                 ORDER BY id ASC
                 `,
                 [toArrayParam(ganttIds)]
@@ -522,8 +530,16 @@ export const dashboardRepository = {
                 `
                 SELECT id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan,
                        dokumentasi, status, created_at
-                FROM pengawasan
+                FROM pengawasan p
                 WHERE id_gantt = ANY($1::int[])
+                  AND (
+                      EXISTS (
+                          SELECT 1 FROM berkas_pengawasan bp WHERE bp.id_pengawasan_gantt = p.id_pengawasan_gantt
+                      )
+                      OR EXISTS (
+                          SELECT 1 FROM pengawasan p2 WHERE p2.id_pengawasan_gantt = p.id_pengawasan_gantt AND p2.dokumentasi IS NOT NULL
+                      )
+                  )
                 ORDER BY created_at ASC, id ASC
                 `,
                 [toArrayParam(ganttIds)]
