@@ -28,7 +28,8 @@
         "backfill:migrated-st": "tsx src/scripts/backfill-migrated-serah-terima-from-mapping.ts",
         "typecheck": "tsc --noEmit -p tsconfig.json",
         "recover:pengawasan-docs": "tsx src/scripts/recover-pengawasan-dokumentasi.ts",
-        "repair:pengawasan-checkpoint": "tsx src/scripts/repair-pengawasan-ulok-checkpoint.ts"
+        "repair:pengawasan-checkpoint": "tsx src/scripts/repair-pengawasan-ulok-checkpoint.ts",
+        "repair:pengawasan-checkpoint:prod": "node dist/scripts/repair-pengawasan-ulok-checkpoint.js"
     },
     "dependencies": {
         "cors": "^2.8.5",
