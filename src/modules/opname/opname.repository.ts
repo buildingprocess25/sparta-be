@@ -1099,6 +1099,22 @@ export const opnameRepository = {
             conditions.push(`ofn.tipe_opname = $${values.length}`);
         }
 
+        if (typeof query.workflow_version !== "undefined") {
+            values.push(query.workflow_version);
+            conditions.push(`oi.workflow_version = $${values.length}`);
+        }
+
+        if (typeof query.id_pengawasan_gantt_target !== "undefined") {
+            values.push(query.id_pengawasan_gantt_target);
+            conditions.push(`oi.id_pengawasan_gantt_target = $${values.length}`);
+        }
+
+        if (query.assigned_to === "contractor") {
+            conditions.push(`oi.workflow_version = 'contractor_first' AND oi.status = 'ditolak' AND oi.locked_at IS NULL`);
+        } else if (query.assigned_to === "support") {
+            conditions.push(`oi.workflow_version = 'contractor_first' AND oi.status = 'pending' AND oi.locked_at IS NULL`);
+        }
+
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
         const result = await pool.query<OpnameRow>(
             `

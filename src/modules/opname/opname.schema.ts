@@ -130,7 +130,10 @@ export const listOpnameQuerySchema = z.object({
     id_rab_item: z.coerce.number().int().positive().optional(),
     id_instruksi_lapangan_item: z.coerce.number().int().positive().optional(),
     status: opnameStatusSchema.optional(),
-    tipe_opname: z.enum(["OPNAME", "OPNAME_FINAL"]).optional()
+    tipe_opname: z.enum(["OPNAME", "OPNAME_FINAL"]).optional(),
+    id_pengawasan_gantt_target: z.coerce.number().int().positive().optional(),
+    workflow_version: workflowVersionSchema.optional(),
+    assigned_to: z.enum(["contractor", "support"]).optional()
 });
 
 export const contractorCheckpointOpnameItemSchema = z.object({
@@ -178,7 +181,7 @@ export const contractorOpnameRevisionSchema = z.object({
     kualitas: kualitasSchema,
     spesifikasi: spesifikasiSchema,
     catatan: z.string().trim().optional(),
-    foto: z.string().trim().min(1)
+    foto: z.string().trim().min(1).optional()
 });
 export type CreateOpnameInput = z.infer<typeof createOpnameSchema>;
 export type CreateOpnameData = CreateOpnameInput & { foto?: string };

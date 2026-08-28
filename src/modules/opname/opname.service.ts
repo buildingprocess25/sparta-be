@@ -557,7 +557,8 @@ export const opnameService = {
     async reviseContractorFirstOpnameItem(
         id: string,
         input: ContractorOpnameRevisionInput,
-        actor?: AuthenticatedUser | null
+        actor?: AuthenticatedUser | null,
+        uploadedFotoOpname?: UploadedFotoOpnameFile
     ): Promise<OpnameRow> {
         assertContractorActor(actor);
         const parsedId = parseOpnameId(id);
@@ -567,10 +568,13 @@ export const opnameService = {
             return await withTransaction(async (client) => {
                 const existing = await opnameRepository.findByIdForUpdate(parsedId, client);
                 if (!existing) throw new AppError("Data opname tidak ditemukan", 404);
+                const fotoLink = uploadedFotoOpname
+                    ? await uploadFotoOpnameToDrive(existing.id_toko, uploadedFotoOpname)
+                    : undefined;
                 const updated = await opnameRepository.updateContractorRevision({
                     id_opname_item: parsedId,
                     actor_email: submitterEmail,
-                    item: input,
+                    item: fotoLink ? { ...input, foto: fotoLink } : input,
                 }, client);
                 await opnameRepository.insertRevisionHistory({
                     id_opname_item: updated.id,
