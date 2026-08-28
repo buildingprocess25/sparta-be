@@ -904,6 +904,15 @@ export const pengawasanService = {
         return pengawasanRepository.findAll(query);
     },
 
+    async regeneratePdf(idPengawasanGantt: number) {
+        const info = await pengawasanRepository.findPengawasanGanttInfoById(idPengawasanGantt);
+        if (!info) {
+            throw new AppError("Data pengawasan tidak ditemukan", 404);
+        }
+
+        await generateAndUploadPengawasanPdf(info.id_gantt, info.id, info.tanggal_pengawasan);
+        return pengawasanRepository.findBerkasByPengawasanGanttId(idPengawasanGantt);
+    },
     async downloadPdf(idPengawasanGantt: number) {
         const info = await pengawasanRepository.findPengawasanGanttInfoById(idPengawasanGantt);
         if (!info) {
