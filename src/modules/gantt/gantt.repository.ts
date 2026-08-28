@@ -170,8 +170,8 @@ const insertPengawasan = async (
     for (const tanggalPengawasan of uniqueDates) {
         await client.query(
             `
-            INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan)
-            SELECT $1, $2
+            INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan, workflow_version)
+            SELECT $1, $2, 'contractor_first'
             WHERE NOT EXISTS (
                 SELECT 1
                 FROM pengawasan_gantt
@@ -1267,8 +1267,8 @@ export const ganttRepository = {
             }
 
             const result = await pool.query<{ id: number }>(
-                `INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan, id_pic_pengawasan)
-                 VALUES ($1, $2, $3) RETURNING id`,
+                `INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan, id_pic_pengawasan, workflow_version)
+                 VALUES ($1, $2, $3, 'contractor_first') RETURNING id`,
                 [ganttId, tanggalPengawasan, idPicPengawasan ?? null]
             );
             ids.push(result.rows[0].id);
@@ -1393,8 +1393,8 @@ export const ganttRepository = {
 
         const insertResult = await pool.query(
             `
-            INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan)
-            SELECT latest_gantt.id, $2::text
+            INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan, workflow_version)
+            SELECT latest_gantt.id, $2::text, 'contractor_first'
             FROM toko t
             JOIN LATERAL (
                 SELECT g.id
