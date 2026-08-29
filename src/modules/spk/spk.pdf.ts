@@ -88,7 +88,7 @@ export const buildSpkPdfBuffer = async (input: BuildSpkPdfInput): Promise<Buffer
     const p = input.pengajuan;
     const startFormatted = formatTanggal(p.waktu_mulai);
     const endFormatted = formatTanggal(p.waktu_selesai);
-    const today = formatTanggal(new Date().toISOString());    const displayGrandTotal = Number(p.grand_total);    const totalFormatted = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(displayGrandTotal);
+    const today = formatTanggal(p.created_at || new Date().toISOString());    const displayGrandTotal = Number(p.grand_total);    const totalFormatted = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(displayGrandTotal);
     const isBatam = input.tokoCabang.toUpperCase() === "BATAM";
     const initiatorRole = isBatam ? "Branch Building Coordinator" : "Branch Building & Maintenance Manager";
 

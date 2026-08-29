@@ -382,6 +382,17 @@ export const pengawasanRepository = {
             conditions.push(`p.id_pengawasan_gantt = $${values.length}`);
         }
 
+        // Filter out dummy carry-forward checkpoints. A checkpoint is real if it has a PDF (bp.id) or if it has at least one item with a photo (p2.dokumentasi)
+        conditions.push(`(
+            bp.id IS NOT NULL 
+            OR EXISTS (
+                SELECT 1 
+                FROM pengawasan p2 
+                WHERE p2.id_pengawasan_gantt = p.id_pengawasan_gantt 
+                  AND p2.dokumentasi IS NOT NULL
+            )
+        )`);
+
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
         type RawRow = PengawasanRow & {
