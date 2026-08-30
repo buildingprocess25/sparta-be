@@ -646,6 +646,57 @@ export const opnameRepository = {
         return Boolean(result.rows[0]?.is_filled);
     },
 
+    async areSubmittedItemsFilledInCheckpoint(input: {
+        id_pengawasan_gantt: number;
+        items: CreateBulkOpnameItemData[];
+    }, existingClient?: PoolClient): Promise<boolean> {
+        if (input.items.length === 0) return false;
+
+        const db = existingClient ?? pool;
+        const result = await db.query<{ all_items_filled: boolean }>(
+            `
+            WITH submitted AS (
+                SELECT *
+                FROM jsonb_to_recordset($2::jsonb) AS item(id_rab_item integer, id_instruksi_lapangan_item integer)
+            ), submitted_keys AS (
+                SELECT DISTINCT
+                    UPPER(TRIM(COALESCE(ri.kategori_pekerjaan, ili.kategori_pekerjaan, ''))) AS kategori_key,
+                    UPPER(TRIM(COALESCE(ri.jenis_pekerjaan, ili.jenis_pekerjaan, ''))) AS jenis_key
+                FROM submitted s
+                LEFT JOIN rab_item ri ON ri.id = s.id_rab_item
+                LEFT JOIN instruksi_lapangan_item ili ON ili.id = s.id_instruksi_lapangan_item
+                WHERE COALESCE(ri.id, ili.id) IS NOT NULL
+            ), filled_keys AS (
+                SELECT DISTINCT
+                    UPPER(TRIM(REPLACE(COALESCE(p.kategori_pekerjaan, ''), '[IL] ', ''))) AS kategori_key,
+                    UPPER(TRIM(COALESCE(p.jenis_pekerjaan, ''))) AS jenis_key
+                FROM pengawasan p
+                WHERE p.id_pengawasan_gantt = $1
+            )
+            SELECT
+                (SELECT COUNT(*) FROM submitted_keys) > 0
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM submitted_keys sk
+                    WHERE NOT EXISTS (
+                        SELECT 1
+                        FROM filled_keys fk
+                        WHERE fk.kategori_key = sk.kategori_key
+                          AND fk.jenis_key = sk.jenis_key
+                    )
+                ) AS all_items_filled
+            `,
+            [
+                input.id_pengawasan_gantt,
+                JSON.stringify(input.items.map((item) => ({
+                    id_rab_item: item.id_rab_item ?? null,
+                    id_instruksi_lapangan_item: item.id_instruksi_lapangan_item ?? null
+                })))
+            ]
+        );
+
+        return Boolean(result.rows[0]?.all_items_filled);
+    },
     async findNextUnfilledCheckpoint(input: {
         id_gantt: number;
         after_tanggal_pengawasan: string;

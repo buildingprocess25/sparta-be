@@ -127,12 +127,17 @@ const isScopeReadyForSerahTerima = (scope: any) => {
     const checkpoints = Array.isArray(scope.checkpoints) ? scope.checkpoints : [];
     const opnameItems = checkpoints.reduce((sum: number, checkpoint: any) => sum + Number(checkpoint?.opname_items || 0), 0);
     const readyOpnameItems = checkpoints.reduce((sum: number, checkpoint: any) => sum + Number(checkpoint?.ready_opname_items || 0), 0);
+    const unresolvedContractorOpnameItems = checkpoints.reduce((sum: number, checkpoint: any) => {
+        if (checkpoint?.workflow_version !== 'contractor_first') return sum;
+        return sum + Math.max(0, Number(checkpoint?.contractor_submitted_opname_items || 0) - Number(checkpoint?.opname_items || 0));
+    }, 0);
     const missingPengawasan = Number(scope.missing_pengawasan_checkpoints || 0);
     const totalExpected = Number(scope.total_expected_items || 0);
     const totalSelesai = Number(scope.total_selesai_items || 0);
 
     return opnameItems > 0
         && readyOpnameItems === 0
+        && unresolvedContractorOpnameItems === 0
         && missingPengawasan === 0
         && totalExpected > 0
         && totalSelesai === totalExpected;

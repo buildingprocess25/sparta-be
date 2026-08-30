@@ -454,6 +454,7 @@ export const ganttRepository = {
                             LEFT JOIN rab_item ri ON ri.id = oi.id_rab_item
                             LEFT JOIN instruksi_lapangan_item ili ON ili.id = oi.id_instruksi_lapangan_item
                             WHERE oi.id_toko = tpg.id_toko
+                              AND (tpg.workflow_version <> 'contractor_first' OR oi.status = 'disetujui')
                               AND UPPER(TRIM(COALESCE(
                                     ri.kategori_pekerjaan,
                                     ili.kategori_pekerjaan,

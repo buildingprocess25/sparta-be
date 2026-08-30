@@ -459,11 +459,11 @@ export const opnameService = {
                 let targetId = checkpoint.id;
                 let routedTo: "target_checkpoint" | "next_checkpoint" | "serah_terima" = "target_checkpoint";
 
-                if (await opnameRepository.isCheckpointFilled(checkpoint.id)) {
-                    const next = await opnameRepository.findNextUnfilledCheckpoint({
+                if (await opnameRepository.areSubmittedItemsFilledInCheckpoint({ id_pengawasan_gantt: checkpoint.id, items: input.items }, client)) {
+                    const next = await opnameRepository.findNextNearestCheckpoint({
                         id_gantt: checkpoint.id_gantt,
                         after_tanggal_pengawasan: checkpoint.tanggal_pengawasan,
-                    });
+                    }, client);
                     if (next) {
                         targetId = next.id;
                         routedTo = "next_checkpoint";
