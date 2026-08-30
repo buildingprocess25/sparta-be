@@ -61,6 +61,9 @@ export type OpnameRow = {
     revision_parent_id: number | null;
     locked_at: string | null;
     created_at: string;
+    target_pengawasan_status?: string | null;
+    target_gantt_id?: number | null;
+    target_tanggal_pengawasan?: string | null;
     rab_item?: {
         id: number;
         id_rab: number;
@@ -228,6 +231,27 @@ const returningColumnsFromOpnameItem = `
         'total_harga', ili.total_harga,
         'catatan', ili.catatan
     ) END AS instruksi_lapangan_item,
+    (
+        SELECT p.status
+        FROM pengawasan p
+        WHERE p.id_pengawasan_gantt = oi.id_pengawasan_gantt_target
+          AND UPPER(TRIM(REPLACE(COALESCE(p.kategori_pekerjaan, ''), '[IL] ', ''))) = UPPER(TRIM(COALESCE(ri.kategori_pekerjaan, ili.kategori_pekerjaan, '')))
+          AND UPPER(TRIM(COALESCE(p.jenis_pekerjaan, ''))) = UPPER(TRIM(COALESCE(ri.jenis_pekerjaan, ili.jenis_pekerjaan, '')))
+        ORDER BY p.id DESC
+        LIMIT 1
+    ) AS target_pengawasan_status,
+    (
+        SELECT pg.id_gantt
+        FROM pengawasan_gantt pg
+        WHERE pg.id = oi.id_pengawasan_gantt_target
+        LIMIT 1
+    ) AS target_gantt_id,
+    (
+        SELECT pg.tanggal_pengawasan
+        FROM pengawasan_gantt pg
+        WHERE pg.id = oi.id_pengawasan_gantt_target
+        LIMIT 1
+    ) AS target_tanggal_pengawasan,
     CASE WHEN t.id IS NULL THEN NULL ELSE json_build_object(
         'id', t.id,
         'nomor_ulok', t.nomor_ulok,
@@ -644,6 +668,56 @@ export const opnameRepository = {
         return result.rows[0] ?? null;
     },
 
+    async findNextNearestCheckpoint(input: {
+        id_gantt: number;
+        after_tanggal_pengawasan: string;
+    }, existingClient?: PoolClient): Promise<ContractorFirstRouteTargetRow | null> {
+        const db = existingClient ?? pool;
+        const result = await db.query<ContractorFirstRouteTargetRow>(
+            `
+            SELECT pg.id, pg.tanggal_pengawasan
+            FROM pengawasan_gantt pg
+            WHERE pg.id_gantt = $1
+              AND to_date(pg.tanggal_pengawasan, 'DD/MM/YYYY') > to_date($2, 'DD/MM/YYYY')
+            ORDER BY to_date(pg.tanggal_pengawasan, 'DD/MM/YYYY') ASC
+            LIMIT 1
+            `,
+            [input.id_gantt, input.after_tanggal_pengawasan]
+        );
+
+        return result.rows[0] ?? null;
+    },
+
+    async findTargetPengawasanForOpnameItem(idOpnameItem: number, existingClient?: PoolClient): Promise<{ status: string | null; id_gantt: number | null; tanggal_pengawasan: string | null } | null> {
+        const db = existingClient ?? pool;
+        const result = await db.query<{ status: string | null; id_gantt: number | null; tanggal_pengawasan: string | null }>(
+            `
+            SELECT
+                p.status,
+                pg.id_gantt,
+                pg.tanggal_pengawasan
+            FROM opname_item oi
+            JOIN pengawasan_gantt pg ON pg.id = oi.id_pengawasan_gantt_target
+            LEFT JOIN rab_item ri ON ri.id = oi.id_rab_item
+            LEFT JOIN instruksi_lapangan_item ili ON ili.id = oi.id_instruksi_lapangan_item
+            LEFT JOIN LATERAL (
+                SELECT p.status
+                FROM pengawasan p
+                WHERE p.id_pengawasan_gantt = oi.id_pengawasan_gantt_target
+                  AND UPPER(TRIM(REPLACE(COALESCE(p.kategori_pekerjaan, ''), '[IL] ', ''))) = UPPER(TRIM(COALESCE(ri.kategori_pekerjaan, ili.kategori_pekerjaan, '')))
+                  AND UPPER(TRIM(COALESCE(p.jenis_pekerjaan, ''))) = UPPER(TRIM(COALESCE(ri.jenis_pekerjaan, ili.jenis_pekerjaan, '')))
+                ORDER BY p.id DESC
+                LIMIT 1
+            ) p ON true
+            WHERE oi.id = $1
+              AND oi.workflow_version = 'contractor_first'
+            LIMIT 1
+            `,
+            [idOpnameItem]
+        );
+
+        return result.rows[0] ?? null;
+    },
     async findOrCreateContractorFirstFinal(payload: {
         id_toko: number;
         email_pembuat: string;
@@ -903,11 +977,11 @@ export const opnameRepository = {
         const result = await db.query<OpnameRow>(
             `
             UPDATE opname_item
-            SET status = $2,
-                alasan_penolakan_support = CASE WHEN $2 = 'ditolak' THEN $3 ELSE NULL END,
+            SET status = $2::text,
+                alasan_penolakan_support = CASE WHEN $2::text = 'ditolak' THEN $3::text ELSE NULL END,
                 reviewed_by_email = $4,
                 reviewed_at = now(),
-                locked_at = CASE WHEN $2 = 'disetujui' THEN COALESCE(locked_at, now()) ELSE NULL END
+                locked_at = CASE WHEN $2::text = 'disetujui' THEN COALESCE(locked_at, now()) ELSE NULL END
             WHERE id = $1
               AND workflow_version = 'contractor_first'
               AND locked_at IS NULL
@@ -929,6 +1003,7 @@ export const opnameRepository = {
         id_opname_item: number;
         actor_email: string;
         item: ContractorOpnameRevisionInput & { foto?: string };
+        id_pengawasan_gantt_target?: number | null;
     }, existingClient?: PoolClient): Promise<OpnameRow> {
         const db = existingClient ?? pool;
         const existing = await this.findByIdForUpdate(input.id_opname_item, existingClient);
@@ -960,6 +1035,7 @@ export const opnameRepository = {
                 submitted_at = now(),
                 reviewed_by_email = NULL,
                 reviewed_at = NULL,
+                id_pengawasan_gantt_target = COALESCE($12::int, id_pengawasan_gantt_target),
                 revision_no = revision_no + 1
             WHERE id = $1
               AND workflow_version = 'contractor_first'
@@ -978,7 +1054,8 @@ export const opnameRepository = {
                 input.item.spesifikasi,
                 sanitizeFotoValue(input.item.foto),
                 input.item.catatan ?? null,
-                input.actor_email
+                input.actor_email,
+                input.id_pengawasan_gantt_target ?? null
             ]
         );
 
@@ -1258,4 +1335,3 @@ export const opnameRepository = {
         return (result.rowCount ?? 0) > 0;
     }
 };
-

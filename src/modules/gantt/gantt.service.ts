@@ -119,7 +119,7 @@ const isScopeReadyForSerahTerima = (scope: any) => {
     const hasGanttAndOpname = Boolean(scope.gantt_id) && Boolean(scope.opname_final_id);
     if (!hasGanttAndOpname) return false;
 
-    // Escape hatch untuk data migrasi V1: opname_final APPROVED dianggap sudah final.
+    // Data migrasi lama yang benar-benar sudah APPROVED tetap dianggap final.
     if (scope.status_opname_final === "APPROVED") {
         return true;
     }
@@ -128,8 +128,14 @@ const isScopeReadyForSerahTerima = (scope: any) => {
     const opnameItems = checkpoints.reduce((sum: number, checkpoint: any) => sum + Number(checkpoint?.opname_items || 0), 0);
     const readyOpnameItems = checkpoints.reduce((sum: number, checkpoint: any) => sum + Number(checkpoint?.ready_opname_items || 0), 0);
     const missingPengawasan = Number(scope.missing_pengawasan_checkpoints || 0);
+    const totalExpected = Number(scope.total_expected_items || 0);
+    const totalSelesai = Number(scope.total_selesai_items || 0);
 
-    return opnameItems > 0 && readyOpnameItems === 0 && missingPengawasan === 0;
+    return opnameItems > 0
+        && readyOpnameItems === 0
+        && missingPengawasan === 0
+        && totalExpected > 0
+        && totalSelesai === totalExpected;
 };
 
 const normalizePengawasanDate = (value: any): string => {
@@ -238,6 +244,7 @@ const buildUnifiedSupervisionMetadata = (scopes: any[]) => {
             missing_documentation_items: scopeCheckpoints.reduce((sum, item) => sum + Number(item.checkpoint?.missing_documentation_items || 0), 0),
             ready_opname_items: scopeCheckpoints.reduce((sum, item) => sum + Number(item.checkpoint?.ready_opname_items || 0), 0),
             opname_items: scopeCheckpoints.reduce((sum, item) => sum + Number(item.checkpoint?.opname_items || 0), 0),
+            contractor_submitted_opname_items: scopeCheckpoints.reduce((sum, item) => sum + Number(item.checkpoint?.contractor_submitted_opname_items || 0), 0),
             scopes: scopeCheckpoints,
         };
     });
@@ -1025,3 +1032,4 @@ export const ganttService = {
         };
     }
 };
+

@@ -357,7 +357,8 @@ export const ganttRepository = {
                 SELECT
                     s.id_toko,
                     pg.id AS id_pengawasan_gantt,
-                    pg.tanggal_pengawasan
+                    pg.tanggal_pengawasan,
+                    pg.workflow_version
                 FROM scope s
                 JOIN pengawasan_gantt pg ON pg.id_gantt = s.gantt_id
             ),
@@ -400,6 +401,7 @@ export const ganttRepository = {
                     tpg.id_toko,
                     tpg.id_pengawasan_gantt,
                     tpg.tanggal_pengawasan,
+                    tpg.workflow_version,
                     COUNT(p.id)::int AS total_items,
                     COUNT(p.id) FILTER (WHERE LOWER(TRIM(p.status)) = 'selesai')::int AS selesai_items,
                     COUNT(p.id) FILTER (
@@ -463,7 +465,15 @@ export const ganttRepository = {
                                     ''
                               ))) = UPPER(TRIM(COALESCE(p.jenis_pekerjaan, '')))
                           )
-                    )::int AS opname_items
+                     )::int AS opname_items,
+                    (
+                        SELECT COUNT(*)::int
+                        FROM opname_item oi_submitted
+                        WHERE oi_submitted.id_toko = tpg.id_toko
+                          AND oi_submitted.workflow_version = 'contractor_first'
+                          AND oi_submitted.id_pengawasan_gantt_target = tpg.id_pengawasan_gantt
+                          AND oi_submitted.status IN ('pending', 'disetujui', 'ditolak')
+                    ) AS contractor_submitted_opname_items
                 FROM target_pengawasan_gantt tpg
                 LEFT JOIN pengawasan_per_date p
                     ON p.id_pengawasan_gantt = tpg.id_pengawasan_gantt
@@ -518,13 +528,15 @@ export const ganttRepository = {
                         json_build_object(
                             'id_pengawasan_gantt', c.id_pengawasan_gantt,
                             'tanggal_pengawasan', c.tanggal_pengawasan,
+                            'workflow_version', c.workflow_version,
                             'total_items', c.total_items,
                             'selesai_items', c.selesai_items,
                             'filled_items', c.filled_items,
                             'documented_items', c.documented_items,
                             'missing_documentation_items', GREATEST(c.total_items - c.documented_items, 0),
                             'ready_opname_items', c.ready_opname_items,
-                            'opname_items', c.opname_items
+                            'opname_items', c.opname_items,
+                            'contractor_submitted_opname_items', c.contractor_submitted_opname_items
                         )
                         ORDER BY to_date(c.tanggal_pengawasan, 'DD/MM/YYYY')
                     ) FILTER (WHERE c.id_pengawasan_gantt IS NOT NULL),
@@ -1633,3 +1645,5 @@ export const ganttRepository = {
         };
     }
 };
+
+

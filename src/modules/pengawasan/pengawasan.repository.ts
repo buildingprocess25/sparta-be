@@ -167,31 +167,91 @@ export const pengawasanRepository = {
 
     async createBulk(items: CreatePengawasanData[], existingClient?: PoolClient): Promise<PengawasanRow[]> {
         return withTransaction(async (client) => {
-            const values: Array<number | string | null> = [];
-            const placeholders = items.map((item, index) => {
-                const base = index * 8;
-                values.push(
+            const rows: PengawasanRow[] = [];
+            const processedKeys = new Set<string>();
+
+            for (const item of items) {
+                const kategoriPekerjaan = item.kategori_pekerjaan.trim();
+                const jenisPekerjaan = item.jenis_pekerjaan.trim();
+                const itemKey = [
                     item.id_gantt,
                     item.id_pengawasan_gantt,
-                    item.kategori_pekerjaan,
-                    item.jenis_pekerjaan,
-                    item.catatan ?? null,
-                    item.dokumentasi ?? null,
-                    null,
-                    item.status ?? null
-                );
-                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, COALESCE($${base + 8}, 'progress'))`;
-            });
+                    kategoriPekerjaan.toUpperCase(),
+                    jenisPekerjaan.toUpperCase()
+                ].join("|");
 
-            const result = await client.query<PengawasanRow>(
-                `
-                INSERT INTO pengawasan (id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, dokumentasi_base64, status)
-                VALUES ${placeholders.join(", ")}
-                RETURNING id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, dokumentasi_base64, status, created_at
-                `,
-                values
-            );
-            return result.rows;
+                if (processedKeys.has(itemKey)) {
+                    continue;
+                }
+
+                const existing = await client.query<Pick<PengawasanRow, "id">>(
+                    `
+                    SELECT id
+                    FROM pengawasan
+                    WHERE id_gantt = $1
+                      AND id_pengawasan_gantt = $2
+                      AND UPPER(TRIM(COALESCE(kategori_pekerjaan, ''))) = UPPER(TRIM($3::text))
+                      AND UPPER(TRIM(COALESCE(jenis_pekerjaan, ''))) = UPPER(TRIM($4::text))
+                    ORDER BY
+                      CASE WHEN NULLIF(TRIM(COALESCE(dokumentasi, '')), '') IS NULL THEN 0 ELSE 1 END,
+                      CASE WHEN LOWER(TRIM(COALESCE(status, ''))) = 'terlambat' THEN 0 ELSE 1 END,
+                      id ASC
+                    LIMIT 1
+                    FOR UPDATE
+                    `,
+                    [
+                        item.id_gantt,
+                        item.id_pengawasan_gantt,
+                        kategoriPekerjaan,
+                        jenisPekerjaan
+                    ]
+                );
+
+                if (existing.rows[0]) {
+                    const result = await client.query<PengawasanRow>(
+                        `
+                        UPDATE pengawasan
+                        SET
+                            catatan = COALESCE($1, catatan),
+                            dokumentasi = COALESCE(NULLIF(TRIM($2), ''), dokumentasi),
+                            status = COALESCE($3, status)
+                        WHERE id = $4
+                        RETURNING id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, dokumentasi_base64, status, created_at
+                        `,
+                        [
+                            item.catatan ?? null,
+                            item.dokumentasi ?? null,
+                            item.status ?? null,
+                            existing.rows[0].id
+                        ]
+                    );
+                    rows.push(result.rows[0]);
+                    processedKeys.add(itemKey);
+                    continue;
+                }
+
+                const result = await client.query<PengawasanRow>(
+                    `
+                    INSERT INTO pengawasan (id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, dokumentasi_base64, status)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE($8, 'progress'))
+                    RETURNING id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, dokumentasi_base64, status, created_at
+                    `,
+                    [
+                        item.id_gantt,
+                        item.id_pengawasan_gantt,
+                        item.kategori_pekerjaan,
+                        item.jenis_pekerjaan,
+                        item.catatan ?? null,
+                        item.dokumentasi ?? null,
+                        null,
+                        item.status ?? null
+                    ]
+                );
+                rows.push(result.rows[0]);
+                processedKeys.add(itemKey);
+            }
+
+            return rows;
         }, existingClient);
     },
 
@@ -680,4 +740,5 @@ export const pengawasanRepository = {
         return result.rows[0] ?? null;
     }
 };
+
 

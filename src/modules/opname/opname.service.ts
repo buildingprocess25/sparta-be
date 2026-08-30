@@ -571,10 +571,23 @@ export const opnameService = {
                 const fotoLink = uploadedFotoOpname
                     ? await uploadFotoOpnameToDrive(existing.id_toko, uploadedFotoOpname)
                     : undefined;
+
+                let revisionTargetCheckpointId: number | null = null;
+                const targetPengawasan = await opnameRepository.findTargetPengawasanForOpnameItem(parsedId, client);
+                const targetStatus = String(targetPengawasan?.status || "").trim().toLowerCase();
+                if (targetPengawasan?.id_gantt && targetPengawasan?.tanggal_pengawasan && targetStatus && targetStatus !== "selesai") {
+                    const nextCheckpoint = await opnameRepository.findNextNearestCheckpoint({
+                        id_gantt: targetPengawasan.id_gantt,
+                        after_tanggal_pengawasan: targetPengawasan.tanggal_pengawasan,
+                    }, client);
+                    revisionTargetCheckpointId = nextCheckpoint?.id ?? null;
+                }
+
                 const updated = await opnameRepository.updateContractorRevision({
                     id_opname_item: parsedId,
                     actor_email: submitterEmail,
                     item: fotoLink ? { ...input, foto: fotoLink } : input,
+                    id_pengawasan_gantt_target: revisionTargetCheckpointId,
                 }, client);
                 await opnameRepository.insertRevisionHistory({
                     id_opname_item: updated.id,
@@ -729,4 +742,3 @@ export const opnameService = {
         return { id: parsedId, deleted: true };
     }
 };
-

@@ -170,6 +170,15 @@ const getSerahTerimaReadiness = async (idToko: number) => {
             };
         }
 
+        const totalExpected = Number(scope.total_expected_items || 0);
+        const totalSelesai = Number(scope.total_selesai_items || 0);
+        if (totalExpected === 0 || totalSelesai < totalExpected) {
+            return {
+                ready: false,
+                reason: `Masih ada ${Math.max(0, totalExpected - totalSelesai)} item pekerjaan yang belum selesai pengawasan pada lingkup ${scope.lingkup_pekerjaan}`,
+            };
+        }
+
         const contractorFirstBlockers = await opnameRepository.findContractorFirstApprovalBlockersByToko(Number(scope.id_toko));
         if (contractorFirstBlockers.length > 0) {
             return {
@@ -203,6 +212,16 @@ const assertSerahTerimaReady = async (idToko: number) => {
 const assertSerahTerimaReadyForUnified = async (idToko: number) => {
     const readiness = await getSerahTerimaReadiness(idToko);
     if (readiness.ready) return;
+
+    const toko = await tokoRepository.findById(idToko);
+    const workspaceScopes = toko?.nomor_ulok ? await ganttRepository.findSupervisionWorkspace(toko.nomor_ulok) : [];
+    const currentScope = workspaceScopes.find((scope: any) => Number(scope.id_toko) === Number(idToko));
+    const hasContractorFirstCheckpoint = (currentScope?.checkpoints || []).some((checkpoint: any) =>
+        String(checkpoint?.workflow_version || "").trim() === "contractor_first"
+    );
+    if (hasContractorFirstCheckpoint) {
+        throw new AppError(readiness.reason ?? "Serah Terima belum siap dibuat", 409);
+    }
 
     const existingBerkas = await serahTerimaRepository.findBerkasSerahTerimaByIdToko(idToko);
     if (existingBerkas?.link_pdf) {
