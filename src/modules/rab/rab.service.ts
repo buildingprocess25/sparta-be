@@ -1,4 +1,5 @@
 import { AppError } from "../../common/app-error";
+import { emailNotificationService } from "../email-notification/email-notification.service";
 import { PDFParse } from "pdf-parse";
 import * as XLSX from "xlsx";
 import { getBranchScopeCandidates, getRabPriceBranch, isSameBranchScope, normalizeBranchScopeName } from "../../common/branch-scope";
@@ -2095,6 +2096,16 @@ export const rabService = {
                 console.error("Warning: Gagal regenerate PDF RAB setelah approval:", err);
             } finally {
                 await rabRepository.restoreTokoStableFieldsByRabId(id, tokoStableFields);
+            }
+
+            try {
+                await emailNotificationService.send({
+                    id_toko: data.toko.id,
+                    cabang: data.toko.cabang ?? "",
+                    flag: "notification-rab-has-approve"
+                });
+            } catch (err) {
+                console.error("Warning: Gagal mengirim email notifikasi RAB disetujui:", err);
             }
         }
 

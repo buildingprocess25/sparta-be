@@ -1079,6 +1079,61 @@ const findPicAssignmentRequired = async (user: AuthenticatedUser): Promise<Notif
     `, values);
 };
 
+const findSpkCreationRequired = async (user: AuthenticatedUser): Promise<NotificationRow[]> => {
+    if (!isSuperHuman(user) && !hasActiveRole(user, "BRANCH BUILDING & MAINTENANCE MANAGER")) {
+        return [];
+    }
+
+    const values: SqlValue[] = [];
+    const branchWhere = addBranchScope(user, values, "t.cabang");
+    values.push(ITEM_LIMIT);
+
+    return queryNotificationRows(`
+        WITH missing_spk AS (
+            SELECT
+                r.id AS entity_id,
+                r.id_toko,
+                COALESCE(t.nama_toko, pp.nomor_ulok) AS title,
+                COALESCE(pp.nomor_ulok, t.kode_toko) AS nomor_ulok,
+                UPPER(TRIM(pp.lingkup_pekerjaan)) AS lingkup_pekerjaan,
+                t.cabang,
+                r.status,
+                r.created_at
+            FROM rab r
+            LEFT JOIN toko t ON t.id = r.id_toko
+            LEFT JOIN projek_planning pp ON pp.id = r.projek_planning_id
+            WHERE r.status = 'Disetujui'
+              ${branchWhere}
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM pengajuan_spk spk
+                  WHERE spk.id_toko = r.id_toko
+                    AND (
+                        (spk.nomor_ulok IS NOT NULL AND spk.nomor_ulok = pp.nomor_ulok) 
+                        OR spk.nomor_ulok IS NULL
+                    )
+                    AND UPPER(TRIM(spk.lingkup_pekerjaan)) = UPPER(TRIM(pp.lingkup_pekerjaan))
+              )
+        )
+        SELECT
+            'SPK_CREATION_REQUIRED' AS entity_type,
+            entity_id,
+            id_toko,
+            title,
+            nomor_ulok,
+            lingkup_pekerjaan,
+            cabang,
+            status,
+            'RAB sudah disetujui, harap buat SPK untuk RAB ini.' AS description,
+            'Buat SPK' AS action_label,
+            '/spk?ulok=' || nomor_ulok || '&lingkup=' || REPLACE(COALESCE(lingkup_pekerjaan, ''), ' ', '%20') AS action_url,
+            COUNT(*) OVER() AS total_count
+        FROM missing_spk
+        ORDER BY created_at DESC, entity_id DESC
+        LIMIT $${values.length}
+    `, values);
+};
+
 const findRabProjectPlanningRequests = async (user: AuthenticatedUser): Promise<NotificationRow[]> => {
     // Only for KONTRAKTOR role (not DIREKTUR KONTRAKTOR) - they create/upload RAB
     const isKontraktorOnly = hasActiveRole(user, "KONTRAKTOR") && !hasActiveRole(user, "DIREKTUR KONTRAKTOR");
@@ -1173,6 +1228,7 @@ export const taskNotificationRepository = {
             picAssignmentRequired,
             rabProjectPlanningRequests,
             coordinatorRabUpload,
+            spkCreationRequired,
         ] = await Promise.all([
             findRabApproval(user),
             findSpkApproval(user),
@@ -1189,6 +1245,7 @@ export const taskNotificationRepository = {
             findPicAssignmentRequired(user),
             findRabProjectPlanningRequests(user),
             findCoordinatorRabUploadRequired(user),
+            findSpkCreationRequired(user),
         ]);
 
         return [
@@ -1338,6 +1395,13 @@ export const taskNotificationRepository = {
                 "Permintaan RAB Project Planning",
                 "ULOK dari FPD yang membutuhkan penawaran RAB.",
                 rabProjectPlanningRequests
+            ),
+            makeGroup(
+                "spk_creation_required",
+                "input",
+                "Buat SPK",
+                "RAB yang sudah disetujui dan menunggu pembuatan SPK (Tugas Branch Building & Maintenance Manager).",
+                spkCreationRequired
             ),
         ].filter((group): group is TaskNotificationGroup => Boolean(group));
     },

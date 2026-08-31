@@ -43,6 +43,12 @@ const TEMPLATE_MAP: Record<string, EmailTemplateConfig> = {
         template: "send-notification-sp-has-approve.njk",
         subject: "SPARTA Building - Surat Peringatan Disetujui",
         targetJabatan: "KONTRAKTOR"
+    },
+    "notification-rab-has-approve": {
+        template: "send-notification-rab-has-approve.njk",
+        subject: "SPARTA Building - RAB Disetujui",
+        targetJabatan: "KONTRAKTOR",
+        ccJabatan: "BRANCH BUILDING & MAINTENANCE MANAGER"
     }
 };
 
@@ -141,7 +147,7 @@ export const emailNotificationService = {
             !shouldUseSpkContractorEmails &&
             !shouldUseSpContractorEmails &&
             Boolean(payload.id_toko) &&
-            (payload.flag === "notification-spk-has-approve" || payload.flag === "notification-spk-has-reject");
+            (payload.flag === "notification-spk-has-approve" || payload.flag === "notification-spk-has-reject" || payload.flag === "notification-rab-has-approve");
         const spkData = shouldUseSpkContractorEmails
             ? await spkRepository.findById(String(payload.id_spk))
             : null;
@@ -195,7 +201,7 @@ export const emailNotificationService = {
             );
         }
         const ccUsers: Array<{ email_sat: string }> = [];
-        if (!shouldUseRabEmails && templateConfig.ccJabatan) {
+        if (templateConfig.ccJabatan) {
             const ccJabatanList = Array.isArray(templateConfig.ccJabatan) ? templateConfig.ccJabatan : [templateConfig.ccJabatan];
             for (const jab of ccJabatanList) {
                 const users = await userCabangRepository.findAll({ cabang: payload.cabang, jabatan: jab });
