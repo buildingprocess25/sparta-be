@@ -295,7 +295,11 @@ export const opnameFinalRepository = {
 
         if (filter.workflow_version) {
             values.push(filter.workflow_version);
-            conditions.push(`ofn.workflow_version = $${values.length}`);
+            if (filter.workflow_version === "legacy") {
+                conditions.push(`(ofn.workflow_version = $${values.length} OR ofn.workflow_version IS NULL)`);
+            } else {
+                conditions.push(`ofn.workflow_version = $${values.length}`);
+            }
         }
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";

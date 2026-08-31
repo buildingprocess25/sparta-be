@@ -1283,7 +1283,11 @@ export const opnameRepository = {
 
         if (typeof query.workflow_version !== "undefined") {
             values.push(query.workflow_version);
-            conditions.push(`oi.workflow_version = $${values.length}`);
+            if (query.workflow_version === "legacy") {
+                conditions.push(`(oi.workflow_version = $${values.length} OR oi.workflow_version IS NULL)`);
+            } else {
+                conditions.push(`oi.workflow_version = $${values.length}`);
+            }
         }
 
         if (typeof query.id_pengawasan_gantt_target !== "undefined") {

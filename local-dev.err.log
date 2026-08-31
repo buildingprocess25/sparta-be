@@ -1,0 +1,627 @@
+[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+⚠️ Failed to set public permission for 1cWIWfCGy3O6IDdIVLtVIOLim9l0vCE_h: Bad Request. User message: ""
+⚠️ Failed to set public permission for 1kd1GCFER1Ncs0nmQ3Oz8V9JlnrA-P77Z: Bad Request. User message: ""
+⚠️ Failed to set public permission for 1XPfkk-bB0LIqwoc6uMsYyGdh9DdL2yg1: Bad Request. User message: ""
+⚠️ Failed to set public permission for 16tFSPzg58Nb-cr8yzQHcw61n4Osj_BmL: Bad Request. User message: ""
+⚠️ Failed to set public permission for 1Fllxuf9AKzT1s_Wz_lEDOs3ojp3WFe9G: Bad Request. User message: ""
+⚠️ Failed to set public permission for 1K8WGFKk218tDL8Wxw-SVxh-sjXKePvo7: Bad Request. User message: ""
+⚠️ Failed to set public permission for 1tIefbkjIfyKOc2EV0PU7Op_e0zX-sZkg: Bad Request. User message: ""
+⚠️ Failed to set public permission for 1ee7bvZ55bBS-PCFnT3c_7EaxxUC_k5g2: Bad Request. User message: ""
+⚠️ Failed to set public permission for 1rS92d_Cg6af-FxyUV3HJK3nrnWgxf6VK: Bad Request. User message: ""
+[system-maintenance] Gagal membaca status, memakai fallback cache/default: Error: Connection terminated due to connection timeout
+    at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.getStatus (C:\alfamart\SPARTA\sparta-be\src\modules\system-maintenance\system-maintenance.repository.ts:68:24)
+    at async Object.getStatus (C:\alfamart\SPARTA\sparta-be\src\modules\system-maintenance\system-maintenance.service.ts:40:26)
+    at async <anonymous> (C:\alfamart\SPARTA\sparta-be\src\modules\system-maintenance\system-maintenance.controller.ts:11:18) {
+  [cause]: Error: Connection terminated unexpectedly
+      at Connection.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\client.js:180:73)
+      at Object.onceWrapper (node:events:633:28)
+      at Connection.emit (node:events:519:28)
+      at Socket.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\connection.js:61:12)
+      at Socket.emit (node:events:519:28)
+      at TCP.<anonymous> (node:net:346:12)
+}
+Gagal membaca session auth: Error: Connection terminated due to connection timeout
+    at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.findActiveByTokenHash (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.repository.ts:109:24)
+    at async Object.authenticateToken (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.service.ts:102:21)
+    at async apiAuthMiddleware (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth.middleware.ts:146:26) {
+  [cause]: Error: Connection terminated unexpectedly
+      at Connection.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\client.js:180:73)
+      at Object.onceWrapper (node:events:633:28)
+      at Connection.emit (node:events:519:28)
+      at Socket.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\connection.js:61:12)
+      at Socket.emit (node:events:519:28)
+      at TCP.<anonymous> (node:net:346:12)
+}
+Gagal membaca session auth: Error: Connection terminated due to connection timeout
+    at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.findActiveByTokenHash (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.repository.ts:109:24)
+    at async Object.authenticateToken (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.service.ts:102:21)
+    at async apiAuthMiddleware (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth.middleware.ts:146:26) {
+  [cause]: Error: Connection terminated unexpectedly
+      at Connection.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\client.js:180:73)
+      at Object.onceWrapper (node:events:633:28)
+      at Connection.emit (node:events:519:28)
+      at Socket.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\connection.js:61:12)
+      at Socket.emit (node:events:519:28)
+      at TCP.<anonymous> (node:net:346:12)
+}
+Gagal membaca session auth: Error: Connection terminated due to connection timeout
+    at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.findActiveByTokenHash (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.repository.ts:109:24)
+    at async Object.authenticateToken (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.service.ts:102:21)
+    at async apiAuthMiddleware (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth.middleware.ts:146:26) {
+  [cause]: Error: Connection terminated unexpectedly
+      at Connection.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\client.js:180:73)
+      at Object.onceWrapper (node:events:633:28)
+      at Connection.emit (node:events:519:28)
+      at Socket.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\connection.js:61:12)
+      at Socket.emit (node:events:519:28)
+      at TCP.<anonymous> (node:net:346:12)
+}
+[system-maintenance] Gagal membaca status, memakai fallback cache/default: Error: Connection terminated due to connection timeout
+    at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.getStatus (C:\alfamart\SPARTA\sparta-be\src\modules\system-maintenance\system-maintenance.repository.ts:68:24)
+    at async Object.getStatus (C:\alfamart\SPARTA\sparta-be\src\modules\system-maintenance\system-maintenance.service.ts:40:26)
+    at async <anonymous> (C:\alfamart\SPARTA\sparta-be\src\modules\system-maintenance\system-maintenance.controller.ts:11:18) {
+  [cause]: Error: Connection terminated unexpectedly
+      at Connection.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\client.js:180:73)
+      at Object.onceWrapper (node:events:633:28)
+      at Connection.emit (node:events:519:28)
+      at Socket.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\connection.js:61:12)
+      at Socket.emit (node:events:519:28)
+      at TCP.<anonymous> (node:net:346:12)
+}
+Gagal membaca session auth: Error: Connection terminated due to connection timeout
+    at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.findActiveByTokenHash (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.repository.ts:109:24)
+    at async Object.authenticateToken (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.service.ts:102:21)
+    at async apiAuthMiddleware (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth.middleware.ts:146:26) {
+  [cause]: Error: Connection terminated unexpectedly
+      at Connection.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\client.js:180:73)
+      at Object.onceWrapper (node:events:633:28)
+      at Connection.emit (node:events:519:28)
+      at Socket.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\connection.js:61:12)
+      at Socket.emit (node:events:519:28)
+      at TCP.<anonymous> (node:net:346:12)
+}
+[system-maintenance] Gagal membaca status, memakai fallback cache/default: Error: Connection terminated due to connection timeout
+    at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.getStatus (C:\alfamart\SPARTA\sparta-be\src\modules\system-maintenance\system-maintenance.repository.ts:68:24)
+    at async Object.getStatus (C:\alfamart\SPARTA\sparta-be\src\modules\system-maintenance\system-maintenance.service.ts:40:26)
+    at async <anonymous> (C:\alfamart\SPARTA\sparta-be\src\modules\system-maintenance\system-maintenance.controller.ts:11:18) {
+  [cause]: Error: Connection terminated unexpectedly
+      at Connection.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\client.js:180:73)
+      at Object.onceWrapper (node:events:633:28)
+      at Connection.emit (node:events:519:28)
+      at Socket.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\connection.js:61:12)
+      at Socket.emit (node:events:519:28)
+      at TCP.<anonymous> (node:net:346:12)
+}
+Gagal membaca session auth: Error: Connection terminated due to connection timeout
+    at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.findActiveByTokenHash (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.repository.ts:109:24)
+    at async Object.authenticateToken (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.service.ts:102:21)
+    at async apiAuthMiddleware (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth.middleware.ts:146:26) {
+  [cause]: Error: Connection terminated unexpectedly
+      at Connection.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\client.js:180:73)
+      at Object.onceWrapper (node:events:633:28)
+      at Connection.emit (node:events:519:28)
+      at Socket.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\connection.js:61:12)
+      at Socket.emit (node:events:519:28)
+      at TCP.<anonymous> (node:net:346:12)
+}
+Gagal membaca session auth: Error: Connection terminated due to connection timeout
+    at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.findActiveByTokenHash (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.repository.ts:109:24)
+    at async Object.authenticateToken (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.service.ts:102:21)
+    at async apiAuthMiddleware (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth.middleware.ts:146:26) {
+  [cause]: Error: Connection terminated unexpectedly
+      at Connection.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\client.js:180:73)
+      at Object.onceWrapper (node:events:633:28)
+      at Connection.emit (node:events:519:28)
+      at Socket.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\connection.js:61:12)
+      at Socket.emit (node:events:519:28)
+      at TCP.<anonymous> (node:net:346:12)
+}
+Gagal membaca session auth: Error: Connection terminated due to connection timeout
+    at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.findActiveByTokenHash (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.repository.ts:109:24)
+    at async Object.authenticateToken (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.service.ts:102:21)
+    at async apiAuthMiddleware (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth.middleware.ts:146:26) {
+  [cause]: Error: Connection terminated unexpectedly
+      at Connection.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\client.js:180:73)
+      at Object.onceWrapper (node:events:633:28)
+      at Connection.emit (node:events:519:28)
+      at Socket.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\connection.js:61:12)
+      at Socket.emit (node:events:519:28)
+      at TCP.<anonymous> (node:net:346:12)
+}
+[system-maintenance] Gagal membaca status, memakai fallback cache/default: Error: Connection terminated due to connection timeout
+    at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.getStatus (C:\alfamart\SPARTA\sparta-be\src\modules\system-maintenance\system-maintenance.repository.ts:68:24)
+    at async Object.getStatus (C:\alfamart\SPARTA\sparta-be\src\modules\system-maintenance\system-maintenance.service.ts:40:26)
+    at async <anonymous> (C:\alfamart\SPARTA\sparta-be\src\modules\system-maintenance\system-maintenance.controller.ts:11:18) {
+  [cause]: Error: Connection terminated unexpectedly
+      at Connection.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\client.js:180:73)
+      at Object.onceWrapper (node:events:633:28)
+      at Connection.emit (node:events:519:28)
+      at Socket.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\connection.js:61:12)
+      at Socket.emit (node:events:519:28)
+      at TCP.<anonymous> (node:net:346:12)
+}
+Gagal membaca session auth: Error: Connection terminated due to connection timeout
+    at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.findActiveByTokenHash (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.repository.ts:109:24)
+    at async Object.authenticateToken (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.service.ts:102:21)
+    at async apiAuthMiddleware (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth.middleware.ts:146:26) {
+  [cause]: Error: Connection terminated unexpectedly
+      at Connection.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\client.js:180:73)
+      at Object.onceWrapper (node:events:633:28)
+      at Connection.emit (node:events:519:28)
+      at Socket.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\connection.js:61:12)
+      at Socket.emit (node:events:519:28)
+      at TCP.<anonymous> (node:net:346:12)
+}
+Gagal membaca session auth: Error: Connection terminated due to connection timeout
+    at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.findActiveByTokenHash (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.repository.ts:109:24)
+    at async Object.authenticateToken (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.service.ts:102:21)
+    at async apiAuthMiddleware (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth.middleware.ts:146:26) {
+  [cause]: Error: Connection terminated unexpectedly
+      at Connection.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\client.js:180:73)
+      at Object.onceWrapper (node:events:633:28)
+      at Connection.emit (node:events:519:28)
+      at Socket.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\connection.js:61:12)
+      at Socket.emit (node:events:519:28)
+      at TCP.<anonymous> (node:net:346:12)
+}
+Gagal membaca session auth: Error: Connection terminated due to connection timeout
+    at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.findActiveByTokenHash (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.repository.ts:109:24)
+    at async Object.authenticateToken (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.service.ts:102:21)
+    at async apiAuthMiddleware (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth.middleware.ts:146:26) {
+  [cause]: Error: Connection terminated unexpectedly
+      at Connection.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\client.js:180:73)
+      at Object.onceWrapper (node:events:633:28)
+      at Connection.emit (node:events:519:28)
+      at Socket.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\connection.js:61:12)
+      at Socket.emit (node:events:519:28)
+      at TCP.<anonymous> (node:net:346:12)
+}
+Gagal membaca session auth: Error: Connection terminated due to connection timeout
+    at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.findActiveByTokenHash (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.repository.ts:109:24)
+    at async Object.authenticateToken (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.service.ts:102:21)
+    at async apiAuthMiddleware (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth.middleware.ts:146:26) {
+  [cause]: Error: Connection terminated unexpectedly
+      at Connection.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\client.js:180:73)
+      at Object.onceWrapper (node:events:633:28)
+      at Connection.emit (node:events:519:28)
+      at Socket.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\connection.js:61:12)
+      at Socket.emit (node:events:519:28)
+      at TCP.<anonymous> (node:net:346:12)
+}
+Gagal membaca session auth: Error: Connection terminated due to connection timeout
+    at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.findActiveByTokenHash (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.repository.ts:109:24)
+    at async Object.authenticateToken (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.service.ts:102:21)
+    at async apiAuthMiddleware (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth.middleware.ts:146:26) {
+  [cause]: Error: Connection terminated unexpectedly
+      at Connection.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\client.js:180:73)
+      at Object.onceWrapper (node:events:633:28)
+      at Connection.emit (node:events:519:28)
+      at Socket.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\connection.js:61:12)
+      at Socket.emit (node:events:519:28)
+      at TCP.<anonymous> (node:net:346:12)
+}
+Gagal membaca session auth: Error: Connection terminated due to connection timeout
+    at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.findActiveByTokenHash (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.repository.ts:109:24)
+    at async Object.authenticateToken (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.service.ts:102:21)
+    at async apiAuthMiddleware (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth.middleware.ts:146:26) {
+  [cause]: Error: Connection terminated unexpectedly
+      at Connection.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\client.js:180:73)
+      at Object.onceWrapper (node:events:633:28)
+      at Connection.emit (node:events:519:28)
+      at Socket.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\connection.js:61:12)
+      at Socket.emit (node:events:519:28)
+      at TCP.<anonymous> (node:net:346:12)
+}
+Gagal membaca session auth: Error: Connection terminated due to connection timeout
+    at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.findActiveByTokenHash (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.repository.ts:109:24)
+    at async Object.authenticateToken (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.service.ts:102:21)
+    at async apiAuthMiddleware (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth.middleware.ts:146:26) {
+  [cause]: Error: Connection terminated unexpectedly
+      at Connection.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\client.js:180:73)
+      at Object.onceWrapper (node:events:633:28)
+      at Connection.emit (node:events:519:28)
+      at Socket.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\connection.js:61:12)
+      at Socket.emit (node:events:519:28)
+      at TCP.<anonymous> (node:net:346:12)
+}
+Gagal membaca session auth: Error: Connection terminated due to connection timeout
+    at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.findActiveByTokenHash (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.repository.ts:109:24)
+    at async Object.authenticateToken (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.service.ts:102:21)
+    at async apiAuthMiddleware (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth.middleware.ts:146:26) {
+  [cause]: Error: Connection terminated unexpectedly
+      at Connection.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\client.js:180:73)
+      at Object.onceWrapper (node:events:633:28)
+      at Connection.emit (node:events:519:28)
+      at Socket.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\connection.js:61:12)
+      at Socket.emit (node:events:519:28)
+      at TCP.<anonymous> (node:net:346:12)
+}
+Gagal membaca session auth: Error: Connection terminated due to connection timeout
+    at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.findActiveByTokenHash (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.repository.ts:109:24)
+    at async Object.authenticateToken (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.service.ts:102:21)
+    at async apiAuthMiddleware (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth.middleware.ts:146:26) {
+  [cause]: Error: Connection terminated unexpectedly
+      at Connection.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\client.js:180:73)
+      at Object.onceWrapper (node:events:633:28)
+      at Connection.emit (node:events:519:28)
+      at Socket.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\connection.js:61:12)
+      at Socket.emit (node:events:519:28)
+      at TCP.<anonymous> (node:net:346:12)
+}
+Gagal membaca session auth: Error: Connection terminated due to connection timeout
+    at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.findActiveByTokenHash (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.repository.ts:109:24)
+    at async Object.authenticateToken (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth-session.service.ts:102:21)
+    at async apiAuthMiddleware (C:\alfamart\SPARTA\sparta-be\src\modules\auth\auth.middleware.ts:146:26) {
+  [cause]: Error: Connection terminated unexpectedly
+      at Connection.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\client.js:180:73)
+      at Object.onceWrapper (node:events:633:28)
+      at Connection.emit (node:events:519:28)
+      at Socket.<anonymous> (C:\alfamart\SPARTA\sparta-be\node_modules\pg\lib\connection.js:61:12)
+      at Socket.emit (node:events:519:28)
+      at TCP.<anonymous> (node:net:346:12)
+}
+[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users
+⚠️ Failed to set public permission for 1TC3EOdXVPcZrN4l2W_0yQUM0r-AHIDDu: Bad Request. User message: ""
+⚠️ Failed to set public permission for 1uBwmpCYHIzVnzeWkKtxCHkstufHSVrXR: Bad Request. User message: ""
+⚠️ Failed to set public permission for 1_d-_jSSTeEMd52INYOCgUpfUvYYy3xAH: Bad Request. User message: ""
+[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+⚠️ Failed to set public permission for 1jOeDMDB9EFDtHCk4aV7iZdIuuhO17IDt: Bad Request. User message: ""
+⚠️ Failed to set public permission for 1MrXSkztY0GYto2VShnaywhBBUBo1vPrD: Bad Request. User message: ""
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+⚠️ Failed to set public permission for 1eHhZ-GqaB4mHJB7vnbbys9QMg3_xHQWi: Bad Request. User message: ""
+[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[berkas_pengawasan] Gagal generate/upload PDF: error: there is no unique or exclusion constraint matching the ON CONFLICT specification
+    at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.upsertBerkasPengawasan (C:\alfamart\SPARTA\sparta-be\src\modules\pengawasan\pengawasan.repository.ts:571:24)
+    at async generateAndUploadPengawasanPdf (C:\alfamart\SPARTA\sparta-be\src\modules\pengawasan\pengawasan.service.ts:457:9) {
+  length: 148,
+  severity: 'ERROR',
+  code: '42P10',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'plancat.c',
+  line: '958',
+  routine: 'infer_arbiter_indexes'
+}
+[berkas_pengawasan] Gagal generate/upload PDF: error: there is no unique or exclusion constraint matching the ON CONFLICT specification
+    at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.upsertBerkasPengawasan (C:\alfamart\SPARTA\sparta-be\src\modules\pengawasan\pengawasan.repository.ts:571:24)
+    at async generateAndUploadPengawasanPdf (C:\alfamart\SPARTA\sparta-be\src\modules\pengawasan\pengawasan.service.ts:457:9) {
+  length: 148,
+  severity: 'ERROR',
+  code: '42P10',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'plancat.c',
+  line: '958',
+  routine: 'infer_arbiter_indexes'
+}
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+Error: Transform failed with 1 error:
+C:\alfamart\SPARTA\sparta-be\src\modules\opname-final\opname-final.repository.ts:909:100: ERROR: Expected ")" but found "n"
+    at failureErrorWithLog (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:1467:15)
+    at C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:736:50
+    at responseCallbacks.<computed> (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:603:9)
+    at handleIncomingPacket (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:658:12)
+    at Socket.readFromStdout (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:581:7)
+    at Socket.emit (node:events:519:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23) {
+  name: 'TransformError'
+}
+
+Node.js v22.19.0
+[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users
+node:events:497
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::8081
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at Function.listen (C:\alfamart\SPARTA\sparta-be\node_modules\express\lib\application.js:635:24)
+    at <anonymous> (C:\alfamart\SPARTA\sparta-be\src\index.ts:117:5)
+    at Object.<anonymous> (C:\alfamart\SPARTA\sparta-be\src\index.ts:127:2)
+    at Module._compile (node:internal/modules/cjs/loader:1706:14)
+    at Object.transformer (C:\alfamart\SPARTA\sparta-be\node_modules\tsx\dist\register-D46fvsV_.cjs:3:1104)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 8081
+}
+
+Node.js v22.19.0
+node:events:497
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::8081
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at Function.listen (C:\alfamart\SPARTA\sparta-be\node_modules\express\lib\application.js:635:24)
+    at <anonymous> (C:\alfamart\SPARTA\sparta-be\src\index.ts:117:5)
+    at Object.<anonymous> (C:\alfamart\SPARTA\sparta-be\src\index.ts:127:2)
+    at Module._compile (node:internal/modules/cjs/loader:1706:14)
+    at Object.transformer (C:\alfamart\SPARTA\sparta-be\node_modules\tsx\dist\register-D46fvsV_.cjs:3:1104)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 8081
+}
+
+Node.js v22.19.0
+[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[berkas_pengawasan] File dokumentasi bukan image yang bisa dibaca PDF: {
+  mimeType: 'application/pdf',
+  size: 462083,
+  error: Error: Input buffer contains unsupported image format
+      at Sharp.toBuffer (C:\alfamart\SPARTA\sparta-be\node_modules\sharp\lib\output.js:163:17)
+      at imageBufferToPdfDataUrl (C:\alfamart\SPARTA\sparta-be\src\modules\pengawasan\pengawasan.service.ts:169:14)
+      at gdriveImageToBase64 (C:\alfamart\SPARTA\sparta-be\src\modules\pengawasan\pengawasan.service.ts:223:31)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async resolvePengawasanPhotoBase64 (C:\alfamart\SPARTA\sparta-be\src\modules\pengawasan\pengawasan.service.ts:232:23)
+      at async buildPengawasanPdfBuffer (C:\alfamart\SPARTA\sparta-be\src\modules\pengawasan\pengawasan.service.ts:328:33)
+      at async generateAndUploadPengawasanPdf (C:\alfamart\SPARTA\sparta-be\src\modules\pengawasan\pengawasan.service.ts:405:27)
+}
+[google] Gagal membaca file Drive via API {
+  fileId: '1C5cJDHOUC_6PvwSjiIw_2367IrwOy_80',
+  status: 404,
+  message: 'Request failed with status code 404'
+}
+[berkas_pengawasan] Foto lama tidak bisa dibaca via token backend { fileId: '1C5cJDHOUC_6PvwSjiIw_2367IrwOy_80' }
+[berkas_pengawasan] Gagal generate/upload PDF: error: there is no unique or exclusion constraint matching the ON CONFLICT specification
+    at C:\alfamart\SPARTA\sparta-be\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Object.upsertBerkasPengawasan (C:\alfamart\SPARTA\sparta-be\src\modules\pengawasan\pengawasan.repository.ts:571:24)
+    at async generateAndUploadPengawasanPdf (C:\alfamart\SPARTA\sparta-be\src\modules\pengawasan\pengawasan.service.ts:457:9) {
+  length: 148,
+  severity: 'ERROR',
+  code: '42P10',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'plancat.c',
+  line: '958',
+  routine: 'infer_arbiter_indexes'
+}
