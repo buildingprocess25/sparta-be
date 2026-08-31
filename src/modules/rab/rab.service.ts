@@ -1503,6 +1503,29 @@ export const rabService = {
             throw new AppError("Lingkup pekerjaan RAB wajib SIPIL atau ME.", 422);
         }
 
+        // --- VALIDASI SILANG LINGKUP VS ITEM ---
+        // Mencegah tercampurnya item Sipil dan ME karena kesalahan form revisi atau auto-switch
+        const meCategories = ["INSTALASI", "FIXTURE"];
+        const sharedCategories = ["PEKERJAAN TAMBAHAN", "PEKERJAAN SBO"];
+
+        if (normalizedLingkupPekerjaan === "SIPIL") {
+            const hasMeOnlyItems = payload.detail_items.some(item => 
+                meCategories.includes(item.kategori_pekerjaan.toUpperCase().trim())
+            );
+            if (hasMeOnlyItems) {
+                throw new AppError("Ditolak: Anda mencoba mensubmit item Mekanikal/Elektrikal (ME) ke dalam Lingkup Sipil.", 422);
+            }
+        } else if (normalizedLingkupPekerjaan === "ME") {
+            const hasSipilOnlyItems = payload.detail_items.some(item => {
+                const cat = item.kategori_pekerjaan.toUpperCase().trim();
+                return !meCategories.includes(cat) && !sharedCategories.includes(cat);
+            });
+            if (hasSipilOnlyItems) {
+                throw new AppError("Ditolak: Anda mencoba mensubmit item Sipil ke dalam Lingkup Mekanikal/Elektrikal (ME).", 422);
+            }
+        }
+        // ---------------------------------------
+
         const submittedNamaPt = await validateSubmitterCompanyMapping(payload);
 
         if (payload.projek_planning_id) {
