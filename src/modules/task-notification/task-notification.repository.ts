@@ -1019,30 +1019,62 @@ const findPicAssignmentRequired = async (user: AuthenticatedUser): Promise<Notif
     values.push(ITEM_LIMIT);
 
     return queryNotificationRows(`
+        WITH missing_pic AS (
+            SELECT
+                p.id AS entity_id,
+                p.id_toko,
+                COALESCE(t.nama_toko, p.nomor_ulok) AS title,
+                p.nomor_ulok,
+                UPPER(TRIM(p.lingkup_pekerjaan)) AS lingkup_pekerjaan,
+                t.cabang,
+                p.status,
+                p.created_at
+            FROM pengajuan_spk p
+            LEFT JOIN toko t ON t.id = p.id_toko
+            WHERE p.status = 'SPK_APPROVED'
+              ${branchWhere}
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM pic_pengawasan pic
+                  WHERE pic.id_spk = p.id
+                     OR pic.id_toko = p.id_toko
+              )
+        ), unique_lingkup AS (
+            SELECT DISTINCT nomor_ulok, lingkup_pekerjaan
+            FROM missing_pic
+        ), aggregated_lingkup AS (
+            SELECT nomor_ulok, STRING_AGG(lingkup_pekerjaan, ' + ' ORDER BY lingkup_pekerjaan DESC) AS lingkup_pekerjaan
+            FROM unique_lingkup
+            GROUP BY nomor_ulok
+        ), grouped_missing AS (
+            SELECT 
+                m.nomor_ulok,
+                MAX(m.title) AS title,
+                MAX(m.cabang) AS cabang,
+                MAX(m.status) AS status,
+                al.lingkup_pekerjaan,
+                MAX(m.entity_id) AS entity_id,
+                MAX(m.id_toko) AS id_toko,
+                MAX(m.created_at) AS max_created_at
+            FROM missing_pic m
+            JOIN aggregated_lingkup al ON al.nomor_ulok = m.nomor_ulok
+            GROUP BY m.nomor_ulok, al.lingkup_pekerjaan
+        )
         SELECT
             'PIC_PENGAWASAN_MISSING' AS entity_type,
-            p.id AS entity_id,
-            p.id_toko,
-            COALESCE(t.nama_toko, p.nomor_ulok) AS title,
-            p.nomor_ulok,
-            p.lingkup_pekerjaan,
-            t.cabang,
-            p.status,
+            entity_id,
+            id_toko,
+            title,
+            nomor_ulok,
+            lingkup_pekerjaan,
+            cabang,
+            status,
             'SPK sudah approved, tetapi PIC pengawasan belum ditentukan.' AS description,
             'Input PIC' AS action_label,
-            '/inputpic?id_toko=' || p.id_toko || '&id_spk=' || p.id AS action_url,
+            '/inputpic?ulok=' || nomor_ulok || '&lingkup=' || REPLACE(COALESCE(lingkup_pekerjaan, ''), ' ', '%20') AS action_url,
             COUNT(*) OVER() AS total_count
-        FROM pengajuan_spk p
-        LEFT JOIN toko t ON t.id = p.id_toko
-        WHERE p.status = 'SPK_APPROVED'
-          ${branchWhere}
-          AND NOT EXISTS (
-              SELECT 1
-              FROM pic_pengawasan pic
-              WHERE pic.id_spk = p.id
-                 OR pic.id_toko = p.id_toko
-          )
-        ORDER BY p.created_at DESC, p.id DESC
+        FROM grouped_missing
+        ORDER BY max_created_at DESC, nomor_ulok DESC
         LIMIT $${values.length}
     `, values);
 };
