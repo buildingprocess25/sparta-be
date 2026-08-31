@@ -284,7 +284,19 @@ const buildDcDocumentExport = (
         if (!stage) continue;
         const mapKey = `${stage}#${doc.document_type}`;
         const existing = documentMap.get(mapKey);
-        if (!existing || (!existing.notes && doc.notes) || (!existing.drive_file_id && doc.drive_file_id)) {
+        
+        if (existing) {
+            const existingLinks = existing.link_dokumen ? existing.link_dokumen.split(',').map(s => s.trim()) : [];
+            const newLinks = doc.link_dokumen ? doc.link_dokumen.split(',').map(s => s.trim()) : [];
+            const combinedLinks = Array.from(new Set([...existingLinks, ...newLinks])).filter(Boolean).join(', ');
+
+            if ((!existing.notes && doc.notes) || (!existing.drive_file_id && doc.drive_file_id)) {
+                doc.link_dokumen = combinedLinks;
+                documentMap.set(mapKey, doc);
+            } else {
+                existing.link_dokumen = combinedLinks;
+            }
+        } else {
             documentMap.set(mapKey, doc);
         }
     }
