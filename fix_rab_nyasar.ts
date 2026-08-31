@@ -94,7 +94,7 @@ async function run() {
 
         await client.query(
             `UPDATE rab 
-             SET grand_total = $1, grand_total_non_sbo = $2, updated_at = NOW() 
+             SET grand_total = $1, grand_total_non_sbo = $2 
              WHERE id = $3`,
             [newGrandTotal, newGrandTotalNonSbo, idRab]
         );
