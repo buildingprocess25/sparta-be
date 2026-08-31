@@ -17954,3 +17954,2614 @@ rab-service running on port 8081
 [Scheduler] SP expiryReminders akan mulai dalam 976 menit (jam 08:00 WIB)
 [Scheduler] SP weeklySummary akan mulai dalam 159 jam (Senin jam 07:00 WIB)
 Startup bootstrap selesai
+15.59.14 [tsx] change in ./src\modules\opname-final\opname-final.repository.ts Rerunning...
+c[Postgres] Pool max efektif: 20
+16.02.22 [tsx] change in ./src\modules\opname-final\opname-final.repository.ts Rerunning...
+c[Postgres] Pool max efektif: 20
+16.08.03 [tsx] change in ./src\modules\opname\opname.repository.ts Rerunning...
+c[Postgres] Pool max efektif: 20
+rab-service running on port 8081
+✅ Token refreshed dari token.json
+✅ Service Sparta (Sheets) Berhasil.
+✅ Token refreshed dari token_doc.json
+✅ Service Dokumen (Sheets + Drive) Berhasil.
+[Scheduler] SP markExpiredSp akan mulai dalam 477 menit (jam 00:05 WIB)
+[Scheduler] SP expiryReminders akan mulai dalam 952 menit (jam 08:00 WIB)
+[Scheduler] SP weeklySummary akan mulai dalam 159 jam (Senin jam 07:00 WIB)
+Startup bootstrap selesai
+16.09.09 [tsx] change in ./src\modules\opname\opname.repository.ts Restarting...
+c[Postgres] Pool max efektif: 20
+rab-service running on port 8081
+✅ Token refreshed dari token.json
+✅ Service Sparta (Sheets) Berhasil.
+✅ Token refreshed dari token_doc.json
+✅ Service Dokumen (Sheets + Drive) Berhasil.
+[Scheduler] SP markExpiredSp akan mulai dalam 476 menit (jam 00:05 WIB)
+[Scheduler] SP expiryReminders akan mulai dalam 951 menit (jam 08:00 WIB)
+[Scheduler] SP weeklySummary akan mulai dalam 159 jam (Senin jam 07:00 WIB)
+Startup bootstrap selesai
+[REQ][5ee24f13-7657-4ad6-af2d-38217504ac41] GET /api/final_opname?workflow_version=legacy {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Microsoft Windows 10.0.26200; id-ID) PowerShell/7.6.4',
+  content_length: '-',
+  params: {},
+  query: { workflow_version: 'legacy' },
+  body: {}
+}
+[RES][5ee24f13-7657-4ad6-af2d-38217504ac41] GET /api/final_opname?workflow_version=legacy { status: 401, duration_ms: 9 }
+[REQ][c2c40d1e-d857-4a4a-968d-dfd9d1586571] GET /api/final_opname {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Microsoft Windows 10.0.26200; id-ID) PowerShell/7.6.4',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][c2c40d1e-d857-4a4a-968d-dfd9d1586571] GET /api/final_opname { status: 401, duration_ms: 4 }
+[REQ][b73a7d34-121b-4d0d-81f4-a6eba13a5e3c] GET /health {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Microsoft Windows 10.0.26200; id-ID) PowerShell/7.6.4',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][b73a7d34-121b-4d0d-81f4-a6eba13a5e3c] GET /health { status: 200, duration_ms: 35 }
+[REQ][b4398f29-f140-4181-b3b3-e2fcef76cb86] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][edf493e4-e731-4594-90a0-be52b4f1a153] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][b4398f29-f140-4181-b3b3-e2fcef76cb86] GET /api/system-maintenance/status { status: 200, duration_ms: 321 }
+[RES][edf493e4-e731-4594-90a0-be52b4f1a153] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 243 }
+[REQ][1c0e0a58-264a-4646-be33-88a1032735fc] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][1c0e0a58-264a-4646-be33-88a1032735fc] GET /api/system-maintenance/status { status: 200, duration_ms: 11 }
+[REQ][01e36644-0ec8-4a9a-8d09-f4036c086e9c] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][01e36644-0ec8-4a9a-8d09-f4036c086e9c] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 15 }
+[REQ][d5874498-b90b-4758-be06-78dd61db9acf] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][d5874498-b90b-4758-be06-78dd61db9acf] GET /api/system-maintenance/status { status: 200, duration_ms: 3 }
+[REQ][eca241cb-2e27-45cb-a9ad-f0528b0ad639] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][eca241cb-2e27-45cb-a9ad-f0528b0ad639] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 7 }
+[REQ][62de4320-c23a-448c-a8ad-a19bd5850ad8] GET /api/rab {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RAB LIST] Request from user: {
+  email: 'charderrasnjy@gmail.com',
+  cabang: 'HEAD OFFICE',
+  roles: [ 'BRANCH BUILDING COORDINATOR' ],
+  query_cabang_before: undefined
+}
+[BRANCH FILTER] User: charderrasnjy@gmail.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[RAB LIST] After injectBranchFilter: { cabang_array: undefined, cabang_array_length: 0 }
+[REQ][8bcc5959-3ab9-46c0-b6b1-32197408ccb0] GET /api/instruksi-lapangan/list?status=Disetujui {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { status: 'Disetujui' },
+  body: {}
+}
+[BRANCH FILTER] User: charderrasnjy@gmail.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[RES][8bcc5959-3ab9-46c0-b6b1-32197408ccb0] GET /api/instruksi-lapangan/list?status=Disetujui { status: 200, duration_ms: 145 }
+[REQ][bcde0424-a904-4b40-808b-64a60e22cbb6] GET /api/instruksi-lapangan/list?status=Disetujui {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { status: 'Disetujui' },
+  body: {}
+}
+[BRANCH FILTER] User: charderrasnjy@gmail.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[RES][bcde0424-a904-4b40-808b-64a60e22cbb6] GET /api/instruksi-lapangan/list?status=Disetujui { status: 200, duration_ms: 164 }
+[RAB LIST] Result: {
+  total_documents: 1801,
+  unique_branches: [
+    'CIKOKOL',          'GORONTALO',   'TESTING',
+    'MANADO',           null,          'SEMARANG',
+    'CILACAP',          'PONTIANAK',   'LAMPUNG',
+    'PALEMBANG',        'CILEUNGSI',   'PEKANBARU',
+    'KLATEN',           'BANJARMASIN', 'MADIUN',
+    'BEKASI',           'LUWU',        'PARUNG',
+    'BANDUNG RAYA',     'MAKASSAR',    'REMBANG',
+    'SERANG',           'KARAWANG',    'HEAD OFFICE',
+    'NTT',              'LOMBOK',      'MEDAN',
+    'CIANJUR',          'BENGKULU',    'BALI',
+    'MALANG',           'BALARAJA',    'TEGAL',
+    'BOGOR',            'PLUMBON',     'KOTABUMI',
+    'SIDOARJO BPN SMD', 'JAMBI',       'SIDOARJO',
+    'BATAM',            'JEMBER',      'SIDOARJO BPN_SMD',
+    'SORONG',           'TERISI',      'SUMBAWA',
+    'BINTAN',           'BANGKA'
+  ]
+}
+[RES][62de4320-c23a-448c-a8ad-a19bd5850ad8] GET /api/rab { status: 200, duration_ms: 590 }
+[REQ][66ae232e-3df2-4924-a957-d4ff93a19657] GET /api/rab {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RAB LIST] Request from user: {
+  email: 'charderrasnjy@gmail.com',
+  cabang: 'HEAD OFFICE',
+  roles: [ 'BRANCH BUILDING COORDINATOR' ],
+  query_cabang_before: undefined
+}
+[BRANCH FILTER] User: charderrasnjy@gmail.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[RAB LIST] After injectBranchFilter: { cabang_array: undefined, cabang_array_length: 0 }
+[REQ][5c858520-7643-4899-b428-de58e9a490b7] GET /api/final_opname {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[BRANCH FILTER] User: charderrasnjy@gmail.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[RAB LIST] Result: {
+  total_documents: 1801,
+  unique_branches: [
+    'CIKOKOL',          'GORONTALO',   'TESTING',
+    'MANADO',           null,          'SEMARANG',
+    'CILACAP',          'PONTIANAK',   'LAMPUNG',
+    'PALEMBANG',        'CILEUNGSI',   'PEKANBARU',
+    'KLATEN',           'BANJARMASIN', 'MADIUN',
+    'BEKASI',           'LUWU',        'PARUNG',
+    'BANDUNG RAYA',     'MAKASSAR',    'REMBANG',
+    'SERANG',           'KARAWANG',    'HEAD OFFICE',
+    'NTT',              'LOMBOK',      'MEDAN',
+    'CIANJUR',          'BENGKULU',    'BALI',
+    'MALANG',           'BALARAJA',    'TEGAL',
+    'BOGOR',            'PLUMBON',     'KOTABUMI',
+    'SIDOARJO BPN SMD', 'JAMBI',       'SIDOARJO',
+    'BATAM',            'JEMBER',      'SIDOARJO BPN_SMD',
+    'SORONG',           'TERISI',      'SUMBAWA',
+    'BINTAN',           'BANGKA'
+  ]
+}
+[RES][66ae232e-3df2-4924-a957-d4ff93a19657] GET /api/rab { status: 200, duration_ms: 495 }
+[RES][5c858520-7643-4899-b428-de58e9a490b7] GET /api/final_opname {
+  status: 200,
+  duration_ms: 4539,
+  pg_pool: { total: 2, idle: 2, waiting: 0 }
+}
+[REQ][90b57a75-1c50-4f83-a026-dabf8f080801] GET /api/final_opname {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[BRANCH FILTER] User: charderrasnjy@gmail.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[RES][90b57a75-1c50-4f83-a026-dabf8f080801] GET /api/final_opname {
+  status: 200,
+  duration_ms: 4718,
+  pg_pool: { total: 2, idle: 2, waiting: 0 }
+}
+[REQ][fbbfdcd3-7ad4-49ca-84b0-4db9ea15f889] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][b62fad42-2cc4-4a17-8696-a82e38209e91] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][b62fad42-2cc4-4a17-8696-a82e38209e91] GET /api/system-maintenance/status { status: 200, duration_ms: 64 }
+[RES][fbbfdcd3-7ad4-49ca-84b0-4db9ea15f889] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 94 }
+[REQ][1c1e13e4-2232-4618-92f9-eaf54be1bf20] GET /api/dashboard/all {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[DASHBOARD BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[REQ][51ed2865-e847-4d83-917b-17ef34db9a8a] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][51ed2865-e847-4d83-917b-17ef34db9a8a] GET /api/system-maintenance/status { status: 200, duration_ms: 8 }
+[REQ][3d4557a4-f43f-41af-929d-cc4d96cc4d84] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][3d4557a4-f43f-41af-929d-cc4d96cc4d84] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 525 }
+[REQ][3c23fae1-ade9-44bf-8258-ef3cbbcf16b7] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][3c23fae1-ade9-44bf-8258-ef3cbbcf16b7] GET /api/system-maintenance/status { status: 200, duration_ms: 3 }
+[REQ][763760a7-2e9e-4c31-ba0c-5e7550fb06c6] GET /api/spk?status=SPK_APPROVED {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { status: 'SPK_APPROVED' },
+  body: {}
+}
+[BRANCH FILTER] User: wzmobileindo@gmail.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[REQ][8440bb86-a397-4bf7-92b4-61cea67bc8bd] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][8440bb86-a397-4bf7-92b4-61cea67bc8bd] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 3 }
+[REQ][d4ed0e14-bc8f-41c8-99d3-fc30f65bc6a3] GET /api/gantt/supervision-workspace/Z001-3008-1234 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][0054f794-761f-43b1-b7c8-54b3387169af] GET /api/rab {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RAB LIST] Request from user: {
+  email: 'wzmobileindo@gmail.com',
+  cabang: 'HEAD OFFICE',
+  roles: [ 'KONTRAKTOR' ],
+  query_cabang_before: undefined
+}
+[BRANCH FILTER] User: wzmobileindo@gmail.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[RAB LIST] After injectBranchFilter: { cabang_array: undefined, cabang_array_length: 0 }
+[REQ][c5160246-cb15-4d07-bf99-951b6e04a61f] GET /api/instruksi-lapangan/list?status=Disetujui {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { status: 'Disetujui' },
+  body: {}
+}
+[BRANCH FILTER] User: wzmobileindo@gmail.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[RAB LIST] Result: { total_documents: 40, unique_branches: [ 'HEAD OFFICE' ] }
+[RES][0054f794-761f-43b1-b7c8-54b3387169af] GET /api/rab { status: 200, duration_ms: 78 }
+[RES][c5160246-cb15-4d07-bf99-951b6e04a61f] GET /api/instruksi-lapangan/list?status=Disetujui { status: 200, duration_ms: 174 }
+[RES][d4ed0e14-bc8f-41c8-99d3-fc30f65bc6a3] GET /api/gantt/supervision-workspace/Z001-3008-1234 { status: 200, duration_ms: 617 }
+[REQ][9605fbef-8fa3-4505-ae38-0b5b42a2e677] GET /api/gantt/1903/notes {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][0dc1e083-2474-47c7-b556-d0ab69f53146] GET /api/gantt/detail/2970 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][f7e59572-acca-4394-95b3-5d585621b848] GET /api/gantt/detail/2972 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][763760a7-2e9e-4c31-ba0c-5e7550fb06c6] GET /api/spk?status=SPK_APPROVED { status: 200, duration_ms: 892 }
+[RES][9605fbef-8fa3-4505-ae38-0b5b42a2e677] GET /api/gantt/1903/notes { status: 200, duration_ms: 597 }
+[RES][0dc1e083-2474-47c7-b556-d0ab69f53146] GET /api/gantt/detail/2970 { status: 200, duration_ms: 824 }
+[REQ][dd823511-f097-4acc-9e10-0048663314ee] GET /api/gantt/detail/2970 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][06d8ecfd-369e-43f6-b13f-ecbbc4e0e522] GET /api/gantt/1903/notes {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][0bcea0ca-e41d-4b06-a65d-181f6c6b8fb2] GET /api/rab/2779 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][f7e59572-acca-4394-95b3-5d585621b848] GET /api/gantt/detail/2972 { status: 200, duration_ms: 911 }
+[REQ][0750561e-cf47-4581-b5dd-fd815ea7762f] GET /api/gantt/detail/2972 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RAB APPROVAL] Checking branch access: {
+  userEmail: 'wzmobileindo@gmail.com',
+  userCabang: 'HEAD OFFICE',
+  userRoles: [ 'KONTRAKTOR' ],
+  documentCabang: 'HEAD OFFICE',
+  documentUlok: 'Z001-3008-1234'
+}
+[RAB APPROVAL] Branch access result: { canAccess: true }
+[RES][0bcea0ca-e41d-4b06-a65d-181f6c6b8fb2] GET /api/rab/2779 { status: 200, duration_ms: 343 }
+[REQ][b1662661-59bb-45ae-aab9-4c30608f0daa] GET /api/spk?status=SPK_APPROVED&nomor_ulok=Z001-3008-1234 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { status: 'SPK_APPROVED', nomor_ulok: 'Z001-3008-1234' },
+  body: {}
+}
+[BRANCH FILTER] User: wzmobileindo@gmail.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[RES][b1662661-59bb-45ae-aab9-4c30608f0daa] GET /api/spk?status=SPK_APPROVED&nomor_ulok=Z001-3008-1234 { status: 200, duration_ms: 160 }
+[RES][06d8ecfd-369e-43f6-b13f-ecbbc4e0e522] GET /api/gantt/1903/notes { status: 200, duration_ms: 905 }
+[RES][dd823511-f097-4acc-9e10-0048663314ee] GET /api/gantt/detail/2970 { status: 200, duration_ms: 1032 }
+[REQ][c5967019-e016-479f-a4b1-ad7d0750fb00] GET /api/gantt/detail/2970 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][0750561e-cf47-4581-b5dd-fd815ea7762f] GET /api/gantt/detail/2972 { status: 200, duration_ms: 905 }
+[RES][c5967019-e016-479f-a4b1-ad7d0750fb00] GET /api/gantt/detail/2970 { status: 200, duration_ms: 67 }
+[REQ][99cf33b6-ad13-4a24-aca8-8c76e4e42be7] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][99cf33b6-ad13-4a24-aca8-8c76e4e42be7] GET /api/system-maintenance/status { status: 200, duration_ms: 3 }
+[REQ][0ec99242-5f84-40dc-943b-aaa3044839fe] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][0ec99242-5f84-40dc-943b-aaa3044839fe] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 3 }
+[RES][1c1e13e4-2232-4618-92f9-eaf54be1bf20] GET /api/dashboard/all {
+  status: 200,
+  duration_ms: 7632,
+  pg_pool: { total: 11, idle: 11, waiting: 0 }
+}
+[REQ][a6c34211-df34-4ee5-9c0f-03ebdae4e819] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][a6c34211-df34-4ee5-9c0f-03ebdae4e819] GET /api/system-maintenance/status { status: 200, duration_ms: 8 }
+[REQ][ff65e25a-6b22-4094-8fec-f357d62c4100] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][ff65e25a-6b22-4094-8fec-f357d62c4100] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 10 }
+[REQ][e25d44c5-dcb3-42f2-b1ea-7afa0efb5e3c] GET /api/rab {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RAB LIST] Request from user: {
+  email: 'dimasfadly01@outlook.com',
+  cabang: 'HEAD OFFICE',
+  roles: [ 'BRANCH BUILDING SUPPORT' ],
+  query_cabang_before: undefined
+}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[RAB LIST] After injectBranchFilter: { cabang_array: undefined, cabang_array_length: 0 }
+[REQ][8de19fc5-f03c-4177-8706-f7a184110c16] GET /api/instruksi-lapangan/list?status=Disetujui {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { status: 'Disetujui' },
+  body: {}
+}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[REQ][f16d5a08-56f3-4008-b827-5bc58556fbf2] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][f16d5a08-56f3-4008-b827-5bc58556fbf2] GET /api/system-maintenance/status { status: 200, duration_ms: 5 }
+[REQ][b54b8a57-c9a5-4454-996e-ba590595edc2] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][b54b8a57-c9a5-4454-996e-ba590595edc2] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 4 }
+[RES][8de19fc5-f03c-4177-8706-f7a184110c16] GET /api/instruksi-lapangan/list?status=Disetujui { status: 200, duration_ms: 300 }
+[RAB LIST] Result: {
+  total_documents: 1801,
+  unique_branches: [
+    'CIKOKOL',          'GORONTALO',   'TESTING',
+    'MANADO',           null,          'SEMARANG',
+    'CILACAP',          'PONTIANAK',   'LAMPUNG',
+    'PALEMBANG',        'CILEUNGSI',   'PEKANBARU',
+    'KLATEN',           'BANJARMASIN', 'MADIUN',
+    'BEKASI',           'LUWU',        'PARUNG',
+    'BANDUNG RAYA',     'MAKASSAR',    'REMBANG',
+    'SERANG',           'KARAWANG',    'HEAD OFFICE',
+    'NTT',              'LOMBOK',      'MEDAN',
+    'CIANJUR',          'BENGKULU',    'BALI',
+    'MALANG',           'BALARAJA',    'TEGAL',
+    'BOGOR',            'PLUMBON',     'KOTABUMI',
+    'SIDOARJO BPN SMD', 'JAMBI',       'SIDOARJO',
+    'BATAM',            'JEMBER',      'SIDOARJO BPN_SMD',
+    'SORONG',           'TERISI',      'SUMBAWA',
+    'BINTAN',           'BANGKA'
+  ]
+}
+[RES][e25d44c5-dcb3-42f2-b1ea-7afa0efb5e3c] GET /api/rab { status: 200, duration_ms: 357 }
+[REQ][43f3b9a9-6425-4226-88df-8dc9cd34dfeb] GET /api/instruksi-lapangan/list?status=Disetujui {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { status: 'Disetujui' },
+  body: {}
+}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[REQ][955634f5-2995-44aa-b787-c3e6f11cdfd9] GET /api/rab {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RAB LIST] Request from user: {
+  email: 'dimasfadly01@outlook.com',
+  cabang: 'HEAD OFFICE',
+  roles: [ 'BRANCH BUILDING SUPPORT' ],
+  query_cabang_before: undefined
+}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[RAB LIST] After injectBranchFilter: { cabang_array: undefined, cabang_array_length: 0 }
+[RES][43f3b9a9-6425-4226-88df-8dc9cd34dfeb] GET /api/instruksi-lapangan/list?status=Disetujui { status: 200, duration_ms: 45 }
+[REQ][7119835f-ee14-45dc-8ee8-0fa5982510ac] GET /api/final_opname {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[RAB LIST] Result: {
+  total_documents: 1801,
+  unique_branches: [
+    'CIKOKOL',          'GORONTALO',   'TESTING',
+    'MANADO',           null,          'SEMARANG',
+    'CILACAP',          'PONTIANAK',   'LAMPUNG',
+    'PALEMBANG',        'CILEUNGSI',   'PEKANBARU',
+    'KLATEN',           'BANJARMASIN', 'MADIUN',
+    'BEKASI',           'LUWU',        'PARUNG',
+    'BANDUNG RAYA',     'MAKASSAR',    'REMBANG',
+    'SERANG',           'KARAWANG',    'HEAD OFFICE',
+    'NTT',              'LOMBOK',      'MEDAN',
+    'CIANJUR',          'BENGKULU',    'BALI',
+    'MALANG',           'BALARAJA',    'TEGAL',
+    'BOGOR',            'PLUMBON',     'KOTABUMI',
+    'SIDOARJO BPN SMD', 'JAMBI',       'SIDOARJO',
+    'BATAM',            'JEMBER',      'SIDOARJO BPN_SMD',
+    'SORONG',           'TERISI',      'SUMBAWA',
+    'BINTAN',           'BANGKA'
+  ]
+}
+[RES][955634f5-2995-44aa-b787-c3e6f11cdfd9] GET /api/rab { status: 200, duration_ms: 369 }
+[RES][7119835f-ee14-45dc-8ee8-0fa5982510ac] GET /api/final_opname {
+  status: 200,
+  duration_ms: 3296,
+  pg_pool: { total: 11, idle: 11, waiting: 0 }
+}
+[REQ][e6e71f94-8745-4c99-92c8-8eafa56e7f43] GET /api/final_opname {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[RES][e6e71f94-8745-4c99-92c8-8eafa56e7f43] GET /api/final_opname {
+  status: 200,
+  duration_ms: 3157,
+  pg_pool: { total: 11, idle: 11, waiting: 0 }
+}
+[REQ][2f798bda-9907-4d80-84bc-4de0ef73b02a] GET /api/rab/2490 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RAB APPROVAL] Checking branch access: {
+  userEmail: 'dimasfadly01@outlook.com',
+  userCabang: 'HEAD OFFICE',
+  userRoles: [ 'BRANCH BUILDING SUPPORT' ],
+  documentCabang: 'BEKASI',
+  documentUlok: 'CZ01-2605-0002'
+}
+[RAB APPROVAL] Branch access result: { canAccess: true }
+[RES][2f798bda-9907-4d80-84bc-4de0ef73b02a] GET /api/rab/2490 { status: 200, duration_ms: 47 }
+[REQ][aac83b85-47ab-40c6-8b31-69646fc955ea] GET /api/opname?id_toko=2680 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { id_toko: '2680' },
+  body: {}
+}
+[RES][aac83b85-47ab-40c6-8b31-69646fc955ea] GET /api/opname?id_toko=2680 { status: 200, duration_ms: 45 }
+[REQ][339a98cf-0db8-462f-b911-903852b6c784] GET /api/final_opname?aksi=terkunci&id_toko=2680&workflow_version=legacy {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { aksi: 'terkunci', id_toko: '2680', workflow_version: 'legacy' },
+  body: {}
+}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[RES][339a98cf-0db8-462f-b911-903852b6c784] GET /api/final_opname?aksi=terkunci&id_toko=2680&workflow_version=legacy { status: 200, duration_ms: 16 }
+[REQ][1f25add1-4c42-481c-a31b-6cd61e225e32] GET /api/rab/2435 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RAB APPROVAL] Checking branch access: {
+  userEmail: 'dimasfadly01@outlook.com',
+  userCabang: 'HEAD OFFICE',
+  userRoles: [ 'BRANCH BUILDING SUPPORT' ],
+  documentCabang: 'MALANG',
+  documentUlok: 'MZ01-2607-M1V3-R'
+}
+[RAB APPROVAL] Branch access result: { canAccess: true }
+[RES][1f25add1-4c42-481c-a31b-6cd61e225e32] GET /api/rab/2435 { status: 200, duration_ms: 31 }
+[REQ][fa91df8d-c47f-4aa3-a6e7-70ac31da76cc] GET /api/opname?id_toko=2627 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { id_toko: '2627' },
+  body: {}
+}
+[RES][fa91df8d-c47f-4aa3-a6e7-70ac31da76cc] GET /api/opname?id_toko=2627 { status: 200, duration_ms: 39 }
+[REQ][e6b676b3-7fe4-4461-8c33-c757fe3cec3d] GET /api/final_opname?aksi=terkunci&id_toko=2627&workflow_version=legacy {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { aksi: 'terkunci', id_toko: '2627', workflow_version: 'legacy' },
+  body: {}
+}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[RES][e6b676b3-7fe4-4461-8c33-c757fe3cec3d] GET /api/final_opname?aksi=terkunci&id_toko=2627&workflow_version=legacy { status: 200, duration_ms: 29 }
+[REQ][f5606608-3bef-4f9e-95f7-442f9223f0e4] GET /api/opname/33876/foto {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][f5606608-3bef-4f9e-95f7-442f9223f0e4] GET /api/opname/33876/foto { status: 401, duration_ms: 2 }
+[REQ][f540a9b4-1087-46f3-8c2a-6c5c1f60237d] GET /api/opname/33877/foto {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][f540a9b4-1087-46f3-8c2a-6c5c1f60237d] GET /api/opname/33877/foto { status: 401, duration_ms: 2 }
+[REQ][4804db86-f519-4489-ab85-60f21dee6d8a] GET /api/opname/33878/foto {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][4804db86-f519-4489-ab85-60f21dee6d8a] GET /api/opname/33878/foto { status: 401, duration_ms: 1 }
+[REQ][c9a1e9d0-0969-4764-8f64-fe5ee8104ec9] GET /api/opname/33879/foto {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][c9a1e9d0-0969-4764-8f64-fe5ee8104ec9] GET /api/opname/33879/foto { status: 401, duration_ms: 2 }
+[REQ][0456a513-ce0b-4160-95d2-4b5ad0c0da7d] GET /api/opname/33872/foto {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][0456a513-ce0b-4160-95d2-4b5ad0c0da7d] GET /api/opname/33872/foto { status: 401, duration_ms: 2 }
+[REQ][580badbf-4922-4997-b27b-71483b9340d8] GET /api/opname/33873/foto {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][580badbf-4922-4997-b27b-71483b9340d8] GET /api/opname/33873/foto { status: 401, duration_ms: 2 }
+[REQ][c9d78e8d-8d60-4ba0-88b3-2fb5c0cbb5a1] GET /api/opname/33874/foto {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][c9d78e8d-8d60-4ba0-88b3-2fb5c0cbb5a1] GET /api/opname/33874/foto { status: 401, duration_ms: 2 }
+[REQ][e6452fe3-c1c4-4995-b54c-cbbb7d19fa78] GET /api/opname/33875/foto {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][e6452fe3-c1c4-4995-b54c-cbbb7d19fa78] GET /api/opname/33875/foto { status: 401, duration_ms: 2 }
+[REQ][63e4e5ae-c771-4ee3-8691-b439aebf3aed] GET /api/opname/33880/foto {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][63e4e5ae-c771-4ee3-8691-b439aebf3aed] GET /api/opname/33880/foto { status: 401, duration_ms: 3 }
+[REQ][5968b558-6dcf-429d-adbb-adc6bba8b89c] GET /api/opname/33881/foto {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][5968b558-6dcf-429d-adbb-adc6bba8b89c] GET /api/opname/33881/foto { status: 401, duration_ms: 2 }
+[REQ][de10c99a-10d0-4ab3-8fed-eaa01323b70d] GET /api/opname/33882/foto {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][de10c99a-10d0-4ab3-8fed-eaa01323b70d] GET /api/opname/33882/foto { status: 401, duration_ms: 2 }
+[REQ][b4cff913-d0d8-4067-b1a2-a1704a8330f7] GET /api/rab/2781 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RAB APPROVAL] Checking branch access: {
+  userEmail: 'dimasfadly01@outlook.com',
+  userCabang: 'HEAD OFFICE',
+  userRoles: [ 'BRANCH BUILDING SUPPORT' ],
+  documentCabang: 'HEAD OFFICE',
+  documentUlok: 'Z001-3008-1234'
+}
+[RAB APPROVAL] Branch access result: { canAccess: true }
+[RES][b4cff913-d0d8-4067-b1a2-a1704a8330f7] GET /api/rab/2781 { status: 200, duration_ms: 35 }
+[REQ][496c23d8-c3ea-4372-993d-47a4aca1d05d] GET /api/opname?id_toko=2972 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { id_toko: '2972' },
+  body: {}
+}
+[RES][496c23d8-c3ea-4372-993d-47a4aca1d05d] GET /api/opname?id_toko=2972 { status: 200, duration_ms: 35 }
+[REQ][f8b89ad3-6c36-4d62-9449-07ca7869daaa] GET /api/final_opname?aksi=terkunci&id_toko=2972&workflow_version=contractor_first {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {
+    aksi: 'terkunci',
+    id_toko: '2972',
+    workflow_version: 'contractor_first'
+  },
+  body: {}
+}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[RES][f8b89ad3-6c36-4d62-9449-07ca7869daaa] GET /api/final_opname?aksi=terkunci&id_toko=2972&workflow_version=contractor_first { status: 200, duration_ms: 21 }
+[REQ][62ce7a80-5e9d-4edf-98eb-0a6c6a7aa163] GET /api/rab/2779 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RAB APPROVAL] Checking branch access: {
+  userEmail: 'dimasfadly01@outlook.com',
+  userCabang: 'HEAD OFFICE',
+  userRoles: [ 'BRANCH BUILDING SUPPORT' ],
+  documentCabang: 'HEAD OFFICE',
+  documentUlok: 'Z001-3008-1234'
+}
+[RAB APPROVAL] Branch access result: { canAccess: true }
+[RES][62ce7a80-5e9d-4edf-98eb-0a6c6a7aa163] GET /api/rab/2779 { status: 200, duration_ms: 40 }
+[REQ][1a404030-f5ce-49d4-8e38-332d7b0d30b1] GET /api/opname?id_toko=2970 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { id_toko: '2970' },
+  body: {}
+}
+[RES][1a404030-f5ce-49d4-8e38-332d7b0d30b1] GET /api/opname?id_toko=2970 { status: 200, duration_ms: 36 }
+[REQ][01dfc38a-1fc7-4267-875c-6d01c747de34] GET /api/final_opname?aksi=terkunci&id_toko=2970&workflow_version=contractor_first {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {
+    aksi: 'terkunci',
+    id_toko: '2970',
+    workflow_version: 'contractor_first'
+  },
+  body: {}
+}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[RES][01dfc38a-1fc7-4267-875c-6d01c747de34] GET /api/final_opname?aksi=terkunci&id_toko=2970&workflow_version=contractor_first { status: 200, duration_ms: 17 }
+[REQ][088c4e78-b03c-4bfe-b27e-11a33f84273e] GET /api/rab/2781 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RAB APPROVAL] Checking branch access: {
+  userEmail: 'dimasfadly01@outlook.com',
+  userCabang: 'HEAD OFFICE',
+  userRoles: [ 'BRANCH BUILDING SUPPORT' ],
+  documentCabang: 'HEAD OFFICE',
+  documentUlok: 'Z001-3008-1234'
+}
+[RAB APPROVAL] Branch access result: { canAccess: true }
+[RES][088c4e78-b03c-4bfe-b27e-11a33f84273e] GET /api/rab/2781 { status: 200, duration_ms: 42 }
+[REQ][2fed019f-b586-4e58-9e0e-3d7481644b1c] GET /api/opname?id_toko=2972 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { id_toko: '2972' },
+  body: {}
+}
+[RES][2fed019f-b586-4e58-9e0e-3d7481644b1c] GET /api/opname?id_toko=2972 { status: 200, duration_ms: 39 }
+[REQ][a5419692-bccc-441a-bcaa-c3d1cfe455f7] GET /api/final_opname?aksi=terkunci&id_toko=2972&workflow_version=contractor_first {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {
+    aksi: 'terkunci',
+    id_toko: '2972',
+    workflow_version: 'contractor_first'
+  },
+  body: {}
+}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[RES][a5419692-bccc-441a-bcaa-c3d1cfe455f7] GET /api/final_opname?aksi=terkunci&id_toko=2972&workflow_version=contractor_first { status: 200, duration_ms: 22 }
+[REQ][462b09ac-3484-4595-8315-6b3bb34e6e1d] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][5c132808-c8e7-4490-83e4-edf5e04d04b8] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][462b09ac-3484-4595-8315-6b3bb34e6e1d] GET /api/system-maintenance/status { status: 200, duration_ms: 10 }
+[RES][5c132808-c8e7-4490-83e4-edf5e04d04b8] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 79 }
+[REQ][f318b05f-de08-4cfd-8099-3b53bc1c15cc] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][f318b05f-de08-4cfd-8099-3b53bc1c15cc] GET /api/system-maintenance/status { status: 200, duration_ms: 5 }
+[REQ][cf055b45-5a74-4a73-ac91-3b2380f1da80] GET /api/user-cabang/my-coverage {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][cf055b45-5a74-4a73-ac91-3b2380f1da80] GET /api/user-cabang/my-coverage { status: 200, duration_ms: 5 }
+[REQ][5cd6fa5f-65ae-4897-8c16-841d449bb806] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][5cd6fa5f-65ae-4897-8c16-841d449bb806] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 2 }
+[REQ][063a6152-0684-47fb-b0ff-9a53dc672de0] GET /api/user-cabang/my-coverage {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][063a6152-0684-47fb-b0ff-9a53dc672de0] GET /api/user-cabang/my-coverage { status: 200, duration_ms: 2 }
+[REQ][1960e4bf-c8b0-4527-a667-763d292378d3] GET /api/task-notifications {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[BRANCH SCOPE] getBranchScopeCandidates('HEAD OFFICE') → normalized:'HEAD OFFICE' → result: [ 'HEAD OFFICE' ]
+[BRANCH SCOPE] getBranchScopeCandidates('HEAD OFFICE') → normalized:'HEAD OFFICE' → result: [ 'HEAD OFFICE' ]
+[BRANCH SCOPE] getBranchScopeCandidates('HEAD OFFICE') → normalized:'HEAD OFFICE' → result: [ 'HEAD OFFICE' ]
+[REQ][f597b7e2-7003-46d5-992e-d452f8250e65] GET /api/denda/actions?action_type=SP {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { action_type: 'SP' },
+  body: {}
+}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[BRANCH SCOPE] getBranchScopeCandidates('HEAD OFFICE') → normalized:'HEAD OFFICE' → result: [ 'HEAD OFFICE' ]
+[RES][f597b7e2-7003-46d5-992e-d452f8250e65] GET /api/denda/actions?action_type=SP { status: 200, duration_ms: 223 }
+[REQ][367a0642-7026-4b5b-88d9-f2da0b4b5aca] GET /api/denda/actions?action_type=SP {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { action_type: 'SP' },
+  body: {}
+}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[RES][367a0642-7026-4b5b-88d9-f2da0b4b5aca] GET /api/denda/actions?action_type=SP { status: 200, duration_ms: 87 }
+[REQ][c0d84e68-c88b-45cf-ba8f-b8be1e45949c] GET /api/user-cabang/my-coverage {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][c0d84e68-c88b-45cf-ba8f-b8be1e45949c] GET /api/user-cabang/my-coverage { status: 200, duration_ms: 3 }
+[REQ][ca0ebb9c-f70e-41f6-b012-e633fb53bbcb] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][ca0ebb9c-f70e-41f6-b012-e633fb53bbcb] GET /api/system-maintenance/status { status: 200, duration_ms: 2 }
+[REQ][02560d11-50e2-4f95-8005-aecf75b17841] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][02560d11-50e2-4f95-8005-aecf75b17841] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 3 }
+[RES][1960e4bf-c8b0-4527-a667-763d292378d3] GET /api/task-notifications { status: 200, duration_ms: 587 }
+[REQ][667e9432-1b76-4478-96e8-499dfc7b3e83] GET /api/task-notifications {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[BRANCH SCOPE] getBranchScopeCandidates('HEAD OFFICE') → normalized:'HEAD OFFICE' → result: [ 'HEAD OFFICE' ]
+[BRANCH SCOPE] getBranchScopeCandidates('HEAD OFFICE') → normalized:'HEAD OFFICE' → result: [ 'HEAD OFFICE' ]
+[BRANCH SCOPE] getBranchScopeCandidates('HEAD OFFICE') → normalized:'HEAD OFFICE' → result: [ 'HEAD OFFICE' ]
+[BRANCH SCOPE] getBranchScopeCandidates('HEAD OFFICE') → normalized:'HEAD OFFICE' → result: [ 'HEAD OFFICE' ]
+[RES][667e9432-1b76-4478-96e8-499dfc7b3e83] GET /api/task-notifications { status: 200, duration_ms: 462 }
+[REQ][0efb09fe-1cd0-4341-9636-6299e70e1c78] GET /api/task-notifications {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[BRANCH SCOPE] getBranchScopeCandidates('HEAD OFFICE') → normalized:'HEAD OFFICE' → result: [ 'HEAD OFFICE' ]
+[BRANCH SCOPE] getBranchScopeCandidates('HEAD OFFICE') → normalized:'HEAD OFFICE' → result: [ 'HEAD OFFICE' ]
+[BRANCH SCOPE] getBranchScopeCandidates('HEAD OFFICE') → normalized:'HEAD OFFICE' → result: [ 'HEAD OFFICE' ]
+[BRANCH SCOPE] getBranchScopeCandidates('HEAD OFFICE') → normalized:'HEAD OFFICE' → result: [ 'HEAD OFFICE' ]
+[RES][0efb09fe-1cd0-4341-9636-6299e70e1c78] GET /api/task-notifications { status: 200, duration_ms: 417 }
+[REQ][3a71905d-bf68-49be-abd8-1c57d53ec100] GET /api/gantt {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][a9c5dda2-61e5-44df-a0d6-5ab96b5570d9] GET /api/instruksi-lapangan/list?status=Disetujui {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { status: 'Disetujui' },
+  body: {}
+}
+[REQ][e137b4df-d4ec-42f5-b5bf-b95fbe5551c9] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][e137b4df-d4ec-42f5-b5bf-b95fbe5551c9] GET /api/system-maintenance/status { status: 200, duration_ms: 3 }
+[REQ][7fa0a4e1-c937-45cb-b86b-67bae784804b] GET /api/spk?status=SPK_APPROVED {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { status: 'SPK_APPROVED' },
+  body: {}
+}
+[REQ][4615dfd7-051f-46d1-94fb-9c240dd5eaeb] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[GANTT LIST] Original request query: {}
+[GANTT LIST] User info: {
+  email: 'dimasfadly01@outlook.com',
+  cabang: 'HEAD OFFICE',
+  roles: [ 'BRANCH BUILDING SUPPORT' ]
+}
+[GANTT LIST] After schema parse: {}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[GANTT LIST] After inject filter: {"_is_global_access":true}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[RES][4615dfd7-051f-46d1-94fb-9c240dd5eaeb] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 30 }
+[REQ][0930547b-70a0-4d31-9612-60cab0d08910] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][0930547b-70a0-4d31-9612-60cab0d08910] GET /api/system-maintenance/status { status: 200, duration_ms: 2 }
+[REQ][9e6ad12a-c018-4e29-8428-a6a1b5440fdc] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][9e6ad12a-c018-4e29-8428-a6a1b5440fdc] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 5 }
+[RES][a9c5dda2-61e5-44df-a0d6-5ab96b5570d9] GET /api/instruksi-lapangan/list?status=Disetujui { status: 200, duration_ms: 200 }
+[GANTT LIST] Result count: 1654
+[RES][3a71905d-bf68-49be-abd8-1c57d53ec100] GET /api/gantt { status: 200, duration_ms: 220 }
+[REQ][cf6937b4-5de1-4320-8eab-eead12e5f45e] GET /api/instruksi-lapangan/list?status=Disetujui {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { status: 'Disetujui' },
+  body: {}
+}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[REQ][e4e919f6-917f-46b0-b56f-c620f653be00] GET /api/gantt {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[GANTT LIST] Original request query: {}
+[GANTT LIST] User info: {
+  email: 'dimasfadly01@outlook.com',
+  cabang: 'HEAD OFFICE',
+  roles: [ 'BRANCH BUILDING SUPPORT' ]
+}
+[GANTT LIST] After schema parse: {}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[GANTT LIST] After inject filter: {"_is_global_access":true}
+[RES][cf6937b4-5de1-4320-8eab-eead12e5f45e] GET /api/instruksi-lapangan/list?status=Disetujui { status: 200, duration_ms: 56 }
+[REQ][bfdcc4be-17f3-473f-9ba1-2f2d9b99e620] GET /api/instruksi-lapangan/list?status=Disetujui {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { status: 'Disetujui' },
+  body: {}
+}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[RES][7fa0a4e1-c937-45cb-b86b-67bae784804b] GET /api/spk?status=SPK_APPROVED { status: 200, duration_ms: 409 }
+[RES][bfdcc4be-17f3-473f-9ba1-2f2d9b99e620] GET /api/instruksi-lapangan/list?status=Disetujui { status: 200, duration_ms: 152 }
+[GANTT LIST] Result count: 1654
+[RES][e4e919f6-917f-46b0-b56f-c620f653be00] GET /api/gantt { status: 200, duration_ms: 217 }
+[REQ][e689335d-29ba-420a-a69d-37ac5784d713] GET /api/spk?status=SPK_APPROVED {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { status: 'SPK_APPROVED' },
+  body: {}
+}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[REQ][512af28f-e387-460d-883f-d5a197417f47] GET /api/gantt {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[GANTT LIST] Original request query: {}
+[GANTT LIST] User info: {
+  email: 'dimasfadly01@outlook.com',
+  cabang: 'HEAD OFFICE',
+  roles: [ 'BRANCH BUILDING SUPPORT' ]
+}
+[GANTT LIST] After schema parse: {}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[GANTT LIST] After inject filter: {"_is_global_access":true}
+[GANTT LIST] Result count: 1654
+[RES][512af28f-e387-460d-883f-d5a197417f47] GET /api/gantt { status: 200, duration_ms: 57 }
+[RES][e689335d-29ba-420a-a69d-37ac5784d713] GET /api/spk?status=SPK_APPROVED { status: 200, duration_ms: 305 }
+[REQ][37619169-e0d7-461c-bc97-ec1bca41a53d] GET /api/spk?status=SPK_APPROVED {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { status: 'SPK_APPROVED' },
+  body: {}
+}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[RES][37619169-e0d7-461c-bc97-ec1bca41a53d] GET /api/spk?status=SPK_APPROVED { status: 200, duration_ms: 311 }
+[REQ][33e3c9d0-451e-482a-831a-308597d4088a] GET /api/gantt/supervision-workspace/Z001-3008-1234 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][33e3c9d0-451e-482a-831a-308597d4088a] GET /api/gantt/supervision-workspace/Z001-3008-1234 { status: 200, duration_ms: 222 }
+[REQ][c6b64309-35b4-4227-81eb-676584262627] GET /api/gantt/supervision-workspace/Z001-3008-1234 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][c6b64309-35b4-4227-81eb-676584262627] GET /api/gantt/supervision-workspace/Z001-3008-1234 { status: 200, duration_ms: 213 }
+[REQ][3ef91520-2ccd-4b79-9b79-c97ff4f10332] GET /api/gantt/1903/notes {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][6f4d01b1-3fb7-485b-b33f-ecfe53eb0675] GET /api/gantt/detail/2970 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][5a2f5dfd-c44a-433c-9364-a4492acaefc4] GET /api/gantt/detail/2972 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][3ef91520-2ccd-4b79-9b79-c97ff4f10332] GET /api/gantt/1903/notes { status: 200, duration_ms: 75 }
+[RES][5a2f5dfd-c44a-433c-9364-a4492acaefc4] GET /api/gantt/detail/2972 { status: 200, duration_ms: 85 }
+[RES][6f4d01b1-3fb7-485b-b33f-ecfe53eb0675] GET /api/gantt/detail/2970 { status: 200, duration_ms: 89 }
+[REQ][2a512cc0-520b-4494-b2cc-82a924e894d8] GET /api/gantt/detail/2972 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][d73ddc21-1c26-4e82-a4b1-36a8a3ea989d] GET /api/gantt/detail/2970 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][d73ddc21-1c26-4e82-a4b1-36a8a3ea989d] GET /api/gantt/detail/2970 { status: 200, duration_ms: 68 }
+[RES][2a512cc0-520b-4494-b2cc-82a924e894d8] GET /api/gantt/detail/2972 { status: 200, duration_ms: 71 }
+[REQ][e7d00704-0ba3-4cb0-b601-e89bbd001ae3] GET /api/gantt {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[GANTT LIST] Original request query: {}
+[GANTT LIST] User info: {
+  email: 'dimasfadly01@outlook.com',
+  cabang: 'HEAD OFFICE',
+  roles: [ 'BRANCH BUILDING SUPPORT' ]
+}
+[GANTT LIST] After schema parse: {}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[GANTT LIST] After inject filter: {"_is_global_access":true}
+[REQ][00e23393-d49f-42ab-a336-7056baeeac23] GET /api/instruksi-lapangan/list?status=Disetujui {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { status: 'Disetujui' },
+  body: {}
+}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[REQ][2d8077f3-8fa2-4553-b7e0-9a27f184ed38] GET /api/spk?status=SPK_APPROVED {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { status: 'SPK_APPROVED' },
+  body: {}
+}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[RES][00e23393-d49f-42ab-a336-7056baeeac23] GET /api/instruksi-lapangan/list?status=Disetujui { status: 200, duration_ms: 62 }
+[GANTT LIST] Result count: 1654
+[RES][e7d00704-0ba3-4cb0-b601-e89bbd001ae3] GET /api/gantt { status: 200, duration_ms: 112 }
+[RES][2d8077f3-8fa2-4553-b7e0-9a27f184ed38] GET /api/spk?status=SPK_APPROVED { status: 200, duration_ms: 275 }
+[REQ][2e5041fd-1774-4731-b79b-1b8e2730e8c9] GET /api/gantt/detail/2970 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][2e5041fd-1774-4731-b79b-1b8e2730e8c9] GET /api/gantt/detail/2970 { status: 200, duration_ms: 75 }
+[REQ][b6aedade-f1e1-49b6-8a2c-4be37fba9b4c] GET /api/gantt/1903/notes {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][036331c5-2da7-4c6c-8048-960ecbca7e26] GET /api/rab/2779 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RAB APPROVAL] Checking branch access: {
+  userEmail: 'dimasfadly01@outlook.com',
+  userCabang: 'HEAD OFFICE',
+  userRoles: [ 'BRANCH BUILDING SUPPORT' ],
+  documentCabang: 'HEAD OFFICE',
+  documentUlok: 'Z001-3008-1234'
+}
+[RAB APPROVAL] Branch access result: { canAccess: true }
+[RES][036331c5-2da7-4c6c-8048-960ecbca7e26] GET /api/rab/2779 { status: 200, duration_ms: 36 }
+[REQ][e2785697-72b8-445e-8519-b9bab74108dc] GET /api/spk?status=SPK_APPROVED&nomor_ulok=Z001-3008-1234 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { status: 'SPK_APPROVED', nomor_ulok: 'Z001-3008-1234' },
+  body: {}
+}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[RES][b6aedade-f1e1-49b6-8a2c-4be37fba9b4c] GET /api/gantt/1903/notes { status: 200, duration_ms: 61 }
+[RES][e2785697-72b8-445e-8519-b9bab74108dc] GET /api/spk?status=SPK_APPROVED&nomor_ulok=Z001-3008-1234 { status: 200, duration_ms: 18 }
+[REQ][4541428f-fdf8-4b85-b11f-1a07fc89d9c5] GET /api/pengawasan?id_gantt=1903&tanggal=2026-09-19 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { id_gantt: '1903', tanggal: '2026-09-19' },
+  body: {}
+}
+[PENGAWASAN LIST] Original request query: {"id_gantt":"1903","tanggal":"2026-09-19"}
+[PENGAWASAN LIST] User info: {
+  email: 'dimasfadly01@outlook.com',
+  cabang: 'HEAD OFFICE',
+  roles: [ 'BRANCH BUILDING SUPPORT' ]
+}
+[PENGAWASAN LIST] After schema parse: {"id_gantt":1903,"tanggal":"2026-09-19"}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[PENGAWASAN LIST] After inject filter: {"id_gantt":1903,"tanggal":"2026-09-19","_is_global_access":true}
+[PENGAWASAN SERVICE] list() called with query: {"id_gantt":1903,"tanggal":"2026-09-19","_is_global_access":true}
+[REQ][8b5112bf-02b7-45ee-ad18-4a9278bcf7e0] GET /api/pengawasan?id_gantt=1903 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { id_gantt: '1903' },
+  body: {}
+}
+[PENGAWASAN LIST] Original request query: {"id_gantt":"1903"}
+[PENGAWASAN LIST] User info: {
+  email: 'dimasfadly01@outlook.com',
+  cabang: 'HEAD OFFICE',
+  roles: [ 'BRANCH BUILDING SUPPORT' ]
+}
+[PENGAWASAN LIST] After schema parse: {"id_gantt":1903}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[PENGAWASAN LIST] After inject filter: {"id_gantt":1903,"_is_global_access":true}
+[PENGAWASAN SERVICE] list() called with query: {"id_gantt":1903,"_is_global_access":true}
+[PENGAWASAN SERVICE] Calling repository.findAll without idPengawasanGantt
+[REQ][bde55e26-cb91-46b4-80cf-4e3d1ecf1c16] GET /api/opname?id_toko=2970 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { id_toko: '2970' },
+  body: {}
+}
+[PENGAWASAN SERVICE] Calling repository.findAll with idPengawasanGantt: 6798
+[PENGAWASAN LIST] Result count: 8
+[RES][8b5112bf-02b7-45ee-ad18-4a9278bcf7e0] GET /api/pengawasan?id_gantt=1903 { status: 200, duration_ms: 45 }
+[REQ][756feb58-4901-4aab-911b-f0a59450b8a1] GET /api/pengawasan?id_gantt=1903 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { id_gantt: '1903' },
+  body: {}
+}
+[PENGAWASAN LIST] Original request query: {"id_gantt":"1903"}
+[PENGAWASAN LIST] User info: {
+  email: 'dimasfadly01@outlook.com',
+  cabang: 'HEAD OFFICE',
+  roles: [ 'BRANCH BUILDING SUPPORT' ]
+}
+[PENGAWASAN LIST] After schema parse: {"id_gantt":1903}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[PENGAWASAN LIST] After inject filter: {"id_gantt":1903,"_is_global_access":true}
+[PENGAWASAN SERVICE] list() called with query: {"id_gantt":1903,"_is_global_access":true}
+[PENGAWASAN SERVICE] Calling repository.findAll without idPengawasanGantt
+[PENGAWASAN LIST] Result count: 0
+[RES][4541428f-fdf8-4b85-b11f-1a07fc89d9c5] GET /api/pengawasan?id_gantt=1903&tanggal=2026-09-19 { status: 200, duration_ms: 75 }
+[REQ][1f9374ee-1d9f-4dcd-8edb-cfb577684342] GET /api/pengawasan?id_gantt=1903&tanggal=2026-09-19 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { id_gantt: '1903', tanggal: '2026-09-19' },
+  body: {}
+}
+[PENGAWASAN LIST] Original request query: {"id_gantt":"1903","tanggal":"2026-09-19"}
+[PENGAWASAN LIST] User info: {
+  email: 'dimasfadly01@outlook.com',
+  cabang: 'HEAD OFFICE',
+  roles: [ 'BRANCH BUILDING SUPPORT' ]
+}
+[PENGAWASAN LIST] After schema parse: {"id_gantt":1903,"tanggal":"2026-09-19"}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[PENGAWASAN LIST] After inject filter: {"id_gantt":1903,"tanggal":"2026-09-19","_is_global_access":true}
+[PENGAWASAN SERVICE] list() called with query: {"id_gantt":1903,"tanggal":"2026-09-19","_is_global_access":true}
+[PENGAWASAN LIST] Result count: 8
+[RES][756feb58-4901-4aab-911b-f0a59450b8a1] GET /api/pengawasan?id_gantt=1903 { status: 200, duration_ms: 34 }
+[PENGAWASAN SERVICE] Calling repository.findAll with idPengawasanGantt: 6798
+[RES][bde55e26-cb91-46b4-80cf-4e3d1ecf1c16] GET /api/opname?id_toko=2970 { status: 200, duration_ms: 58 }
+[REQ][a88a6bd3-3397-4e7d-96b2-4603a78c68b1] GET /api/opname?id_toko=2970 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { id_toko: '2970' },
+  body: {}
+}
+[PENGAWASAN LIST] Result count: 0
+[RES][1f9374ee-1d9f-4dcd-8edb-cfb577684342] GET /api/pengawasan?id_gantt=1903&tanggal=2026-09-19 { status: 200, duration_ms: 33 }
+[RES][a88a6bd3-3397-4e7d-96b2-4603a78c68b1] GET /api/opname?id_toko=2970 { status: 200, duration_ms: 39 }
+[REQ][af4065be-588b-4846-8321-f6bd0121f8cd] GET /api/gantt/detail/2972 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][af4065be-588b-4846-8321-f6bd0121f8cd] GET /api/gantt/detail/2972 { status: 200, duration_ms: 77 }
+[REQ][a5f3d450-eefa-4c14-94e1-655adc52feb4] GET /api/gantt/1904/notes {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][0a0703ef-636a-4cee-b319-86ab82b4a15d] GET /api/rab/2781 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RAB APPROVAL] Checking branch access: {
+  userEmail: 'dimasfadly01@outlook.com',
+  userCabang: 'HEAD OFFICE',
+  userRoles: [ 'BRANCH BUILDING SUPPORT' ],
+  documentCabang: 'HEAD OFFICE',
+  documentUlok: 'Z001-3008-1234'
+}
+[RAB APPROVAL] Branch access result: { canAccess: true }
+[RES][0a0703ef-636a-4cee-b319-86ab82b4a15d] GET /api/rab/2781 { status: 200, duration_ms: 31 }
+[REQ][417e1b10-2e0f-49ce-b50f-02666fe9927a] GET /api/spk?status=SPK_APPROVED&nomor_ulok=Z001-3008-1234 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { status: 'SPK_APPROVED', nomor_ulok: 'Z001-3008-1234' },
+  body: {}
+}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[RES][417e1b10-2e0f-49ce-b50f-02666fe9927a] GET /api/spk?status=SPK_APPROVED&nomor_ulok=Z001-3008-1234 { status: 200, duration_ms: 12 }
+[RES][a5f3d450-eefa-4c14-94e1-655adc52feb4] GET /api/gantt/1904/notes { status: 200, duration_ms: 61 }
+[REQ][a181d498-870e-4d5a-96bd-23c1ae9471dd] GET /api/pengawasan?id_gantt=1904&tanggal=2026-09-19 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { id_gantt: '1904', tanggal: '2026-09-19' },
+  body: {}
+}
+[PENGAWASAN LIST] Original request query: {"id_gantt":"1904","tanggal":"2026-09-19"}
+[PENGAWASAN LIST] User info: {
+  email: 'dimasfadly01@outlook.com',
+  cabang: 'HEAD OFFICE',
+  roles: [ 'BRANCH BUILDING SUPPORT' ]
+}
+[PENGAWASAN LIST] After schema parse: {"id_gantt":1904,"tanggal":"2026-09-19"}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[PENGAWASAN LIST] After inject filter: {"id_gantt":1904,"tanggal":"2026-09-19","_is_global_access":true}
+[PENGAWASAN SERVICE] list() called with query: {"id_gantt":1904,"tanggal":"2026-09-19","_is_global_access":true}
+[REQ][fdaf0615-8097-489a-9cf0-6042e53cd8d2] GET /api/opname?id_toko=2972 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { id_toko: '2972' },
+  body: {}
+}
+[REQ][5076bc56-2a0f-49b8-bd34-5bc6533f7d0c] GET /api/pengawasan?id_gantt=1904 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { id_gantt: '1904' },
+  body: {}
+}
+[PENGAWASAN LIST] Original request query: {"id_gantt":"1904"}
+[PENGAWASAN LIST] User info: {
+  email: 'dimasfadly01@outlook.com',
+  cabang: 'HEAD OFFICE',
+  roles: [ 'BRANCH BUILDING SUPPORT' ]
+}
+[PENGAWASAN LIST] After schema parse: {"id_gantt":1904}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[PENGAWASAN LIST] After inject filter: {"id_gantt":1904,"_is_global_access":true}
+[PENGAWASAN SERVICE] list() called with query: {"id_gantt":1904,"_is_global_access":true}
+[PENGAWASAN SERVICE] Calling repository.findAll without idPengawasanGantt
+[PENGAWASAN SERVICE] Calling repository.findAll with idPengawasanGantt: 6802
+[PENGAWASAN LIST] Result count: 1
+[RES][a181d498-870e-4d5a-96bd-23c1ae9471dd] GET /api/pengawasan?id_gantt=1904&tanggal=2026-09-19 { status: 200, duration_ms: 23 }
+[REQ][b976eff0-8ccf-41df-8e1a-af5bda68c9d0] GET /api/pengawasan?id_gantt=1904&tanggal=2026-09-19 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { id_gantt: '1904', tanggal: '2026-09-19' },
+  body: {}
+}
+[PENGAWASAN LIST] Original request query: {"id_gantt":"1904","tanggal":"2026-09-19"}
+[PENGAWASAN LIST] User info: {
+  email: 'dimasfadly01@outlook.com',
+  cabang: 'HEAD OFFICE',
+  roles: [ 'BRANCH BUILDING SUPPORT' ]
+}
+[PENGAWASAN LIST] After schema parse: {"id_gantt":1904,"tanggal":"2026-09-19"}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[PENGAWASAN LIST] After inject filter: {"id_gantt":1904,"tanggal":"2026-09-19","_is_global_access":true}
+[PENGAWASAN SERVICE] list() called with query: {"id_gantt":1904,"tanggal":"2026-09-19","_is_global_access":true}
+[PENGAWASAN LIST] Result count: 4
+[RES][5076bc56-2a0f-49b8-bd34-5bc6533f7d0c] GET /api/pengawasan?id_gantt=1904 { status: 200, duration_ms: 28 }
+[REQ][072979c9-4241-4ae8-9174-36b7cca2276e] GET /api/pengawasan?id_gantt=1904 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { id_gantt: '1904' },
+  body: {}
+}
+[PENGAWASAN LIST] Original request query: {"id_gantt":"1904"}
+[PENGAWASAN LIST] User info: {
+  email: 'dimasfadly01@outlook.com',
+  cabang: 'HEAD OFFICE',
+  roles: [ 'BRANCH BUILDING SUPPORT' ]
+}
+[PENGAWASAN LIST] After schema parse: {"id_gantt":1904}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[PENGAWASAN LIST] After inject filter: {"id_gantt":1904,"_is_global_access":true}
+[PENGAWASAN SERVICE] list() called with query: {"id_gantt":1904,"_is_global_access":true}
+[PENGAWASAN SERVICE] Calling repository.findAll without idPengawasanGantt
+[PENGAWASAN SERVICE] Calling repository.findAll with idPengawasanGantt: 6802
+[RES][fdaf0615-8097-489a-9cf0-6042e53cd8d2] GET /api/opname?id_toko=2972 { status: 200, duration_ms: 45 }
+[REQ][4949077f-d626-47fe-814e-59e478f70763] GET /api/opname?id_toko=2972 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { id_toko: '2972' },
+  body: {}
+}
+[PENGAWASAN LIST] Result count: 4
+[RES][072979c9-4241-4ae8-9174-36b7cca2276e] GET /api/pengawasan?id_gantt=1904 { status: 200, duration_ms: 26 }
+[PENGAWASAN LIST] Result count: 1
+[RES][b976eff0-8ccf-41df-8e1a-af5bda68c9d0] GET /api/pengawasan?id_gantt=1904&tanggal=2026-09-19 { status: 200, duration_ms: 45 }
+[RES][4949077f-d626-47fe-814e-59e478f70763] GET /api/opname?id_toko=2972 { status: 200, duration_ms: 40 }
+[REQ][0bd12fd9-87d5-4e9e-a925-0ed92aed5969] PATCH /api/opname/39864/support-review {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '77',
+  params: {},
+  query: {},
+  body: {
+    id_opname_item: 39864,
+    decision: 'disetujui',
+    alasan_penolakan_support: ''
+  }
+}
+[RES][0bd12fd9-87d5-4e9e-a925-0ed92aed5969] PATCH /api/opname/39864/support-review { status: 200, duration_ms: 97 }
+[REQ][6df23ef0-41b0-4d4b-a214-78fdfdec7845] POST /api/gantt/1904/pengawasan {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '37',
+  params: {},
+  query: {},
+  body: { tanggal_pengawasan: [ '19/09/2026' ] }
+}
+[RES][6df23ef0-41b0-4d4b-a214-78fdfdec7845] POST /api/gantt/1904/pengawasan { status: 201, duration_ms: 111 }
+[REQ][5b77ebe0-7e2c-4552-8fcc-fe3da1c90f99] POST /api/pengawasan/bulk {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '462727',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][5b77ebe0-7e2c-4552-8fcc-fe3da1c90f99] POST /api/pengawasan/bulk {
+  status: 201,
+  duration_ms: 4479,
+  pg_pool: { total: 4, idle: 3, waiting: 0 }
+}
+[REQ][7671c885-c828-424a-bbb9-edd08d12341e] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][f94017ad-8a7f-4715-b218-bc58e254f545] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][7671c885-c828-424a-bbb9-edd08d12341e] GET /api/system-maintenance/status { status: 200, duration_ms: 10 }
+[RES][f94017ad-8a7f-4715-b218-bc58e254f545] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 73 }
+[REQ][556e7803-f314-473b-916a-8a5cafb19541] GET /api/gantt/1904/notes {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][c7ebc141-419c-46a6-b656-18d9d8778cfd] GET /api/gantt/supervision-workspace/Z001-3008-1234 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][0acd55ed-b6f1-4c61-8d2f-b6bfc90f2998] GET /api/gantt/1904 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][556e7803-f314-473b-916a-8a5cafb19541] GET /api/gantt/1904/notes { status: 200, duration_ms: 97 }
+[RES][0acd55ed-b6f1-4c61-8d2f-b6bfc90f2998] GET /api/gantt/1904 { status: 200, duration_ms: 120 }
+[REQ][301e633a-2b1b-4280-a389-9e08f9c7daf4] GET /api/spk?status=SPK_APPROVED&nomor_ulok=Z001-3008-1234 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { status: 'SPK_APPROVED', nomor_ulok: 'Z001-3008-1234' },
+  body: {}
+}
+[BRANCH FILTER] User: dimasfadly01@outlook.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[RES][301e633a-2b1b-4280-a389-9e08f9c7daf4] GET /api/spk?status=SPK_APPROVED&nomor_ulok=Z001-3008-1234 { status: 200, duration_ms: 23 }
+[RES][c7ebc141-419c-46a6-b656-18d9d8778cfd] GET /api/gantt/supervision-workspace/Z001-3008-1234 { status: 200, duration_ms: 290 }
+[REQ][5bd3db5b-c4ec-4a66-b211-c90016c9ca80] GET /api/gantt/1903/notes {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][1a1d40f9-f1ee-4ce5-a42c-625e708096cb] GET /api/gantt/detail/2970 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][38b56074-9cca-4c1a-8e3d-309aca830f88] GET /api/gantt/detail/2972 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][5bd3db5b-c4ec-4a66-b211-c90016c9ca80] GET /api/gantt/1903/notes { status: 200, duration_ms: 52 }
+[RES][38b56074-9cca-4c1a-8e3d-309aca830f88] GET /api/gantt/detail/2972 { status: 200, duration_ms: 70 }
+[REQ][c013df05-444f-407a-80be-d0194dbd2cc4] GET /api/gantt/detail/2972 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][1a1d40f9-f1ee-4ce5-a42c-625e708096cb] GET /api/gantt/detail/2970 { status: 200, duration_ms: 80 }
+[REQ][a98b0bf2-593f-4c3f-a392-d33dbfe39ef3] GET /api/gantt/detail/2970 {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][c013df05-444f-407a-80be-d0194dbd2cc4] GET /api/gantt/detail/2972 { status: 200, duration_ms: 70 }
+[RES][a98b0bf2-593f-4c3f-a392-d33dbfe39ef3] GET /api/gantt/detail/2970 { status: 200, duration_ms: 70 }
+[REQ][fd87b771-b7e1-4f12-9f42-0b9c96fff912] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][fd87b771-b7e1-4f12-9f42-0b9c96fff912] GET /api/system-maintenance/status { status: 200, duration_ms: 1 }
+[REQ][9fdb7ea2-a2e8-4dfc-a160-fec8a9e1d14c] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][9fdb7ea2-a2e8-4dfc-a160-fec8a9e1d14c] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 1 }
+[REQ][05dc0172-1991-4f9e-aa1b-45927c4ae667] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][05dc0172-1991-4f9e-aa1b-45927c4ae667] GET /api/system-maintenance/status { status: 200, duration_ms: 1 }
+[REQ][e359d5fd-b522-43ac-95d4-be0605077dc5] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][e359d5fd-b522-43ac-95d4-be0605077dc5] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 13 }
