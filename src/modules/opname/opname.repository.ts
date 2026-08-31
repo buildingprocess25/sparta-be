@@ -1292,9 +1292,17 @@ export const opnameRepository = {
         }
 
         if (query.assigned_to === "contractor") {
-            conditions.push(`oi.workflow_version = 'contractor_first' AND oi.status = 'ditolak' AND oi.locked_at IS NULL AND LOWER(TRIM(p.status)) = 'selesai'`);
+            conditions.push(`(
+                (oi.workflow_version = 'contractor_first' AND oi.status = 'ditolak' AND oi.locked_at IS NULL AND LOWER(TRIM(p.status)) = 'selesai')
+                OR
+                (COALESCE(oi.workflow_version, 'legacy') = 'legacy' AND oi.status IN ('pending', 'disetujui', 'ditolak'))
+            )`);
         } else if (query.assigned_to === "support") {
-            conditions.push(`oi.workflow_version = 'contractor_first' AND oi.status = 'pending' AND oi.locked_at IS NULL AND LOWER(TRIM(p.status)) = 'selesai'`);
+            conditions.push(`(
+                (oi.workflow_version = 'contractor_first' AND oi.status = 'pending' AND oi.locked_at IS NULL AND LOWER(TRIM(p.status)) = 'selesai')
+                OR
+                (COALESCE(oi.workflow_version, 'legacy') = 'legacy' AND oi.status = 'ditolak')
+            )`);
         }
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
