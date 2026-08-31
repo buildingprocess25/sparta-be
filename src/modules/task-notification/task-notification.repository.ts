@@ -1021,24 +1021,23 @@ const findPicAssignmentRequired = async (user: AuthenticatedUser): Promise<Notif
     return queryNotificationRows(`
         WITH missing_pic AS (
             SELECT
-                r.id AS entity_id,
-                r.id_toko,
-                COALESCE(t.nama_toko, pp.nomor_ulok) AS title,
-                COALESCE(pp.nomor_ulok, t.kode_toko) AS nomor_ulok,
-                UPPER(TRIM(pp.lingkup_pekerjaan)) AS lingkup_pekerjaan,
+                p.id AS entity_id,
+                p.id_toko,
+                COALESCE(t.nama_toko, p.nomor_ulok) AS title,
+                p.nomor_ulok,
+                UPPER(TRIM(p.lingkup_pekerjaan)) AS lingkup_pekerjaan,
                 t.cabang,
-                r.status,
-                r.created_at
-            FROM rab r
-            LEFT JOIN toko t ON t.id = r.id_toko
-            LEFT JOIN projek_planning pp ON pp.id = r.projek_planning_id
-            WHERE r.status = 'Disetujui'
+                p.status,
+                p.created_at
+            FROM pengajuan_spk p
+            LEFT JOIN toko t ON t.id = p.id_toko
+            WHERE p.status = 'SPK_APPROVED'
               ${branchWhere}
               AND NOT EXISTS (
                   SELECT 1
                   FROM pic_pengawasan pic
-                  WHERE pic.id_rab = r.id
-                     OR pic.id_toko = r.id_toko
+                  WHERE pic.id_spk = p.id
+                     OR pic.id_toko = p.id_toko
               )
         ), unique_lingkup AS (
             SELECT DISTINCT nomor_ulok, lingkup_pekerjaan
