@@ -12,6 +12,7 @@ export type OpnameFinalRow = {
     tipe_opname: string;
     aksi: "active" | "terkunci" | string;
     status_opname_final: OpnameFinalStatus;
+    workflow_version: "legacy" | "contractor_first" | string | null;
     link_pdf_opname: string | null;
     email_pembuat: string | null;
     nama_pembuat: string | null;
@@ -160,6 +161,7 @@ const OPNAME_FINAL_COLUMNS = `
     ofn.tipe_opname,
     ofn.aksi,
     ofn.status_opname_final,
+    ofn.workflow_version,
     ofn.link_pdf_opname,
     ofn.email_pembuat,
     creator_user.nama_lengkap AS nama_pembuat,
@@ -289,6 +291,11 @@ export const opnameFinalRepository = {
         if (filter.tipe_opname) {
             values.push(filter.tipe_opname);
             conditions.push(`ofn.tipe_opname = $${values.length}`);
+        }
+
+        if (filter.workflow_version) {
+            values.push(filter.workflow_version);
+            conditions.push(`ofn.workflow_version = $${values.length}`);
         }
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
@@ -531,6 +538,7 @@ export const opnameFinalRepository = {
                 id: header.id,
                 id_toko: header.id_toko,
                 tipe_opname: header.tipe_opname,
+                workflow_version: header.workflow_version,
                 aksi: header.aksi,
                 status_opname_final: header.status_opname_final,
                 link_pdf_opname: header.link_pdf_opname,
@@ -899,13 +907,19 @@ export const opnameFinalRepository = {
     },
     async lockById(opnameFinalId: string, payload: LockOpnameFinalInput): Promise<{ item_count: number }> {
         return withTransaction(async (client) => {
-            const existing = await client.query<{ id: number }>(
-                `SELECT id FROM opname_final WHERE id = $1 FOR UPDATE`,
+            const existing = await client.query<{ id: number; workflow_version: string | null }>(
+                `SELECT id, workflow_version FROM opname_final WHERE id = $1 FOR UPDATE`,
                 [opnameFinalId]
             );
 
             if ((existing.rowCount ?? 0) === 0) {
                 return { item_count: 0 };
+            }
+
+            const requestedWorkflow = payload.workflow_version ?? "legacy";
+            const existingWorkflow = existing.rows[0].workflow_version ?? "legacy";
+            if (existingWorkflow !== requestedWorkflow) {
+                throw new Error(`Workflow opname_final tidak sesuai. Data ${existingWorkflow} tidak dapat dikunci sebagai ${requestedWorkflow}.`);
             }
 
             const existingPhotos = await client.query<{ source_key: string; foto: string | null }>(
@@ -933,7 +947,7 @@ export const opnameFinalRepository = {
 
             const values: Array<number | string | null> = [];
             const placeholders = payload.opname_item.map((item, index) => {
-                const base = index * 14;
+                const base = index * 15;
                 const sourceKey = item.id_rab_item
                     ? `rab:${item.id_rab_item}`
                     : `il:${item.id_instruksi_lapangan_item}`;
@@ -951,10 +965,11 @@ export const opnameFinalRepository = {
                     item.kualitas ?? null,
                     item.spesifikasi ?? null,
                     item.foto ?? photoBySource.get(sourceKey) ?? null,
-                    item.catatan ?? null
+                    item.catatan ?? null,
+                    requestedWorkflow
                 );
 
-                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14})`;
+                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14}, $${base + 15})`;
             });
 
             await client.query(
@@ -973,7 +988,8 @@ export const opnameFinalRepository = {
                     kualitas,
                     spesifikasi,
                     foto,
-                    catatan
+                    catatan,
+                    workflow_version
                 )
                 VALUES ${placeholders.join(", ")}
                 `,
@@ -989,6 +1005,7 @@ export const opnameFinalRepository = {
                     grand_total_opname = $4,
                     grand_total_rab = $5,
                     status_opname_final = $6,
+                    workflow_version = $7,
                     tipe_opname = 'OPNAME_FINAL',
                     alasan_penolakan = NULL,
                     pemberi_persetujuan_direktur = NULL,
@@ -997,7 +1014,7 @@ export const opnameFinalRepository = {
                     waktu_persetujuan_koordinator = NULL,
                     pemberi_persetujuan_manager = NULL,
                     waktu_persetujuan_manager = NULL
-                WHERE id = $7
+                WHERE id = $8
                 `,
                 [
                     payload.id_toko,
@@ -1006,6 +1023,7 @@ export const opnameFinalRepository = {
                     payload.grand_total_opname,
                     payload.grand_total_rab,
                     "Menunggu Persetujuan Koordinator",
+                    requestedWorkflow,
                     opnameFinalId
                 ]
             );

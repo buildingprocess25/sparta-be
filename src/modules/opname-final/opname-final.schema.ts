@@ -8,7 +8,8 @@ export const opnameFinalListQuerySchema = z.object({
     cabang: z.string().trim().min(1).optional(),
     cabang_array: z.array(z.string()).optional(), // Backend-injected branches
     nama_kontraktor: z.string().trim().min(1).optional(),
-    tipe_opname: z.enum(["OPNAME", "OPNAME_FINAL"]).optional()
+    tipe_opname: z.enum(["OPNAME", "OPNAME_FINAL"]).optional(),
+    workflow_version: z.enum(["legacy", "contractor_first"]).optional()
 });
 
 export const lockOpnameFinalItemSchema = z.object({
@@ -37,7 +38,8 @@ export const lockOpnameFinalSchema = z.object({
     aksi: z.enum(["active", "terkunci"]).optional().default("terkunci"),
     grand_total_opname: z.union([z.string().trim().min(1), z.coerce.number()]).transform((value) => String(value)),
     grand_total_rab: z.union([z.string().trim().min(1), z.coerce.number()]).transform((value) => String(value)),
-    opname_item: z.array(lockOpnameFinalItemSchema).min(1)
+    opname_item: z.array(lockOpnameFinalItemSchema).min(1),
+    workflow_version: z.enum(["legacy", "contractor_first"]).optional().default("legacy")
 });
 
 export const opnameFinalInterventionSchema = z.object({

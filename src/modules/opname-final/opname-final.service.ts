@@ -620,6 +620,13 @@ export const opnameFinalService = {
                 }
             }
 
+            if (payload.workflow_version === "contractor_first") {
+                const hasUnapprovedItem = payload.opname_item.some((item) => String(item.status ?? "").trim().toLowerCase() !== "disetujui");
+                if (hasUnapprovedItem) {
+                    throw new AppError("Finalisasi KTK contractor-first hanya dapat dilakukan setelah semua item disetujui support.", 409);
+                }
+            }
+
             const result = await opnameFinalRepository.lockById(id, payload);
             if (result.item_count === 0) {
                 throw new AppError("Data opname_final tidak ditemukan", 404);
