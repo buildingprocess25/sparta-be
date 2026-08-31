@@ -63,6 +63,28 @@ const isNoPpnArea = (toko: { cabang?: string | null; nama_toko?: string | null; 
     return identity.some(value => value === "BATAM" || value === "BINTAN" || /\bBATAM\b|\bBINTAN\b/.test(value));
 };
 
+const toIsoDateOnly = (value?: string | null): string => {
+    const raw = String(value ?? "").trim();
+    if (!raw) return "";
+    const isoMatch = raw.match(/^\d{4}-\d{2}-\d{2}/);
+    if (isoMatch) return isoMatch[0];
+    const slashMatch = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (slashMatch) {
+        const [, dd, mm, yyyy] = slashMatch;
+        return `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
+    }
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime())) return "";
+    return parsed.toISOString().slice(0, 10);
+};
+
+const formatDateId = (value?: string | null): string => {
+    const iso = toIsoDateOnly(value);
+    if (!iso) return "-";
+    const [yyyy, mm, dd] = iso.split("-");
+    return `${dd}/${mm}/${yyyy}`;
+};
+
 const generateInstruksiLapanganPdfInBackground = (idIL: number | string): void => {
     setImmediate(() => {
         instruksiLapanganService.generateAndStorePdf(idIL).catch((err) => {
@@ -167,6 +189,26 @@ export const instruksiLapanganService = {
             toko.lingkup_pekerjaan.trim().toUpperCase() !== payload.lingkup_pekerjaan.trim().toUpperCase()
         ) {
             throw new AppError("id_toko tidak sesuai dengan lingkup pekerjaan yang dipilih", 409);
+        }
+
+        const dateBounds = await instruksiLapanganRepository.getDateBoundsByTokoId(toko.id);
+        if (!dateBounds?.spk_start_date || !dateBounds.max_allowed_date) {
+            throw new AppError("SPK approved untuk ULOK dan lingkup pekerjaan ini belum memiliki rentang tanggal yang valid", 409);
+        }
+
+        const tanggalMulai = toIsoDateOnly(payload.tanggal_mulai);
+        const tanggalSelesai = toIsoDateOnly(payload.tanggal_selesai);
+        if (!tanggalMulai || !tanggalSelesai) {
+            throw new AppError("Tanggal mulai dan tanggal selesai Instruksi Lapangan wajib valid", 400);
+        }
+        if (tanggalMulai < dateBounds.spk_start_date) {
+            throw new AppError(`Tanggal mulai Instruksi Lapangan tidak boleh sebelum tanggal mulai SPK (${formatDateId(dateBounds.spk_start_date)})`, 400);
+        }
+        if (tanggalSelesai < tanggalMulai) {
+            throw new AppError("Tanggal selesai Instruksi Lapangan tidak boleh sebelum tanggal mulai", 400);
+        }
+        if (tanggalSelesai > dateBounds.max_allowed_date) {
+            throw new AppError(`Tanggal selesai Instruksi Lapangan tidak boleh melewati batas efektif SPK/ST (${formatDateId(dateBounds.max_allowed_date)})`, 400);
         }
 
         console.log("[IL][SUBMIT_SERVICE] Toko tervalidasi, mulai simpan", {

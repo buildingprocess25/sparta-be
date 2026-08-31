@@ -1,5 +1,6 @@
 import { pool } from "../../db/pool";
 import { getBranchScopeCandidates } from "../../common/branch-scope";
+import { calculateEffectiveStDate, toIsoDateString } from "../../common/national-holidays";
 import type { InstruksiLapanganItemInput, SubmitInstruksiLapanganInput } from "./instruksi-lapangan.schema";
 
 export interface InstruksiLapanganRow {
@@ -59,6 +60,33 @@ export interface TokoRow {
     alamat: string;
     nama_kontraktor: string;
 }
+
+export interface InstruksiLapanganDateBoundsRow {
+    spk_start_date: string | null;
+    spk_base_end_date: string | null;
+    spk_effective_end_date: string | null;
+    spk_extension_until: string | null;
+    denda_until_date: string | null;
+    st_target_date: string | null;
+    max_allowed_date: string | null;
+}
+
+const parseDateOnly = (value?: string | null): Date | null => {
+    const raw = String(value ?? "").trim();
+    if (!raw) return null;
+    const parsed = raw.includes("/")
+        ? (() => {
+            const [dd, mm, yyyy] = raw.split("/");
+            return new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+        })()
+        : new Date(raw.split("T")[0] + "T00:00:00");
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const maxIsoDate = (...values: Array<string | null | undefined>): string | null => {
+    const dates = values.map(value => String(value ?? "").slice(0, 10)).filter(Boolean).sort();
+    return dates.at(-1) ?? null;
+};
 
 export const instruksiLapanganRepository = {
     toCurrency(value: number) {
@@ -299,6 +327,93 @@ export const instruksiLapanganRepository = {
             LIMIT 1
         `, params);
         return res.rows[0] || null;
+    },
+
+    async getDateBoundsByTokoId(idToko: number): Promise<InstruksiLapanganDateBoundsRow | null> {
+        const res = await pool.query<{
+            spk_start_date: string | null;
+            spk_base_end_date: string | null;
+            spk_effective_end_date: string | null;
+            spk_extension_until: string | null;
+            denda_until_date: string | null;
+        }>(`
+            SELECT
+                p.waktu_mulai::date::text AS spk_start_date,
+                p.waktu_selesai::date::text AS spk_base_end_date,
+                COALESCE(psp.approved_until, p.waktu_selesai::date)::text AS spk_effective_end_date,
+                psp.approved_until::text AS spk_extension_until,
+                ofd.denda_until::text AS denda_until_date
+            FROM pengajuan_spk p
+            JOIN toko t ON t.id = p.id_toko
+            LEFT JOIN LATERAL (
+                SELECT MAX(parsed_extension_date) AS approved_until
+                FROM (
+                    SELECT
+                        CASE
+                            WHEN parsed.raw_value ~ '^\d{4}-\d{2}-\d{2}'
+                             AND to_char(to_date(LEFT(parsed.raw_value, 10), 'YYYY-MM-DD'), 'YYYY-MM-DD') = LEFT(parsed.raw_value, 10)
+                                THEN to_date(LEFT(parsed.raw_value, 10), 'YYYY-MM-DD')
+                            WHEN parsed.raw_value ~ '^\d{1,2}/\d{1,2}/\d{4}$'
+                             AND (to_char(to_date(parsed.raw_value, 'DD/MM/YYYY'), 'FMDD/FMMM/YYYY') = parsed.raw_value
+                              OR to_char(to_date(parsed.raw_value, 'DD/MM/YYYY'), 'DD/MM/YYYY') = parsed.raw_value)
+                                THEN to_date(parsed.raw_value, 'DD/MM/YYYY')
+                            ELSE NULL
+                        END AS parsed_extension_date
+                    FROM pengajuan_spk ps_scope
+                    JOIN pertambahan_spk pt ON pt.id_spk = ps_scope.id
+                    CROSS JOIN LATERAL (
+                        SELECT TRIM(COALESCE(pt.tanggal_spk_akhir_setelah_perpanjangan, '')) AS raw_value
+                    ) parsed
+                    WHERE ps_scope.nomor_ulok = p.nomor_ulok
+                      AND UPPER(TRIM(COALESCE(pt.status_persetujuan, ''))) IN ('APPROVED', 'DISETUJUI', 'DISETUJUI BM')
+                ) safe_extension_dates
+            ) psp ON true
+            LEFT JOIN LATERAL (
+                SELECT MAX(parsed_denda_date) AS denda_until
+                FROM (
+                    SELECT
+                        CASE
+                            WHEN parsed.raw_value ~ '^\d{4}-\d{2}-\d{2}'
+                             AND to_char(to_date(LEFT(parsed.raw_value, 10), 'YYYY-MM-DD'), 'YYYY-MM-DD') = LEFT(parsed.raw_value, 10)
+                                THEN to_date(LEFT(parsed.raw_value, 10), 'YYYY-MM-DD')
+                            WHEN parsed.raw_value ~ '^\d{1,2}/\d{1,2}/\d{4}$'
+                             AND (to_char(to_date(parsed.raw_value, 'DD/MM/YYYY'), 'FMDD/FMMM/YYYY') = parsed.raw_value
+                              OR to_char(to_date(parsed.raw_value, 'DD/MM/YYYY'), 'DD/MM/YYYY') = parsed.raw_value)
+                                THEN to_date(parsed.raw_value, 'DD/MM/YYYY')
+                            ELSE NULL
+                        END AS parsed_denda_date
+                    FROM opname_final ofn
+                    CROSS JOIN LATERAL (
+                        VALUES
+                            (TRIM(COALESCE(ofn.tanggal_serah_terima_denda::text, ''))),
+                            (TRIM(COALESCE(ofn.tanggal_akhir_spk_denda::text, '')))
+                    ) parsed(raw_value)
+                    WHERE ofn.id_toko = p.id_toko
+                      AND (
+                        COALESCE(ofn.hari_denda, 0) > 0
+                        OR COALESCE(ofn.nilai_denda, 0) > 0
+                        OR ofn.tanggal_serah_terima_denda IS NOT NULL
+                        OR ofn.tanggal_akhir_spk_denda IS NOT NULL
+                      )
+                ) safe_denda_dates
+            ) ofd ON true
+            WHERE p.id_toko = $1
+              AND UPPER(TRIM(COALESCE(p.status, ''))) IN ('SPK_APPROVED', 'ACTIVE', 'SELESAI', 'APPROVED', 'DISETUJUI', 'AKTIF')
+            ORDER BY p.created_at DESC, p.id DESC
+            LIMIT 1
+        `, [idToko]);
+
+        const row = res.rows[0];
+        if (!row) return null;
+
+        const stTargetDate = parseDateOnly(row.spk_effective_end_date);
+        const stTarget = stTargetDate ? toIsoDateString(calculateEffectiveStDate(stTargetDate).effectiveStDate) : null;
+
+        return {
+            ...row,
+            st_target_date: stTarget,
+            max_allowed_date: maxIsoDate(row.spk_effective_end_date, row.spk_extension_until, row.denda_until_date, stTarget)
+        };
     },
 
     async updatePdfLinks(
