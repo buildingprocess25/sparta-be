@@ -1322,7 +1322,7 @@ export const taskNotificationRepository = {
                 "pic_pengawasan_missing",
                 "input",
                 "PIC Pengawasan",
-                "Belum ada kontraktor yang ditugaskan untuk SPK yang sudah disetujui (Tugas Branch Building Coordinator).",
+                "Belum ada branch building support yang ditugaskan untuk SPK yang sudah disetujui (Tugas Branch Building Coordinator).",
                 picAssignmentRequired
             ),
             makeGroup(
