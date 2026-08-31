@@ -188,6 +188,7 @@ export type DcArchiveProjectRow = {
     docs_pembangunan: number;
     docs_renovasi: number;
     docs_perluasan: number;
+    total_notes?: number;
     kategori_counts: Record<string, number>;
 };
 
@@ -385,6 +386,16 @@ export const dcDevelopmentRepository = {
                 COUNT(DISTINCT split_part(d.document_type, '__', 1)) FILTER (WHERE UPPER(COALESCE(d.stage, '')) = 'PEMBANGUNAN' AND split_part(d.document_type, '__', 1) !~ '^(H|I|J|L)_' AND v.drive_file_id IS NOT NULL)::int AS docs_pembangunan,
                 COUNT(DISTINCT split_part(d.document_type, '__', 1)) FILTER (WHERE UPPER(COALESCE(d.stage, '')) = 'RENOVASI' AND v.drive_file_id IS NOT NULL)::int AS docs_renovasi,
                 COUNT(DISTINCT split_part(d.document_type, '__', 1)) FILTER (WHERE UPPER(COALESCE(d.stage, '')) = 'PERLUASAN' AND v.drive_file_id IS NOT NULL)::int AS docs_perluasan,
+                (
+                    SELECT COUNT(DISTINCT d_notes.id)::int
+                    FROM dc_document d_notes
+                    LEFT JOIN dc_document_version v_notes ON v_notes.document_id = d_notes.id AND v_notes.is_current = true
+                    WHERE d_notes.entity_type = 'DC_ARCHIVE_PROJECT'
+                      AND d_notes.project_id = a.project_id
+                      AND d_notes.status <> 'DELETED'
+                      AND v_notes.notes IS NOT NULL
+                      AND v_notes.notes <> ''
+                ) AS total_notes,
                 COALESCE(
                     jsonb_object_agg(d.document_type, doc_counts.total) FILTER (WHERE d.document_type IS NOT NULL),
                     '{}'::jsonb
