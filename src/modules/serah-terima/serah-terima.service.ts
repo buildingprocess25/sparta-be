@@ -5,6 +5,7 @@ import type { AuthenticatedUser } from "../auth/auth-session.service";
 import { calculateDendaByTokoId } from "../denda/denda-keterlambatan";
 import { opnameFinalService } from "../opname-final/opname-final.service";
 import { opnameRepository } from "../opname/opname.repository";
+import { dokumentasiBangunanService } from "../dokumentasi/dokumentasi.service";
 import { canManageSystemMaintenance } from "../system-maintenance/system-maintenance.service";
 import {
     buildSerahTerimaPdfBuffer,
@@ -231,6 +232,24 @@ const assertSerahTerimaReadyForUnified = async (idToko: number) => {
     throw new AppError(readiness.reason ?? "Serah Terima belum siap dibuat", 409);
 };
 
+
+const assertGrandOpeningReadyUnlessGenerated = async (idToko: number) => {
+    const existingBerkas = await serahTerimaRepository.findBerkasSerahTerimaByIdToko(idToko);
+    if (existingBerkas?.link_pdf) return;
+
+    const toko = await tokoRepository.findById(idToko);
+    if (!toko?.nomor_ulok) {
+        throw new AppError("Nomor ULOK tidak ditemukan untuk validasi Dokumentasi Grand Opening", 409);
+    }
+
+    await dokumentasiBangunanService.assertGrandOpeningCompleteForSerahTerima(toko.nomor_ulok);
+};
+
+const assertGrandOpeningReadyForUnifiedUnlessGenerated = async (nomorUlok: string, scopes: Array<{ id: number }>) => {
+    const existingRows = await Promise.all(scopes.map((scope) => serahTerimaRepository.findBerkasSerahTerimaByIdToko(scope.id)));
+    if (existingRows.length > 0 && existingRows.every((row) => Boolean(row?.link_pdf))) return;
+    await dokumentasiBangunanService.assertGrandOpeningCompleteForSerahTerima(nomorUlok);
+};
 const automaticSerahTerimaInProgress = new Set<number>();
 const automaticUnifiedSerahTerimaInProgress = new Set<string>();
 const runningBerkasRegenerateJobs = new Set<number>();
@@ -497,6 +516,7 @@ export const serahTerimaService = {
         // Validate the required opname data before writing a serah-terima placeholder.
         // Previously, a failed generation could leave a row with link_pdf = NULL.
         await assertSerahTerimaReady(idToko);
+        await assertGrandOpeningReadyUnlessGenerated(idToko);
         await buildDetailByTokoId(idToko);
 
         const placeholder = referenceTimestamp
@@ -600,6 +620,7 @@ export const serahTerimaService = {
         for (const scope of targetScopes) {
             await assertSerahTerimaReadyForUnified(scope.id);
         }
+        await assertGrandOpeningReadyForUnifiedUnlessGenerated(nomorUlok, targetScopes);
 
         const placeholder = await serahTerimaRepository.ensureBerkasSerahTerima(masterScope.id);
         const existingScopeBerkas = await Promise.all(

@@ -259,6 +259,12 @@ const splitItemFiles = (files: UploadedDokumentasiFile[]) => {
     return { itemFiles, bulkFiles };
 };
 
+const GRAND_OPENING_TOTAL_PHOTOS = 40;
+const GRAND_OPENING_OPTIONAL_PHOTO_INDEXES = new Set([39, 40]);
+const GRAND_OPENING_REQUIRED_PHOTO_INDEXES = Array.from({ length: GRAND_OPENING_TOTAL_PHOTOS }, (_, index) => index + 1)
+    .filter((index) => !GRAND_OPENING_OPTIONAL_PHOTO_INDEXES.has(index));
+const GRAND_OPENING_REQUIRED_PHOTOS = GRAND_OPENING_REQUIRED_PHOTO_INDEXES.length;
+
 const uploadPdfToDrive = async (folderId: string, buffer: Buffer, filename: string): Promise<string> => {
     const gp = GoogleProvider.instance;
     const uploaded = await gp.uploadFile(folderId, filename, "application/pdf", buffer);
@@ -288,7 +294,8 @@ export const dokumentasiBangunanService = {
         const pdfBuffer = await buildDokumentasiBangunanPdfBuffer(detail);
         const kodeToko = sanitizeFilenamePart(detail.dokumentasi.kode_toko ?? undefined, "TOKO");
         const nomorUlok = sanitizeFilenamePart(detail.dokumentasi.nomor_ulok ?? undefined, "ULOK");
-        const filename = `DOKUMENTASI_BANGUNAN_${kodeToko}_${nomorUlok}_${detail.dokumentasi.id}.pdf`;
+        const filenamePrefix = detail.dokumentasi.jenis_dokumentasi === "GRAND_OPENING" ? "DOKUMENTASI_GRAND_OPENING" : "DOKUMENTASI_BANGUNAN";
+        const filename = `${filenamePrefix}_${kodeToko}_${nomorUlok}_${detail.dokumentasi.id}.pdf`;
 
         const linkPdf = await uploadPdfToDrive(folderId, pdfBuffer, filename);
         await dokumentasiBangunanRepository.updatePdfLink(detail.dokumentasi.id, linkPdf);
@@ -307,6 +314,67 @@ export const dokumentasiBangunanService = {
         };
     },
 
+
+    async createGrandOpening(input: DokumentasiBangunanCreateInput, files: UploadedDokumentasiFile[]) {
+        const itemIndexes = new Set<number>();
+        const { itemFiles, bulkFiles } = splitItemFiles(files);
+        if (itemFiles.length > 0) {
+            itemFiles.forEach((entry) => itemIndexes.add(entry.itemIndex));
+        } else {
+            const count = bulkFiles.length > 0 ? bulkFiles.length : files.length;
+            for (let index = 1; index <= count; index += 1) itemIndexes.add(index);
+        }
+
+        const validCount = GRAND_OPENING_REQUIRED_PHOTO_INDEXES.filter((index) => itemIndexes.has(index)).length;
+        if (validCount < GRAND_OPENING_REQUIRED_PHOTOS) {
+            throw new AppError(`Dokumentasi Grand Opening wajib lengkap ${GRAND_OPENING_REQUIRED_PHOTOS} foto/dokumen wajib. Foto kompetitor opsional. Saat ini baru ${validCount}.`, 400);
+        }
+
+        return this.create({
+            ...input,
+            jenis_dokumentasi: "GRAND_OPENING",
+            status_validasi: input.status_validasi || "complete"
+        }, files);
+    },
+
+    async getGrandOpeningStatus(nomorUlok: string) {
+        const detail = await dokumentasiBangunanRepository.findLatestGrandOpeningByNomorUlok(nomorUlok);
+        if (!detail) {
+            return {
+                nomor_ulok: nomorUlok,
+                dokumentasi_id: null,
+                required_count: GRAND_OPENING_REQUIRED_PHOTOS,
+                uploaded_count: 0,
+                is_complete: false,
+                link_pdf: null,
+                submitted_at: null,
+            };
+        }
+
+        const uploadedIndexes = new Set(
+            detail.items
+                .filter((item) => item.link_foto && GRAND_OPENING_REQUIRED_PHOTO_INDEXES.includes(Number(item.item_index)))
+                .map((item) => Number(item.item_index))
+        );
+        const uploadedCount = uploadedIndexes.size;
+
+        return {
+            nomor_ulok: detail.dokumentasi.nomor_ulok || nomorUlok,
+            dokumentasi_id: detail.dokumentasi.id,
+            required_count: GRAND_OPENING_REQUIRED_PHOTOS,
+            uploaded_count: uploadedCount,
+            is_complete: uploadedCount >= GRAND_OPENING_REQUIRED_PHOTOS && Boolean(detail.dokumentasi.link_pdf),
+            link_pdf: detail.dokumentasi.link_pdf,
+            submitted_at: detail.dokumentasi.created_at,
+        };
+    },
+
+    async assertGrandOpeningCompleteForSerahTerima(nomorUlok: string) {
+        const status = await this.getGrandOpeningStatus(nomorUlok);
+        if (!status.is_complete) {
+            throw new AppError(`Dokumentasi Grand Opening belum lengkap (${status.uploaded_count}/${status.required_count}).`, 409);
+        }
+    },
     async list(query: DokumentasiBangunanListQueryInput) {
         return dokumentasiBangunanRepository.list(query);
     },
@@ -451,7 +519,8 @@ export const dokumentasiBangunanService = {
         const pdfBuffer = await buildDokumentasiBangunanPdfBuffer(detail);
         const kodeToko = sanitizeFilenamePart(detail.dokumentasi.kode_toko ?? undefined, "TOKO");
         const nomorUlok = sanitizeFilenamePart(detail.dokumentasi.nomor_ulok ?? undefined, "ULOK");
-        const filename = `DOKUMENTASI_BANGUNAN_${kodeToko}_${nomorUlok}_${detail.dokumentasi.id}.pdf`;
+        const filenamePrefix = detail.dokumentasi.jenis_dokumentasi === "GRAND_OPENING" ? "DOKUMENTASI_GRAND_OPENING" : "DOKUMENTASI_BANGUNAN";
+        const filename = `${filenamePrefix}_${kodeToko}_${nomorUlok}_${detail.dokumentasi.id}.pdf`;
 
         const linkPdf = await uploadPdfToDrive(folderId, pdfBuffer, filename);
         await dokumentasiBangunanRepository.updatePdfLink(id, linkPdf);
@@ -473,7 +542,8 @@ export const dokumentasiBangunanService = {
         const pdfBuffer = await buildDokumentasiBangunanPdfBuffer(detail);
         const kodeToko = sanitizeFilenamePart(detail.dokumentasi.kode_toko ?? undefined, "TOKO");
         const nomorUlok = sanitizeFilenamePart(detail.dokumentasi.nomor_ulok ?? undefined, "ULOK");
-        const filename = `DOKUMENTASI_BANGUNAN_${kodeToko}_${nomorUlok}_${detail.dokumentasi.id}.pdf`;
+        const filenamePrefix = detail.dokumentasi.jenis_dokumentasi === "GRAND_OPENING" ? "DOKUMENTASI_GRAND_OPENING" : "DOKUMENTASI_BANGUNAN";
+        const filename = `${filenamePrefix}_${kodeToko}_${nomorUlok}_${detail.dokumentasi.id}.pdf`;
 
         return { buffer: pdfBuffer, filename };
     }

@@ -7,6 +7,7 @@ import { rabRepository } from "../rab/rab.repository";
 import { activityLogRepository } from "../activity-log/activity-log.repository";
 import { GANTT_STATUS } from "./gantt.constants";
 import { ganttRepository } from "./gantt.repository";
+import { dokumentasiBangunanService } from "../dokumentasi/dokumentasi.service";
 import { spkRepository } from "../spk/spk.repository";
 import { SPK_APPROVED_STATUSES } from "../spk/spk.constants";
 import type {
@@ -125,7 +126,8 @@ const isScopeReadyForSerahTerima = (scope: any) => {
     }
 
     const checkpoints = Array.isArray(scope.checkpoints) ? scope.checkpoints : [];
-    const opnameItems = checkpoints.reduce((sum: number, checkpoint: any) => sum + Number(checkpoint?.opname_items || 0), 0);
+    const checkpointOpnameItems = checkpoints.reduce((sum: number, checkpoint: any) => sum + Number(checkpoint?.opname_items || 0), 0);
+    const opnameItems = Math.max(checkpointOpnameItems, Number(scope.opname_item_count || 0));
     const readyOpnameItems = checkpoints.reduce((sum: number, checkpoint: any) => sum + Number(checkpoint?.ready_opname_items || 0), 0);
     const unresolvedContractorOpnameItems = checkpoints.reduce((sum: number, checkpoint: any) => {
         if (checkpoint?.workflow_version !== 'contractor_first') return sum;
@@ -140,7 +142,7 @@ const isScopeReadyForSerahTerima = (scope: any) => {
         && unresolvedContractorOpnameItems === 0
         && missingPengawasan === 0
         && totalExpected > 0
-        && totalSelesai === totalExpected;
+        && totalSelesai >= totalExpected;
 };
 
 const normalizePengawasanDate = (value: any): string => {
@@ -356,6 +358,20 @@ export const ganttService = {
             && masterScopeHasGeneratedPdf;
         const allActiveScopesHaveExistingPdf = activeScopes.length > 0
             && activeScopes.every((scope) => Boolean(scope.link_pdf_serah_terima));
+        let grandOpeningDocumentation;
+        try {
+            grandOpeningDocumentation = await dokumentasiBangunanService.getGrandOpeningStatus(nomorUlok);
+        } catch {
+            grandOpeningDocumentation = {
+                nomor_ulok: nomorUlok,
+                dokumentasi_id: null,
+                required_count: 40,
+                uploaded_count: 0,
+                is_complete: false,
+                link_pdf: null,
+                submitted_at: null,
+            };
+        }
 
         return {
             nomor_ulok: nomorUlok,
@@ -372,6 +388,7 @@ export const ganttService = {
                 .some((scope) => Boolean(scope.link_pdf_serah_terima)),
             unified_serah_terima_ready: allActiveScopesReady,
             unified_serah_terima_generated: allReadyScopesGenerated || allActiveScopesHaveExistingPdf,
+            grand_opening_documentation: grandOpeningDocumentation,
             ...unifiedMetadata,
         };
     },

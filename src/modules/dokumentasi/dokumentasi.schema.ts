@@ -28,6 +28,7 @@ const sudutFotoItemsSchema = z.preprocess(
 );
 
 export const dokumentasiBangunanCreateSchema = z.object({
+    jenis_dokumentasi: z.enum(["BANGUNAN_TOKO_BARU", "GRAND_OPENING"]).optional().default("BANGUNAN_TOKO_BARU"),
     jenis_toko: z.enum(["REGULAR", "FRANCHISE"]).optional().default("REGULAR"),
     nomor_ulok: z.string().trim().min(1),
     nama_toko: z.string().trim().min(1),
@@ -48,6 +49,7 @@ export const dokumentasiBangunanCreateSchema = z.object({
 });
 
 export const dokumentasiBangunanUpdateSchema = z.object({
+    jenis_dokumentasi: z.enum(["BANGUNAN_TOKO_BARU", "GRAND_OPENING"]).optional(),
     jenis_toko: z.enum(["REGULAR", "FRANCHISE"]).optional(),
     nomor_ulok: z.string().trim().min(1).optional(),
     nama_toko: z.string().trim().min(1).optional(),
