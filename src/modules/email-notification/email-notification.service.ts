@@ -12,7 +12,7 @@ type EmailTemplateConfig = {
     template: string;
     subject: string;
     targetJabatan: string;
-    ccJabatan?: string;
+    ccJabatan?: string | string[];
 };
 
 const TEMPLATE_MAP: Record<string, EmailTemplateConfig> = {
@@ -31,7 +31,8 @@ const TEMPLATE_MAP: Record<string, EmailTemplateConfig> = {
     "notification-spk-has-approve": {
         template: "send-notification-spk-has-approve.njk",
         subject: "SPARTA Building - SPK Disetujui",
-        targetJabatan: "KONTRAKTOR"
+        targetJabatan: "KONTRAKTOR",
+        ccJabatan: ["Branch Manager", "BRANCH BUILDING & MAINTENANCE MANAGER"]
     },
     "notification-spk-has-reject": {
         template: "send-notification-spk-has-reject.njk",
@@ -193,10 +194,14 @@ export const emailNotificationService = {
                 404
             );
         }
-
-        const ccUser = !shouldUseRabEmails && !shouldUseSpkContractorEmails && !shouldUseSpContractorEmails && templateConfig.ccJabatan
-            ? await userCabangRepository.findByCabangAndJabatan(payload.cabang, templateConfig.ccJabatan)
-            : null;
+        const ccUsers: Array<{ email_sat: string }> = [];
+        if (!shouldUseRabEmails && templateConfig.ccJabatan) {
+            const ccJabatanList = Array.isArray(templateConfig.ccJabatan) ? templateConfig.ccJabatan : [templateConfig.ccJabatan];
+            for (const jab of ccJabatanList) {
+                const users = await userCabangRepository.findAll({ cabang: payload.cabang, jabatan: jab });
+                ccUsers.push(...users);
+            }
+        }
 
         if (!env.EMAIL_USER) {
             throw new AppError("EMAIL_USER belum diset", 500);
@@ -249,7 +254,7 @@ export const emailNotificationService = {
                   rabData?.pemberi_persetujuan_koordinator,
                   rabData?.pemberi_persetujuan_manager
               ]).filter((email) => !targetEmails.includes(email))
-            : normalizeEmailList([ccUser?.email_sat]).filter((email) => !targetEmails.includes(email));
+            : normalizeEmailList(ccUsers.map((u) => u.email_sat)).filter((email) => !targetEmails.includes(email));
         const ccEmail = ccEmailList.length > 0 ? ccEmailList.join(", ") : undefined;
 
         const raw = buildRawEmail({
