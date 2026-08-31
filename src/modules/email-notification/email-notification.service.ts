@@ -32,7 +32,7 @@ const TEMPLATE_MAP: Record<string, EmailTemplateConfig> = {
         template: "send-notification-spk-has-approve.njk",
         subject: "SPARTA Building - SPK Disetujui",
         targetJabatan: "KONTRAKTOR",
-        ccJabatan: ["Branch Manager", "BRANCH BUILDING & MAINTENANCE MANAGER"]
+        ccJabatan: ["BRANCH MANAGER", "BRANCH BUILDING & MAINTENANCE MANAGER", "BRANCH BUILDING COORDINATOR"]
     },
     "notification-spk-has-reject": {
         template: "send-notification-spk-has-reject.njk",
