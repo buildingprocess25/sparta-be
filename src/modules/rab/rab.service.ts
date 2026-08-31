@@ -16,6 +16,7 @@ import { projekPlanningRepository } from "../project-planning/project-planning.r
 import type { ProjekPlanningRow } from "../project-planning/project-planning.repository";
 import { PP_STATUS } from "../project-planning/project-planning.constants";
 import { RAB_STATUS, REJECTED_RAB_STATUSES, type RabStatus } from "./rab.constants";
+import { ganttRepository } from "../gantt/gantt.repository";
 import { buildRabPdfBuffer, buildRecapPdfBuffer, extractMateraiCoverPageBuffer, mergePdfBuffers, generateSphPdf } from "./rab.pdf";
 import { rabRepository } from "./rab.repository";
 import type { RabItemRow } from "./rab.repository";
@@ -1869,6 +1870,15 @@ export const rabService = {
             }
         } catch (err) {
             console.error("Warning: Gagal upload PDF ke Drive:", err);
+        }
+
+        // 5. Auto-sync Gantt Chart jika RAB direvisi
+        try {
+            if (existingTokoByCombination) {
+                await ganttRepository.syncCategoriesWithRab(Number(existingTokoByCombination.id), Number(rab.id));
+            }
+        } catch (err) {
+            console.error("Warning: Gagal sync kategori Gantt Chart dengan RAB:", err);
         }
 
         return normalizeRabFileLinks(rab);

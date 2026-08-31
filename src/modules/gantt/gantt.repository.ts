@@ -1631,5 +1631,41 @@ export const ganttRepository = {
             dependencies: depRes.rows,
             instruksi_lapangan_items: instruksiLapanganItems
         };
+    },
+
+    async syncCategoriesWithRab(tokoId: number, rabId: number): Promise<void> {
+        // Find if this toko has a Gantt Chart
+        const gantt = await pool.query(`SELECT id FROM gantt_chart WHERE id_toko = $1`, [tokoId]);
+        if (gantt.rowCount === 0) return;
+        const ganttId = gantt.rows[0].id;
+
+        // Get valid RAB categories
+        const rabItems = await pool.query(`SELECT DISTINCT kategori_pekerjaan FROM rab_item WHERE id_rab = $1`, [rabId]);
+        const validCategories = rabItems.rows.map(r => r.kategori_pekerjaan.trim().toUpperCase());
+        if (validCategories.length === 0) return; // avoid deleting everything if RAB is fully empty somehow
+
+        // Get Gantt categories
+        const ganttCategories = await pool.query(`SELECT id, kategori_pekerjaan FROM kategori_pekerjaan_gantt WHERE id_gantt = $1`, [ganttId]);
+        
+        const invalidCategoryIds: number[] = [];
+        for (const gc of ganttCategories.rows) {
+            if (!validCategories.includes(gc.kategori_pekerjaan.trim().toUpperCase())) {
+                invalidCategoryIds.push(gc.id);
+            }
+        }
+
+        if (invalidCategoryIds.length === 0) return;
+
+        // Clean up orphaned categories safely (no FK constraints to pengawasan since they link by id_gantt)
+        await pool.query('BEGIN');
+        try {
+            await pool.query(`DELETE FROM day_gantt_chart WHERE id_kategori_pekerjaan_gantt = ANY($1::int[])`, [invalidCategoryIds]);
+            await pool.query(`DELETE FROM dependency_gantt WHERE id_kategori = ANY($1::int[]) OR id_kategori_terikat = ANY($1::int[])`, [invalidCategoryIds]);
+            await pool.query(`DELETE FROM kategori_pekerjaan_gantt WHERE id = ANY($1::int[])`, [invalidCategoryIds]);
+            await pool.query('COMMIT');
+        } catch (e) {
+            await pool.query('ROLLBACK');
+            throw e;
+        }
     }
 };
