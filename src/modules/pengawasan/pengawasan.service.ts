@@ -656,11 +656,25 @@ const processOpnameReviewsForPengawasanBulk = async (
 
         const existing = await opnameRepository.findByIdForUpdate(review.id_opname_item, existingClient);
         if (!existing) throw new AppError(`Data opname tidak ditemukan (id=${review.id_opname_item})`, 404);
+        let revisionTargetCheckpointId: number | undefined = undefined;
+        if (review.decision === "ditolak") {
+            const targetPengawasan = await opnameRepository.findTargetPengawasanForOpnameItem(review.id_opname_item, existingClient);
+            const targetStatus = String(targetPengawasan?.status || "").trim().toLowerCase();
+            if (targetPengawasan?.id_gantt && targetPengawasan?.tanggal_pengawasan && targetStatus && targetStatus !== "selesai") {
+                const nextCheckpoint = await opnameRepository.findNextNearestCheckpoint({
+                    id_gantt: targetPengawasan.id_gantt,
+                    after_tanggal_pengawasan: targetPengawasan.tanggal_pengawasan,
+                }, existingClient);
+                revisionTargetCheckpointId = nextCheckpoint?.id ?? undefined;
+            }
+        }
+
         const updated = await opnameRepository.updateSupportReview({
             id_opname_item: review.id_opname_item,
             decision: review.decision,
             alasan_penolakan_support: review.alasan_penolakan_support,
             reviewer_email: reviewerEmail,
+            id_pengawasan_gantt_target: revisionTargetCheckpointId,
         }, existingClient);
 
         await opnameRepository.insertRevisionHistory({

@@ -2,283 +2,178 @@
 > sparta-api@1.0.1 dev
 > tsx watch src/index.ts
 
+[Postgres] Pool max efektif: 20
 rab-service running on port 8081
 ✅ Token refreshed dari token.json
 ✅ Service Sparta (Sheets) Berhasil.
 ✅ Token refreshed dari token_doc.json
 ✅ Service Dokumen (Sheets + Drive) Berhasil.
-[Scheduler] SP markExpiredSp akan mulai dalam 877 menit (jam 00:05 WIB)
-[Scheduler] SP expiryReminders akan mulai dalam 1352 menit (jam 08:00 WIB)
-[Scheduler] SP weeklySummary akan mulai dalam 166 jam (Senin jam 07:00 WIB)
+Auth session cleanup: 1 session lama dihapus
+[Scheduler] SP markExpiredSp akan mulai dalam 1002 menit (jam 00:05 WIB)
+[Scheduler] SP expiryReminders akan mulai dalam 37 menit (jam 08:00 WIB)
+[Scheduler] SP weeklySummary akan mulai dalam 168 jam (Senin jam 07:00 WIB)
 Startup bootstrap selesai
-09.32.22 [tsx] change in ./src\modules\rab\rab.service.ts Restarting...
-c09.32.30 [tsx] change in ./src\modules\spk\spk.service.ts Restarting...
-c09.32.37 [tsx] change in ./src\modules\gantt\gantt.service.ts Restarting...
-c09.32.46 [tsx] change in ./src\modules\project-planning\project-planning.service.ts Restarting...
-crab-service running on port 8081
-✅ Token refreshed dari token.json
-✅ Service Sparta (Sheets) Berhasil.
-✅ Token refreshed dari token_doc.json
-✅ Service Dokumen (Sheets + Drive) Berhasil.
-[Scheduler] SP markExpiredSp akan mulai dalam 872 menit (jam 00:05 WIB)
-[Scheduler] SP expiryReminders akan mulai dalam 1347 menit (jam 08:00 WIB)
-[Scheduler] SP weeklySummary akan mulai dalam 165 jam (Senin jam 07:00 WIB)
-Startup bootstrap selesai
-09.34.42 [tsx] change in ./src\modules\spk\spk-migration.service.ts Restarting...
-c09.34.48 [tsx] change in ./src\modules\gantt\gantt-migration.service.ts Restarting...
-c09.34.53 [tsx] change in ./src\modules\rab\rab-migration.service.ts Restarting...
-crab-service running on port 8081
-✅ Token refreshed dari token.json
-✅ Service Sparta (Sheets) Berhasil.
-✅ Token refreshed dari token_doc.json
-✅ Service Dokumen (Sheets + Drive) Berhasil.
-[Scheduler] SP markExpiredSp akan mulai dalam 870 menit (jam 00:05 WIB)
-[Scheduler] SP expiryReminders akan mulai dalam 1345 menit (jam 08:00 WIB)
-[Scheduler] SP weeklySummary akan mulai dalam 165 jam (Senin jam 07:00 WIB)
-Startup bootstrap selesai
-09.36.32 [tsx] change in ./src\modules\rab\rab.service.ts Restarting...
-crab-service running on port 8081
-✅ Token refreshed dari token.json
-✅ Service Sparta (Sheets) Berhasil.
-✅ Token refreshed dari token_doc.json
-✅ Service Dokumen (Sheets + Drive) Berhasil.
-[Scheduler] SP markExpiredSp akan mulai dalam 868 menit (jam 00:05 WIB)
-[Scheduler] SP expiryReminders akan mulai dalam 1343 menit (jam 08:00 WIB)
-[Scheduler] SP weeklySummary akan mulai dalam 165 jam (Senin jam 07:00 WIB)
-Startup bootstrap selesai
-10.37.56 [tsx] change in ./src\modules\gantt\gantt.repository.ts Restarting...
-crab-service running on port 8081
-✅ Token refreshed dari token.json
-✅ Service Sparta (Sheets) Berhasil.
-✅ Token refreshed dari token_doc.json
-✅ Service Dokumen (Sheets + Drive) Berhasil.
-[Scheduler] SP markExpiredSp akan mulai dalam 807 menit (jam 00:05 WIB)
-[Scheduler] SP expiryReminders akan mulai dalam 1282 menit (jam 08:00 WIB)
-[Scheduler] SP weeklySummary akan mulai dalam 164 jam (Senin jam 07:00 WIB)
-Startup bootstrap selesai
-10.40.00 [tsx] change in ./src\modules\spk-backdate-policy\spk-backdate-policy.repository.ts Restarting...
-crab-service running on port 8081
-✅ Token refreshed dari token.json
-✅ Service Sparta (Sheets) Berhasil.
-✅ Token refreshed dari token_doc.json
-✅ Service Dokumen (Sheets + Drive) Berhasil.
-[Scheduler] SP markExpiredSp akan mulai dalam 805 menit (jam 00:05 WIB)
-[Scheduler] SP expiryReminders akan mulai dalam 1280 menit (jam 08:00 WIB)
-[Scheduler] SP weeklySummary akan mulai dalam 164 jam (Senin jam 07:00 WIB)
-Startup bootstrap selesai
-10.47.46 [tsx] change in ./src\common\branch-scope.ts Restarting...
-c10.47.52 [tsx] change in ./src\modules\spk-backdate-policy\spk-backdate-policy.repository.ts Restarting...
-crab-service running on port 8081
-✅ Token refreshed dari token.json
-✅ Service Sparta (Sheets) Berhasil.
-✅ Token refreshed dari token_doc.json
-✅ Service Dokumen (Sheets + Drive) Berhasil.
-10.48.05 [tsx] change in ./src\modules\spk-backdate-policy\spk-backdate-policy.controller.ts Restarting...
-crab-service running on port 8081
-✅ Token refreshed dari token.json
-✅ Service Sparta (Sheets) Berhasil.
-✅ Token refreshed dari token_doc.json
-✅ Service Dokumen (Sheets + Drive) Berhasil.
-[Scheduler] SP markExpiredSp akan mulai dalam 797 menit (jam 00:05 WIB)
-[Scheduler] SP expiryReminders akan mulai dalam 1272 menit (jam 08:00 WIB)
-[Scheduler] SP weeklySummary akan mulai dalam 164 jam (Senin jam 07:00 WIB)
-Startup bootstrap selesai
-11.32.45 [tsx] change in ./src\common\national-holidays.ts Restarting...
-crab-service running on port 8081
-✅ Token refreshed dari token.json
-✅ Service Sparta (Sheets) Berhasil.
-✅ Token refreshed dari token_doc.json
-✅ Service Dokumen (Sheets + Drive) Berhasil.
-[Scheduler] SP markExpiredSp akan mulai dalam 752 menit (jam 00:05 WIB)
-[Scheduler] SP expiryReminders akan mulai dalam 1227 menit (jam 08:00 WIB)
-[Scheduler] SP weeklySummary akan mulai dalam 163 jam (Senin jam 07:00 WIB)
-Startup bootstrap selesai
-11.33.14 [tsx] change in ./src\modules\spk\spk.repository.ts Restarting...
-crab-service running on port 8081
-✅ Token refreshed dari token.json
-✅ Service Sparta (Sheets) Berhasil.
-✅ Token refreshed dari token_doc.json
-✅ Service Dokumen (Sheets + Drive) Berhasil.
-[Scheduler] SP markExpiredSp akan mulai dalam 752 menit (jam 00:05 WIB)
-[Scheduler] SP expiryReminders akan mulai dalam 1227 menit (jam 08:00 WIB)
-[Scheduler] SP weeklySummary akan mulai dalam 163 jam (Senin jam 07:00 WIB)
-Startup bootstrap selesai
-11.33.37 [tsx] change in ./src\modules\gantt\gantt.repository.ts Restarting...
-c11.33.44 [tsx] change in ./src\modules\gantt\gantt.repository.ts Restarting...
-crab-service running on port 8081
-✅ Token refreshed dari token.json
-✅ Service Sparta (Sheets) Berhasil.
-✅ Token refreshed dari token_doc.json
-✅ Service Dokumen (Sheets + Drive) Berhasil.
-[Scheduler] SP markExpiredSp akan mulai dalam 751 menit (jam 00:05 WIB)
-[Scheduler] SP expiryReminders akan mulai dalam 1226 menit (jam 08:00 WIB)
-[Scheduler] SP weeklySummary akan mulai dalam 163 jam (Senin jam 07:00 WIB)
-Startup bootstrap selesai
-11.59.54 [tsx] change in ./src\modules\dashboard\dashboard.export.ts Restarting...
-crab-service running on port 8081
-✅ Token refreshed dari token.json
-✅ Service Sparta (Sheets) Berhasil.
-✅ Token refreshed dari token_doc.json
-✅ Service Dokumen (Sheets + Drive) Berhasil.
-[Scheduler] SP markExpiredSp akan mulai dalam 725 menit (jam 00:05 WIB)
-[Scheduler] SP expiryReminders akan mulai dalam 1200 menit (jam 08:00 WIB)
-[Scheduler] SP weeklySummary akan mulai dalam 163 jam (Senin jam 07:00 WIB)
-Startup bootstrap selesai
-12.00.41 [tsx] change in ./src\modules\dashboard\dashboard.repository.ts Restarting...
-crab-service running on port 8081
-✅ Token refreshed dari token.json
-✅ Service Sparta (Sheets) Berhasil.
-✅ Token refreshed dari token_doc.json
-✅ Service Dokumen (Sheets + Drive) Berhasil.
-12.00.49 [tsx] change in ./src\modules\dashboard\dashboard.service.ts Restarting...
-crab-service running on port 8081
-✅ Token refreshed dari token.json
-✅ Service Sparta (Sheets) Berhasil.
-✅ Token refreshed dari token_doc.json
-✅ Service Dokumen (Sheets + Drive) Berhasil.
-[Scheduler] SP markExpiredSp akan mulai dalam 724 menit (jam 00:05 WIB)
-[Scheduler] SP expiryReminders akan mulai dalam 1199 menit (jam 08:00 WIB)
-[Scheduler] SP weeklySummary akan mulai dalam 163 jam (Senin jam 07:00 WIB)
-Startup bootstrap selesai
-12.02.28 [tsx] change in ./src\modules\dashboard\dashboard.repository.ts Restarting...
-crab-service running on port 8081
-✅ Token refreshed dari token.json
-✅ Service Sparta (Sheets) Berhasil.
-✅ Token refreshed dari token_doc.json
-✅ Service Dokumen (Sheets + Drive) Berhasil.
-[Scheduler] SP markExpiredSp akan mulai dalam 722 menit (jam 00:05 WIB)
-[Scheduler] SP expiryReminders akan mulai dalam 1197 menit (jam 08:00 WIB)
-[Scheduler] SP weeklySummary akan mulai dalam 163 jam (Senin jam 07:00 WIB)
-Startup bootstrap selesai
-12.04.29 [tsx] change in ./src\modules\dashboard\dashboard.repository.ts Restarting...
-crab-service running on port 8081
-✅ Token refreshed dari token.json
-✅ Service Sparta (Sheets) Berhasil.
-✅ Token refreshed dari token_doc.json
-✅ Service Dokumen (Sheets + Drive) Berhasil.
-[Scheduler] SP markExpiredSp akan mulai dalam 720 menit (jam 00:05 WIB)
-[Scheduler] SP expiryReminders akan mulai dalam 1195 menit (jam 08:00 WIB)
-[Scheduler] SP weeklySummary akan mulai dalam 163 jam (Senin jam 07:00 WIB)
-Startup bootstrap selesai
-14.18.59 [tsx] change in ./src\modules\spk\spk.pdf.ts Restarting...
-crab-service running on port 8081
-✅ Token refreshed dari token.json
-✅ Service Sparta (Sheets) Berhasil.
-✅ Token refreshed dari token_doc.json
-✅ Service Dokumen (Sheets + Drive) Berhasil.
-[Scheduler] SP markExpiredSp akan mulai dalam 586 menit (jam 00:05 WIB)
-[Scheduler] SP expiryReminders akan mulai dalam 1061 menit (jam 08:00 WIB)
-[Scheduler] SP weeklySummary akan mulai dalam 161 jam (Senin jam 07:00 WIB)
-Startup bootstrap selesai
-15.36.38 [tsx] change in ./src\app.ts Restarting...
-crab-service running on port 8081
-✅ Token refreshed dari token.json
-✅ Service Sparta (Sheets) Berhasil.
-✅ Token refreshed dari token_doc.json
-✅ Service Dokumen (Sheets + Drive) Berhasil.
-[Scheduler] SP markExpiredSp akan mulai dalam 508 menit (jam 00:05 WIB)
-[Scheduler] SP expiryReminders akan mulai dalam 983 menit (jam 08:00 WIB)
-[Scheduler] SP weeklySummary akan mulai dalam 159 jam (Senin jam 07:00 WIB)
-Startup bootstrap selesai
-15.37.02 [tsx] change in ./src\modules\opname-final\opname-final.service.ts Restarting...
-c15.37.10 [tsx] change in ./src\modules\opname-final\opname-final.controller.ts Restarting...
-crab-service running on port 8081
-✅ Token refreshed dari token.json
-✅ Service Sparta (Sheets) Berhasil.
-✅ Token refreshed dari token_doc.json
-✅ Service Dokumen (Sheets + Drive) Berhasil.
-[Scheduler] SP markExpiredSp akan mulai dalam 508 menit (jam 00:05 WIB)
-[Scheduler] SP expiryReminders akan mulai dalam 983 menit (jam 08:00 WIB)
-[Scheduler] SP weeklySummary akan mulai dalam 159 jam (Senin jam 07:00 WIB)
-Startup bootstrap selesai
-15.40.01 [tsx] change in ./src\modules\rab\rab.service.ts Restarting...
-c15.40.07 [tsx] change in ./src\modules\rab\rab.service.ts Restarting...
-crab-service running on port 8081
-✅ Token refreshed dari token.json
-✅ Service Sparta (Sheets) Berhasil.
-✅ Token refreshed dari token_doc.json
-✅ Service Dokumen (Sheets + Drive) Berhasil.
-15.40.18 [tsx] change in ./src\modules\opname-final\opname-final.service.ts Restarting...
-c15.40.23 [tsx] change in ./src\modules\rab\rab.repository.ts Restarting...
-c15.40.30 [tsx] change in ./src\modules\rab\rab.service.ts Restarting...
-crab-service running on port 8081
-✅ Token refreshed dari token.json
-✅ Service Sparta (Sheets) Berhasil.
-✅ Token refreshed dari token_doc.json
-✅ Service Dokumen (Sheets + Drive) Berhasil.
-[Scheduler] SP markExpiredSp akan mulai dalam 504 menit (jam 00:05 WIB)
-[Scheduler] SP expiryReminders akan mulai dalam 979 menit (jam 08:00 WIB)
-[Scheduler] SP weeklySummary akan mulai dalam 159 jam (Senin jam 07:00 WIB)
-Startup bootstrap selesai
-15.41.26 [tsx] change in ./src\modules\rab\rab.service.ts Restarting...
-crab-service running on port 8081
-✅ Token refreshed dari token.json
-✅ Service Sparta (Sheets) Berhasil.
-✅ Token refreshed dari token_doc.json
-✅ Service Dokumen (Sheets + Drive) Berhasil.
-[Scheduler] SP markExpiredSp akan mulai dalam 503 menit (jam 00:05 WIB)
-[Scheduler] SP expiryReminders akan mulai dalam 978 menit (jam 08:00 WIB)
-[Scheduler] SP weeklySummary akan mulai dalam 159 jam (Senin jam 07:00 WIB)
-Startup bootstrap selesai
-15.44.47 [tsx] change in ./src\modules\opname-final\opname-final.service.ts Restarting...
-crab-service running on port 8081
-✅ Token refreshed dari token.json
-✅ Service Sparta (Sheets) Berhasil.
-✅ Token refreshed dari token_doc.json
-✅ Service Dokumen (Sheets + Drive) Berhasil.
-[Scheduler] SP markExpiredSp akan mulai dalam 500 menit (jam 00:05 WIB)
-[Scheduler] SP expiryReminders akan mulai dalam 975 menit (jam 08:00 WIB)
-[Scheduler] SP weeklySummary akan mulai dalam 159 jam (Senin jam 07:00 WIB)
-Startup bootstrap selesai
-15.46.42 [tsx] change in ./src\modules\rab\rab.service.ts Restarting...
-c15.46.48 [tsx] change in ./src\modules\rab\rab.service.ts Restarting...
-crab-service running on port 8081
-✅ Token refreshed dari token.json
-✅ Service Sparta (Sheets) Berhasil.
-✅ Token refreshed dari token_doc.json
-✅ Service Dokumen (Sheets + Drive) Berhasil.
-[Scheduler] SP markExpiredSp akan mulai dalam 498 menit (jam 00:05 WIB)
-[Scheduler] SP expiryReminders akan mulai dalam 973 menit (jam 08:00 WIB)
-[Scheduler] SP weeklySummary akan mulai dalam 159 jam (Senin jam 07:00 WIB)
-Startup bootstrap selesai
-16.11.13 [tsx] change in ./src\modules\project-planning\project-planning.pdf.ts Restarting...
-crab-service running on port 8081
-✅ Token refreshed dari token.json
-✅ Service Sparta (Sheets) Berhasil.
-✅ Token refreshed dari token_doc.json
-✅ Service Dokumen (Sheets + Drive) Berhasil.
-[Scheduler] SP markExpiredSp akan mulai dalam 473 menit (jam 00:05 WIB)
-[Scheduler] SP expiryReminders akan mulai dalam 948 menit (jam 08:00 WIB)
-[Scheduler] SP weeklySummary akan mulai dalam 159 jam (Senin jam 07:00 WIB)
-Startup bootstrap selesai
-16.21.54 [tsx] change in ./src\app.ts Restarting...
-crab-service running on port 8081
-✅ Token refreshed dari token.json
-✅ Service Sparta (Sheets) Berhasil.
-✅ Token refreshed dari token_doc.json
-✅ Service Dokumen (Sheets + Drive) Berhasil.
-[Scheduler] SP markExpiredSp akan mulai dalam 462 menit (jam 00:05 WIB)
-[Scheduler] SP expiryReminders akan mulai dalam 937 menit (jam 08:00 WIB)
-[Scheduler] SP weeklySummary akan mulai dalam 159 jam (Senin jam 07:00 WIB)
-Startup bootstrap selesai
-17.31.00 [tsx] change in ./src\modules\rab\rab.service.ts Restarting...
-crab-service running on port 8081
-✅ Token refreshed dari token.json
-✅ Service Sparta (Sheets) Berhasil.
-✅ Token refreshed dari token_doc.json
-✅ Service Dokumen (Sheets + Drive) Berhasil.
-[Scheduler] SP markExpiredSp akan mulai dalam 393 menit (jam 00:05 WIB)
-[Scheduler] SP expiryReminders akan mulai dalam 868 menit (jam 08:00 WIB)
-[Scheduler] SP weeklySummary akan mulai dalam 157 jam (Senin jam 07:00 WIB)
-Startup bootstrap selesai
-17.59.20 [tsx] change in ./src\modules\rab\rab.service.ts Restarting...
-c17.59.29 [tsx] change in ./src\modules\rab\rab.service.ts Restarting...
-crab-service running on port 8081
-✅ Token refreshed dari token.json
-✅ Service Sparta (Sheets) Berhasil.
-✅ Token refreshed dari token_doc.json
-✅ Service Dokumen (Sheets + Drive) Berhasil.
-[Scheduler] SP markExpiredSp akan mulai dalam 365 menit (jam 00:05 WIB)
-[Scheduler] SP expiryReminders akan mulai dalam 840 menit (jam 08:00 WIB)
-[Scheduler] SP weeklySummary akan mulai dalam 157 jam (Senin jam 07:00 WIB)
-Startup bootstrap selesai
+[REQ][8cfce7e3-f836-436d-8be6-c46b7e5bec37] GET /api/system-maintenance/status {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[REQ][46b17e42-38ac-467a-a6af-c71fba0766ef] GET /api/system-access-schedule/schedule {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RES][8cfce7e3-f836-436d-8be6-c46b7e5bec37] GET /api/system-maintenance/status { status: 200, duration_ms: 48 }
+[RES][46b17e42-38ac-467a-a6af-c71fba0766ef] GET /api/system-access-schedule/schedule { status: 200, duration_ms: 119 }
+[REQ][09c26c41-ee20-4142-901c-36c493c85e41] GET /api/rab {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RAB LIST] Request from user: {
+  email: 'wzmobileindo@gmail.com',
+  cabang: 'HEAD OFFICE',
+  roles: [ 'KONTRAKTOR' ],
+  query_cabang_before: undefined
+}
+[BRANCH FILTER] User: wzmobileindo@gmail.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[RAB LIST] After injectBranchFilter: { cabang_array: undefined, cabang_array_length: 0 }
+[REQ][132b7e86-dc2f-455c-845e-f6397357906f] GET /api/instruksi-lapangan/list?status=Disetujui {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { status: 'Disetujui' },
+  body: {}
+}
+[BRANCH FILTER] User: wzmobileindo@gmail.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[RAB LIST] Result: { total_documents: 40, unique_branches: [ 'HEAD OFFICE' ] }
+[RES][09c26c41-ee20-4142-901c-36c493c85e41] GET /api/rab { status: 200, duration_ms: 65 }
+[REQ][26e3038c-2894-42c4-bc17-fa89d0f1307b] GET /api/rab {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: {},
+  body: {}
+}
+[RAB LIST] Request from user: {
+  email: 'wzmobileindo@gmail.com',
+  cabang: 'HEAD OFFICE',
+  roles: [ 'KONTRAKTOR' ],
+  query_cabang_before: undefined
+}
+[BRANCH FILTER] User: wzmobileindo@gmail.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[RAB LIST] After injectBranchFilter: { cabang_array: undefined, cabang_array_length: 0 }
+[RAB LIST] Result: { total_documents: 40, unique_branches: [ 'HEAD OFFICE' ] }
+[RES][26e3038c-2894-42c4-bc17-fa89d0f1307b] GET /api/rab { status: 200, duration_ms: 63 }
+[RES][132b7e86-dc2f-455c-845e-f6397357906f] GET /api/instruksi-lapangan/list?status=Disetujui { status: 200, duration_ms: 124 }
+[REQ][39ba98de-ac55-4439-b66a-e85bfb8e0cd7] GET /api/instruksi-lapangan/list?status=Disetujui {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { status: 'Disetujui' },
+  body: {}
+}
+[BRANCH FILTER] User: wzmobileindo@gmail.com Cabang: HEAD OFFICE Source: global Branches: [
+  'ACEH',             'BALARAJA',  'BALI',
+  'BANDUNG',          'BANDUNG 1', 'BANDUNG 2',
+  'BANDUNG RAYA',     'BANGKA',    'BANJARMASIN',
+  'BATAM',            'BEKASI',    'BELITUNG',
+  'BENGKULU',         'BINTAN',    'BOGOR',
+  'CIANJUR',          'CIKOKOL',   'CILACAP',
+  'CILEUNGSI',        'GORONTALO', 'HEAD OFFICE',
+  'JAMBI',            'JEMBER',    'KARAWANG',
+  'KLATEN',           'KOTABUMI',  'LAMPUNG',
+  'LOMBOK',           'LUWU',      'MADIUN',
+  'MAKASSAR',         'MALANG',    'MANADO',
+  'MANOKWARI',        'MEDAN',     'NTT',
+  'PALEMBANG',        'PARUNG',    'PEKANBARU',
+  'PLUMBON',          'PONTIANAK', 'REMBANG',
+  'SEMARANG',         'SERANG',    'SIDOARJO',
+  'SIDOARJO BPN SMD', 'SORONG',    'SUMBAWA',
+  'TEGAL'
+]
+[REQ][99ed84f2-819e-4cab-b743-ea695b42fbee] GET /api/opname?tipe_opname=OPNAME&assigned_to=contractor {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { tipe_opname: 'OPNAME', assigned_to: 'contractor' },
+  body: {}
+}
+[RES][39ba98de-ac55-4439-b66a-e85bfb8e0cd7] GET /api/instruksi-lapangan/list?status=Disetujui { status: 200, duration_ms: 161 }
+[RES][99ed84f2-819e-4cab-b743-ea695b42fbee] GET /api/opname?tipe_opname=OPNAME&assigned_to=contractor { status: 200, duration_ms: 116 }
+[REQ][ebc12f34-a672-4456-819d-3170553bf69b] GET /api/opname?tipe_opname=OPNAME&assigned_to=contractor {
+  ip: '::1',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
+  content_length: '-',
+  params: {},
+  query: { tipe_opname: 'OPNAME', assigned_to: 'contractor' },
+  body: {}
+}
+[RES][ebc12f34-a672-4456-819d-3170553bf69b] GET /api/opname?tipe_opname=OPNAME&assigned_to=contractor { status: 200, duration_ms: 30 }

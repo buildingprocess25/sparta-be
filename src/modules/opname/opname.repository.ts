@@ -697,6 +697,43 @@ export const opnameRepository = {
 
         return Boolean(result.rows[0]?.all_items_filled);
     },
+
+    async checkIfItemsExistInTarget(input: {
+        id_toko: number;
+        id_pengawasan_gantt_target: number;
+        items: CreateBulkOpnameItemData[];
+    }, existingClient?: PoolClient): Promise<boolean> {
+        if (input.items.length === 0) return false;
+        const db = existingClient ?? pool;
+        const result = await db.query<{ exists: boolean }>(
+            `
+            WITH submitted AS (
+                SELECT *
+                FROM jsonb_to_recordset($3::jsonb) AS item(id_rab_item integer, id_instruksi_lapangan_item integer)
+            )
+            SELECT EXISTS (
+                SELECT 1
+                FROM opname_item oi
+                JOIN submitted s ON 
+                  (s.id_rab_item IS NOT NULL AND oi.id_rab_item = s.id_rab_item AND oi.id_instruksi_lapangan_item IS NULL) OR
+                  (s.id_instruksi_lapangan_item IS NOT NULL AND oi.id_instruksi_lapangan_item = s.id_instruksi_lapangan_item AND oi.id_rab_item IS NULL)
+                WHERE oi.id_toko = $1
+                  AND oi.id_pengawasan_gantt_target = $2
+                  AND oi.workflow_version = 'contractor_first'
+            ) AS "exists"
+            `,
+            [
+                input.id_toko,
+                input.id_pengawasan_gantt_target,
+                JSON.stringify(input.items.map((item) => ({
+                    id_rab_item: item.id_rab_item ?? null,
+                    id_instruksi_lapangan_item: item.id_instruksi_lapangan_item ?? null
+                })))
+            ]
+        );
+        return Boolean(result.rows[0]?.exists);
+    },
+
     async findNextUnfilledCheckpoint(input: {
         id_gantt: number;
         after_tanggal_pengawasan: string;
@@ -1011,6 +1048,7 @@ export const opnameRepository = {
         decision: "disetujui" | "ditolak";
         alasan_penolakan_support?: string | null;
         reviewer_email: string;
+        id_pengawasan_gantt_target?: number | null;
     }, existingClient?: PoolClient): Promise<OpnameRow> {
         const db = existingClient ?? pool;
         const existing = await this.findByIdForUpdate(input.id_opname_item, existingClient);
@@ -1025,6 +1063,24 @@ export const opnameRepository = {
             throw new AppError("Alasan penolakan opname wajib diisi", 400);
         }
 
+        let queryArgs: any[] = [
+            input.id_opname_item,
+            input.decision,
+            input.alasan_penolakan_support?.trim() ?? null,
+            input.reviewer_email
+        ];
+        
+        let targetAssignment = "";
+        if (input.id_pengawasan_gantt_target !== undefined) {
+            queryArgs.push(input.id_pengawasan_gantt_target);
+            targetAssignment = `,
+                id_pengawasan_gantt_target = $${queryArgs.length},
+                tanggal_slot_opname = CASE
+                    WHEN $${queryArgs.length}::integer IS NULL THEN tanggal_slot_opname
+                    ELSE (to_date((SELECT pg.tanggal_pengawasan FROM pengawasan_gantt pg WHERE pg.id = $${queryArgs.length}::integer), 'DD/MM/YYYY') - INTERVAL '1 day')::date
+                END`;
+        }
+
         const result = await db.query<OpnameRow>(
             `
             UPDATE opname_item
@@ -1033,17 +1089,13 @@ export const opnameRepository = {
                 reviewed_by_email = $4,
                 reviewed_at = now(),
                 locked_at = CASE WHEN $2::text = 'disetujui' THEN COALESCE(locked_at, now()) ELSE NULL END
+                ${targetAssignment}
             WHERE id = $1
               AND workflow_version = 'contractor_first'
               AND locked_at IS NULL
             RETURNING ${returningColumns}
             `,
-            [
-                input.id_opname_item,
-                input.decision,
-                input.alasan_penolakan_support?.trim() ?? null,
-                input.reviewer_email
-            ]
+            queryArgs
         );
 
         if (!result.rows[0]) throw new AppError("Data opname tidak dapat direview", 409);
@@ -1054,7 +1106,6 @@ export const opnameRepository = {
         id_opname_item: number;
         actor_email: string;
         item: ContractorOpnameRevisionInput & { foto?: string };
-        id_pengawasan_gantt_target?: number | null;
     }, existingClient?: PoolClient): Promise<OpnameRow> {
         const db = existingClient ?? pool;
         const existing = await this.findByIdForUpdate(input.id_opname_item, existingClient);
@@ -1067,6 +1118,11 @@ export const opnameRepository = {
         }
         if (existing.status !== "ditolak") {
             throw new AppError("Hanya item opname yang ditolak support yang dapat direvisi kontraktor.", 409);
+        }
+        const targetPengawasan = await this.findTargetPengawasanForOpnameItem(input.id_opname_item, existingClient);
+        const targetStatus = String(targetPengawasan?.status || "").trim().toLowerCase();
+        if (targetStatus !== "selesai") {
+            throw new AppError("Revisi opname menu hanya berlaku untuk item dengan pengawasan selesai. Revisi progress/terlambat harus diajukan dari Gantt Chart kontraktor.", 409);
         }
 
         const result = await db.query<OpnameRow>(
@@ -1086,7 +1142,6 @@ export const opnameRepository = {
                 submitted_at = now(),
                 reviewed_by_email = NULL,
                 reviewed_at = NULL,
-                id_pengawasan_gantt_target = COALESCE($12::int, id_pengawasan_gantt_target),
                 revision_no = revision_no + 1
             WHERE id = $1
               AND workflow_version = 'contractor_first'
@@ -1105,8 +1160,7 @@ export const opnameRepository = {
                 input.item.spesifikasi,
                 sanitizeFotoValue(input.item.foto),
                 input.item.catatan ?? null,
-                input.actor_email,
-                input.id_pengawasan_gantt_target ?? null
+                input.actor_email
             ]
         );
 
@@ -1238,9 +1292,9 @@ export const opnameRepository = {
         }
 
         if (query.assigned_to === "contractor") {
-            conditions.push(`oi.workflow_version = 'contractor_first' AND oi.status = 'ditolak' AND oi.locked_at IS NULL`);
+            conditions.push(`oi.workflow_version = 'contractor_first' AND oi.status = 'ditolak' AND oi.locked_at IS NULL AND LOWER(TRIM(p.status)) = 'selesai'`);
         } else if (query.assigned_to === "support") {
-            conditions.push(`oi.workflow_version = 'contractor_first' AND oi.status = 'pending' AND oi.locked_at IS NULL`);
+            conditions.push(`oi.workflow_version = 'contractor_first' AND oi.status = 'pending' AND oi.locked_at IS NULL AND LOWER(TRIM(p.status)) = 'selesai'`);
         }
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
@@ -1252,6 +1306,16 @@ export const opnameRepository = {
             LEFT JOIN rab_item ri ON ri.id = oi.id_rab_item
             LEFT JOIN instruksi_lapangan_item ili ON ili.id = oi.id_instruksi_lapangan_item
             LEFT JOIN toko t ON t.id = oi.id_toko
+            LEFT JOIN pengawasan_gantt pg ON pg.id = oi.id_pengawasan_gantt_target
+            LEFT JOIN LATERAL (
+                SELECT p.status
+                FROM pengawasan p
+                WHERE p.id_pengawasan_gantt = oi.id_pengawasan_gantt_target
+                  AND UPPER(TRIM(REPLACE(COALESCE(p.kategori_pekerjaan, ''), '[IL] ', ''))) = UPPER(TRIM(COALESCE(ri.kategori_pekerjaan, ili.kategori_pekerjaan, '')))
+                  AND UPPER(TRIM(COALESCE(p.jenis_pekerjaan, ''))) = UPPER(TRIM(COALESCE(ri.jenis_pekerjaan, ili.jenis_pekerjaan, '')))
+                ORDER BY p.id DESC
+                LIMIT 1
+            ) p ON true
             ${whereClause}
             ORDER BY oi.id DESC
             `,

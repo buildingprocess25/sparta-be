@@ -460,15 +460,28 @@ export const opnameService = {
                 let routedTo: "target_checkpoint" | "next_checkpoint" | "serah_terima" = "target_checkpoint";
 
                 if (await opnameRepository.areSubmittedItemsFilledInCheckpoint({ id_pengawasan_gantt: checkpoint.id, items: input.items }, client)) {
-                    const next = await opnameRepository.findNextNearestCheckpoint({
-                        id_gantt: checkpoint.id_gantt,
-                        after_tanggal_pengawasan: checkpoint.tanggal_pengawasan,
+                    // Check if this is a revision of an existing opname (e.g. one that was rejected)
+                    const hasRevision = await opnameRepository.checkIfItemsExistInTarget({
+                        id_toko: input.id_toko,
+                        id_pengawasan_gantt_target: checkpoint.id,
+                        items: input.items
                     }, client);
-                    if (next) {
-                        targetId = next.id;
-                        routedTo = "next_checkpoint";
+
+                    if (hasRevision) {
+                        // If it's a revision, do NOT shift it to the next checkpoint!
+                        targetId = checkpoint.id;
+                        routedTo = "target_checkpoint";
                     } else {
-                        routedTo = "serah_terima";
+                        const next = await opnameRepository.findNextNearestCheckpoint({
+                            id_gantt: checkpoint.id_gantt,
+                            after_tanggal_pengawasan: checkpoint.tanggal_pengawasan,
+                        }, client);
+                        if (next) {
+                            targetId = next.id;
+                            routedTo = "next_checkpoint";
+                        } else {
+                            routedTo = "serah_terima";
+                        }
                     }
                 }
 
@@ -530,11 +543,25 @@ export const opnameService = {
             return await withTransaction(async (client) => {
                 const existing = await opnameRepository.findByIdForUpdate(parsedId, client);
                 if (!existing) throw new AppError("Data opname tidak ditemukan", 404);
+                let revisionTargetCheckpointId: number | undefined = undefined;
+                if (input.decision === "ditolak") {
+                    const targetPengawasan = await opnameRepository.findTargetPengawasanForOpnameItem(parsedId, client);
+                    const targetStatus = String(targetPengawasan?.status || "").trim().toLowerCase();
+                    if (targetPengawasan?.id_gantt && targetPengawasan?.tanggal_pengawasan && targetStatus && targetStatus !== "selesai") {
+                        const nextCheckpoint = await opnameRepository.findNextNearestCheckpoint({
+                            id_gantt: targetPengawasan.id_gantt,
+                            after_tanggal_pengawasan: targetPengawasan.tanggal_pengawasan,
+                        }, client);
+                        revisionTargetCheckpointId = nextCheckpoint?.id ?? undefined;
+                    }
+                }
+
                 const updated = await opnameRepository.updateSupportReview({
                     id_opname_item: parsedId,
                     decision: input.decision,
                     alasan_penolakan_support: input.alasan_penolakan_support,
                     reviewer_email: reviewerEmail,
+                    id_pengawasan_gantt_target: revisionTargetCheckpointId,
                 }, client);
                 await opnameRepository.insertRevisionHistory({
                     id_opname_item: updated.id,
@@ -572,22 +599,10 @@ export const opnameService = {
                     ? await uploadFotoOpnameToDrive(existing.id_toko, uploadedFotoOpname)
                     : undefined;
 
-                let revisionTargetCheckpointId: number | null = null;
-                const targetPengawasan = await opnameRepository.findTargetPengawasanForOpnameItem(parsedId, client);
-                const targetStatus = String(targetPengawasan?.status || "").trim().toLowerCase();
-                if (targetPengawasan?.id_gantt && targetPengawasan?.tanggal_pengawasan && targetStatus && targetStatus !== "selesai") {
-                    const nextCheckpoint = await opnameRepository.findNextNearestCheckpoint({
-                        id_gantt: targetPengawasan.id_gantt,
-                        after_tanggal_pengawasan: targetPengawasan.tanggal_pengawasan,
-                    }, client);
-                    revisionTargetCheckpointId = nextCheckpoint?.id ?? null;
-                }
-
                 const updated = await opnameRepository.updateContractorRevision({
                     id_opname_item: parsedId,
                     actor_email: submitterEmail,
                     item: fotoLink ? { ...input, foto: fotoLink } : input,
-                    id_pengawasan_gantt_target: revisionTargetCheckpointId,
                 }, client);
                 await opnameRepository.insertRevisionHistory({
                     id_opname_item: updated.id,
