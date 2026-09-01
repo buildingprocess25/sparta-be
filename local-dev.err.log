@@ -625,3 +625,239 @@ Node.js v22.19.0
   line: '958',
   routine: 'infer_arbiter_indexes'
 }
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+Error: Transform failed with 1 error:
+C:\alfamart\SPARTA\sparta-be\src\modules\dokumentasi\dokumentasi.repository.ts:331:109: ERROR: Expected ")" but found "r"
+    at failureErrorWithLog (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:1467:15)
+    at C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:736:50
+    at responseCallbacks.<computed> (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:603:9)
+    at handleIncomingPacket (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:658:12)
+    at Socket.readFromStdout (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:581:7)
+    at Socket.emit (node:events:519:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23) {
+  name: 'TransformError'
+}
+
+Node.js v22.19.0
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+Error: Transform failed with 1 error:
+C:\alfamart\SPARTA\sparta-be\src\modules\dokumentasi\dokumentasi.repository.ts:337:109: ERROR: Expected ")" but found "r"
+    at failureErrorWithLog (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:1467:15)
+    at C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:736:50
+    at responseCallbacks.<computed> (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:603:9)
+    at handleIncomingPacket (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:658:12)
+    at Socket.readFromStdout (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:581:7)
+    at Socket.emit (node:events:519:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23) {
+  name: 'TransformError'
+}
+
+Node.js v22.19.0
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+Error: Transform failed with 1 error:
+C:\alfamart\SPARTA\sparta-be\src\modules\dokumentasi\dokumentasi.repository.ts:337:109: ERROR: Expected ")" but found "r"
+    at failureErrorWithLog (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:1467:15)
+    at C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:736:50
+    at responseCallbacks.<computed> (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:603:9)
+    at handleIncomingPacket (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:658:12)
+    at Socket.readFromStdout (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:581:7)
+    at Socket.emit (node:events:519:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23) {
+  name: 'TransformError'
+}
+
+Node.js v22.19.0
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+Error: Transform failed with 1 error:
+C:\alfamart\SPARTA\sparta-be\src\modules\dokumentasi\dokumentasi.routes.ts:5:30: ERROR: Expected identifier but found "`r`"
+    at failureErrorWithLog (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:1467:15)
+    at C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:736:50
+    at responseCallbacks.<computed> (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:603:9)
+    at handleIncomingPacket (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:658:12)
+    at Socket.readFromStdout (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:581:7)
+    at Socket.emit (node:events:519:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23) {
+  name: 'TransformError'
+}
+
+Node.js v22.19.0
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+Error: Transform failed with 1 error:
+C:\alfamart\SPARTA\sparta-be\src\modules\dokumentasi\dokumentasi.repository.ts:337:109: ERROR: Expected ")" but found "r"
+    at failureErrorWithLog (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:1467:15)
+    at C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:736:50
+    at responseCallbacks.<computed> (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:603:9)
+    at handleIncomingPacket (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:658:12)
+    at Socket.readFromStdout (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:581:7)
+    at Socket.emit (node:events:519:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23) {
+  name: 'TransformError'
+}
+
+Node.js v22.19.0
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+Error: Transform failed with 1 error:
+C:\alfamart\SPARTA\sparta-be\src\modules\dokumentasi\dokumentasi.repository.ts:337:109: ERROR: Expected ")" but found "r"
+    at failureErrorWithLog (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:1467:15)
+    at C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:736:50
+    at responseCallbacks.<computed> (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:603:9)
+    at handleIncomingPacket (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:658:12)
+    at Socket.readFromStdout (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:581:7)
+    at Socket.emit (node:events:519:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23) {
+  name: 'TransformError'
+}
+
+Node.js v22.19.0
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+Error: Transform failed with 1 error:
+C:\alfamart\SPARTA\sparta-be\src\modules\dokumentasi\dokumentasi.repository.ts:337:109: ERROR: Expected ")" but found "r"
+    at failureErrorWithLog (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:1467:15)
+    at C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:736:50
+    at responseCallbacks.<computed> (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:603:9)
+    at handleIncomingPacket (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:658:12)
+    at Socket.readFromStdout (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:581:7)
+    at Socket.emit (node:events:519:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23) {
+  name: 'TransformError'
+}
+
+Node.js v22.19.0
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+Error: Transform failed with 1 error:
+C:\alfamart\SPARTA\sparta-be\src\modules\dokumentasi\dokumentasi.repository.ts:337:109: ERROR: Expected ")" but found "r"
+    at failureErrorWithLog (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:1467:15)
+    at C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:736:50
+    at responseCallbacks.<computed> (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:603:9)
+    at handleIncomingPacket (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:658:12)
+    at Socket.readFromStdout (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:581:7)
+    at Socket.emit (node:events:519:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23) {
+  name: 'TransformError'
+}
+
+Node.js v22.19.0
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+Error: Transform failed with 1 error:
+C:\alfamart\SPARTA\sparta-be\src\modules\dokumentasi\dokumentasi.repository.ts:337:109: ERROR: Expected ")" but found "r"
+    at failureErrorWithLog (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:1467:15)
+    at C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:736:50
+    at responseCallbacks.<computed> (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:603:9)
+    at handleIncomingPacket (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:658:12)
+    at Socket.readFromStdout (C:\alfamart\SPARTA\sparta-be\node_modules\esbuild\lib\main.js:581:7)
+    at Socket.emit (node:events:519:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23) {
+  name: 'TransformError'
+}
+
+Node.js v22.19.0
+[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[PENGAWASAN FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[DOKUMENTASI FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[DOKUMENTASI FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users
+[GANTT FILTER] NO BRANCH FILTER! This should not happen for non-global users
+node:events:497
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::8081
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at Function.listen (C:\alfamart\SPARTA\sparta-be\node_modules\express\lib\application.js:635:24)
+    at <anonymous> (C:\alfamart\SPARTA\sparta-be\src\index.ts:117:5)
+    at Object.<anonymous> (C:\alfamart\SPARTA\sparta-be\src\index.ts:127:2)
+    at Module._compile (node:internal/modules/cjs/loader:1706:14)
+    at Object.transformer (C:\alfamart\SPARTA\sparta-be\node_modules\tsx\dist\register-D46fvsV_.cjs:3:1104)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 8081
+}
+
+Node.js v22.19.0
