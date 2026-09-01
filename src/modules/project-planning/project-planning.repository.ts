@@ -365,9 +365,13 @@ export const projekPlanningRepository = {
             values.push(filter.nomor_ulok);
             conditions.push(`nomor_ulok = $${values.length}`);
         }
+        if (filter.cabang_array && filter.cabang_array.length > 0) {
+            values.push(filter.cabang_array.map((item) => item.trim().replace(/_+/g, " ").replace(/\s+/g, " ").toUpperCase()));
+            conditions.push(`UPPER(TRIM(REPLACE(cabang, '_', ' '))) = ANY($${values.length}::text[])`);
+        }
         if (filter.cabang) {
             values.push(getBranchScopeCandidates(filter.cabang));
-            conditions.push(`UPPER(TRIM(cabang)) = ANY($${values.length}::text[])`);
+            conditions.push(`UPPER(TRIM(REPLACE(cabang, '_', ' '))) = ANY($${values.length}::text[])`);
         }
         if (filter.email_pembuat) {
             values.push(filter.email_pembuat);
@@ -471,15 +475,18 @@ export const projekPlanningRepository = {
         return result.rows[0]?.exists ?? false;
     },
 
-    async countByStatuses(statuses: PpStatus[], cabang?: string): Promise<number> {
+    async countByStatuses(statuses: PpStatus[], cabang?: string, cabangArray?: string[]): Promise<number> {
         if (statuses.length === 0) return 0;
 
         const values: unknown[] = [statuses];
         const conditions = [`status = ANY($1::text[])`];
 
-        if (cabang && cabang.toUpperCase() !== "HEAD OFFICE") {
+        if (cabangArray && cabangArray.length > 0) {
+            values.push(cabangArray.map((item) => item.trim().replace(/_+/g, " ").replace(/\s+/g, " ").toUpperCase()));
+            conditions.push(`UPPER(TRIM(REPLACE(cabang, '_', ' '))) = ANY($${values.length}::text[])`);
+        } else if (cabang && cabang.toUpperCase() !== "HEAD OFFICE") {
             values.push(getBranchScopeCandidates(cabang));
-            conditions.push(`UPPER(TRIM(cabang)) = ANY($${values.length}::text[])`);
+            conditions.push(`UPPER(TRIM(REPLACE(cabang, '_', ' '))) = ANY($${values.length}::text[])`);
         }
 
         const result = await pool.query<{ count: string }>(
@@ -492,16 +499,19 @@ export const projekPlanningRepository = {
         return Number(result.rows[0]?.count ?? 0);
     },
 
-    async countCoordinatorTasks(cabang?: string, email?: string): Promise<number> {
+    async countCoordinatorTasks(cabang?: string, email?: string, cabangArray?: string[]): Promise<number> {
         const values: unknown[] = [[
             "DRAFT",
             "WAITING_RAB_UPLOAD",
         ]];
         const conditions = [`status = ANY($1::text[])`];
 
-        if (cabang && cabang.toUpperCase() !== "HEAD OFFICE") {
+        if (cabangArray && cabangArray.length > 0) {
+            values.push(cabangArray.map((item) => item.trim().replace(/_+/g, " ").replace(/\s+/g, " ").toUpperCase()));
+            conditions.push(`UPPER(TRIM(REPLACE(cabang, '_', ' '))) = ANY($${values.length}::text[])`);
+        } else if (cabang && cabang.toUpperCase() !== "HEAD OFFICE") {
             values.push(getBranchScopeCandidates(cabang));
-            conditions.push(`UPPER(TRIM(cabang)) = ANY($${values.length}::text[])`);
+            conditions.push(`UPPER(TRIM(REPLACE(cabang, '_', ' '))) = ANY($${values.length}::text[])`);
         }
 
         if (email) {

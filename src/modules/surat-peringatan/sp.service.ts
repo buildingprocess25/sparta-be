@@ -6,7 +6,7 @@ import { spRepository } from "./sp.repository";
 import type { CreateDendaActionInput, ListDendaActionsQuery, RejectDendaActionInput } from "./sp.schema";
 
 import { PDFDocument } from "pdf-lib";
-import { getBranchScopeCandidates } from "../../common/branch-scope";
+import { getBranchScopeCandidates, getEffectiveBranchesForUser, normalizeBranchScopeName } from "../../common/branch-scope";
 // Threshold for Takeover action (in days of denda)
 export const DENDA_ACTION_THRESHOLD_DAYS = 8;
 
@@ -67,6 +67,45 @@ const companyMatches = (left?: string | null, right?: string | null): boolean =>
 
 const isContractorUser = (user?: AuthenticatedUser | null): boolean =>
     userRolesText(user).includes("KONTRAKTOR");
+
+const assertActorCanAccessBranch = async (
+    actor: AuthenticatedUser | null | undefined,
+    branch: string | null | undefined,
+    actionLabel = "Surat Peringatan"
+) => {
+    if (!actor) throw new AppError("User tidak terautentikasi", 401);
+
+    const normalizedBranch = normalizeBranchScopeName(branch);
+    if (!normalizedBranch) return;
+
+    const scope = await getEffectiveBranchesForUser({
+        emailSat: actor.email_sat,
+        cabang: actor.cabang,
+        roles: actor.roles,
+    });
+
+    if (scope.source === "global") return;
+    if (scope.branches.map(normalizeBranchScopeName).includes(normalizedBranch)) return;
+
+    throw new AppError(`Anda tidak memiliki akses ke cabang ${actionLabel} ini.`, 403);
+};
+
+const resolveContractorNameForActor = (
+    requestedName: string | null | undefined,
+    actor: AuthenticatedUser | null | undefined
+): string => {
+    if (isContractorUser(actor)) {
+        const actorCompany = actor?.nama_pt?.trim();
+        if (!actorCompany) {
+            throw new AppError("Nama PT kontraktor belum terdaftar pada user ini.", 403);
+        }
+        return actorCompany;
+    }
+
+    const requested = requestedName?.trim();
+    if (!requested) throw new AppError("Parameter nama_kontraktor wajib diisi", 400);
+    return requested;
+};
 
 const resolveFileExtension = (file: UploadedDendaActionAttachment): string => {
     const rawName = file.originalname ?? "";
@@ -486,6 +525,10 @@ export const spService = {
             }
         }
 
+        if (target?.cabang) {
+            await assertActorCanAccessBranch(input.actor, target.cabang, input.action_type === "SP" ? "target SP" : "target Takeover");
+        }
+
         if (input.action_type === "TAKEOVER" && target && target.hari_denda < DENDA_ACTION_THRESHOLD_DAYS) {
             throw new AppError(
                 `Takeover hanya dapat diajukan mulai ${DENDA_ACTION_THRESHOLD_DAYS} hari denda.`,
@@ -599,6 +642,8 @@ export const spService = {
             throw new AppError("Pengajuan ini sudah diproses manager.", 409);
         }
 
+        await assertActorCanAccessBranch(input.actor, current.cabang, "pengajuan SP/Takeover");
+
         let linkPdf: string | null = null;
         let nomorSurat: string | null = null;
 
@@ -655,6 +700,9 @@ export const spService = {
         if (!canApproveDendaAction(input.actor) && !canSubmitDendaAction(input.actor) && !contractorOwnsSp) {
             throw new AppError("Hanya manager, koordinator, atau kontraktor terkait yang dapat me-regenerate PDF SP.", 403);
         }
+        if (!contractorOwnsSp) {
+            await assertActorCanAccessBranch(input.actor, current.cabang, "SP");
+        }
         if (current.status === "REJECTED_BY_MANAGER" || current.status === "EXPIRED") {
             throw new AppError("SP ditolak atau sudah tidak valid.", 400);
         }
@@ -686,11 +734,15 @@ export const spService = {
         return updated;
     },
 
-    async getDendaActionHistory(id: number) {
+    async getDendaActionHistory(id: number, actor?: AuthenticatedUser | null) {
         await spRepository.ensureSchema();
         const action = await spRepository.findActionById(id);
         if (!action) throw new AppError("Pengajuan SP/Takeover tidak ditemukan.", 404);
-        
+        const contractorOwnsSp = action.action_type === "SP" && isContractorUser(actor) && companyMatches(action.nama_kontraktor, actor?.nama_pt);
+        if (!contractorOwnsSp) {
+            await assertActorCanAccessBranch(actor, action.cabang, "pengajuan SP/Takeover");
+        }
+
         return spRepository.getActionHistory(id);
     },
 
@@ -705,6 +757,8 @@ export const spService = {
         if (current.status !== "WAITING_MANAGER") {
             throw new AppError("Pengajuan ini sudah diproses manager.", 409);
         }
+
+        await assertActorCanAccessBranch(input.actor, current.cabang, "pengajuan SP/Takeover");
 
         const updated = await spRepository.rejectAction({
             id: input.id,
@@ -864,23 +918,25 @@ export const spService = {
     // KONTRAKTOR METHODS
     // ===================================================================
 
-    async listKontraktorSp(namaKontraktor: string) {
+    async listKontraktorSp(input: { namaKontraktor?: string | null; actor?: AuthenticatedUser | null }) {
         await spRepository.ensureSchema();
+        const namaKontraktor = resolveContractorNameForActor(input.namaKontraktor, input.actor);
         const actions = await spRepository.listKontraktorActions(namaKontraktor);
         const stats = await spRepository.getKontraktorStats(namaKontraktor);
         return { actions, stats };
     },
 
-    async getKontraktorSpDetail(input: { id: number; namaKontraktor: string; autoMarkAsViewed?: boolean }) {
+    async getKontraktorSpDetail(input: { id: number; namaKontraktor?: string | null; actor?: AuthenticatedUser | null; autoMarkAsViewed?: boolean }) {
         await spRepository.ensureSchema();
-        const action = await spRepository.findActionByIdAndKontraktor(input.id, input.namaKontraktor);
+        const namaKontraktor = resolveContractorNameForActor(input.namaKontraktor, input.actor);
+        const action = await spRepository.findActionByIdAndKontraktor(input.id, namaKontraktor);
         if (!action) {
             throw new AppError("Surat Peringatan tidak ditemukan atau tidak untuk kontraktor ini.", 404);
         }
 
         // Auto-mark as viewed if first time opening
         if (input.autoMarkAsViewed && action.status === 'SENT_TO_CONTRACTOR') {
-            const updated = await spRepository.markAsViewedByKontraktor(input.id);
+            const updated = await spRepository.markAsViewedByKontraktor(input.id, namaKontraktor);
             return updated || action;
         }
 
@@ -889,14 +945,15 @@ export const spService = {
 
     async acknowledgeKontraktorSp(input: {
         id: number;
-        namaKontraktor: string;
+        namaKontraktor?: string | null;
         catatan?: string;
         actor?: AuthenticatedUser | null;
     }) {
         await spRepository.ensureSchema();
+        const namaKontraktor = resolveContractorNameForActor(input.namaKontraktor, input.actor);
         
         // Verify SP exists and belongs to this kontraktor
-        const action = await spRepository.findActionByIdAndKontraktor(input.id, input.namaKontraktor);
+        const action = await spRepository.findActionByIdAndKontraktor(input.id, namaKontraktor);
         if (!action) {
             throw new AppError("Surat Peringatan tidak ditemukan atau tidak untuk kontraktor ini.", 404);
         }
@@ -916,7 +973,7 @@ export const spService = {
 
         const updated = await spRepository.acknowledgeAction({
             id: input.id,
-            namaKontraktor: input.namaKontraktor,
+            namaKontraktor,
             catatanAcknowledge: input.catatan,
             actor_email: actorEmail(input.actor),
             actor_role: actorRole(input.actor) || 'KONTRAKTOR',

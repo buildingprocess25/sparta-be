@@ -44,7 +44,7 @@ export const listDendaActionCandidates = asyncHandler(async (req: Request, res: 
 
 export const getDendaActionHistory = asyncHandler(async (req: Request, res: Response) => {
     const { id } = dendaActionIdParamsSchema.parse(req.params);
-    const data = await spService.getDendaActionHistory(id);
+    const data = await spService.getDendaActionHistory(id, req.user);
 
     res.json({
         status: "success",
@@ -60,9 +60,11 @@ export const listDendaActions = asyncHandler(async (req: Request, res: Response)
     const isContractor = req.user.roles.some((role) => role === "KONTRAKTOR" || role.includes("DIREKTUR KONTRAKTOR"));
     let query = listDendaActionsQuerySchema.parse(req.query);
 
-    if (isContractor && query.action_type === "SP") {
-        const data = req.user.nama_pt
-            ? await spService.listActionsForKontraktor(req.user.nama_pt)
+    if (isContractor) {
+        const data = !query.action_type || query.action_type === "SP"
+            ? req.user.nama_pt
+                ? await spService.listActionsForKontraktor(req.user.nama_pt)
+                : []
             : [];
 
         res.json({
@@ -274,12 +276,8 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
 // ===================================================================
 
 export const listKontraktorSp = asyncHandler(async (req: Request, res: Response) => {
-    const namaKontraktor = req.query.nama_kontraktor as string;
-    if (!namaKontraktor) {
-        throw new AppError("Parameter nama_kontraktor wajib diisi", 400);
-    }
-
-    const data = await spService.listKontraktorSp(namaKontraktor);
+    const namaKontraktor = req.query.nama_kontraktor as string | undefined;
+    const data = await spService.listKontraktorSp({ namaKontraktor, actor: req.user });
 
     res.json({
         status: "success",
@@ -289,15 +287,12 @@ export const listKontraktorSp = asyncHandler(async (req: Request, res: Response)
 
 export const getKontraktorSpDetail = asyncHandler(async (req: Request, res: Response) => {
     const { id } = dendaActionIdParamsSchema.parse(req.params);
-    const namaKontraktor = req.query.nama_kontraktor as string;
-    
-    if (!namaKontraktor) {
-        throw new AppError("Parameter nama_kontraktor wajib diisi", 400);
-    }
+    const namaKontraktor = req.query.nama_kontraktor as string | undefined;
 
     const data = await spService.getKontraktorSpDetail({
         id,
         namaKontraktor,
+        actor: req.user,
         autoMarkAsViewed: true, // Auto-track view
     });
 
@@ -309,12 +304,7 @@ export const getKontraktorSpDetail = asyncHandler(async (req: Request, res: Resp
 
 export const acknowledgeKontraktorSp = asyncHandler(async (req: Request, res: Response) => {
     const { id } = dendaActionIdParamsSchema.parse(req.params);
-    const namaKontraktor = req.query.nama_kontraktor as string;
-    
-    if (!namaKontraktor) {
-        throw new AppError("Parameter nama_kontraktor wajib diisi", 400);
-    }
-
+    const namaKontraktor = req.query.nama_kontraktor as string | undefined;
     const { catatan_acknowledge } = req.body;
 
     const data = await spService.acknowledgeKontraktorSp({

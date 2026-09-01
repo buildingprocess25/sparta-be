@@ -1,5 +1,8 @@
 import type { Request, Response } from "express";
 import { asyncHandler } from "../../common/async-handler";
+import { AppError } from "../../common/app-error";
+import { injectBranchFilter } from "../../common/branch-filter-helper";
+import { getApprovalBranchesForUser, getEffectiveBranchesForUser, normalizeBranchScopeName } from "../../common/branch-scope";
 import {
     submitProjekPlanningSchema,
     resubmitProjekPlanningSchema,
@@ -39,6 +42,82 @@ async function fetchPublicDriveBuffer(fileId: string): Promise<Buffer | null> {
 }
 
 // ============================================================
+const normalizeRole = (role: unknown) => String(role ?? "").trim().toUpperCase();
+const roleIncludes = (roles: string[] | undefined, ...keywords: string[]) =>
+    (roles ?? []).some((role) => keywords.some((keyword) => normalizeRole(role).includes(keyword)));
+
+const isSuperHuman = (roles: string[] | undefined) => roleIncludes(roles, "SUPER HUMAN");
+const isCoordinatorRole = (roles: string[] | undefined) => roleIncludes(roles, "BRANCH BUILDING COORDINATOR", "KOORDINATOR");
+const isBmRole = (roles: string[] | undefined) => roleIncludes(roles, "BRANCH BUILDING & MAINTENANCE MANAGER", "MAINTENANCE MANAGER", "BRANCH MANAGER", "BBMM");
+const isBmRegionalRole = (roles: string[] | undefined) => roleIncludes(roles, "BUILDING & MAINTENANCE REGIONAL MANAGER", "B&M REGIONAL", "REGIONAL MANAGER");
+const isPpSpecialistRole = (roles: string[] | undefined) => roleIncludes(roles, "PROJECT PLANNING & DEVELOPMENT SPECIALIST", "PP SPECIALIST") || ((roles ?? []).some((role) => normalizeRole(role).includes("PROJECT PLANNING") && !normalizeRole(role).includes("MANAGER")));
+const isPpManagerRole = (roles: string[] | undefined) => roleIncludes(roles, "PROJECT PLANNING & DEVELOPMENT MANAGER", "PROJECT PLANNING MANAGER", "PP MANAGER");
+const isHeadOfficeRole = (roles: string[] | undefined) => (roles ?? []).map(normalizeRole).includes("HEAD OFFICE");
+const BRANCHES_WITH_COORDINATOR_BM_APPROVAL = ["BATAM"];
+const canCoordinatorApproveBmForBranch = (branch?: string | null) =>
+    BRANCHES_WITH_COORDINATOR_BM_APPROVAL.includes(normalizeBranchScopeName(branch));
+
+const hasProjectPlanningRole = (roles: string[] | undefined) =>
+    isSuperHuman(roles) || isHeadOfficeRole(roles) || isCoordinatorRole(roles) || isBmRole(roles) || isBmRegionalRole(roles) || isPpSpecialistRole(roles) || isPpManagerRole(roles);
+
+function requireUser(req: Request) {
+    if (!req.user) throw new AppError("Sesi tidak valid. Silakan login kembali.", 401);
+    return req.user;
+}
+
+function assertProjectPlanningRole(req: Request) {
+    const user = requireUser(req);
+    if (!hasProjectPlanningRole(user.roles)) {
+        throw new AppError("Anda tidak memiliki akses ke Project Planning.", 403);
+    }
+    return user;
+}
+
+async function assertProjectPlanningBranchAccess(req: Request, cabang: string | null | undefined, forApproval = false) {
+    const user = assertProjectPlanningRole(req);
+    const normalizedCabang = normalizeBranchScopeName(cabang);
+    if (!normalizedCabang) throw new AppError("Cabang Project Planning belum terisi sehingga akses tidak bisa divalidasi.", 403);
+
+    const scope = forApproval
+        ? await getApprovalBranchesForUser({ emailSat: user.email_sat, cabang: user.cabang, roles: user.roles })
+        : await getEffectiveBranchesForUser({ emailSat: user.email_sat, cabang: user.cabang, roles: user.roles });
+
+    if (scope.source === "global" || scope.source === "superhuman") return user;
+
+    const allowedBranches = scope.branches.map(normalizeBranchScopeName);
+    if (!allowedBranches.includes(normalizedCabang)) {
+        throw new AppError("Anda tidak memiliki akses ke cabang Project Planning ini.", 403);
+    }
+
+    return user;
+}
+
+async function assertBmApprovalAccess(req: Request, id: number) {
+    const user = assertProjectPlanningRole(req);
+    const data = await projekPlanningService.getById(id);
+    await assertProjectPlanningBranchAccess(req, data.projek.cabang, true);
+
+    const canApproveAsCoordinator = isCoordinatorRole(user.roles) && canCoordinatorApproveBmForBranch(data.projek.cabang);
+    if (!isSuperHuman(user.roles) && !isBmRole(user.roles) && !canApproveAsCoordinator) {
+        throw new AppError("Role Anda tidak memiliki akses untuk approval B&M Project Planning ini.", 403);
+    }
+
+    return user;
+}
+async function assertProjectPlanningActionAccess(req: Request, id: number, isAllowedRole: (roles: string[] | undefined) => boolean) {
+    const user = assertProjectPlanningRole(req);
+    if (!isSuperHuman(user.roles) && !isAllowedRole(user.roles)) {
+        throw new AppError("Role Anda tidak memiliki akses untuk aksi Project Planning ini.", 403);
+    }
+
+    const data = await projekPlanningService.getById(id);
+    await assertProjectPlanningBranchAccess(req, data.projek.cabang, true);
+    return user;
+}
+
+function isCoordinatorOnly(roles: string[] | undefined) {
+    return isCoordinatorRole(roles) && !isBmRole(roles) && !isBmRegionalRole(roles) && !isPpSpecialistRole(roles) && !isPpManagerRole(roles) && !isSuperHuman(roles);
+}
 // SUBMIT FPD (Coordinator) — record baru
 // ============================================================
 
@@ -49,6 +128,11 @@ export const submitProjekPlanning = asyncHandler(async (req: Request, res: Respo
     if (typeof payloadStr.fasilitas === "string") payloadStr.fasilitas = JSON.parse(payloadStr.fasilitas);
 
     const payload = submitProjekPlanningSchema.parse(payloadStr);
+    await assertProjectPlanningBranchAccess(req, payload.cabang, true);
+    const user = requireUser(req);
+    if (!isSuperHuman(user.roles) && !isCoordinatorRole(user.roles)) {
+        throw new AppError("Role Anda tidak memiliki akses untuk membuat FPD Project Planning.", 403);
+    }
     const files = req.files as Express.Multer.File[] | undefined;
     const result = await projekPlanningService.submit(payload, files);
 
@@ -76,6 +160,7 @@ export const resubmitProjekPlanning = asyncHandler(async (req: Request, res: Res
     if (typeof payloadStr.fasilitas === "string") payloadStr.fasilitas = JSON.parse(payloadStr.fasilitas);
 
     const payload = resubmitProjekPlanningSchema.parse(payloadStr);
+    await assertProjectPlanningActionAccess(req, id, isCoordinatorRole);
     const files = req.files as Express.Multer.File[] | undefined;
     const result = await projekPlanningService.resubmit(id, payload, files);
 
@@ -91,22 +176,25 @@ export const resubmitProjekPlanning = asyncHandler(async (req: Request, res: Res
 // ============================================================
 
 export const listProjekPlanning = asyncHandler(async (req: Request, res: Response) => {
-    const query = listProjekPlanningQuerySchema.parse(req.query);
+    const user = assertProjectPlanningRole(req);
+    let query = listProjekPlanningQuerySchema.parse(req.query);
+    query = await injectBranchFilter(user, query);
+    if (isCoordinatorOnly(user.roles)) {
+        query.email_pembuat = user.email_sat;
+    }
     const data = await projekPlanningService.list(query);
 
     res.json({ status: "success", data });
 });
 
 export const getProjekPlanningTaskCounts = asyncHandler(async (req: Request, res: Response) => {
-    const roles = String(req.query.roles || "")
-        .split(",")
-        .map((role) => role.trim())
-        .filter(Boolean);
-
+    const user = assertProjectPlanningRole(req);
+    const scoped = await injectBranchFilter(user, {} as { cabang_array?: string[]; _is_global_access?: boolean });
     const data = await projekPlanningService.getTaskCounts({
-        roles,
-        cabang: req.query.cabang ? String(req.query.cabang) : undefined,
-        email: req.query.email ? String(req.query.email) : undefined,
+        roles: user.roles,
+        cabang: user.cabang,
+        email: user.email_sat,
+        cabang_array: scoped.cabang_array,
     });
 
     res.json({ status: "success", data });
@@ -141,6 +229,7 @@ export const getProjekPlanningById = asyncHandler(async (req: Request, res: Resp
     }
 
     const data = await projekPlanningService.getById(id);
+    await assertProjectPlanningBranchAccess(req, data.projek.cabang);
     res.json({ status: "success", data });
 });
 
@@ -149,6 +238,11 @@ export const handleProjekPlanningIntervention = asyncHandler(async (req: Request
     if (isNaN(id)) {
         res.status(400).json({ status: "error", message: "ID tidak valid" });
         return;
+    }
+
+    const user = assertProjectPlanningRole(req);
+    if (!isSuperHuman(user.roles)) {
+        throw new AppError("Hanya Super Human yang dapat melakukan intervensi Project Planning.", 403);
     }
 
     const action = projekPlanningInterventionSchema.parse(req.body);
@@ -172,6 +266,7 @@ export const handleBmApproval = asyncHandler(async (req: Request, res: Response)
         return;
     }
 
+    await assertBmApprovalAccess(req, id);
     const action = approvalSchema.parse(req.body);
     const result = await projekPlanningService.bmApproval(id, action);
 
@@ -193,6 +288,7 @@ export const handleBmRegionalApproval = asyncHandler(async (req: Request, res: R
         return;
     }
 
+    await assertProjectPlanningActionAccess(req, id, isBmRegionalRole);
     const action = finalReviewSchema.parse(req.body);
     const result = await projekPlanningService.bmRegionalApproval(id, action);
 
@@ -216,6 +312,7 @@ export const handlePpApproval1 = asyncHandler(async (req: Request, res: Response
         return;
     }
 
+    await assertProjectPlanningActionAccess(req, id, isPpSpecialistRole);
     const action = ppApproval1Schema.parse(req.body);
     const result = await projekPlanningService.ppApproval1(id, action);
 
@@ -240,6 +337,7 @@ export const handleUpload3d = asyncHandler(async (req: Request, res: Response) =
         return;
     }
 
+    await assertProjectPlanningActionAccess(req, id, isPpSpecialistRole);
     const payload = upload3dSchema.parse(req.body);
     const result = await projekPlanningService.upload3d(id, payload, req.file);
 
@@ -264,6 +362,7 @@ export const handleUploadRab = asyncHandler(async (req: Request, res: Response) 
     const payloadStr = req.body;
     if (typeof payloadStr.fasilitas === "string") payloadStr.fasilitas = JSON.parse(payloadStr.fasilitas);
 
+    await assertProjectPlanningActionAccess(req, id, isCoordinatorRole);
     const payload = uploadRabSchema.parse(payloadStr);
     const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
     const result = await projekPlanningService.uploadRab(id, payload, files);
@@ -286,6 +385,7 @@ export const handlePpApproval2 = asyncHandler(async (req: Request, res: Response
         return;
     }
 
+    await assertProjectPlanningActionAccess(req, id, isPpSpecialistRole);
     const action = finalReviewSchema.parse(req.body);
     const result = await projekPlanningService.ppApproval2(id, action);
 
@@ -309,6 +409,7 @@ export const handlePpManagerApproval = asyncHandler(async (req: Request, res: Re
         return;
     }
 
+    await assertProjectPlanningActionAccess(req, id, isPpManagerRole);
     const action = finalReviewSchema.parse(req.body);
     const result = await projekPlanningService.ppManagerApproval(id, action);
 
@@ -332,6 +433,8 @@ export const getProjekPlanningLogs = asyncHandler(async (req: Request, res: Resp
         return;
     }
 
+    const detail = await projekPlanningService.getById(id);
+    await assertProjectPlanningBranchAccess(req, detail.projek.cabang);
     const logs = await projekPlanningService.getLogs(id);
     res.json({ status: "success", data: logs });
 });
@@ -343,6 +446,8 @@ export const downloadPdf = asyncHandler(async (req: Request, res: Response) => {
         return;
     }
 
+    const detail = await projekPlanningService.getById(id);
+    await assertProjectPlanningBranchAccess(req, detail.projek.cabang);
     const { buffer } = await projekPlanningService.generatePdfAndStoreLink(id);
 
     res.setHeader("Content-Type", "application/pdf");
@@ -373,6 +478,7 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
     }
 
     const projek = result;
+    await assertProjectPlanningBranchAccess(req, projek.cabang);
 
     // Pilih URL berdasarkan field
     let fileUrl: string | null | undefined;
