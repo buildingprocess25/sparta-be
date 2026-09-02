@@ -155,9 +155,9 @@ export const resubmitProjekPlanning = asyncHandler(async (req: Request, res: Res
     }
 
     const payloadStr = req.body;
-    if (typeof payloadStr.ketentuan === "string") payloadStr.ketentuan = JSON.parse(payloadStr.ketentuan);
-    if (typeof payloadStr.catatan_design === "string") payloadStr.catatan_design = JSON.parse(payloadStr.catatan_design);
-    if (typeof payloadStr.fasilitas === "string") payloadStr.fasilitas = JSON.parse(payloadStr.fasilitas);
+    if (typeof payloadStr.ketentuan === "string") payloadStr.ketentuan = JSON.parse(payloadStr.ketentuan || "[]");
+    if (typeof payloadStr.catatan_design === "string") payloadStr.catatan_design = JSON.parse(payloadStr.catatan_design || "[]");
+    if (typeof payloadStr.fasilitas === "string") payloadStr.fasilitas = JSON.parse(payloadStr.fasilitas || "[]");
 
     const payload = resubmitProjekPlanningSchema.parse(payloadStr);
     await assertProjectPlanningActionAccess(req, id, isCoordinatorRole);
