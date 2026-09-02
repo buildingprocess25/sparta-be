@@ -36,7 +36,13 @@ const formatDateIndonesia = (value?: string | null): string => {
     if (!value) return "-";
     const date = parseDateValue(value);
     if (Number.isNaN(date.getTime())) return String(value);
-    return `${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+    const formatter = new Intl.DateTimeFormat("id-ID", {
+        timeZone: "Asia/Jakarta",
+        day: "numeric",
+        month: "long",
+        year: "numeric"
+    });
+    return formatter.format(date);
 };
 
 const formatDateTimeIndonesia = (value?: string | null): string => {
