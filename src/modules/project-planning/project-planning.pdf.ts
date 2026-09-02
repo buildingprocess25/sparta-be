@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { renderHtmlTemplate, renderPdfFromHtml, resolveTemplatePath } from "../../common/html-pdf";
 import { GoogleProvider } from "../../common/google";
+import { env } from "../../config/env";
 import type { ProjekPlanningRow } from "./project-planning.repository";
 
 const monthNames = [
