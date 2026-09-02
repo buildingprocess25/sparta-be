@@ -1093,9 +1093,9 @@ const findSpkCreationRequired = async (user: AuthenticatedUser): Promise<Notific
             SELECT
                 r.id AS entity_id,
                 r.id_toko,
-                COALESCE(t.nama_toko, pp.nomor_ulok) AS title,
-                COALESCE(pp.nomor_ulok, t.kode_toko) AS nomor_ulok,
-                UPPER(TRIM(pp.lingkup_pekerjaan)) AS lingkup_pekerjaan,
+                COALESCE(t.nama_toko, t.nomor_ulok, pp.nomor_ulok) AS title,
+                COALESCE(t.nomor_ulok, pp.nomor_ulok, t.kode_toko) AS nomor_ulok,
+                UPPER(TRIM(COALESCE(t.lingkup_pekerjaan, pp.lingkup_pekerjaan))) AS lingkup_pekerjaan,
                 t.cabang,
                 r.status,
                 r.created_at
@@ -1109,10 +1109,10 @@ const findSpkCreationRequired = async (user: AuthenticatedUser): Promise<Notific
                   FROM pengajuan_spk spk
                   WHERE spk.id_toko = r.id_toko
                     AND (
-                        (spk.nomor_ulok IS NOT NULL AND spk.nomor_ulok = pp.nomor_ulok) 
+                        (spk.nomor_ulok IS NOT NULL AND spk.nomor_ulok = COALESCE(t.nomor_ulok, pp.nomor_ulok)) 
                         OR spk.nomor_ulok IS NULL
                     )
-                    AND UPPER(TRIM(spk.lingkup_pekerjaan)) = UPPER(TRIM(pp.lingkup_pekerjaan))
+                    AND UPPER(TRIM(spk.lingkup_pekerjaan)) = UPPER(TRIM(COALESCE(t.lingkup_pekerjaan, pp.lingkup_pekerjaan)))
               )
         )
         SELECT
