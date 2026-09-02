@@ -165,13 +165,9 @@ export const buildProjekPlanningPdfBuffer = async (
         "WAITING_PP_MANAGER_APPROVAL",
         "COMPLETED",
     ].includes(status) && !!projek.bm_regional_approver_email;
-    const ppSpecialistApproverEmail = projek.pp2_approver_email || projek.pp1_approver_email;
-    const ppSpecialistApprovalTime = projek.pp2_waktu_persetujuan || projek.pp1_waktu_persetujuan;
+    const ppSpecialistApproverEmail = projek.pp2_approver_email;
+    const ppSpecialistApprovalTime = projek.pp2_waktu_persetujuan;
     const hasPpSpecialistSignature = [
-        "PP_DESIGN_3D_REQUIRED",
-        "WAITING_RAB_UPLOAD",
-        "WAITING_BM_APPROVAL_2",
-        "WAITING_PP_APPROVAL_2",
         "WAITING_PP_MANAGER_APPROVAL",
         "COMPLETED",
     ].includes(status) && !!ppSpecialistApproverEmail;
