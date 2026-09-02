@@ -49,6 +49,12 @@ const TEMPLATE_MAP: Record<string, EmailTemplateConfig> = {
         subject: "SPARTA Building - RAB Disetujui",
         targetJabatan: "KONTRAKTOR",
         ccJabatan: "BRANCH BUILDING & MAINTENANCE MANAGER"
+    },
+    "notification-rab-has-reject": {
+        template: "send-notification-rab-has-reject.njk",
+        subject: "SPARTA Building - RAB Direvisi / Ditolak",
+        targetJabatan: "KONTRAKTOR",
+        ccJabatan: "BRANCH BUILDING & MAINTENANCE MANAGER"
     }
 };
 

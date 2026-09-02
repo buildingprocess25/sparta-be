@@ -3,6 +3,7 @@ import { PP_STATUS, PP_ROLE, PP_AKSI, PP_STATUS_LABEL, type PpStatus } from "./p
 import { projekPlanningRepository } from "./project-planning.repository";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
+import { emailNotificationService } from "../email-notification/email-notification.service";
 import { buildProjekPlanningPdfBuffer } from "./project-planning.pdf";
 import { compressImage } from "../../common/image-compressor";
 import { normalizeProjectByUlok } from "../../common/project-type";
@@ -696,8 +697,15 @@ export const projekPlanningService = {
                         rabIds,
                         action.approver_email,
                         `FPD #${id} ditolak B&M Regional Manager. Lihat detail revisi RAB di Project Planning.`,
+                        action.rab_rejected_item_notes,
+                        action.rab_rejected_items?.map(i => ({ id_rab_item: i.id, catatan_item: i.note })),
                         client
                     );
+                    emailNotificationService.send({
+                        cabang: projek.cabang ?? "",
+                        flag: "notification-rab-has-reject",
+                        id_toko: projek.id_toko,
+                    }).catch(console.error);
                 }
                 return updated;
             }
@@ -985,8 +993,15 @@ export const projekPlanningService = {
                         rabIds,
                         action.approver_email,
                         `FPD #${id} ditolak PP Specialist. Lihat detail revisi RAB di Project Planning.`,
+                        action.rab_rejected_item_notes,
+                        action.rab_rejected_items?.map(i => ({ id_rab_item: i.id, catatan_item: i.note })),
                         client
                     );
+                    emailNotificationService.send({
+                        cabang: projek.cabang ?? "",
+                        flag: "notification-rab-has-reject",
+                        id_toko: projek.id_toko,
+                    }).catch(console.error);
                 }
                 return updated;
             }
@@ -1043,8 +1058,15 @@ export const projekPlanningService = {
                         rabIds,
                         action.approver_email,
                         `FPD #${id} ditolak PP Manager. Lihat detail revisi RAB di Project Planning.`,
+                        action.rab_rejected_item_notes,
+                        action.rab_rejected_items?.map(i => ({ id_rab_item: i.id, catatan_item: i.note })),
                         client
                     );
+                    emailNotificationService.send({
+                        cabang: projek.cabang ?? "",
+                        flag: "notification-rab-has-reject",
+                        id_toko: projek.id_toko,
+                    }).catch(console.error);
                 }
                 return updated;
             }

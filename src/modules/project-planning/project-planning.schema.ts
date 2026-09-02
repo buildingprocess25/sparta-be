@@ -265,6 +265,7 @@ export const finalReviewSchema = z
         alasan_penolakan: z.string().optional(),
         rab_rejected_item_ids: z.array(z.coerce.number().int().positive()).optional().default([]),
         rab_rejected_item_notes: z.string().optional(),
+        rab_rejected_items: z.array(z.object({ id: z.number(), note: z.string().optional() })).optional(),
     })
     .superRefine((val, ctx) => {
         if (val.gambar_tindakan === "REJECT" && !val.alasan_penolakan?.trim()) {

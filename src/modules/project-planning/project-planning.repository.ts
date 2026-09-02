@@ -1174,20 +1174,56 @@ export const projekPlanningRepository = {
         rabIds: number[],
         actorEmail: string,
         reason: string,
+        catatanPenolakan?: string | null,
+        revisiItems?: Array<{ id_rab_item: number | null; catatan_item?: string | null }>,
         client?: PoolClient
     ): Promise<void> {
         if (rabIds.length === 0) return;
         const db = client ?? pool;
         const safeReason = reason.length > 252 ? `${reason.slice(0, 252)}...` : reason;
+        
         await db.query(
             `UPDATE rab
              SET status = 'Ditolak oleh Koordinator',
                  alasan_penolakan = $1,
-                 ditolak_oleh = $2,
+                 catatan_penolakan = $2,
+                 ditolak_oleh = $3,
                  waktu_penolakan = NOW()
-             WHERE id = ANY($3::int[])`,
-            [safeReason, actorEmail, rabIds]
+             WHERE id = ANY($4::int[])`,
+            [safeReason, catatanPenolakan?.trim() || null, actorEmail, rabIds]
         );
+
+        if (revisiItems && revisiItems.length > 0) {
+            await db.query(`DELETE FROM rab_revisi_item WHERE id_rab = ANY($1::int[])`, [rabIds]);
+            for (const item of revisiItems) {
+                if (!item.id_rab_item) continue;
+                await db.query(
+                    `INSERT INTO rab_revisi_item (
+                        id_rab, id_rab_item, approver_email, approver_role, catatan_item
+                    )
+                    SELECT id_rab, $1, $2, 'Ditolak oleh Koordinator', $3
+                    FROM rab_item WHERE id = $1 AND id_rab = ANY($4::int[])`,
+                    [
+                        item.id_rab_item,
+                        actorEmail,
+                        item.catatan_item?.trim() || null,
+                        rabIds
+                    ]
+                );
+            }
+        }
+
+        // Aktifkan Gantt Chart
+        await db.query(`
+            UPDATE gantt_chart
+            SET status = 'active'
+            WHERE id IN (
+                SELECT g.id
+                FROM gantt_chart g
+                JOIN rab r ON r.id_toko = g.id_toko
+                WHERE r.id = ANY($1::int[])
+            )
+        `, [rabIds]);
     },
 
     async updateStatusAndPp2Approval(
