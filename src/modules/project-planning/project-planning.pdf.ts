@@ -192,6 +192,7 @@ export const buildProjekPlanningPdfBuffer = async (
         alfamart_logo_path: staticAssetPath("Alfamart-Emblem.png"),
         sparta_logo_path: staticAssetPath("Building-Logo.png"),
         created_at_formatted: formatDateIndonesia(projek.created_at),
+        link_siteplan_proxy: projek.link_siteplan ? `${env.FRONTEND_URL.replace(/\/$/, "")}/api/denda/actions/proxy-file?url=${encodeURIComponent(projek.link_siteplan)}` : null,
         has_bm_signature: hasBmSignature,
         has_bm_regional_signature: hasBmRegionalSignature,
         has_pp_specialist_signature: hasPpSpecialistSignature,
