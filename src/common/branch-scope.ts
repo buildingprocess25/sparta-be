@@ -234,12 +234,16 @@ export const getApprovalBranchesForUser = async (input: {
     emailSat: string;
     cabang: string;
     roles: string[];
-}): Promise<{ branches: string[]; source: "superhuman" | "coverage" | "support" | "branch_group" | "fallback" }> => {
+}): Promise<{ branches: string[]; source: "superhuman" | "global" | "coverage" | "support" | "branch_group" | "fallback" }> => {
     const { emailSat, cabang, roles } = input;
     const normalizedCabang = normalizeBranchScopeName(cabang);
 
     if (isSuperHumanRole(roles)) {
         return { branches: ALL_BRANCHES, source: "superhuman" };
+    }
+
+    if ((roles ?? []).some(r => normalizeBranchScopeName(r).includes("PROJECT PLANNING"))) {
+        return { branches: ALL_BRANCHES, source: "global" };
     }
 
     const coverage = await getUserCoverageBranches(emailSat, cabang);
