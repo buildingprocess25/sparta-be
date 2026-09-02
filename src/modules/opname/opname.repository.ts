@@ -366,6 +366,26 @@ export const opnameRepository = {
             }
 
             const items: OpnameRow[] = [];
+            
+            // SECURITY FIX: Validate that all submitted rab items actually belong to the payload's id_toko
+            const rabItemIds = payload.items.map(i => i.id_rab_item).filter(id => id);
+            if (rabItemIds.length > 0) {
+                const rabItemCheck = await client.query(
+                    `
+                    SELECT ri.id, r.id_toko
+                    FROM rab_item ri
+                    JOIN rab r ON r.id = ri.id_rab
+                    WHERE ri.id = ANY($1::int[])
+                    `,
+                    [rabItemIds]
+                );
+                for (const row of rabItemCheck.rows) {
+                    if (Number(row.id_toko) !== Number(payload.id_toko)) {
+                        throw new Error(`Validasi gagal: Item pekerjaan (RAB ID: ${row.id}) tidak sesuai dengan proyek toko yang dipilih (Toko ID: ${payload.id_toko}). Kemungkinan ada ketidaksesuaian data pada sisi aplikasi.`);
+                    }
+                }
+            }
+
             for (const item of payload.items) {
                 const itemTokoId = item.id_toko ?? payload.id_toko;
                 const itemStatus = shouldResetItemsToPending ? "pending" : (item.status ?? "pending");
