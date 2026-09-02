@@ -59,7 +59,7 @@ const roundCurrency = (value: number): number => {
     return Math.round(value);
 };
 
-const computeTotals = (detailItems: DetailItemInput[]) => {
+const computeTotals = (detailItems: DetailItemInput[], isNoPpn: boolean = false) => {
     let grandTotal = 0;
     let totalNonSbo = 0;
 
@@ -75,7 +75,7 @@ const computeTotals = (detailItems: DetailItemInput[]) => {
     }
 
     const roundedDown = Math.floor(grandTotal / 10000) * 10000;
-    const finalGrandTotal = roundCurrency(roundedDown + roundedDown * 0.11);
+    const finalGrandTotal = isNoPpn ? roundCurrency(roundedDown) : roundCurrency(roundedDown + roundedDown * 0.11);
 
     return {
         grandTotal,
@@ -84,13 +84,15 @@ const computeTotals = (detailItems: DetailItemInput[]) => {
     };
 };
 
+
 const resolveTotals = (
     detailItems: DetailItemInput[],
     manual?: {
         grand_total?: number;
         grand_total_non_sbo?: number;
         grand_total_final?: number;
-    }
+    },
+    isNoPpn: boolean = false
 ) => {
     const hasAny = manual
         && (manual.grand_total !== undefined
@@ -98,7 +100,7 @@ const resolveTotals = (
             || manual.grand_total_final !== undefined);
 
     if (!hasAny) {
-        return computeTotals(detailItems);
+        return computeTotals(detailItems, isNoPpn);
     }
 
     const { grand_total, grand_total_non_sbo, grand_total_final } = manual ?? {};
@@ -1660,11 +1662,13 @@ export const rabService = {
             : payload.detail_items;
 
         // 2. Hitung totals
-        const totals = computeTotals(detailItems);
+        const isNoPpn = isBatamBranch(revisionPriceCabang);
+        const totals = computeTotals(detailItems, isNoPpn);
         logRab("SUBMIT", "Totals dihitung", {
             grand_total: totals.grandTotal,
             grand_total_non_sbo: totals.totalNonSbo,
             grand_total_final: totals.finalGrandTotal,
+            is_no_ppn: isNoPpn
         });
 
         // 3. Simpan ke DB (upsert toko + insert rab + insert rab_item dalam 1 transaksi)
@@ -2489,7 +2493,8 @@ export const rabService = {
 
         const updatedItems = await rabRepository.updateItemsBulk(rabIdNumber, items);
         const refreshedItems = await rabRepository.listItemsByRabId(rabIdNumber);
-        const totals = resolveTotals(normalizeDetailItems(refreshedItems), manualTotals);
+        const isNoPpn = isBatamBranch(rabData.toko.cabang);
+        const totals = resolveTotals(normalizeDetailItems(refreshedItems), manualTotals, isNoPpn);
 
         await rabRepository.updateRabTotals(rabIdNumber, {
             grand_total: String(totals.grandTotal),
@@ -2545,7 +2550,8 @@ export const rabService = {
         }
 
         const insertedCount = await rabRepository.replaceItems(rabIdNumber, items);
-        const totals = resolveTotals(items, manualTotals);
+        const isNoPpn = isBatamBranch(rabData.toko.cabang);
+        const totals = resolveTotals(items, manualTotals, isNoPpn);
 
         await rabRepository.updateRabTotals(rabIdNumber, {
             grand_total: String(totals.grandTotal),
@@ -2621,7 +2627,8 @@ export const rabService = {
 
         const deletedCount = await rabRepository.deleteItemsByIds(rabIdNumber, uniqueIds);
         const refreshedItems = await rabRepository.listItemsByRabId(rabIdNumber);
-        const totals = computeTotals(normalizeDetailItems(refreshedItems));
+        const isNoPpn = isBatamBranch(rabData.toko.cabang);
+        const totals = computeTotals(normalizeDetailItems(refreshedItems), isNoPpn);
 
         await rabRepository.updateRabTotals(rabIdNumber, {
             grand_total: String(totals.grandTotal),
