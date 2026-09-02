@@ -144,23 +144,15 @@ export const buildProjekPlanningPdfBuffer = async (
 ): Promise<Buffer> => {
     const templatePath = await resolveTemplatePath("projek_planning_report.njk");
     const status = projek.status;
-    const bmApproverEmailFinal = projek.bm2_approver_email || projek.bm_approver_email;
-    const bmApprovalTimeFinal = projek.bm2_waktu_persetujuan || projek.bm_waktu_persetujuan;
+    const bmApproverEmailFinal = projek.bm2_approver_email;
+    const bmApprovalTimeFinal = projek.bm2_waktu_persetujuan;
     const hasBmSignature = [
         "WAITING_BM_REGIONAL_APPROVAL",
-        "WAITING_PP_APPROVAL_1",
-        "PP_DESIGN_3D_REQUIRED",
-        "WAITING_RAB_UPLOAD",
-        "WAITING_BM_APPROVAL_2",
         "WAITING_PP_APPROVAL_2",
         "WAITING_PP_MANAGER_APPROVAL",
         "COMPLETED",
     ].includes(status) && !!bmApproverEmailFinal;
     const hasBmRegionalSignature = [
-        "WAITING_PP_APPROVAL_1",
-        "PP_DESIGN_3D_REQUIRED",
-        "WAITING_RAB_UPLOAD",
-        "WAITING_BM_APPROVAL_2",
         "WAITING_PP_APPROVAL_2",
         "WAITING_PP_MANAGER_APPROVAL",
         "COMPLETED",
