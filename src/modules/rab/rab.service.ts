@@ -1,4 +1,5 @@
 import { AppError } from "../../common/app-error";
+import { emailNotificationService } from "../email-notification/email-notification.service";
 import { PDFParse } from "pdf-parse";
 import * as XLSX from "xlsx";
 import { getBranchScopeCandidates, getRabPriceBranch, isSameBranchScope, normalizeBranchScopeName } from "../../common/branch-scope";
@@ -16,6 +17,7 @@ import { projekPlanningRepository } from "../project-planning/project-planning.r
 import type { ProjekPlanningRow } from "../project-planning/project-planning.repository";
 import { PP_STATUS } from "../project-planning/project-planning.constants";
 import { RAB_STATUS, REJECTED_RAB_STATUSES, type RabStatus } from "./rab.constants";
+import { ganttRepository } from "../gantt/gantt.repository";
 import { buildRabPdfBuffer, buildRecapPdfBuffer, extractMateraiCoverPageBuffer, mergePdfBuffers, generateSphPdf } from "./rab.pdf";
 import { rabRepository } from "./rab.repository";
 import type { RabItemRow } from "./rab.repository";
@@ -57,7 +59,7 @@ const roundCurrency = (value: number): number => {
     return Math.round(value);
 };
 
-const computeTotals = (detailItems: DetailItemInput[]) => {
+const computeTotals = (detailItems: DetailItemInput[], isNoPpn: boolean = false) => {
     let grandTotal = 0;
     let totalNonSbo = 0;
 
@@ -73,7 +75,7 @@ const computeTotals = (detailItems: DetailItemInput[]) => {
     }
 
     const roundedDown = Math.floor(grandTotal / 10000) * 10000;
-    const finalGrandTotal = roundCurrency(roundedDown + roundedDown * 0.11);
+    const finalGrandTotal = isNoPpn ? roundCurrency(roundedDown) : roundCurrency(roundedDown + roundedDown * 0.11);
 
     return {
         grandTotal,
@@ -82,13 +84,15 @@ const computeTotals = (detailItems: DetailItemInput[]) => {
     };
 };
 
+
 const resolveTotals = (
     detailItems: DetailItemInput[],
     manual?: {
         grand_total?: number;
         grand_total_non_sbo?: number;
         grand_total_final?: number;
-    }
+    },
+    isNoPpn: boolean = false
 ) => {
     const hasAny = manual
         && (manual.grand_total !== undefined
@@ -96,7 +100,7 @@ const resolveTotals = (
             || manual.grand_total_final !== undefined);
 
     if (!hasAny) {
-        return computeTotals(detailItems);
+        return computeTotals(detailItems, isNoPpn);
     }
 
     const { grand_total, grand_total_non_sbo, grand_total_final } = manual ?? {};
@@ -1503,6 +1507,29 @@ export const rabService = {
             throw new AppError("Lingkup pekerjaan RAB wajib SIPIL atau ME.", 422);
         }
 
+        // --- VALIDASI SILANG LINGKUP VS ITEM ---
+        // Mencegah tercampurnya item Sipil dan ME karena kesalahan form revisi atau auto-switch
+        const meCategories = ["INSTALASI", "FIXTURE"];
+        const sharedCategories = ["PEKERJAAN TAMBAHAN", "PEKERJAAN SBO"];
+
+        if (normalizedLingkupPekerjaan === "SIPIL") {
+            const hasMeOnlyItems = payload.detail_items.some(item => 
+                meCategories.includes(item.kategori_pekerjaan.toUpperCase().trim())
+            );
+            if (hasMeOnlyItems) {
+                throw new AppError("Ditolak: Anda mencoba mensubmit item Mekanikal/Elektrikal (ME) ke dalam Lingkup Sipil.", 422);
+            }
+        } else if (normalizedLingkupPekerjaan === "ME") {
+            const hasSipilOnlyItems = payload.detail_items.some(item => {
+                const cat = item.kategori_pekerjaan.toUpperCase().trim();
+                return !meCategories.includes(cat) && !sharedCategories.includes(cat);
+            });
+            if (hasSipilOnlyItems) {
+                throw new AppError("Ditolak: Anda mencoba mensubmit item Sipil ke dalam Lingkup Mekanikal/Elektrikal (ME).", 422);
+            }
+        }
+        // ---------------------------------------
+
         const submittedNamaPt = await validateSubmitterCompanyMapping(payload);
 
         if (payload.projek_planning_id) {
@@ -1635,11 +1662,13 @@ export const rabService = {
             : payload.detail_items;
 
         // 2. Hitung totals
-        const totals = computeTotals(detailItems);
+        const isNoPpn = isBatamBranch(revisionPriceCabang);
+        const totals = computeTotals(detailItems, isNoPpn);
         logRab("SUBMIT", "Totals dihitung", {
             grand_total: totals.grandTotal,
             grand_total_non_sbo: totals.totalNonSbo,
             grand_total_final: totals.finalGrandTotal,
+            is_no_ppn: isNoPpn
         });
 
         // 3. Simpan ke DB (upsert toko + insert rab + insert rab_item dalam 1 transaksi)
@@ -1825,6 +1854,28 @@ export const rabService = {
         }
         logRab("SUBMIT", "RAB tersimpan di database", { rabId: rab.id });
 
+        if (normalizedProject && normalizedProject.toUpperCase() !== 'RENOVASI' && normalizedProject.toUpperCase().startsWith('RENOVASI')) {
+            try {
+                await pool.query(
+                    `UPDATE toko 
+                     SET proyek = $1 
+                     WHERE nomor_ulok = $2 
+                       AND UPPER(TRIM(proyek)) = 'RENOVASI'`,
+                    [normalizedProject, payload.nomor_ulok]
+                );
+                await pool.query(
+                    `UPDATE rab 
+                     SET proyek = $1 
+                     WHERE nomor_ulok = $2 
+                       AND UPPER(TRIM(proyek)) = 'RENOVASI'`,
+                    [normalizedProject, payload.nomor_ulok]
+                );
+                logRab("SUBMIT", `Sinkronisasi cross-scope proyek renovasi diset ke ${normalizedProject}`, { nomorUlok: payload.nomor_ulok });
+            } catch (syncErr) {
+                console.error("[RAB SUBMIT] Gagal sinkronisasi proyek renovasi cross-scope:", syncErr);
+            }
+        }
+
         // 4. Generate & upload 3 PDF ke Drive (sama seperti server Python)
         try {
             const links = await regenerateRabPdfs(String(rab.id), {
@@ -1846,6 +1897,15 @@ export const rabService = {
             }
         } catch (err) {
             console.error("Warning: Gagal upload PDF ke Drive:", err);
+        }
+
+        // 5. Auto-sync Gantt Chart jika RAB direvisi
+        try {
+            if (existingTokoByCombination) {
+                await ganttRepository.syncCategoriesWithRab(Number(existingTokoByCombination.id), Number(rab.id));
+            }
+        } catch (err) {
+            console.error("Warning: Gagal sync kategori Gantt Chart dengan RAB:", err);
         }
 
         return normalizeRabFileLinks(rab);
@@ -2062,6 +2122,16 @@ export const rabService = {
                 console.error("Warning: Gagal regenerate PDF RAB setelah approval:", err);
             } finally {
                 await rabRepository.restoreTokoStableFieldsByRabId(id, tokoStableFields);
+            }
+
+            try {
+                await emailNotificationService.send({
+                    id_toko: data.toko.id,
+                    cabang: data.toko.cabang ?? "",
+                    flag: "notification-rab-has-approve"
+                });
+            } catch (err) {
+                console.error("Warning: Gagal mengirim email notifikasi RAB disetujui:", err);
             }
         }
 
@@ -2423,7 +2493,8 @@ export const rabService = {
 
         const updatedItems = await rabRepository.updateItemsBulk(rabIdNumber, items);
         const refreshedItems = await rabRepository.listItemsByRabId(rabIdNumber);
-        const totals = resolveTotals(normalizeDetailItems(refreshedItems), manualTotals);
+        const isNoPpn = isBatamBranch(rabData.toko.cabang);
+        const totals = resolveTotals(normalizeDetailItems(refreshedItems), manualTotals, isNoPpn);
 
         await rabRepository.updateRabTotals(rabIdNumber, {
             grand_total: String(totals.grandTotal),
@@ -2479,7 +2550,8 @@ export const rabService = {
         }
 
         const insertedCount = await rabRepository.replaceItems(rabIdNumber, items);
-        const totals = resolveTotals(items, manualTotals);
+        const isNoPpn = isBatamBranch(rabData.toko.cabang);
+        const totals = resolveTotals(items, manualTotals, isNoPpn);
 
         await rabRepository.updateRabTotals(rabIdNumber, {
             grand_total: String(totals.grandTotal),
@@ -2555,7 +2627,8 @@ export const rabService = {
 
         const deletedCount = await rabRepository.deleteItemsByIds(rabIdNumber, uniqueIds);
         const refreshedItems = await rabRepository.listItemsByRabId(rabIdNumber);
-        const totals = computeTotals(normalizeDetailItems(refreshedItems));
+        const isNoPpn = isBatamBranch(rabData.toko.cabang);
+        const totals = computeTotals(normalizeDetailItems(refreshedItems), isNoPpn);
 
         await rabRepository.updateRabTotals(rabIdNumber, {
             grand_total: String(totals.grandTotal),

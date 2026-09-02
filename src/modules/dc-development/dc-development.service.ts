@@ -250,12 +250,9 @@ const applyDcWorksheetFormatting = (worksheet: xlsx.WorkSheet, rows: DcDocumentE
         { wch: 16 },
         { wch: 24 },
         { wch: 14 },
-        { wch: 28 },
-        { wch: 26 },
-        { wch: 52 },
-        { wch: 14 },
         { wch: 10 },
-        { wch: 36 }
+        { wch: 26 },
+        { wch: 50 }
     ];
     if (rows.length > 0) {
         worksheet["!autofilter"] = { ref: worksheet["!ref"] || "A1" };
@@ -287,7 +284,19 @@ const buildDcDocumentExport = (
         if (!stage) continue;
         const mapKey = `${stage}#${doc.document_type}`;
         const existing = documentMap.get(mapKey);
-        if (!existing || (!existing.notes && doc.notes) || (!existing.drive_file_id && doc.drive_file_id)) {
+        
+        if (existing) {
+            const existingLinks = existing.link_dokumen ? existing.link_dokumen.split(',').map(s => s.trim()) : [];
+            const newLinks = doc.link_dokumen ? doc.link_dokumen.split(',').map(s => s.trim()) : [];
+            const combinedLinks = Array.from(new Set([...existingLinks, ...newLinks])).filter(Boolean).join(', ');
+
+            if ((!existing.notes && doc.notes) || (!existing.drive_file_id && doc.drive_file_id)) {
+                doc.link_dokumen = combinedLinks;
+                documentMap.set(mapKey, doc);
+            } else {
+                existing.link_dokumen = combinedLinks;
+            }
+        } else {
             documentMap.set(mapKey, doc);
         }
     }
@@ -317,7 +326,8 @@ const buildDcDocumentExport = (
                             kategori: utama.title,
                             jenis: itemLabel,
                             status: isFilled,
-                            notes
+                            notes,
+                            linkDrive: doc?.link_dokumen ? doc.link_dokumen.split(',').map(s => s.trim()).join(', ') : null
                         });
 
                         const catNoteKey = `CAT_NOTE_${utama.id}`;
@@ -337,7 +347,8 @@ const buildDcDocumentExport = (
                             "Jenis Dokumen": jenis.title,
                             "Format Dokumen": slot.type,
                             "Status": isFilled ? "ADA" : "KOSONG",
-                            "Catatan": notes ?? ""
+                            "Catatan": notes ?? "",
+                            "Link Drive": doc?.link_dokumen ? doc.link_dokumen.split(',').map(s => s.trim()).join(', ') : ""
                         });
                     }
                 }
@@ -358,7 +369,8 @@ const buildDcDocumentExport = (
                     kategori: "DATA PENTING LAINNYA",
                     jenis: itemLabel,
                     status: isFilled,
-                    notes
+                    notes,
+                    linkDrive: doc?.link_dokumen ? doc.link_dokumen.split(',').map(s => s.trim()).join(', ') : null
                 });
 
                 rows.push({
@@ -374,7 +386,8 @@ const buildDcDocumentExport = (
                     "Jenis Dokumen": customItem.title,
                     "Format Dokumen": slotType,
                     "Status": isFilled ? "ADA" : "KOSONG",
-                    "Catatan": notes ?? ""
+                    "Catatan": notes ?? "",
+                    "Link Drive": doc?.link_dokumen ? doc.link_dokumen.split(',').map(s => s.trim()).join(', ') : ""
                 });
             }
         }

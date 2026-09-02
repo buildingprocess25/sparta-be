@@ -23,7 +23,15 @@ import {
     getPerformanceOptionStats,
     getPerformanceTable
 } from "./dashboard-performance.controller";
-
+import {
+    getContractorSummary,
+    getContractorCharts,
+    getContractorLeaderboard,
+    getContractorDrilldownRanking,
+    getContractorDrilldownSpHistory,
+    getContractorDrilldownUlok,
+    getContractorDrilldownDetail
+} from "./dashboard-contractor.controller";
 
 const normalizeRole = (role: string): string => role.trim().toUpperCase();
 
@@ -69,6 +77,16 @@ dashboardRouter.get("/performance/options-stats", requireSuperHumanForPerformanc
 dashboardRouter.get("/performance/drilldown", requireSuperHumanForPerformance, getPerformanceDrilldown);
 dashboardRouter.get("/performance/detail", requireSuperHumanForPerformance, getPerformanceDetail);
 dashboardRouter.get("/performance/table", requireSuperHumanForPerformance, getPerformanceTable);
+
+// Contractor Performance routes
+dashboardRouter.get("/contractor/summary", requireSuperHumanForPerformance, getContractorSummary);
+dashboardRouter.get("/contractor/charts", requireSuperHumanForPerformance, getContractorCharts);
+dashboardRouter.get("/contractor/leaderboard", requireSuperHumanForPerformance, getContractorLeaderboard);
+dashboardRouter.get("/contractor/drilldown-ranking", requireSuperHumanForPerformance, getContractorDrilldownRanking);
+dashboardRouter.get("/contractor/drilldown-sp-history", requireSuperHumanForPerformance, getContractorDrilldownSpHistory);
+dashboardRouter.get("/contractor/drilldown-ulok", requireSuperHumanForPerformance, getContractorDrilldownUlok);
+dashboardRouter.get("/contractor/drilldown-detail", requireSuperHumanForPerformance, getContractorDrilldownDetail);
+
 dashboardRouter.get("/", getDashboardView);
 dashboardRouter.get("/all", getDashboardAll);
 

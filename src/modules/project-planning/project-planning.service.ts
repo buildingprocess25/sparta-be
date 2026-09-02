@@ -3,6 +3,7 @@ import { PP_STATUS, PP_ROLE, PP_AKSI, PP_STATUS_LABEL, type PpStatus } from "./p
 import { projekPlanningRepository } from "./project-planning.repository";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
+import { emailNotificationService } from "../email-notification/email-notification.service";
 import { buildProjekPlanningPdfBuffer } from "./project-planning.pdf";
 import { compressImage } from "../../common/image-compressor";
 import { normalizeProjectByUlok } from "../../common/project-type";
@@ -74,18 +75,17 @@ function isDarkStoreDesign(value: unknown): boolean {
 }
 
 function shouldSkipBmApproval(cabang: unknown): boolean {
-    return ["BOGOR", "BATAM"].includes(normalizeCabang(cabang));
+    return ["BOGOR"].includes(normalizeCabang(cabang));
 }
 
-function isBogorBranch(cabang: unknown): boolean {
-    return normalizeCabang(cabang) === "BOGOR";
-}
-
+const BRANCHES_WITH_COORDINATOR_BM_APPROVAL = ["BATAM"];
+const canCoordinatorApproveBmForBranch = (branch?: string | null) =>
+    BRANCHES_WITH_COORDINATOR_BM_APPROVAL.includes(normalizeCabang(branch));
 function getInitialSubmitMeta(cabang: unknown) {
     const skipBm = shouldSkipBmApproval(cabang);
     return {
         status: skipBm ? PP_STATUS.WAITING_PP_APPROVAL_1 : PP_STATUS.WAITING_BM_APPROVAL,
-        role: isBogorBranch(cabang) ? PP_ROLE.BM : PP_ROLE.COORDINATOR,
+        role: PP_ROLE.COORDINATOR,
         keterangan: skipBm
             ? "FPD berhasil diajukan, bypass approval BM Manager sesuai alur cabang khusus, menunggu approval PP Specialist tahap 1"
             : "FPD berhasil diajukan oleh Coordinator, menunggu approval BM Manager",
@@ -697,8 +697,15 @@ export const projekPlanningService = {
                         rabIds,
                         action.approver_email,
                         `FPD #${id} ditolak B&M Regional Manager. Lihat detail revisi RAB di Project Planning.`,
+                        action.rab_rejected_item_notes,
+                        action.rab_rejected_items?.map(i => ({ id_rab_item: i.id, catatan_item: i.note })),
                         client
                     );
+                    emailNotificationService.send({
+                        cabang: projek.cabang ?? "",
+                        flag: "notification-rab-has-reject",
+                        id_toko: projek.id_toko,
+                    }).catch(console.error);
                 }
                 return updated;
             }
@@ -914,7 +921,7 @@ export const projekPlanningService = {
             id,
             {
                 actor_email: payload.uploader_email,
-                role: isBogorBranch(projek.cabang) ? PP_ROLE.BM : PP_ROLE.COORDINATOR,
+                role: PP_ROLE.COORDINATOR,
                 aksi: PP_AKSI.UPLOAD_RAB,
                 status_sebelum: projek.status,
                 status_sesudah: newStatus,
@@ -986,8 +993,15 @@ export const projekPlanningService = {
                         rabIds,
                         action.approver_email,
                         `FPD #${id} ditolak PP Specialist. Lihat detail revisi RAB di Project Planning.`,
+                        action.rab_rejected_item_notes,
+                        action.rab_rejected_items?.map(i => ({ id_rab_item: i.id, catatan_item: i.note })),
                         client
                     );
+                    emailNotificationService.send({
+                        cabang: projek.cabang ?? "",
+                        flag: "notification-rab-has-reject",
+                        id_toko: projek.id_toko,
+                    }).catch(console.error);
                 }
                 return updated;
             }
@@ -1044,8 +1058,15 @@ export const projekPlanningService = {
                         rabIds,
                         action.approver_email,
                         `FPD #${id} ditolak PP Manager. Lihat detail revisi RAB di Project Planning.`,
+                        action.rab_rejected_item_notes,
+                        action.rab_rejected_items?.map(i => ({ id_rab_item: i.id, catatan_item: i.note })),
                         client
                     );
+                    emailNotificationService.send({
+                        cabang: projek.cabang ?? "",
+                        flag: "notification-rab-has-reject",
+                        id_toko: projek.id_toko,
+                    }).catch(console.error);
                 }
                 return updated;
             }
@@ -1101,7 +1122,7 @@ export const projekPlanningService = {
         };
     },
 
-    async getTaskCounts(input: { roles?: string[]; cabang?: string; email?: string }) {
+    async getTaskCounts(input: { roles?: string[]; cabang?: string; email?: string; cabang_array?: string[] }) {
         const roles = (input.roles ?? []).map((role) => role.toUpperCase());
         const hasRole = (keyword: string) => roles.some((role) => role.includes(keyword));
 
@@ -1109,20 +1130,30 @@ export const projekPlanningService = {
         let projectPlanning = 0;
 
         if (hasRole("BRANCH BUILDING COORDINATOR")) {
-            projectPlanning += await projekPlanningRepository.countCoordinatorTasks(input.cabang, input.email);
+            projectPlanning += await projekPlanningRepository.countCoordinatorTasks(input.cabang, input.email, input.cabang_array);
+            const coordinatorBmBranches = (input.cabang_array && input.cabang_array.length > 0 ? input.cabang_array : [input.cabang])
+                .filter((branch): branch is string => typeof branch === "string" && canCoordinatorApproveBmForBranch(branch));
+            if (coordinatorBmBranches.length > 0) {
+                approval += await projekPlanningRepository.countByStatuses(
+                    [PP_STATUS.WAITING_BM_APPROVAL, PP_STATUS.WAITING_BM_APPROVAL_2],
+                    undefined,
+                    coordinatorBmBranches
+                );
+            }
         }
 
         if (hasRole("BRANCH BUILDING & MAINTENANCE MANAGER") || hasRole("MAINTENANCE MANAGER") || hasRole("BBMM")) {
             approval += await projekPlanningRepository.countByStatuses(
                 [PP_STATUS.WAITING_BM_APPROVAL, PP_STATUS.WAITING_BM_APPROVAL_2],
-                input.cabang
+                input.cabang,
+                input.cabang_array
             );
         }
 
         if (hasRole("BUILDING & MAINTENANCE REGIONAL MANAGER") || hasRole("REGIONAL MANAGER")) {
             approval += await projekPlanningRepository.countByStatuses([
                 PP_STATUS.WAITING_BM_REGIONAL_APPROVAL,
-            ]);
+            ], input.cabang, input.cabang_array);
         }
 
         if (hasRole("PROJECT PLANNING & DEVELOPMENT SPECIALIST")) {
@@ -1130,13 +1161,13 @@ export const projekPlanningService = {
                 PP_STATUS.WAITING_PP_APPROVAL_1,
                 PP_STATUS.PP_DESIGN_3D_REQUIRED,
                 PP_STATUS.WAITING_PP_APPROVAL_2,
-            ]);
+            ], input.cabang, input.cabang_array);
         }
 
         if (hasRole("PROJECT PLANNING & DEVELOPMENT MANAGER")) {
             approval += await projekPlanningRepository.countByStatuses([
                 PP_STATUS.WAITING_PP_MANAGER_APPROVAL,
-            ]);
+            ], input.cabang, input.cabang_array);
         }
 
         return {

@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { renderHtmlTemplate, renderPdfFromHtml, resolveTemplatePath } from "../../common/html-pdf";
 import { GoogleProvider } from "../../common/google";
+import { env } from "../../config/env";
 import type { ProjekPlanningRow } from "./project-planning.repository";
 
 const monthNames = [
@@ -144,8 +145,8 @@ export const buildProjekPlanningPdfBuffer = async (
 ): Promise<Buffer> => {
     const templatePath = await resolveTemplatePath("projek_planning_report.njk");
     const status = projek.status;
-    const bmApproverEmailFinal = projek.bm2_approver_email || projek.bm_approver_email;
-    const bmApprovalTimeFinal = projek.bm2_waktu_persetujuan || projek.bm_waktu_persetujuan;
+    const bmApproverEmailFinal = projek.bm2_approver_email;
+    const bmApprovalTimeFinal = projek.bm2_waktu_persetujuan;
     const hasBmSignature = [
         "WAITING_BM_REGIONAL_APPROVAL",
         "WAITING_PP_APPROVAL_2",
@@ -157,8 +158,8 @@ export const buildProjekPlanningPdfBuffer = async (
         "WAITING_PP_MANAGER_APPROVAL",
         "COMPLETED",
     ].includes(status) && !!projek.bm_regional_approver_email;
-    const ppSpecialistApproverEmail = projek.pp2_approver_email || projek.pp1_approver_email;
-    const ppSpecialistApprovalTime = projek.pp2_waktu_persetujuan || projek.pp1_waktu_persetujuan;
+    const ppSpecialistApproverEmail = projek.pp2_approver_email;
+    const ppSpecialistApprovalTime = projek.pp2_waktu_persetujuan;
     const hasPpSpecialistSignature = [
         "WAITING_PP_MANAGER_APPROVAL",
         "COMPLETED",

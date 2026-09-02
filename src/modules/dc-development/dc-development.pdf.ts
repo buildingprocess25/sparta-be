@@ -45,6 +45,7 @@ export type PdfStageItem = {
     jenis: string;
     status: boolean;
     notes: string | null;
+    linkDrive: string | null;
 };
 
 export type PdfStage = {

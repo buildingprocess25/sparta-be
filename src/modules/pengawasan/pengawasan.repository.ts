@@ -184,7 +184,7 @@ export const pengawasanRepository = {
                     continue;
                 }
 
-                const existing = await client.query<Pick<PengawasanRow, "id">>(
+                const existingResult = await client.query<Pick<PengawasanRow, "id">>(
                     `
                     SELECT id
                     FROM pengawasan
@@ -193,8 +193,8 @@ export const pengawasanRepository = {
                       AND UPPER(TRIM(COALESCE(kategori_pekerjaan, ''))) = UPPER(TRIM($3::text))
                       AND UPPER(TRIM(COALESCE(jenis_pekerjaan, ''))) = UPPER(TRIM($4::text))
                     ORDER BY
-                      CASE WHEN NULLIF(TRIM(COALESCE(dokumentasi, '')), '') IS NULL THEN 0 ELSE 1 END,
-                      CASE WHEN LOWER(TRIM(COALESCE(status, ''))) = 'terlambat' THEN 0 ELSE 1 END,
+                      CASE WHEN NULLIF(TRIM(COALESCE(dokumentasi, '')), '') IS NULL THEN 0 ELSE 1 END ASC,
+                      CASE WHEN LOWER(TRIM(COALESCE(status, ''))) = 'terlambat' THEN 0 ELSE 1 END ASC,
                       id ASC
                     LIMIT 1
                     FOR UPDATE
@@ -207,30 +207,56 @@ export const pengawasanRepository = {
                     ]
                 );
 
-                if (existing.rows[0]) {
-                    const result = await client.query<PengawasanRow>(
+                const existingId = existingResult.rows[0]?.id;
+                if (existingId) {
+                    const setClauses: string[] = [];
+                    const values: Array<number | string> = [];
+
+                    if (typeof item.catatan === "string" && item.catatan.trim()) {
+                        values.push(item.catatan);
+                        setClauses.push(`catatan = $${values.length}`);
+                    }
+
+                    if (typeof item.dokumentasi === "string" && item.dokumentasi.trim()) {
+                        values.push(item.dokumentasi);
+                        setClauses.push(`dokumentasi = $${values.length}`);
+                    }
+
+                    if (typeof item.status === "string" && item.status.trim()) {
+                        values.push(item.status);
+                        setClauses.push(`status = $${values.length}`);
+                    }
+
+                    if (setClauses.length === 0) {
+                        const unchanged = await client.query<PengawasanRow>(
+                            `
+                            SELECT id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, dokumentasi_base64, status, created_at
+                            FROM pengawasan
+                            WHERE id = $1
+                            `,
+                            [existingId]
+                        );
+                        rows.push(unchanged.rows[0]);
+                        processedKeys.add(itemKey);
+                        continue;
+                    }
+
+                    values.push(existingId);
+                    const updated = await client.query<PengawasanRow>(
                         `
                         UPDATE pengawasan
-                        SET
-                            catatan = COALESCE($1, catatan),
-                            dokumentasi = COALESCE(NULLIF(TRIM($2), ''), dokumentasi),
-                            status = COALESCE($3, status)
-                        WHERE id = $4
+                        SET ${setClauses.join(", ")}
+                        WHERE id = $${values.length}
                         RETURNING id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, dokumentasi_base64, status, created_at
                         `,
-                        [
-                            item.catatan ?? null,
-                            item.dokumentasi ?? null,
-                            item.status ?? null,
-                            existing.rows[0].id
-                        ]
+                        values
                     );
-                    rows.push(result.rows[0]);
+                    rows.push(updated.rows[0]);
                     processedKeys.add(itemKey);
                     continue;
                 }
 
-                const result = await client.query<PengawasanRow>(
+                const inserted = await client.query<PengawasanRow>(
                     `
                     INSERT INTO pengawasan (id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, dokumentasi_base64, status)
                     VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE($8, 'progress'))
@@ -247,14 +273,13 @@ export const pengawasanRepository = {
                         item.status ?? null
                     ]
                 );
-                rows.push(result.rows[0]);
+                rows.push(inserted.rows[0]);
                 processedKeys.add(itemKey);
             }
 
             return rows;
         }, existingClient);
     },
-
     async createNextTerlambatCarryForwardIfMissing(
         input: PengawasanCarryForwardInput,
         existingClient?: PoolClient

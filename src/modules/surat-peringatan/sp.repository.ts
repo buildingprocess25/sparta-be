@@ -1077,13 +1077,8 @@ export const spRepository = {
                     cabang: user.cabang,
                     roles: user.roles
                 });
-
-                let branches = scope.branches;
-                if (scope.source === "global" && user.cabang.toUpperCase() === "HEAD OFFICE") {
-                    branches = ["HEAD OFFICE"];
-                }
-
-                if (scope.source !== "global" || user.cabang.toUpperCase() === "HEAD OFFICE") {
+                if (scope.source !== "global") {
+                    const branches = scope.branches;
                     if (branches.length === 0) {
                         return [];
                     }
@@ -1134,13 +1129,8 @@ export const spRepository = {
                     cabang: user.cabang,
                     roles: user.roles
                 });
-
-                let branches = scope.branches;
-                if (scope.source === "global" && user.cabang.toUpperCase() === "HEAD OFFICE") {
-                    branches = ["HEAD OFFICE"];
-                }
-
-                if (scope.source !== "global" || user.cabang.toUpperCase() === "HEAD OFFICE") {
+                if (scope.source !== "global") {
+                    const branches = scope.branches;
                     if (branches.length === 0) {
                         return [];
                     }
@@ -1185,18 +1175,14 @@ export const spRepository = {
                     cabang: user.cabang,
                     roles: user.roles
                 });
-
-                let branches = scope.branches;
-                if (scope.source === "global" && user.cabang.toUpperCase() === "HEAD OFFICE") {
-                    branches = ["HEAD OFFICE"];
-                }
-
-                if (scope.source !== "global" || user.cabang.toUpperCase() === "HEAD OFFICE") {
-                    if (branches.length > 0) {
-                        const placeholders = branches.map((_, i) => `$${i + 1}`).join(", ");
-                        whereClause += ` AND UPPER(TRIM(COALESCE(uc.cabang, ''))) IN (${placeholders})`;
-                        values = branches;
+                if (scope.source !== "global") {
+                    const branches = scope.branches;
+                    if (branches.length === 0) {
+                        return [];
                     }
+                    const placeholders = branches.map((_, i) => `$${i + 1}`).join(", ");
+                    whereClause += ` AND UPPER(TRIM(COALESCE(uc.cabang, ''))) IN (${placeholders})`;
+                    values = branches;
                 }
             }
 
@@ -1248,7 +1234,7 @@ export const spRepository = {
         return result.rows[0] ?? null;
     },
 
-    async markAsViewedByKontraktor(id: number): Promise<DendaActionRow | null> {
+    async markAsViewedByKontraktor(id: number, namaKontraktor: string): Promise<DendaActionRow | null> {
         const result = await pool.query<{ id: string }>(
             `UPDATE denda_keterlambatan_action
              SET status = CASE 
@@ -1260,8 +1246,9 @@ export const spRepository = {
              WHERE id = $1 
                AND action_type = 'SP'
                AND status IN ('SENT_TO_CONTRACTOR', 'VIEWED_BY_CONTRACTOR')
+               AND ${contractorMatchSql("$2")}
              RETURNING id`,
-            [id]
+            [id, namaKontraktor]
         );
         if (result.rowCount === 0) return null;
         return this.findActionById(Number(result.rows[0].id));

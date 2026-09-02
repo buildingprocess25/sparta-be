@@ -265,6 +265,7 @@ export const finalReviewSchema = z
         alasan_penolakan: z.string().optional(),
         rab_rejected_item_ids: z.array(z.coerce.number().int().positive()).optional().default([]),
         rab_rejected_item_notes: z.string().optional(),
+        rab_rejected_items: z.array(z.object({ id: z.number(), note: z.string().optional() })).optional(),
     })
     .superRefine((val, ctx) => {
         if (val.gambar_tindakan === "REJECT" && !val.alasan_penolakan?.trim()) {
@@ -329,6 +330,8 @@ export const listProjekPlanningQuerySchema = z.object({
     cabang: z.string().optional(),
     email_pembuat: z.string().optional(),
     id_toko: z.coerce.number().int().positive().optional(),
+    cabang_array: z.array(z.string()).optional(),
+    _is_global_access: z.boolean().optional(),
 });
 
 export type ListProjekPlanningQuery = z.infer<typeof listProjekPlanningQuerySchema>;

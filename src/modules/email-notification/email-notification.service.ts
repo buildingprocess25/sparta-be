@@ -12,7 +12,7 @@ type EmailTemplateConfig = {
     template: string;
     subject: string;
     targetJabatan: string;
-    ccJabatan?: string;
+    ccJabatan?: string | string[];
 };
 
 const TEMPLATE_MAP: Record<string, EmailTemplateConfig> = {
@@ -31,7 +31,8 @@ const TEMPLATE_MAP: Record<string, EmailTemplateConfig> = {
     "notification-spk-has-approve": {
         template: "send-notification-spk-has-approve.njk",
         subject: "SPARTA Building - SPK Disetujui",
-        targetJabatan: "KONTRAKTOR"
+        targetJabatan: "KONTRAKTOR",
+        ccJabatan: ["BRANCH MANAGER", "BRANCH BUILDING & MAINTENANCE MANAGER", "BRANCH BUILDING COORDINATOR"]
     },
     "notification-spk-has-reject": {
         template: "send-notification-spk-has-reject.njk",
@@ -42,6 +43,18 @@ const TEMPLATE_MAP: Record<string, EmailTemplateConfig> = {
         template: "send-notification-sp-has-approve.njk",
         subject: "SPARTA Building - Surat Peringatan Disetujui",
         targetJabatan: "KONTRAKTOR"
+    },
+    "notification-rab-has-approve": {
+        template: "send-notification-rab-has-approve.njk",
+        subject: "SPARTA Building - RAB Disetujui",
+        targetJabatan: "KONTRAKTOR",
+        ccJabatan: "BRANCH BUILDING & MAINTENANCE MANAGER"
+    },
+    "notification-rab-has-reject": {
+        template: "send-notification-rab-has-reject.njk",
+        subject: "SPARTA Building - RAB Direvisi / Ditolak",
+        targetJabatan: "KONTRAKTOR",
+        ccJabatan: "BRANCH BUILDING & MAINTENANCE MANAGER"
     }
 };
 
@@ -140,7 +153,7 @@ export const emailNotificationService = {
             !shouldUseSpkContractorEmails &&
             !shouldUseSpContractorEmails &&
             Boolean(payload.id_toko) &&
-            (payload.flag === "notification-spk-has-approve" || payload.flag === "notification-spk-has-reject");
+            (payload.flag === "notification-spk-has-approve" || payload.flag === "notification-spk-has-reject" || payload.flag === "notification-rab-has-approve");
         const spkData = shouldUseSpkContractorEmails
             ? await spkRepository.findById(String(payload.id_spk))
             : null;
@@ -193,10 +206,14 @@ export const emailNotificationService = {
                 404
             );
         }
-
-        const ccUser = !shouldUseRabEmails && !shouldUseSpkContractorEmails && !shouldUseSpContractorEmails && templateConfig.ccJabatan
-            ? await userCabangRepository.findByCabangAndJabatan(payload.cabang, templateConfig.ccJabatan)
-            : null;
+        const ccUsers: Array<{ email_sat: string }> = [];
+        if (templateConfig.ccJabatan) {
+            const ccJabatanList = Array.isArray(templateConfig.ccJabatan) ? templateConfig.ccJabatan : [templateConfig.ccJabatan];
+            for (const jab of ccJabatanList) {
+                const users = await userCabangRepository.findAll({ cabang: payload.cabang, jabatan: jab });
+                ccUsers.push(...users);
+            }
+        }
 
         if (!env.EMAIL_USER) {
             throw new AppError("EMAIL_USER belum diset", 500);
@@ -249,7 +266,7 @@ export const emailNotificationService = {
                   rabData?.pemberi_persetujuan_koordinator,
                   rabData?.pemberi_persetujuan_manager
               ]).filter((email) => !targetEmails.includes(email))
-            : normalizeEmailList([ccUser?.email_sat]).filter((email) => !targetEmails.includes(email));
+            : normalizeEmailList(ccUsers.map((u) => u.email_sat)).filter((email) => !targetEmails.includes(email));
         const ccEmail = ccEmailList.length > 0 ? ccEmailList.join(", ") : undefined;
 
         const raw = buildRawEmail({
