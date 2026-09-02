@@ -1850,6 +1850,28 @@ export const rabService = {
         }
         logRab("SUBMIT", "RAB tersimpan di database", { rabId: rab.id });
 
+        if (normalizedProject && normalizedProject.toUpperCase() !== 'RENOVASI' && normalizedProject.toUpperCase().startsWith('RENOVASI')) {
+            try {
+                await pool.query(
+                    `UPDATE toko 
+                     SET proyek = $1 
+                     WHERE nomor_ulok = $2 
+                       AND UPPER(TRIM(proyek)) = 'RENOVASI'`,
+                    [normalizedProject, payload.nomor_ulok]
+                );
+                await pool.query(
+                    `UPDATE rab 
+                     SET proyek = $1 
+                     WHERE nomor_ulok = $2 
+                       AND UPPER(TRIM(proyek)) = 'RENOVASI'`,
+                    [normalizedProject, payload.nomor_ulok]
+                );
+                logRab("SUBMIT", `Sinkronisasi cross-scope proyek renovasi diset ke ${normalizedProject}`, { nomorUlok: payload.nomor_ulok });
+            } catch (syncErr) {
+                console.error("[RAB SUBMIT] Gagal sinkronisasi proyek renovasi cross-scope:", syncErr);
+            }
+        }
+
         // 4. Generate & upload 3 PDF ke Drive (sama seperti server Python)
         try {
             const links = await regenerateRabPdfs(String(rab.id), {
