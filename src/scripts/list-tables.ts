@@ -1,15 +1,17 @@
-import { pool } from "../db/pool";
+import { pool } from '../db/pool';
 
-async function run() {
-    // Find all relevant tables
-    const r = await pool.query(`
-        SELECT tablename FROM pg_tables 
-        WHERE schemaname='public' 
-        AND (tablename LIKE '%serah%' OR tablename LIKE '%opname%' OR tablename LIKE '%pengawasan%' OR tablename LIKE '%gantt%')
-        ORDER BY tablename
-    `);
-    console.log(r.rows.map((row: any) => row.tablename));
-    process.exit(0);
-}
-
-run().catch(e => { console.error(e); process.exit(1); });
+(async () => {
+    try {
+        const res = await pool.query(`
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public'
+        `);
+        console.log('\n--- Tables in public schema ---');
+        console.log(res.rows.map(r => r.table_name).join(', '));
+    } catch (e) {
+        console.error(e);
+    } finally {
+        process.exit(0);
+    }
+})();

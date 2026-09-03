@@ -1,19 +1,27 @@
-const { pool } = require('./src/db/pool');
-async function run() {
-  try {
-    const res = await pool.query(`
-      SELECT o.id, o.id_pengawasan_item, o.volume_akhir, o.total_selisih, o.desain, o.kualitas
-      FROM opname_item o
-      JOIN pengawasan p ON o.id_pengawasan_item = p.id
-      JOIN gantt_chart g ON p.id_gantt = g.id
-      JOIN toko t ON g.id_toko = t.id
-      WHERE t.nomor_ulok = 'Z001-3007-0102-R'
+import { Client } from 'pg';
+import dotenv from 'dotenv';
+import path from 'path';
+
+dotenv.config({ path: path.join(__dirname, '.env') });
+
+const client = new Client({
+    connectionString: process.env.DATABASE_URL
+});
+
+async function main() {
+    await client.connect();
+    
+    // Check opname_item for Toko 2599
+    const res = await client.query(`
+        SELECT id, id_rab_item, status, foto, catatan, tanggal_slot_opname, id_pengawasan_gantt_target
+        FROM opname_item 
+        WHERE id_toko = 2599 AND (tanggal_slot_opname IN ('2026-08-24', '2026-08-26') OR id_pengawasan_gantt_target IN (4364, 4723))
     `);
-    console.log(JSON.stringify(res.rows, null, 2));
-  } catch(e) {
-    console.error(e);
-  } finally {
-    pool.end();
-  }
+    
+    console.log("Opname Items (Toko 2599, Gantt SIPIL Dates):");
+    console.table(res.rows);
+
+    await client.end();
 }
-run();
+
+main().catch(console.error);
