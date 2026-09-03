@@ -1,9 +1,18 @@
 import { z } from "zod";
 
+const zBooleanString = z.preprocess((val) => {
+    if (typeof val === 'string') {
+        const lower = val.toLowerCase().trim();
+        if (lower === 'false' || lower === '0' || lower === '') return false;
+        if (lower === 'true' || lower === '1') return true;
+    }
+    return Boolean(val);
+}, z.boolean());
+
 const fasilitasItemSchema = z.object({
     jenis_fasilitas: z.string(),
     nama_fasilitas_lainnya: z.string().nullable().optional(),
-    is_tersedia: z.coerce.boolean().default(false),
+    is_tersedia: zBooleanString.default(false),
     keterangan: z.string().nullable().optional()
 });
 
@@ -105,19 +114,19 @@ export const submitProjekPlanningSchema = z.object({
     link_gambar_kerja: z.string().optional(),
 
     // ── Ruko / Non-Ruko ──────────────────────────────────────
-    is_ruko: z.coerce.boolean().optional().default(false),
+    is_ruko: zBooleanString.optional().default(false),
     jumlah_lantai: z.coerce.number().int().min(1).max(20).optional(),
 
     // ── Gambar Kompetitor ────────────────────────────────────
     link_gambar_kompetitor: z.string().optional(),
 
     // ── Head to Head & Seating Area ─────────────────────────
-    is_head_to_head: z.coerce.boolean().optional().default(false),
+    is_head_to_head: zBooleanString.optional().default(false),
     jarak_head_to_head: z.coerce.number().nonnegative().optional().nullable(),
-    is_seating_area: z.coerce.boolean().optional().default(false),
+    is_seating_area: zBooleanString.optional().default(false),
 
     // ── Kategori Toko ────────────────────────────────────────
-    is_dark_store: z.coerce.boolean().optional().default(false),
+    is_dark_store: zBooleanString.optional().default(false),
 
     // ── Tipe Bean Spot ───────────────────────────────────────
     beanspot_tipe: optionalText,
@@ -185,19 +194,19 @@ export const resubmitProjekPlanningSchema = z.object({
     link_gambar_kerja: z.string().optional(),
 
     // ── Ruko / Non-Ruko ──────────────────────────────────────
-    is_ruko: z.coerce.boolean().optional().default(false),
+    is_ruko: zBooleanString.optional().default(false),
     jumlah_lantai: z.coerce.number().int().min(1).max(20).optional(),
 
     // ── Gambar Kompetitor ────────────────────────────────────
     link_gambar_kompetitor: z.string().optional(),
 
     // ── Head to Head & Seating Area ─────────────────────────
-    is_head_to_head: z.coerce.boolean().optional().default(false),
+    is_head_to_head: zBooleanString.optional().default(false),
     jarak_head_to_head: z.coerce.number().nonnegative().optional().nullable(),
-    is_seating_area: z.coerce.boolean().optional().default(false),
+    is_seating_area: zBooleanString.optional().default(false),
 
     // ── Kategori Toko ────────────────────────────────────────
-    is_dark_store: z.coerce.boolean().optional().default(false),
+    is_dark_store: zBooleanString.optional().default(false),
 
     // ── Tipe Bean Spot ───────────────────────────────────────
     beanspot_tipe: optionalText,
