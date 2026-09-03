@@ -32,7 +32,7 @@ const TEMPLATE_MAP: Record<string, EmailTemplateConfig> = {
         template: "send-notification-spk-has-approve.njk",
         subject: "SPARTA Building - SPK Disetujui",
         targetJabatan: "KONTRAKTOR",
-        ccJabatan: ["BRANCH MANAGER", "BRANCH BUILDING & MAINTENANCE MANAGER", "BRANCH BUILDING COORDINATOR"]
+        ccJabatan: ["BRANCH MANAGER", "BRANCH BUILDING & MAINTENANCE MANAGER", "BRANCH BUILDING COORDINATOR", "BRANCH BUILDING SUPPORT"]
     },
     "notification-spk-has-reject": {
         template: "send-notification-spk-has-reject.njk",
@@ -48,7 +48,7 @@ const TEMPLATE_MAP: Record<string, EmailTemplateConfig> = {
         template: "send-notification-rab-has-approve.njk",
         subject: "SPARTA Building - RAB Disetujui",
         targetJabatan: "KONTRAKTOR",
-        ccJabatan: "BRANCH BUILDING & MAINTENANCE MANAGER"
+        ccJabatan: ["BRANCH BUILDING & MAINTENANCE MANAGER", "BRANCH BUILDING COORDINATOR", "BRANCH BUILDING SUPPORT"]
     },
     "notification-rab-has-reject": {
         template: "send-notification-rab-has-reject.njk",
@@ -177,8 +177,12 @@ export const emailNotificationService = {
             ? await userCabangRepository.findAll({ cabang: payload.cabang, jabatan: templateConfig.targetJabatan })
             : [];
         const spkContractorUsers = shouldUseSpkContractorEmails && isKontraktorTarget
-            ? (await userCabangRepository.findAll({ cabang: payload.cabang, jabatan: templateConfig.targetJabatan }))
-                .filter((user) => normalizeCompanyName(user.nama_pt) === normalizeCompanyName(spkData?.pengajuan.nama_kontraktor))
+            ? (await userCabangRepository.findAll({ cabang: payload.cabang }))
+                .filter((user) => normalizeCompanyName(user.nama_pt) === normalizeCompanyName(spkData?.pengajuan.nama_kontraktor) && (user.jabatan?.toUpperCase() === "KONTRAKTOR" || user.jabatan?.toUpperCase() === "DIREKTUR KONTRAKTOR"))
+            : [];
+        const rabContractorUsers = shouldUseRabEmails
+            ? (await userCabangRepository.findAll({ cabang: payload.cabang }))
+                .filter((user) => normalizeCompanyName(user.nama_pt) === normalizeCompanyName(rabData?.nama_pt) && user.jabatan?.toUpperCase() === "DIREKTUR KONTRAKTOR")
             : [];
         const spContractorUsers = shouldUseSpContractorEmails && isKontraktorTarget
             ? (await userCabangRepository.findAll({ cabang: payload.cabang, jabatan: templateConfig.targetJabatan }))
@@ -237,7 +241,7 @@ export const emailNotificationService = {
         }
 
         const targetEmails = shouldUseRabEmails
-            ? normalizeEmailList([rabData?.email_pembuat])
+            ? normalizeEmailList([rabData?.email_pembuat, ...rabContractorUsers.map(u => u.email_sat)])
             : shouldUseSpkContractorEmails
                 ? normalizeEmailList(spkContractorUsers.map((user) => user.email_sat))
             : shouldUseSpContractorEmails
@@ -264,7 +268,8 @@ export const emailNotificationService = {
         const ccEmailList = shouldUseRabEmails
             ? normalizeEmailList([
                   rabData?.pemberi_persetujuan_koordinator,
-                  rabData?.pemberi_persetujuan_manager
+                  rabData?.pemberi_persetujuan_manager,
+                  ...ccUsers.map((u) => u.email_sat)
               ]).filter((email) => !targetEmails.includes(email))
             : normalizeEmailList(ccUsers.map((u) => u.email_sat)).filter((email) => !targetEmails.includes(email));
         const ccEmail = ccEmailList.length > 0 ? ccEmailList.join(", ") : undefined;
