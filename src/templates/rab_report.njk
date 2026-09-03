@@ -328,14 +328,30 @@
     </div>
     {% endfor %}
 
+    {% if is_gabungan %}
     <table class="grand-total-table">
         <tbody>
-            <tr><td>TOTAL (Rp)</td><td class="total-amount-cell">{{ grand_total }}</td></tr>
-            <tr><td>PEMBULATAN (Rp)</td><td class="total-amount-cell">{{ pembulatan }}</td></tr>
-            <tr><td>PPN 11% (Rp)</td><td class="total-amount-cell">{{ ppn }}</td></tr>
-            <tr><td>GRAND TOTAL (Rp)</td><td class="total-amount-cell">{{ final_grand_total }}</td></tr>
+            {% for st in scopeTotals %}
+            <tr><td colspan="2" style="background-color: #f8fafc; font-weight: bold; text-align: left; padding: 6px;">RINCIAN: {{ st.scope }}</td></tr>
+            <tr><td>TOTAL (Rp)</td><td class="total-amount-cell">{{ st.total }}</td></tr>
+            <tr><td>PEMBULATAN (Rp)</td><td class="total-amount-cell">{{ st.pembulatan }}</td></tr>
+            <tr><td>PPN 11% (Rp)</td><td class="total-amount-cell">{{ st.ppn }}</td></tr>
+            <tr><td>TOTAL {{ st.scope }} (Rp)</td><td class="total-amount-cell" style="background-color: #dbeafe;">{{ st.grand_total }}</td></tr>
+            {% endfor %}
+            <tr><td colspan="2" style="background-color: #1e40af; height: 3px; padding: 0;"></td></tr>
+            <tr><td style="font-size: 12px;">GRAND TOTAL KESELURUHAN (Rp)</td><td class="total-amount-cell" style="font-size: 12px; background-color: #bfdbfe;">{{ final_grand_total }}</td></tr>
         </tbody>
     </table>
+    {% else %}
+    <table class="grand-total-table">
+        <tbody>
+            <tr><td>TOTAL (Rp)</td><td class="total-amount-cell">{{ scopeTotals[0].total }}</td></tr>
+            <tr><td>PEMBULATAN (Rp)</td><td class="total-amount-cell">{{ scopeTotals[0].pembulatan }}</td></tr>
+            <tr><td>PPN 11% (Rp)</td><td class="total-amount-cell">{{ scopeTotals[0].ppn }}</td></tr>
+            <tr><td>GRAND TOTAL (Rp)</td><td class="total-amount-cell" style="background-color: #bfdbfe;">{{ final_grand_total }}</td></tr>
+        </tbody>
+    </table>
+    {% endif %}
     <div style="clear:both;"></div>
 
     {# ============================================================

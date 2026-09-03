@@ -115,6 +115,44 @@ export const submitRab = asyncHandler(async (req: Request, res: Response) => {
         nama_kontraktor: payload.nama_kontraktor,
         lingkup_pekerjaan: payload.lingkup_pekerjaan,
     }));
+    if (payload.lingkup_pekerjaan === "GABUNGAN") {
+        const meCategories = ["INSTALASI", "FIXTURE"];
+        const sipilItems = payload.detail_items.filter((item: any) => item.lingkup_pekerjaan_item === "Sipil" || (!item.lingkup_pekerjaan_item && !meCategories.includes(item.kategori_pekerjaan.toUpperCase().trim())));
+        const meItems = payload.detail_items.filter((item: any) => item.lingkup_pekerjaan_item === "ME" || (!item.lingkup_pekerjaan_item && meCategories.includes(item.kategori_pekerjaan.toUpperCase().trim())));
+
+        if (sipilItems.length === 0) {
+            throw new AppError("RAB Gabungan harus memiliki setidaknya 1 item Sipil.", 422);
+        }
+        if (meItems.length === 0) {
+            throw new AppError("RAB Gabungan harus memiliki setidaknya 1 item ME.", 422);
+        }
+
+        const sipilPayload = { ...payload, lingkup_pekerjaan: "Sipil", detail_items: sipilItems };
+        const mePayload = { ...payload, lingkup_pekerjaan: "ME", detail_items: meItems };
+
+        const sipilData = await rabService.submit(sipilPayload, {
+            insuranceFile: uploadedInsuranceFile,
+            revInsuranceFile: uploadedRevInsuranceFile,
+            revLogoFile: uploadedRevLogoFile,
+        });
+
+        const meData = await rabService.submit(mePayload, {
+            insuranceFile: uploadedInsuranceFile,
+            revInsuranceFile: uploadedRevInsuranceFile,
+            revLogoFile: uploadedRevLogoFile,
+        });
+
+        res.status(201).json({
+            status: "success",
+            message: "Pengajuan RAB Gabungan berhasil disimpan",
+            data: {
+                sipil: sipilData,
+                me: meData
+            }
+        });
+        return;
+    }
+
     const data = await rabService.submit(payload, {
         insuranceFile: uploadedInsuranceFile,
         revInsuranceFile: uploadedRevInsuranceFile,

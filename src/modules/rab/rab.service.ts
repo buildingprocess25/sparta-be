@@ -1393,11 +1393,24 @@ async function regenerateRabPdfs(
     const proyek = filenameParts.proyek ?? fullData.toko.proyek ?? "N/A";
     const nomorUlok = filenameParts.nomorUlok ?? fullData.toko.nomor_ulok ?? "UNKNOWN";
 
+    const siblingId = await rabRepository.findSiblingRabId(rabId);
+    let siblingRab = null;
+    let siblingItems = null;
+    if (siblingId) {
+        const siblingData = await rabRepository.findById(String(siblingId));
+        if (siblingData) {
+            siblingRab = siblingData.rab;
+            siblingItems = siblingData.items;
+        }
+    }
+
     const pdfNonSbo = await buildRabPdfBuffer({
         rab: rabForPdf,
         items: fullData.items,
         toko: fullData.toko,
-        hideCoordinatorInfo
+        hideCoordinatorInfo,
+        siblingRab,
+        siblingItems
     });
     logRab("PDF", "PDF non SBO selesai dibuat", { rabId });
 
@@ -2074,6 +2087,28 @@ export const rabService = {
             );
             logRab("APPROVAL", "RAB ditolak", { rabId: id, newStatus });
 
+            const siblingId = await rabRepository.findSiblingRabId(id);
+            if (siblingId) {
+                const siblingData = await rabRepository.findById(String(siblingId));
+                if (siblingData) {
+                    const validSiblingRabItemIds = new Set(siblingData.items.map((item: RabItemRow) => item.id));
+                    const validSiblingRevisionItemIds = revisionItemIds.filter(itemId => validSiblingRabItemIds.has(itemId));
+                    const siblingRevisionItems = validSiblingRevisionItemIds.map((itemId) => ({
+                        id_rab_item: itemId,
+                        catatan_item: revisionItemNotes[String(itemId)] ?? null
+                    }));
+                    await rabRepository.rejectRabAndActivateLatestGanttGuarded(
+                        String(siblingId),
+                        newStatus,
+                        action.alasan_penolakan ?? "",
+                        action.approver_email,
+                        action.catatan_approval ?? null,
+                        siblingRevisionItems
+                    );
+                    logRab("APPROVAL", "Sibling RAB ditolak otomatis", { rabId: id, siblingId, newStatus });
+                }
+            }
+
             // Safety net: restore toko fields AFTER the transaction commits,
             // in case a deferred trigger or other side-effect corrupted them.
             await rabRepository.restoreTokoStableFieldsByRabId(id, tokoStableFields);
@@ -2082,6 +2117,12 @@ export const rabService = {
             validateRabCoordinatorAdditionalInfo(action);
             await rabRepository.updateApproval(id, newStatus, action);
             logRab("APPROVAL", "RAB diapprove", { rabId: id, newStatus });
+
+            const siblingId = await rabRepository.findSiblingRabId(id);
+            if (siblingId) {
+                await rabRepository.updateApproval(String(siblingId), newStatus, action);
+                logRab("APPROVAL", "Sibling RAB diapprove otomatis", { rabId: id, siblingId, newStatus });
+            }
         }
 
         if (action.tindakan === "APPROVE") {
