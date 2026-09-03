@@ -53,12 +53,13 @@ const isBmRegionalRole = (roles: string[] | undefined) => roleIncludes(roles, "B
 const isPpSpecialistRole = (roles: string[] | undefined) => roleIncludes(roles, "PROJECT PLANNING & DEVELOPMENT SPECIALIST", "PP SPECIALIST") || ((roles ?? []).some((role) => normalizeRole(role).includes("PROJECT PLANNING") && !normalizeRole(role).includes("MANAGER")));
 const isPpManagerRole = (roles: string[] | undefined) => roleIncludes(roles, "PROJECT PLANNING & DEVELOPMENT MANAGER", "PROJECT PLANNING MANAGER", "PP MANAGER");
 const isHeadOfficeRole = (roles: string[] | undefined) => (roles ?? []).map(normalizeRole).includes("HEAD OFFICE");
+const isStoreBranchControllingRole = (roles: string[] | undefined) => roleIncludes(roles, "STORE & BRANCH CONTROLLING");
 const BRANCHES_WITH_COORDINATOR_BM_APPROVAL = ["BATAM"];
 const canCoordinatorApproveBmForBranch = (branch?: string | null) =>
     BRANCHES_WITH_COORDINATOR_BM_APPROVAL.includes(normalizeBranchScopeName(branch));
 
 const hasProjectPlanningRole = (roles: string[] | undefined) =>
-    isSuperHuman(roles) || isHeadOfficeRole(roles) || isCoordinatorRole(roles) || isBmRole(roles) || isBmRegionalRole(roles) || isPpSpecialistRole(roles) || isPpManagerRole(roles);
+    isSuperHuman(roles) || isHeadOfficeRole(roles) || isCoordinatorRole(roles) || isBmRole(roles) || isBmRegionalRole(roles) || isPpSpecialistRole(roles) || isPpManagerRole(roles) || isStoreBranchControllingRole(roles);
 
 function requireUser(req: Request) {
     if (!req.user) throw new AppError("Sesi tidak valid. Silakan login kembali.", 401);
