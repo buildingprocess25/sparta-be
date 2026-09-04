@@ -250,7 +250,7 @@ export const spkService = {
 
         const toko = await tokoRepository.findById(data.pengajuan.id_toko);
 
-        const pertambahan_spk = await pertambahanSpkRepository.list({ id_spk: Number(id) });
+        const pertambahan_spk = await pertambahanSpkRepository.list({ nomor_ulok: data.pengajuan.nomor_ulok });
 
         let effectiveWaktuSelesaiDate: Date | null = new Date(data.pengajuan.waktu_selesai);
         if (Number.isNaN(effectiveWaktuSelesaiDate.getTime())) {
