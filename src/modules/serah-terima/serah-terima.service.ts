@@ -449,7 +449,13 @@ export const serahTerimaService = {
         cabang?: string | null;
         actor?: AuthenticatedUser | null;
     }) {
-        if (!canManageSystemMaintenance(input.actor)) {
+        const actorRoles = input.actor?.roles ?? [];
+        const canView = actorRoles.some((role) => {
+            const r = String(role).trim().toUpperCase();
+            return r.includes("SUPER HUMAN")
+                || r.includes("STORE & BRANCH CONTROLLING");
+        });
+        if (!canView) {
             throw new AppError("Anda tidak memiliki akses untuk melihat riwayat koreksi tanggal serah terima.", 403);
         }
 
