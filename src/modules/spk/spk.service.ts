@@ -10,6 +10,8 @@ import { spkRepository } from "./spk.repository";
 import type { SpkApprovalInput, SpkInterventionInput, SpkListQuery, SubmitSpkInput } from "./spk.schema";
 import type { AuthenticatedUser } from "../auth/auth-session.service";
 import { spkBackdatePolicyService } from "../spk-backdate-policy/spk-backdate-policy.service";
+import { pertambahanSpkRepository } from "../pertambahan-spk/pertambahan-spk.repository";
+import { calculateEffectiveStDate, toIsoDateString } from "../../common/national-holidays";
 
 const terbilang = (angka: number): string => {
     const satuan = ["", "Satu", "Dua", "Tiga", "Empat", "Lima", "Enam", "Tujuh", "Delapan", "Sembilan", "Sepuluh", "Sebelas"];
@@ -248,10 +250,63 @@ export const spkService = {
 
         const toko = await tokoRepository.findById(data.pengajuan.id_toko);
 
+        const pertambahan_spk = await pertambahanSpkRepository.list({ id_spk: Number(id) });
+
+        let effectiveWaktuSelesaiDate: Date | null = new Date(data.pengajuan.waktu_selesai);
+        if (Number.isNaN(effectiveWaktuSelesaiDate.getTime())) {
+            effectiveWaktuSelesaiDate = null;
+        }
+
+        const approvedExtensions = pertambahan_spk.filter(p => {
+            const status = (p.status_persetujuan || "").toUpperCase().trim();
+            return ["APPROVED", "DISETUJUI", "DISETUJUI BM"].includes(status);
+        });
+
+        if (approvedExtensions.length > 0) {
+            let maxDate: Date | null = null;
+            for (const ext of approvedExtensions) {
+                const rawDate = (ext.tanggal_spk_akhir_setelah_perpanjangan || "").trim();
+                let parsed: Date | null = null;
+                if (/^\d{4}-\d{2}-\d{2}/.test(rawDate)) {
+                    parsed = new Date(rawDate.substring(0, 10));
+                } else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(rawDate)) {
+                    const [dd, mm, yyyy] = rawDate.split("/");
+                    parsed = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+                }
+                
+                if (parsed && !Number.isNaN(parsed.getTime())) {
+                    if (!maxDate || parsed.getTime() > maxDate.getTime()) {
+                        maxDate = parsed;
+                    }
+                }
+            }
+            if (maxDate) {
+                effectiveWaktuSelesaiDate = maxDate;
+            }
+        }
+
+        const effective_waktu_selesai = effectiveWaktuSelesaiDate ? effectiveWaktuSelesaiDate.toISOString() : data.pengajuan.waktu_selesai;
+
+        let st_target_date: string | null = null;
+        let st_offset_days = 0;
+        let st_offset_label: string | null = null;
+
+        if (effectiveWaktuSelesaiDate) {
+            const target = calculateEffectiveStDate(effectiveWaktuSelesaiDate);
+            st_target_date = toIsoDateString(target.effectiveStDate);
+            st_offset_days = target.offsetDays;
+            st_offset_label = target.label;
+        }
+
         return {
             ...data,
+            pertambahan_spk,
             pengajuan: {
                 ...data.pengajuan,
+                effective_waktu_selesai,
+                st_target_date,
+                st_offset_days,
+                st_offset_label,
                 toko: {
                     id: toko?.id ?? null,
                     nomor_ulok: toko?.nomor_ulok ?? data.pengajuan.nomor_ulok,
