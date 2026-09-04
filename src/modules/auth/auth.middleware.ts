@@ -14,7 +14,9 @@ declare global {
 
 const PUBLIC_API_PATHS = new Set([
     "/api/auth/login",
-    "/api/auth/verify-otp"
+    "/api/auth/verify-otp",
+    "/api/auth/sso/callback",
+    "/api/auth/sso/resolve"
 ]);
 
 const MAINTENANCE_STATUS_CACHE_MS = 5_000;

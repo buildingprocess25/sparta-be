@@ -1,4 +1,5 @@
 import { AppError } from "../../common/app-error";
+import { getDriveBranchParent } from "../../common/branch-scope";
 import { authOtpService } from "../auth/auth-otp.service";
 import { authSessionService } from "../auth/auth-session.service";
 import { userBranchCoverageRepository } from "../user-branch-coverage/user-branch-coverage.repository";
@@ -69,6 +70,24 @@ const resolveLoginCandidate = (input: {
     return branchCandidates[0];
 };
 
+export const cleanUpBranchGroups = (users: UserCabangRow[]): UserCabangRow[] => {
+    const uniqueUsers: UserCabangRow[] = [];
+    const seenGroup = new Set<string>();
+    
+    for (const u of users) {
+        const parentBranch = getDriveBranchParent(u.cabang);
+        const groupKey = `${parentBranch}-${u.jabatan}`;
+        if (!seenGroup.has(groupKey)) {
+            seenGroup.add(groupKey);
+            uniqueUsers.push({
+                ...u,
+                cabang: parentBranch
+            });
+        }
+    }
+    return uniqueUsers;
+};
+
 export const tokoService = {
     async create(input: CreateTokoInput) {
         return tokoRepository.create(input);
@@ -108,7 +127,9 @@ export const tokoService = {
         const emailSat = input.email_sat.trim();
         const cabang = input.cabang.trim();
 
-        const registeredUsers = await tokoRepository.findUserCabangByEmailSatAll(emailSat);
+        let registeredUsers = await tokoRepository.findUserCabangByEmailSatAll(emailSat);
+        registeredUsers = cleanUpBranchGroups(registeredUsers);
+        
         if (registeredUsers.length === 0) {
             throw new AppError("email belum terdaftar", 404);
         }
@@ -147,7 +168,9 @@ export const tokoService = {
         const emailSat = input.email_sat.trim();
         const cabang = input.cabang.trim();
 
-        const registeredUsers = await tokoRepository.findUserCabangByEmailSatAll(emailSat);
+        let registeredUsers = await tokoRepository.findUserCabangByEmailSatAll(emailSat);
+        registeredUsers = cleanUpBranchGroups(registeredUsers);
+        
         if (registeredUsers.length === 0) {
             throw new AppError("email belum terdaftar", 404);
         }

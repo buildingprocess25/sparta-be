@@ -13,7 +13,8 @@ export type DashboardQueryInput = z.infer<typeof dashboardQuerySchema>;
 export const dashboardAllQuerySchema = z.object({
     search: z.string().trim().min(1).optional(),
     cabang_array: z.array(z.string()).optional(),
-    tipe_bangunan: z.enum(["ALL", "RUKO", "NON_RUKO"]).optional()
+    tipe_bangunan: z.enum(["ALL", "RUKO", "NON_RUKO"]).optional(),
+    _is_global_access: z.boolean().optional()
 });
 
 export type DashboardAllQueryInput = z.infer<typeof dashboardAllQuerySchema>;

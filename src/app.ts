@@ -24,6 +24,7 @@ import { userCabangRouter } from "./modules/user-cabang/user-cabang.routes";
 import { instruksiLapanganRouter } from "./modules/instruksi-lapangan/instruksi-lapangan.routes";
 import { serahTerimaRouter } from "./modules/serah-terima/serah-terima.routes";
 import { getKontraktor, loginUserCabang, verifyLoginOtp } from "./modules/toko/toko.controller";
+import { ssoCallback, ssoResolve } from "./modules/auth/sso.controller";
 import { dashboardRouter } from "./modules/dashboard/dashboard.routes";
 import { dendaRouter } from "./modules/denda/denda.routes";
 import { emailNotificationRouter } from "./modules/email-notification/email-notification.routes";
@@ -182,6 +183,8 @@ app.get("/health", (_req, res) => {
 
 app.post("/api/auth/login", loginUserCabang);
 app.post("/api/auth/verify-otp", verifyLoginOtp);
+app.get("/api/auth/sso/callback", ssoCallback);
+app.post("/api/auth/sso/resolve", ssoResolve);
 
 // Public file proxy endpoint (no auth required for external users like kontraktor)
 import { proxyFile } from "./modules/surat-peringatan/sp.controller";
