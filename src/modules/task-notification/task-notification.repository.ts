@@ -1,4 +1,4 @@
-import { getBranchScopeCandidates } from "../../common/branch-scope";
+import { getBranchScopeCandidates, hasGlobalAccess } from "../../common/branch-scope";
 import { pool } from "../../db/pool";
 import type { AuthenticatedUser } from "../auth/auth-session.service";
 
@@ -106,6 +106,7 @@ const normalizeCompanySql = (expression: string) =>
 
 const addBranchScope = (user: AuthenticatedUser, values: SqlValue[], branchExpression: string): string => {
     if (isSuperHuman(user)) return "";
+    if (hasGlobalAccess(user.cabang, user.roles)) return "";
 
     if (isBranchSupportRole(user)) {
         const branches = getBranchScopeCandidates(user.cabang);
@@ -161,6 +162,7 @@ const addBranchScope = (user: AuthenticatedUser, values: SqlValue[], branchExpre
 
 const addApprovalBranchScope = (user: AuthenticatedUser, values: SqlValue[], branchExpression: string): string => {
     if (isSuperHuman(user)) return "";
+    if (hasGlobalAccess(user.cabang, user.roles)) return "";
 
     values.push(user.email_sat);
     const emailIndex = values.length;
