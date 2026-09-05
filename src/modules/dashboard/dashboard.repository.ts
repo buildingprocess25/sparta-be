@@ -888,7 +888,7 @@ export const dashboardRepository = {
         if (query.cabang_array && query.cabang_array.length > 0) {
             values.push(query.cabang_array.map((item) => item.toUpperCase()));
             const idx = values.length;
-            filters.push(`UPPER(TRIM(cabang)) = ANY(${idx}::text[])`);
+            filters.push(`UPPER(TRIM(cabang)) = ANY($${idx}::text[])`);
         } else if (!query._is_global_access && !query.cabang_array) {
             filters.push(`1 = 0`);
         }

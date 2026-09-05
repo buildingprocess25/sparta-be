@@ -58,6 +58,10 @@ const envSchema = z.object({
     AUTH_SESSION_TTL_HOURS: z.coerce.number().int().positive().default(12),
     AUTH_ROLLING_SESSION: z.coerce.boolean().default(true),
     AUTH_SESSION_RETENTION_DAYS: z.coerce.number().int().positive().default(30),
+
+    // S2S Sync Config
+    SPARTA_SSO_API_URL: z.string().default("http://localhost:10000"),
+    SPARTA_INTERNAL_API_KEY: z.string().default("sparta-internal-sync-key-2026"),
 });
 
 const parsed = envSchema.safeParse(process.env);

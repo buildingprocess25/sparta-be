@@ -8,10 +8,13 @@ import { authSessionService } from "./auth-session.service";
 import { userCabangRepository } from "../user-cabang/user-cabang.repository";
 import { userBranchCoverageRepository } from "../user-branch-coverage/user-branch-coverage.repository";
 
+import jwt from "jsonwebtoken";
+
 // Kita tidak punya env.LOGIN_SPARTA_API_URL secara default, jadi kita hardcode untuk demo, atau ambil dari env.
 // Menurut standar, portal berjalan di port 3002 atau 10002.
 const SSO_EXCHANGE_URL = process.env.SSO_EXCHANGE_URL || "http://localhost:10000/v1/sso/exchange";
-const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3002";
+const SSO_JWT_SECRET = process.env.SSO_JWT_SECRET || "building_sso_secret_key_12345";
 
 export const ssoCallback = asyncHandler(async (req: Request, res: Response) => {
     const token = req.query.token as string;
@@ -47,16 +50,8 @@ export const ssoCallback = asyncHandler(async (req: Request, res: Response) => {
             return res.redirect(`${FRONTEND_URL}/auth?error=user_not_found`);
         }
 
-        // 3. Buat temporary JWT/Token untuk dilempar ke Frontend agar Frontend bisa membuka modal "Pilih Akun" atau langsung login
-        // Karena kita butuh Frontend mengeksekusi POST /api/auth/login, kita bisa encode data ini dalam base64
-        // Atau buat temporary session khusus SSO.
-        // Cara paling aman dan simpel untuk demo: Kita lempar sso_temp_email ke frontend.
-        // TAPI karena ini hanya Frontend kita sendiri, kita bisa pakai JWT rahasia, atau cukup URL param.
-        
-        // Agar persis seperti sistem lama, kita lempar `sso_email` ke Frontend
-        // Frontend akan menyerap `sso_email` ini, dan memanggil endpoint baru `POST /api/auth/sso/resolve`
-        
-        const payload = Buffer.from(JSON.stringify({ email })).toString("base64");
+        // 3. Buat JWT terenkripsi untuk dilempar ke Frontend
+        const payload = jwt.sign({ email }, SSO_JWT_SECRET, { expiresIn: "5m" });
         return res.redirect(`${FRONTEND_URL}/auth?sso_payload=${payload}`);
 
     } catch (error) {
@@ -70,7 +65,12 @@ export const ssoResolve = asyncHandler(async (req: Request, res: Response) => {
     
     if (!payload) throw new AppError("Payload missing", 400);
     
-    const decoded = JSON.parse(Buffer.from(payload, "base64").toString("utf-8"));
+    let decoded: any;
+    try {
+        decoded = jwt.verify(payload, SSO_JWT_SECRET);
+    } catch (err) {
+        throw new AppError("Token tidak valid atau kedaluwarsa", 401);
+    }
     const email = decoded.email;
 
     let registeredUsers = await tokoRepository.findUserCabangByEmailSatAll(email);
@@ -145,3 +145,28 @@ const buildLoginResponse = async (input: { matchedUser: any }) => {
 
     return { ...input.matchedUser, coverage, alamat_cabang, ...session };
 };
+
+export const ssoWebhookEmail = asyncHandler(async (req: Request, res: Response) => {
+    const internalKey = req.headers["x-sparta-internal-key"];
+    const expectedKey = process.env.SPARTA_INTERNAL_API_KEY || "sparta-internal-sync-key-2026";
+    
+    if (internalKey !== expectedKey) {
+        throw new AppError("Akses ditolak", 401);
+    }
+    
+    const { oldEmail, newEmail } = req.body;
+    
+    if (!oldEmail || !newEmail) {
+        throw new AppError("Missing oldEmail or newEmail", 400);
+    }
+    
+    // Update all users matching the oldEmail to newEmail in user_cabang
+    const db = await import("../../db/knex");
+    const knex = db.default || db.knex;
+    
+    await knex("user_cabang")
+        .whereRaw("LOWER(email_sat) = LOWER(?)", [oldEmail])
+        .update({ email_sat: newEmail });
+        
+    return res.json({ status: "success", data: { ok: true } });
+});

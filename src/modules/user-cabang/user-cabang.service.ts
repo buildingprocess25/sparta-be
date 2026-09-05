@@ -35,7 +35,27 @@ export const userCabangService = {
     async create(input: CreateUserCabangInput) {
         assertDcUserPayload(input);
         try {
-            return await userCabangRepository.create(input);
+            const user = await userCabangRepository.create(input);
+            
+            // Sync to login-sparta
+            const { env } = await import("../../config/env");
+            await fetch(`${env.SPARTA_SSO_API_URL}/v1/admin/users/sync`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-sparta-internal-key": env.SPARTA_INTERNAL_API_KEY
+                },
+                body: JSON.stringify({
+                    email: input.email_sat,
+                    fullName: input.nama,
+                    branchCode: input.cabang,
+                    branchName: input.cabang,
+                    role: "USER",
+                    moduleId: "building"
+                })
+            }).catch(e => console.error("[S2S SYNC] Failed to sync user to SSO:", e));
+
+            return user;
         } catch (error: unknown) {
             const pgError = toPgError(error);
             if (pgError.code === "23505") {
@@ -67,6 +87,30 @@ export const userCabangService = {
                 throw new AppError("Data user_cabang tidak ditemukan", 404);
             }
 
+            // SYNC UPDATE TO SSO
+            if (updated.email_sat) {
+                try {
+                    const { env } = await import("../../config/env");
+                    await fetch(`${env.SPARTA_SSO_API_URL}/v1/admin/users/sync`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "x-sparta-internal-key": env.SPARTA_INTERNAL_API_KEY,
+                        },
+                        body: JSON.stringify({
+                            email: updated.email_sat,
+                            fullName: updated.nama_lengkap || updated.email_sat,
+                            branchCode: updated.cabang || "HEAD",
+                            branchName: updated.cabang || "HEAD",
+                            role: updated.jabatan || "USER",
+                            moduleId: "building",
+                        }),
+                    });
+                } catch (error) {
+                    console.error("[S2S SYNC] Failed to sync-update user to SSO", error);
+                }
+            }
+
             return updated;
         } catch (error: unknown) {
             const pgError = toPgError(error);
@@ -79,9 +123,34 @@ export const userCabangService = {
     },
 
     async deleteById(id: number) {
+        const user = await userCabangRepository.findById(id);
+        if (!user) {
+            throw new AppError("Data user_cabang tidak ditemukan", 404);
+        }
+
         const deleted = await userCabangRepository.deleteById(id);
         if (!deleted) {
-            throw new AppError("Data user_cabang tidak ditemukan", 404);
+            throw new AppError("Gagal menghapus data user_cabang", 500);
+        }
+
+        // SYNC DELETE TO SSO
+        if (user.email_sat) {
+            try {
+                const { env } = await import("../../config/env");
+                await fetch(`${env.SPARTA_SSO_API_URL}/v1/admin/users/sync-delete`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "x-sparta-internal-key": env.SPARTA_INTERNAL_API_KEY,
+                    },
+                    body: JSON.stringify({
+                        email: user.email_sat,
+                        moduleId: "building",
+                    }),
+                });
+            } catch (error) {
+                console.error("[S2S SYNC] Failed to sync-delete user from SSO", error);
+            }
         }
 
         return deleted;
