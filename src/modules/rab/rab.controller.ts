@@ -46,6 +46,28 @@ const assertCurrentUserCanAccessRab = async (user: AuthenticatedUser, data: Awai
         throw new AppError("Anda tidak memiliki akses ke cabang dokumen ini.", 403);
     }
 };
+const normalizeRabItemScope = (item: {
+    lingkup_pekerjaan?: unknown;
+    lingkup_pekerjaan_item?: unknown;
+    lingkup_asal?: unknown;
+    kategori_pekerjaan?: unknown;
+}): "SIPIL" | "ME" | null => {
+    const rawScope = String(
+        item.lingkup_pekerjaan
+        ?? item.lingkup_pekerjaan_item
+        ?? item.lingkup_asal
+        ?? ""
+    ).trim().toUpperCase();
+
+    if (rawScope.includes("SIPIL")) return "SIPIL";
+    if (rawScope === "ME" || rawScope.includes("MEKANIKAL") || rawScope.includes("ELEKTRIKAL")) return "ME";
+
+    const category = String(item.kategori_pekerjaan ?? "").trim().toUpperCase();
+    if (["INSTALASI", "FIXTURE"].includes(category)) return "ME";
+    if (category) return "SIPIL";
+
+    return null;
+};
 
 export const submitRab = asyncHandler(async (req: Request, res: Response) => {
     let detailItems = req.body.detail_items;
@@ -116,9 +138,8 @@ export const submitRab = asyncHandler(async (req: Request, res: Response) => {
         lingkup_pekerjaan: payload.lingkup_pekerjaan,
     }));
     if (payload.lingkup_pekerjaan === "GABUNGAN") {
-        const meCategories = ["INSTALASI", "FIXTURE"];
-        const sipilItems = payload.detail_items.filter((item: any) => item.lingkup_pekerjaan_item === "Sipil" || (!item.lingkup_pekerjaan_item && !meCategories.includes(item.kategori_pekerjaan.toUpperCase().trim())));
-        const meItems = payload.detail_items.filter((item: any) => item.lingkup_pekerjaan_item === "ME" || (!item.lingkup_pekerjaan_item && meCategories.includes(item.kategori_pekerjaan.toUpperCase().trim())));
+        const sipilItems = payload.detail_items.filter((item) => normalizeRabItemScope(item) === "SIPIL");
+        const meItems = payload.detail_items.filter((item) => normalizeRabItemScope(item) === "ME");
 
         if (sipilItems.length === 0) {
             throw new AppError("RAB Gabungan harus memiliki setidaknya 1 item Sipil.", 422);

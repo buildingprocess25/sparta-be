@@ -14,6 +14,9 @@ const positiveIntegerText = z.string().trim().regex(/^[1-9]\d*$/, {
 
 export const detailItemSchema = z.object({
     kategori_pekerjaan: z.string().min(1),
+    lingkup_pekerjaan: z.string().optional(),
+    lingkup_pekerjaan_item: z.string().optional(),
+    lingkup_asal: z.string().optional(),
     jenis_pekerjaan: z.string().min(1),
     satuan: z.string().min(1),
     volume: z.coerce.number().nonnegative(),
