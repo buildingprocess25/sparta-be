@@ -105,20 +105,7 @@ const addDependencyValidationIssues = (
         return;
     }
 
-    const parentCategoriesWithContinuation = new Set(
-        dependencyList.map((dependency) => normalizeKategoriKey(dependency.kategori_pekerjaan_terikat))
-    );
-    const missingContinuation = normalizedCategories
-        .slice(0, -1)
-        .filter((categoryKey) => !parentCategoriesWithContinuation.has(categoryKey));
 
-    if (missingContinuation.length > 0) {
-        ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["dependencies"],
-            message: "Keterikatan wajib diisi untuk setiap tahapan pekerjaan kecuali tahapan terakhir."
-        });
-    }
 };
 
 // --- Submit Gantt Chart ---
