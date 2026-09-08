@@ -47,7 +47,7 @@ export const userCabangService = {
                 },
                 body: JSON.stringify({
                     email: input.email_sat,
-                    fullName: input.nama,
+                    fullName: input.nama_lengkap || input.email_sat,
                     branchCode: input.cabang,
                     branchName: input.cabang,
                     role: "USER",
