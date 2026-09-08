@@ -198,7 +198,7 @@ const buildOpnameGroupedItems = async (
     return Array.from(grouped.entries()).map(([category, groupedItems]) => ({
         category,
         items: groupedItems,
-        summary: buildFinancialSummary(totals.get(category) ?? 0, "up", noPpn)
+        summary: buildFinancialSummary(totals.get(category) ?? 0, "down", noPpn)
     }));
 };
 
@@ -246,7 +246,7 @@ const buildInstruksiLapanganGroups = async (
     return Array.from(grouped.entries()).map(([category, groupedItems]) => ({
         category,
         items: groupedItems,
-        summary: buildFinancialSummary(totals.get(category) ?? 0, "up", noPpn)
+        summary: buildFinancialSummary(totals.get(category) ?? 0, "down", noPpn)
     }));
 };
 
@@ -409,9 +409,9 @@ export const buildOpnameFinalPdfBuffer = async (
         noPpn,
     });
     const rabSummary = buildFinancialSummary(financials.rab.total, "down", noPpn);
-    const instruksiLapanganSummary = buildFinancialSummary(financials.instruksiLapangan.total, "up", noPpn);
-    const kerjaTambahSummary = buildFinancialSummary(financials.kerjaTambah.total, "up", noPpn);
-    const kerjaKurangSummary = buildFinancialSummary(financials.kerjaKurang.total, "up", noPpn);
+    const instruksiLapanganSummary = buildFinancialSummary(financials.instruksiLapangan.total, "down", noPpn);
+    const kerjaTambahSummary = buildFinancialSummary(financials.kerjaTambah.total, "down", noPpn);
+    const kerjaKurangSummary = buildFinancialSummary(financials.kerjaKurang.total, "down", noPpn);
     const selisihKerjaTambahKurang = financials.selisihKerjaTambahKurang;
     const selisihKerjaTambahKurangAbs = Math.abs(selisihKerjaTambahKurang);
     const totalOpnameFinal = financials.totalFinal;
@@ -431,7 +431,7 @@ export const buildOpnameFinalPdfBuffer = async (
         instruksi_lapangan_groups: await buildInstruksiLapanganGroups(instruksiLapanganItems, allOpnameItems, noPpn, resolvePhotoCached),
         kerja_tambah_groups: await buildOpnameGroupedItems(kerjaTambahItems, noPpn, resolvePhotoCached),
         kerja_kurang_groups: await buildOpnameGroupedItems(kerjaKurangItems, noPpn, resolvePhotoCached),
-        opname_summary: buildFinancialSummary(totalOpnameSelisih, "up", noPpn),
+        opname_summary: buildFinancialSummary(totalOpnameSelisih, "down", noPpn),
         rab_summary: rabSummary,
         instruksi_lapangan_summary: instruksiLapanganSummary,
         kerja_tambah_summary: kerjaTambahSummary,
