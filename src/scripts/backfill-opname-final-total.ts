@@ -41,9 +41,9 @@ async function run() {
             else kurangTotal += selisih;
         }
         const rabSummary = buildFinancialSummary(rabTotal, 'down', noPpn);
-        const ilSummary = buildFinancialSummary(ilTotal, 'up', noPpn);
-        const tambahSummary = buildFinancialSummary(tambahTotal, 'up', noPpn);
-        const kurangSummary = buildFinancialSummary(kurangTotal, 'up', noPpn);
+        const ilSummary = buildFinancialSummary(ilTotal, 'down', noPpn);
+        const tambahSummary = buildFinancialSummary(tambahTotal, 'down', noPpn);
+        const kurangSummary = buildFinancialSummary(kurangTotal, 'down', noPpn);
         const nilaiDenda = Number(row.nilai_denda || 0);
         const finalTotal = rabSummary.grand_total + ilSummary.grand_total + tambahSummary.grand_total - Math.abs(kurangSummary.grand_total) - nilaiDenda;
         await pool.query('UPDATE opname_final SET grand_total_final = $1 WHERE id = $2', [finalTotal, id]);

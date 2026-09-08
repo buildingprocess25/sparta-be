@@ -15,8 +15,8 @@ test("menghitung RAB + IL + tambah - kurang - denda dengan aturan PPN", () => {
     });
 
     assert.equal(result.rab.grand_total, 33_322_200);
-    assert.equal(result.kerjaKurang.grand_total, -1_110_000);
-    assert.equal(result.totalFinal, 32_212_200);
+    assert.equal(result.kerjaKurang.grand_total, -1_098_900);
+    assert.equal(result.totalFinal, 32_223_300);
 });
 
 test("area tanpa PPN tidak menambahkan sebelas persen", () => {
@@ -29,7 +29,7 @@ test("area tanpa PPN tidak menambahkan sebelas persen", () => {
         noPpn: true,
     });
 
-    assert.equal(result.totalFinal, 30_430_000);
+    assert.equal(result.totalFinal, 30_410_000);
 });
 
 test("nilai instruksi lapangan di opname mengikuti volume akhir opname", () => {

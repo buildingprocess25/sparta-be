@@ -18,7 +18,7 @@ import {
 } from "./project-planning.schema";
 import { projekPlanningService } from "./project-planning.service";
 
-async function fetchPublicDriveBuffer(fileId: string): Promise<Buffer | null> {
+async function fetchPublicDriveStream(fileId: string): Promise<{ stream: NodeJS.ReadableStream, contentType: string, contentLength: number | null } | null> {
     const urls = [
         `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}`,
         `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download`,
@@ -27,13 +27,18 @@ async function fetchPublicDriveBuffer(fileId: string): Promise<Buffer | null> {
     for (const url of urls) {
         try {
             const response = await fetch(url);
-            if (!response.ok) continue;
+            if (!response.ok || !response.body) continue;
+            
             const contentType = response.headers.get("content-type") || "";
-            const body = Buffer.from(await response.arrayBuffer());
-            if (!body.length) continue;
-            // Halaman HTML Google Drive "can't access" bukan file valid.
-            if (contentType.includes("text/html") && body.toString("utf8", 0, Math.min(body.length, 300)).includes("<html")) continue;
-            return body;
+            // Jika merespon HTML, berarti Google Drive memblokir (butuh login/akses)
+            if (contentType.includes("text/html")) continue;
+
+            const contentLengthStr = response.headers.get("content-length");
+            const contentLength = contentLengthStr ? parseInt(contentLengthStr, 10) : null;
+
+            const { Readable } = await import("stream");
+            const stream = Readable.fromWeb(response.body as any);
+            return { stream, contentType, contentLength };
         } catch {
             // lanjut ke URL berikutnya
         }
@@ -516,8 +521,8 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
     const fileId = extractGdriveFileId(fileUrl);
 
     if (!fileId) {
-        // Bukan URL GDrive — redirect langsung
-        res.redirect(fileUrl);
+        // Bukan URL GDrive — kembalikan status redirect agar frontend menangani via window.open
+        res.status(400).json({ status: "redirect", url: fileUrl, message: "Bukan URL GDrive. Redirect manual." });
         return;
     }
 
@@ -532,42 +537,62 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
     // Ambil metadata file
     let mimeType = "application/octet-stream";
     let fileName = `file_${field}_${id}`;
+    let fileSize = 0;
     try {
         if (!drive) throw new Error("docDrive unavailable");
-        const meta = await drive.files.get({ fileId, fields: "name, mimeType" });
+        const meta = await drive.files.get({ fileId, fields: "name, mimeType, size" });
         if (meta.data.name) fileName = meta.data.name;
         if (meta.data.mimeType) mimeType = meta.data.mimeType;
+        if (meta.data.size) fileSize = parseInt(meta.data.size, 10);
     } catch {
         try {
             if (!spartaDrive) throw new Error("spartaDrive unavailable");
-            const meta = await spartaDrive.files.get({ fileId, fields: "name, mimeType" });
+            const meta = await spartaDrive.files.get({ fileId, fields: "name, mimeType, size" });
             if (meta.data.name) fileName = meta.data.name;
             if (meta.data.mimeType) mimeType = meta.data.mimeType;
+            if (meta.data.size) fileSize = parseInt(meta.data.size, 10);
         } catch {
             // ignore, gunakan default
         }
     }
 
-    // Download buffer
-    let buffer = drive ? await GoogleProvider.instance.getFileBufferById(drive, fileId) : null;
-    if (!buffer && spartaDrive) {
-        buffer = await GoogleProvider.instance.getFileBufferById(spartaDrive, fileId);
+    // Stream file untuk menghindari Out Of Memory (OOM) dan render timeout
+    let stream = drive ? await GoogleProvider.instance.getFileStreamById(drive, fileId) : null;
+    if (!stream && spartaDrive) {
+        stream = await GoogleProvider.instance.getFileStreamById(spartaDrive, fileId);
     }
-    if (!buffer) {
-        buffer = await fetchPublicDriveBuffer(fileId);
+
+    if (stream) {
+        res.setHeader("Content-Type", mimeType);
+        res.setHeader(
+            "Content-Disposition",
+            mode === "download"
+                ? `attachment; filename="${encodeURIComponent(fileName)}"`
+                : `inline; filename="${encodeURIComponent(fileName)}"`
+        );
+        if (fileSize) {
+            res.setHeader("Content-Length", fileSize);
+        }
+        stream.pipe(res);
+        return;
     }
-    if (!buffer) {
+
+    // Jika file gagal di-stream (misal ukuran file terlalu kecil atau restriksi), fallback ke stream public
+    const publicData = await fetchPublicDriveStream(fileId);
+    if (!publicData) {
         res.status(502).json({ status: "error", message: "Gagal mengambil file dari Drive. Pastikan file RAB dapat diakses oleh token backend atau dibagikan sebagai viewer." });
         return;
     }
 
-    res.setHeader("Content-Type", mimeType);
+    res.setHeader("Content-Type", publicData.contentType || mimeType);
     res.setHeader(
         "Content-Disposition",
         mode === "download"
             ? `attachment; filename="${encodeURIComponent(fileName)}"`
             : `inline; filename="${encodeURIComponent(fileName)}"`
     );
-    res.setHeader("Content-Length", buffer.length);
-    res.send(buffer);
+    if (publicData.contentLength) {
+        res.setHeader("Content-Length", publicData.contentLength);
+    }
+    publicData.stream.pipe(res);
 });

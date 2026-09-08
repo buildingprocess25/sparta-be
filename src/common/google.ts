@@ -605,6 +605,21 @@ export class GoogleProvider {
         }
     }
 
+    /** Stream file secara langsung untuk menghindari OOM dan Render timeout */
+    async getFileStreamById(drive: drive_v3.Drive, fileId: string): Promise<NodeJS.ReadableStream | null> {
+        try {
+            const resp = await drive.files.get(
+                { fileId, alt: "media", supportsAllDrives: true },
+                { responseType: "stream" },
+            );
+            return resp.data as NodeJS.ReadableStream;
+        } catch (error: any) {
+            const status = error?.code ?? error?.response?.status;
+            console.error("[google] Gagal stream file Drive via API", { fileId, status, message: error?.message });
+            return null;
+        }
+    }
+
     /** Sama persis dg Python get_kontraktor_by_cabang(), dengan normalisasi nama wilayah. */
     async getKontraktorByCabang(userWilayah: string): Promise<string[]> {
         if (!this.spartaSheets) {
