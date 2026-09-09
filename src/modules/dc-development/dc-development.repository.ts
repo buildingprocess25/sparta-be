@@ -393,6 +393,7 @@ export const dcDevelopmentRepository = {
                     WHERE d_notes.entity_type = 'DC_ARCHIVE_PROJECT'
                       AND d_notes.project_id = a.project_id
                       AND d_notes.status <> 'DELETED'
+                      AND (d_notes.document_type IS NULL OR d_notes.document_type NOT LIKE 'CAT_NOTE_%')
                       AND v_notes.notes IS NOT NULL
                       AND v_notes.notes <> ''
                 ) AS total_notes,
