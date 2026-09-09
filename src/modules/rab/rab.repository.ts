@@ -252,12 +252,30 @@ export const rabRepository = {
         const result = await pool.query<{id: number}>(
             `SELECT sibling.id
              FROM rab r
-             JOIN rab sibling ON r.id_toko = sibling.id_toko AND r.id != sibling.id
+             JOIN toko t1 ON r.id_toko = t1.id
+             JOIN toko t2 ON t1.nomor_ulok = t2.nomor_ulok
+             JOIN rab sibling ON sibling.id_toko = t2.id AND r.id != sibling.id
              WHERE r.id = $1
                AND sibling.status = r.status
              ORDER BY sibling.id DESC
              LIMIT 1`,
             [rabId]
+        );
+        return result.rows[0]?.id ?? null;
+    },
+
+    async findActiveSiblingRabId(rabId: string | number): Promise<number | null> {
+        const result = await pool.query<{id: number}>(
+            `SELECT sibling.id
+             FROM rab r
+             JOIN toko t1 ON r.id_toko = t1.id
+             JOIN toko t2 ON t1.nomor_ulok = t2.nomor_ulok
+             JOIN rab sibling ON sibling.id_toko = t2.id AND r.id != sibling.id
+             WHERE r.id = $1
+               AND sibling.status = ANY($2::text[])
+             ORDER BY sibling.id DESC
+             LIMIT 1`,
+            [rabId, ACTIVE_RAB_STATUSES]
         );
         return result.rows[0]?.id ?? null;
     },

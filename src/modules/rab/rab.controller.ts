@@ -151,6 +151,13 @@ export const submitRab = asyncHandler(async (req: Request, res: Response) => {
         const sipilPayload = { ...payload, lingkup_pekerjaan: "Sipil", detail_items: sipilItems };
         const mePayload = { ...payload, lingkup_pekerjaan: "ME", detail_items: meItems };
 
+        if (payload.is_revisi && payload.id_rab_revisi) {
+            delete sipilPayload.id_rab_revisi;
+            delete mePayload.id_rab_revisi;
+            sipilPayload.is_revisi = false;
+            mePayload.is_revisi = false;
+        }
+
         const sipilData = await rabService.submit(sipilPayload, {
             insuranceFile: uploadedInsuranceFile,
             revInsuranceFile: uploadedRevInsuranceFile,

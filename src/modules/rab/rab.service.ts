@@ -1393,7 +1393,7 @@ async function regenerateRabPdfs(
     const proyek = filenameParts.proyek ?? fullData.toko.proyek ?? "N/A";
     const nomorUlok = filenameParts.nomorUlok ?? fullData.toko.nomor_ulok ?? "UNKNOWN";
 
-    const siblingId = await rabRepository.findSiblingRabId(rabId);
+    const siblingId = await rabRepository.findActiveSiblingRabId(rabId);
     let siblingRab = null;
     let siblingItems = null;
     if (siblingId) {
@@ -2050,6 +2050,11 @@ export const rabService = {
 
         await validateInternalApprovalBranchAccess(data, action);
         const newStatus = resolveStatusTransition(data.rab.status, action, data.toko.cabang);
+
+        // Cari sibling RAB (Sipil/ME) yang memiliki status yang sama SEBELUM status RAB utama ini diubah.
+        // Dengan ini, aksi approval/penolakan akan otomatis ikut mempengaruhi sibling-nya.
+        const siblingId = await rabRepository.findSiblingRabId(id);
+
         if (action.tindakan === "REJECT") {
             const revisionItemIds = action.revisi_item_ids ?? [];
             const uniqueRevisionItemIds = new Set(revisionItemIds);
@@ -2087,7 +2092,6 @@ export const rabService = {
             );
             logRab("APPROVAL", "RAB ditolak", { rabId: id, newStatus });
 
-            const siblingId = await rabRepository.findSiblingRabId(id);
             if (siblingId) {
                 const siblingData = await rabRepository.findById(String(siblingId));
                 if (siblingData) {
@@ -2118,7 +2122,6 @@ export const rabService = {
             await rabRepository.updateApproval(id, newStatus, action);
             logRab("APPROVAL", "RAB diapprove", { rabId: id, newStatus });
 
-            const siblingId = await rabRepository.findSiblingRabId(id);
             if (siblingId) {
                 await rabRepository.updateApproval(String(siblingId), newStatus, action);
                 logRab("APPROVAL", "Sibling RAB diapprove otomatis", { rabId: id, siblingId, newStatus });
