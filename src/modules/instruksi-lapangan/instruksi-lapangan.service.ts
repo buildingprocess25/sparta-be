@@ -13,6 +13,7 @@ import {
     buildInstruksiLapanganRecapPdfBuffer,
     mergePdfBuffers
 } from "./instruksi-lapangan.pdf";
+import { opnameRepository } from "../opname/opname.repository";
 
 const MailComposer = require("nodemailer/lib/mail-composer");
 
@@ -424,6 +425,11 @@ export const instruksiLapanganService = {
                     undefined,
                     action.catatan_approval ?? null
                 );
+                
+                // Sync to Opname Final if exists
+                await opnameRepository.syncApprovedInstruksiLapangan(data.toko.id, Number(id)).catch(err => {
+                    console.error("Failed to sync approved Instruksi Lapangan to Opname:", err);
+                });
             } else {
                 throw new AppError(`Status tidak dapat di-approve dari state saat ini: ${currentStatus}`, 400);
             }
