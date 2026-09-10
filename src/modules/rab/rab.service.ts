@@ -2065,7 +2065,7 @@ export const rabService = {
             // Validasi: hanya item yang benar-benar ada di RAB ini yang boleh masuk revisi.
             // Item yang tidak valid (stale frontend cache / FK mismatch) di-skip agar
             // tidak menyebabkan FK violation yang memblokir seluruh transaksi penolakan.
-            const validRabItemIds = new Set(data.items.map((item: RabItemRow) => item.id));
+            const validRabItemIds = new Set(data.items.map((item: RabItemRow) => Number(item.id)));
             const validRevisionItemIds = revisionItemIds.filter(itemId => validRabItemIds.has(itemId));
 
             if (revisionItemIds.length > 0 && validRevisionItemIds.length !== revisionItemIds.length) {
@@ -2095,7 +2095,7 @@ export const rabService = {
             if (siblingId) {
                 const siblingData = await rabRepository.findById(String(siblingId));
                 if (siblingData) {
-                    const validSiblingRabItemIds = new Set(siblingData.items.map((item: RabItemRow) => item.id));
+                    const validSiblingRabItemIds = new Set(siblingData.items.map((item: RabItemRow) => Number(item.id)));
                     const validSiblingRevisionItemIds = revisionItemIds.filter(itemId => validSiblingRabItemIds.has(itemId));
                     const siblingRevisionItems = validSiblingRevisionItemIds.map((itemId) => ({
                         id_rab_item: itemId,
