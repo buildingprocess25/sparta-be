@@ -200,7 +200,7 @@ import type {
 
 async function sendPpNotificationEmail(
     type: "ACTION_REQUIRED" | "REJECTED",
-    projek: { id: number; cabang: string; nomor_ulok: string; nama_toko: string; email_pembuat: string },
+    projek: { id: number; cabang?: string | null; nomor_ulok: string; nama_toko: string; email_pembuat: string },
     targetRole: string | "COORDINATOR",
     customPesanAtauAlasan: string,
     ditolakOleh?: string
@@ -211,7 +211,7 @@ async function sendPpNotificationEmail(
         if (targetRole === "COORDINATOR") {
             if (projek.email_pembuat) toEmails.push(projek.email_pembuat);
         } else if (targetRole === "BRANCH BUILDING & MAINTENANCE MANAGER") {
-            const users = await userCabangRepository.findAll({ cabang: projek.cabang, jabatan: targetRole });
+            const users = await userCabangRepository.findAll({ cabang: projek.cabang ?? undefined, jabatan: targetRole });
             toEmails = users.map(u => u.email_sat);
         } else {
             const users = await userCabangRepository.findAll({ jabatan: targetRole });
