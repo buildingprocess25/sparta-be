@@ -7,6 +7,7 @@ import { emailNotificationService } from "../email-notification/email-notificati
 import { buildProjekPlanningPdfBuffer } from "./project-planning.pdf";
 import { compressImage } from "../../common/image-compressor";
 import { normalizeProjectByUlok } from "../../common/project-type";
+import { userCabangRepository } from "../user-cabang/user-cabang.repository";
 
 const PROJECT_PLANNING_DRIVE_FOLDER_ID = env.PROJECT_PLANNING_DRIVE_FOLDER_ID;
 
@@ -197,6 +198,53 @@ import type {
     ProjekPlanningInterventionInput,
 } from "./project-planning.schema";
 
+async function sendPpNotificationEmail(
+    type: "ACTION_REQUIRED" | "REJECTED",
+    projek: { id: number; cabang: string; nomor_ulok: string; nama_toko: string; email_pembuat: string },
+    targetRole: string | "COORDINATOR",
+    customPesanAtauAlasan: string,
+    ditolakOleh?: string
+) {
+    try {
+        let toEmails: string[] = [];
+        
+        if (targetRole === "COORDINATOR") {
+            if (projek.email_pembuat) toEmails.push(projek.email_pembuat);
+        } else if (targetRole === "BRANCH BUILDING & MAINTENANCE MANAGER") {
+            const users = await userCabangRepository.findAll({ cabang: projek.cabang, jabatan: targetRole });
+            toEmails = users.map(u => u.email_sat);
+        } else {
+            const users = await userCabangRepository.findAll({ jabatan: targetRole });
+            toEmails = users.map(u => u.email_sat);
+        }
+
+        if (toEmails.length === 0) {
+            console.warn(`[PP Email] Tidak ada penerima untuk role ${targetRole} pada projek ${projek.id}`);
+            return;
+        }
+
+        const template = type === "ACTION_REQUIRED" ? "send-notification-pp-action-required.njk" : "send-notification-pp-rejected.njk";
+        const subject = type === "ACTION_REQUIRED" ? "SPARTA Building - FPD Memerlukan Tindakan" : "SPARTA Building - FPD Ditolak";
+
+        await emailNotificationService.sendCustom({
+            to: toEmails,
+            subject,
+            template,
+            templateData: {
+                nama_lengkap: targetRole === "COORDINATOR" ? "Bapak/Ibu" : targetRole,
+                cabang: projek.cabang,
+                nomor_ulok: projek.nomor_ulok,
+                nama_toko: projek.nama_toko,
+                pesan: type === "ACTION_REQUIRED" ? customPesanAtauAlasan : undefined,
+                alasan_penolakan: type === "REJECTED" ? customPesanAtauAlasan : undefined,
+                ditolak_oleh: ditolakOleh
+            }
+        });
+    } catch (err) {
+        console.error(`[PP Email] Gagal mengirim email ${type} ke ${targetRole}:`, err);
+    }
+}
+
 export const projekPlanningService = {
 
     // ============================================================
@@ -345,6 +393,14 @@ export const projekPlanningService = {
             await projekPlanningRepository.createFotoItemsBulk(created.id, fotoItemsLinks);
         }
 
+        const skipBm = shouldSkipBmApproval(payload.cabang);
+        const pInfo = { id: created.id, cabang: payload.cabang, nomor_ulok: payload.nomor_ulok, nama_toko: payload.nama_toko || payload.nama_lokasi || "", email_pembuat: payload.email_pembuat };
+        if (!skipBm) {
+            sendPpNotificationEmail("ACTION_REQUIRED", pInfo, "BRANCH BUILDING & MAINTENANCE MANAGER", "FPD baru telah diajukan oleh Coordinator, menunggu persetujuan Anda.");
+        } else {
+            sendPpNotificationEmail("ACTION_REQUIRED", pInfo, "PROJECT PLANNING & DEVELOPMENT SPECIALIST", "FPD baru telah diajukan (Bypass BM Manager), menunggu review tahap 1.");
+        }
+
         return created;
     },
 
@@ -488,6 +544,14 @@ export const projekPlanningService = {
             for (const item of fotoItemsLinks) {
                 await projekPlanningRepository.upsertFotoItem(id, item.item_index, item.link_foto);
             }
+        }
+
+        const pInfo = { id, cabang: projek.cabang, nomor_ulok: projek.nomor_ulok, nama_toko: projek.nama_toko || projek.nama_lokasi || "", email_pembuat: projek.email_pembuat };
+        const skipBm = shouldSkipBmApproval(projek.cabang);
+        if (!skipBm) {
+            sendPpNotificationEmail("ACTION_REQUIRED", pInfo, "BRANCH BUILDING & MAINTENANCE MANAGER", "FPD telah diajukan ulang oleh Coordinator, menunggu persetujuan Anda.");
+        } else {
+            sendPpNotificationEmail("ACTION_REQUIRED", pInfo, "PROJECT PLANNING & DEVELOPMENT SPECIALIST", "FPD telah diajukan ulang (Bypass BM Manager), menunggu review tahap 1.");
         }
 
         return updated;
@@ -635,6 +699,17 @@ export const projekPlanningService = {
                     : (client) => projekPlanningRepository.updateStatusAndRejectToDraft(id, PP_ROLE.BM, action, client)
         );
 
+        const pInfo = { id, cabang: projek.cabang, nomor_ulok: projek.nomor_ulok, nama_toko: projek.nama_toko || projek.nama_lokasi || "", email_pembuat: projek.email_pembuat };
+        if (isApprove) {
+            if (isStage2) {
+                sendPpNotificationEmail("ACTION_REQUIRED", pInfo, "BUILDING & MAINTENANCE REGIONAL MANAGER", "FPD telah disetujui oleh B&M Manager tahap 2, menunggu persetujuan B&M Regional Manager.");
+            } else {
+                sendPpNotificationEmail("ACTION_REQUIRED", pInfo, "PROJECT PLANNING & DEVELOPMENT SPECIALIST", "FPD telah disetujui oleh BM Manager, menunggu review tahap 1.");
+            }
+        } else {
+            sendPpNotificationEmail("REJECTED", pInfo, "COORDINATOR", action.alasan_penolakan || "Ditolak oleh BM Manager", "BM Manager");
+        }
+
         return {
             id,
             old_status: projek.status,
@@ -711,6 +786,13 @@ export const projekPlanningService = {
             }
         );
 
+        const pInfo = { id, cabang: projek.cabang, nomor_ulok: projek.nomor_ulok, nama_toko: projek.nama_toko || projek.nama_lokasi || "", email_pembuat: projek.email_pembuat };
+        if (action.rab_tindakan === "APPROVE" && action.gambar_tindakan === "APPROVE") {
+            sendPpNotificationEmail("ACTION_REQUIRED", pInfo, "PROJECT PLANNING & DEVELOPMENT SPECIALIST", "FPD telah disetujui oleh B&M Regional Manager, menunggu review tahap final.");
+        } else {
+            sendPpNotificationEmail("REJECTED", pInfo, "COORDINATOR", getFinalReviewRejectReason(action, buildFinalReviewSummary(action)), "B&M Regional Manager");
+        }
+
         return {
             id,
             old_status: projek.status,
@@ -767,6 +849,13 @@ export const projekPlanningService = {
                 ? (client) => projekPlanningRepository.updateStatusAndPp1Approval(id, newStatus, action, client)
                 : (client) => projekPlanningRepository.updateStatusAndRejectToDraft(id, PP_ROLE.PP_SPECIALIST, action, client)
         );
+
+        const pInfo = { id, cabang: projek.cabang, nomor_ulok: projek.nomor_ulok, nama_toko: projek.nama_toko || projek.nama_lokasi || "", email_pembuat: projek.email_pembuat };
+        if (isApprove) {
+            sendPpNotificationEmail("ACTION_REQUIRED", pInfo, "COORDINATOR", keterangan);
+        } else {
+            sendPpNotificationEmail("REJECTED", pInfo, "COORDINATOR", action.alasan_penolakan || "Ditolak", "PP Specialist");
+        }
 
         return {
             id,
@@ -940,6 +1029,11 @@ export const projekPlanningService = {
             }, client)
         );
 
+        if (newStatus === PP_STATUS.WAITING_BM_APPROVAL_2) {
+            const pInfo = { id, cabang: projek.cabang, nomor_ulok: projek.nomor_ulok, nama_toko: projek.nama_toko || projek.nama_lokasi || "", email_pembuat: projek.email_pembuat };
+            sendPpNotificationEmail("ACTION_REQUIRED", pInfo, "BRANCH BUILDING & MAINTENANCE MANAGER", "RAB dan Gambar Kerja Final telah diupload, menunggu persetujuan B&M Manager Tahap 2.");
+        }
+
         return {
             id,
             old_status: projek.status,
@@ -1007,6 +1101,13 @@ export const projekPlanningService = {
             }
         );
 
+        const pInfo = { id, cabang: projek.cabang, nomor_ulok: projek.nomor_ulok, nama_toko: projek.nama_toko || projek.nama_lokasi || "", email_pembuat: projek.email_pembuat };
+        if (isApprove) {
+            sendPpNotificationEmail("ACTION_REQUIRED", pInfo, "PROJECT PLANNING & DEVELOPMENT MANAGER", "FPD telah disetujui PP Specialist tahap 2, menunggu approval final.");
+        } else {
+            sendPpNotificationEmail("REJECTED", pInfo, "COORDINATOR", rejectReason, "PP Specialist");
+        }
+
         return {
             id,
             old_status: projek.status,
@@ -1071,6 +1172,11 @@ export const projekPlanningService = {
                 return updated;
             }
         );
+
+        const pInfo = { id, cabang: projek.cabang, nomor_ulok: projek.nomor_ulok, nama_toko: projek.nama_toko || projek.nama_lokasi || "", email_pembuat: projek.email_pembuat };
+        if (!isApprove) {
+            sendPpNotificationEmail("REJECTED", pInfo, "COORDINATOR", rejectReason, "PP Manager");
+        }
 
         return {
             id,

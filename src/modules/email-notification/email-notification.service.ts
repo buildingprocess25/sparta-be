@@ -295,5 +295,44 @@ export const emailNotificationService = {
             cc: ccEmail ?? null,
             subject: templateConfig.subject
         };
+    },
+
+    async sendCustom(input: {
+        to: string[];
+        cc?: string[];
+        subject: string;
+        template: string;
+        templateData: Record<string, any>;
+    }) {
+        if (!env.EMAIL_USER) throw new AppError("EMAIL_USER belum diset", 500);
+        
+        const targetEmails = normalizeEmailList(input.to);
+        if (targetEmails.length === 0) return null;
+
+        const templatePath = await resolveTemplatePath(input.template);
+        const html = await renderHtmlTemplate(templatePath, {
+            ...input.templateData,
+            sent_at: formatJakartaTimestamp(),
+            greeting: getFormalGreeting(),
+        });
+        
+        const gmail = GoogleProvider.instance.spartaGmail;
+        if (!gmail) throw new AppError("Google Gmail belum terkonfigurasi", 500);
+
+        const ccEmails = normalizeEmailList(input.cc || []).filter(e => !targetEmails.includes(e));
+        const raw = buildRawEmail({
+            from: env.EMAIL_USER,
+            to: targetEmails.join(", "),
+            cc: ccEmails.length > 0 ? ccEmails.join(", ") : undefined,
+            subject: input.subject,
+            html
+        });
+
+        const result = await gmail.users.messages.send({
+            userId: "me",
+            requestBody: { raw }
+        });
+
+        return result.data.id;
     }
 };
