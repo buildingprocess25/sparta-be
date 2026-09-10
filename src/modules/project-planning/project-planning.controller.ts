@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { asyncHandler } from "../../common/async-handler";
 import { AppError } from "../../common/app-error";
 import { injectBranchFilter } from "../../common/branch-filter-helper";
-import { getApprovalBranchesForUser, getEffectiveBranchesForUser, normalizeBranchScopeName } from "../../common/branch-scope";
+import { getApprovalBranchesForUser, getEffectiveBranchesForUser, normalizeBranchScopeName, getUserCoverageBranches } from "../../common/branch-scope";
 import {
     submitProjekPlanningSchema,
     resubmitProjekPlanningSchema,
@@ -185,6 +185,20 @@ export const listProjekPlanning = asyncHandler(async (req: Request, res: Respons
     const user = assertProjectPlanningRole(req);
     let query = listProjekPlanningQuerySchema.parse(req.query);
     query = await injectBranchFilter(user, query);
+
+    // PP Specialist & PP Manager: global access KHUSUS di Project Planning saja
+    if ((isPpSpecialistRole(user.roles) || isPpManagerRole(user.roles)) && !isSuperHuman(user.roles)) {
+        query.cabang_array = undefined;
+        query._is_global_access = true;
+    }
+
+    // Regional Manager: filter by coverage branches, bukan global
+    if (isBmRegionalRole(user.roles) && !isSuperHuman(user.roles) && !isPpSpecialistRole(user.roles) && !isPpManagerRole(user.roles)) {
+        const coverage = await getUserCoverageBranches(user.email_sat, user.cabang);
+        query.cabang_array = coverage.length > 0 ? coverage : [user.cabang];
+        query._is_global_access = false;
+    }
+
     if (isCoordinatorOnly(user.roles)) {
         query.email_pembuat = user.email_sat;
     }
