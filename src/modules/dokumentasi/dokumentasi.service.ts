@@ -268,42 +268,55 @@ const uploadPdfToDrive = async (folderId: string, buffer: Buffer, filename: stri
 export const dokumentasiBangunanService = {
     async create(input: DokumentasiBangunanCreateInput, files: UploadedDokumentasiFile[]) {
         const { sudut_foto_items, ...payload } = input as DokumentasiBangunanCreateInput;
-        const dokumentasi = await dokumentasiBangunanRepository.create(payload);
-        const { sudutFotoByIndex, sudutFotoFallback } = splitSudutFotoItems(sudut_foto_items);
-        const { itemFiles, bulkFiles } = splitItemFiles(files);
-        const items = itemFiles.length > 0
-            ? await uploadFotoItemsByIndex(dokumentasi, itemFiles, sudutFotoByIndex, sudutFotoFallback)
-            : await uploadFotoItemsBulk(
-                dokumentasi,
-                bulkFiles.length > 0 ? bulkFiles : files,
-                sudutFotoFallback
-            );
 
-        const detail = await dokumentasiBangunanRepository.getDetail(dokumentasi.id);
-        if (!detail) {
-            throw new AppError("Dokumentasi bangunan tidak ditemukan", 404);
+        if (payload.nomor_ulok) {
+            const existing = await dokumentasiBangunanRepository.findByUlok(payload.nomor_ulok);
+            if (existing) {
+                throw new AppError("Dokumentasi bangunan untuk ULOK ini sudah diinput sebelumnya", 400);
+            }
         }
 
-        const folderId = await resolveDokumentasiFolderId(detail.dokumentasi);
-        const pdfBuffer = await buildDokumentasiBangunanPdfBuffer(detail);
-        const kodeToko = sanitizeFilenamePart(detail.dokumentasi.kode_toko ?? undefined, "TOKO");
-        const nomorUlok = sanitizeFilenamePart(detail.dokumentasi.nomor_ulok ?? undefined, "ULOK");
-        const filename = `DOKUMENTASI_BANGUNAN_${kodeToko}_${nomorUlok}_${detail.dokumentasi.id}.pdf`;
+        // Initially set status to processing
+        payload.status_validasi = "processing";
+        const dokumentasi = await dokumentasiBangunanRepository.create(payload);
 
-        const linkPdf = await uploadPdfToDrive(folderId, pdfBuffer, filename);
-        await dokumentasiBangunanRepository.updatePdfLink(detail.dokumentasi.id, linkPdf);
+        // Process file uploads and PDF generation in the background to avoid proxy timeout
+        setImmediate(async () => {
+            try {
+                const { sudutFotoByIndex, sudutFotoFallback } = splitSudutFotoItems(sudut_foto_items);
+                const { itemFiles, bulkFiles } = splitItemFiles(files);
+                await (itemFiles.length > 0
+                    ? uploadFotoItemsByIndex(dokumentasi, itemFiles, sudutFotoByIndex, sudutFotoFallback)
+                    : uploadFotoItemsBulk(
+                        dokumentasi,
+                        bulkFiles.length > 0 ? bulkFiles : files,
+                        sudutFotoFallback
+                    ));
+
+                const detail = await dokumentasiBangunanRepository.getDetail(dokumentasi.id);
+                if (!detail) return;
+
+                const folderId = await resolveDokumentasiFolderId(detail.dokumentasi);
+                const pdfBuffer = await buildDokumentasiBangunanPdfBuffer(detail);
+                const kodeToko = sanitizeFilenamePart(detail.dokumentasi.kode_toko ?? undefined, "TOKO");
+                const nomorUlok = sanitizeFilenamePart(detail.dokumentasi.nomor_ulok ?? undefined, "ULOK");
+                const filename = `DOKUMENTASI_BANGUNAN_${kodeToko}_${nomorUlok}_${detail.dokumentasi.id}.pdf`;
+
+                const linkPdf = await uploadPdfToDrive(folderId, pdfBuffer, filename);
+                await dokumentasiBangunanRepository.updatePdfLink(detail.dokumentasi.id, linkPdf);
+                
+                await dokumentasiBangunanRepository.update(dokumentasi.id, { status_validasi: "submitted" });
+            } catch (error) {
+                console.error(`[BACKGROUND DOKUMENTASI] Failed to process dokumentasi ${dokumentasi.id}`, error);
+                await dokumentasiBangunanRepository.update(dokumentasi.id, { status_validasi: "failed" });
+            }
+        });
 
         return {
-            dokumentasi: {
-                ...detail.dokumentasi,
-                link_pdf: linkPdf
-            },
-            items,
-            pdf: {
-                link_pdf: linkPdf,
-                filename,
-                item_count: detail.items.length
-            }
+            dokumentasi,
+            items: [],
+            pdf: null,
+            message: "Dokumentasi sedang diproses di background"
         };
     },
 

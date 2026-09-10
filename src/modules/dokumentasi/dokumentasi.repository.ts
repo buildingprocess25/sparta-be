@@ -230,6 +230,39 @@ export const dokumentasiBangunanRepository = {
         return result.rows[0] ?? null;
     },
 
+    async findByUlok(nomorUlok: string): Promise<DokumentasiBangunanRow | null> {
+        const result = await pool.query<DokumentasiBangunanRow>(
+            `
+            SELECT
+                id,
+                jenis_toko,
+                nomor_ulok,
+                nama_toko,
+                kode_toko,
+                cabang,
+                tanggal_go,
+                tanggal_serah_terima,
+                tanggal_ambil_foto,
+                spk_awal,
+                spk_akhir,
+                kontraktor_sipil,
+                kontraktor_me,
+                link_pdf,
+                email_pengirim,
+                status_validasi,
+                alasan_revisi,
+                pic_dokumentasi,
+                created_at
+            FROM dokumentasi_bangunan
+            WHERE UPPER(TRIM(nomor_ulok)) = UPPER(TRIM($1))
+            LIMIT 1
+            `,
+            [nomorUlok]
+        );
+
+        return result.rows[0] ?? null;
+    },
+
     async list(query: DokumentasiBangunanListQueryInput): Promise<DokumentasiBangunanRow[]> {
         const conditions: string[] = [];
         const values: Array<string | string[]> = [];
