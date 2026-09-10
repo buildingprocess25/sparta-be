@@ -1654,27 +1654,38 @@ export const ganttRepository = {
 
         // Get valid RAB categories
         const rabItems = await pool.query(`SELECT DISTINCT kategori_pekerjaan FROM rab_item WHERE id_rab = $1`, [rabId]);
-        const validCategories = rabItems.rows.map(r => r.kategori_pekerjaan.trim().toUpperCase());
+        const validCategories = rabItems.rows.map(r => r.kategori_pekerjaan.trim());
+        const validCategoriesUpper = validCategories.map(c => c.toUpperCase());
         if (validCategories.length === 0) return; // avoid deleting everything if RAB is fully empty somehow
 
         // Get Gantt categories
         const ganttCategories = await pool.query(`SELECT id, kategori_pekerjaan FROM kategori_pekerjaan_gantt WHERE id_gantt = $1`, [ganttId]);
         
+        const existingCategoryNamesUpper = ganttCategories.rows.map(gc => gc.kategori_pekerjaan.trim().toUpperCase());
         const invalidCategoryIds: number[] = [];
         for (const gc of ganttCategories.rows) {
-            if (!validCategories.includes(gc.kategori_pekerjaan.trim().toUpperCase())) {
+            if (!validCategoriesUpper.includes(gc.kategori_pekerjaan.trim().toUpperCase())) {
                 invalidCategoryIds.push(gc.id);
             }
         }
 
-        if (invalidCategoryIds.length === 0) return;
+        const missingCategories = validCategories.filter(vc => !existingCategoryNamesUpper.includes(vc.toUpperCase()));
 
-        // Clean up orphaned categories safely (no FK constraints to pengawasan since they link by id_gantt)
+        if (invalidCategoryIds.length === 0 && missingCategories.length === 0) return;
+
+        // Clean up orphaned categories safely and insert new ones
         await pool.query('BEGIN');
         try {
-            await pool.query(`DELETE FROM day_gantt_chart WHERE id_kategori_pekerjaan_gantt = ANY($1::int[])`, [invalidCategoryIds]);
-            await pool.query(`DELETE FROM dependency_gantt WHERE id_kategori = ANY($1::int[]) OR id_kategori_terikat = ANY($1::int[])`, [invalidCategoryIds]);
-            await pool.query(`DELETE FROM kategori_pekerjaan_gantt WHERE id = ANY($1::int[])`, [invalidCategoryIds]);
+            if (invalidCategoryIds.length > 0) {
+                await pool.query(`DELETE FROM day_gantt_chart WHERE id_kategori_pekerjaan_gantt = ANY($1::int[])`, [invalidCategoryIds]);
+                await pool.query(`DELETE FROM dependency_gantt WHERE id_kategori = ANY($1::int[]) OR id_kategori_terikat = ANY($1::int[])`, [invalidCategoryIds]);
+                await pool.query(`DELETE FROM kategori_pekerjaan_gantt WHERE id = ANY($1::int[])`, [invalidCategoryIds]);
+            }
+            
+            for (const mc of missingCategories) {
+                await pool.query(`INSERT INTO kategori_pekerjaan_gantt (id_gantt, kategori_pekerjaan) VALUES ($1, $2)`, [ganttId, mc]);
+            }
+
             await pool.query('COMMIT');
         } catch (e) {
             await pool.query('ROLLBACK');
@@ -1682,5 +1693,3 @@ export const ganttRepository = {
         }
     }
 };
-
-
