@@ -5,6 +5,7 @@ import type { PengajuanSpkRow } from "./spk.repository";
 
 type BuildSpkPdfInput = {
     pengajuan: PengajuanSpkRow;
+    groupMembers?: PengajuanSpkRow[];
     tokoNama: string;
     tokoKode: string;
     tokoAlamat: string;
@@ -88,7 +89,22 @@ export const buildSpkPdfBuffer = async (input: BuildSpkPdfInput): Promise<Buffer
     const p = input.pengajuan;
     const startFormatted = formatTanggal(p.waktu_mulai);
     const endFormatted = formatTanggal(p.waktu_selesai);
-    const today = formatTanggal(p.created_at || new Date().toISOString());    const displayGrandTotal = Number(p.grand_total);    const totalFormatted = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(displayGrandTotal);
+    // Membership is explicit: a matching ULOK or number never combines legacy SPKs.
+    const members = input.groupMembers ?? [];
+    const combined = Boolean(p.spk_group_id)
+        && members.length === 2
+        && members.every(member => member.spk_group_id === p.spk_group_id)
+        && members.some(member => member.id === p.id)
+        && new Set(members.map(member => member.id)).size === 2
+        && ["SIPIL", "ME"].every(scope => members.some(member => member.lingkup_pekerjaan.trim().toUpperCase() === scope));
+    const formatCost = (value: number) => new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(value);
+    const costRows = combined ? ["SIPIL", "ME"].map(scope => {
+        const member = members.find(member => member.lingkup_pekerjaan.trim().toUpperCase() === scope)!;
+        return { scope, cost_formatted: formatCost(Number(member.grand_total)) };
+    }) : [];
+    const today = formatTanggal(p.created_at || new Date().toISOString());
+    const displayGrandTotal = combined ? members.reduce((total, member) => total + Number(member.grand_total), 0) : Number(p.grand_total);
+    const totalFormatted = formatCost(displayGrandTotal);
     const isBatam = input.tokoCabang.toUpperCase() === "BATAM";
     const initiatorRole = isBatam ? "Branch Building Coordinator" : "Branch Building & Maintenance Manager";
 
@@ -115,13 +131,15 @@ export const buildSpkPdfBuffer = async (input: BuildSpkPdfInput): Promise<Buffer
         spk_number: p.nomor_spk || "____/PROPNDEV-____/____/____",
         par_number: p.par || "____/PROPNDEV-____-____-____",
         contractor_name: p.nama_kontraktor,
-        lingkup_pekerjaan: p.lingkup_pekerjaan,
+        lingkup_pekerjaan: combined ? "SIPIL dan ME" : p.lingkup_pekerjaan,
+        combined_spk: combined,
+        cost_rows: costRows,
         proyek: p.proyek,
         project_address: input.tokoAlamat,
         nama_toko: input.tokoNama,
         kode_toko: input.tokoKode,
         total_cost_formatted: totalFormatted,
-        terbilang: terbilang(Math.floor(displayGrandTotal)),
+        terbilang: combined && displayGrandTotal === 0 ? "Nol" : terbilang(Math.floor(displayGrandTotal)),
         start_date: startFormatted,
         end_date: endFormatted,
         duration: p.durasi,

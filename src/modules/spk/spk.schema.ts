@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 export const submitSpkSchema = z.object({
+    member_toko_ids: z.array(z.coerce.number().int().positive()).min(1).max(2).optional(),
+    spk_group_id: z.string().uuid().nullable().optional(),
     id_toko: z.coerce.number().int().positive(),
     nomor_ulok: z.string().min(1),
     kode_toko: z.string()

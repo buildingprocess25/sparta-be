@@ -1,10 +1,11 @@
+import { spkGroupRepository } from './spk-group.repository';
+import { buildSpkCandidates } from './spk-group.rules';
+import { assertSpkBranches, assertSpkRole } from './spk-access';
 import { AppError } from "../../common/app-error";
 import { GoogleProvider } from "../../common/google";
-import { normalizeProjectByUlok } from "../../common/project-type";
-import { env } from "../../config/env";
 import { opnameFinalService } from "../opname-final/opname-final.service";
 import { tokoRepository } from "../toko/toko.repository";
-import { SPK_STATUS, getCabangCode } from "./spk.constants";
+import { SPK_STATUS } from "./spk.constants";
 import { buildSpkPdfBuffer } from "./spk.pdf";
 import { spkRepository } from "./spk.repository";
 import type { SpkApprovalInput, SpkInterventionInput, SpkListQuery, SubmitSpkInput } from "./spk.schema";
@@ -25,43 +26,6 @@ const terbilang = (angka: number): string => {
     if (angka < 1_000_000_000) return terbilang(Math.floor(angka / 1_000_000)) + " Juta" + (angka % 1_000_000 ? " " + terbilang(angka % 1_000_000) : "");
     if (angka < 1_000_000_000_000) return terbilang(Math.floor(angka / 1_000_000_000)) + " Miliar" + (angka % 1_000_000_000 ? " " + terbilang(angka % 1_000_000_000) : "");
     return terbilang(Math.floor(angka / 1_000_000_000_000)) + " Triliun" + (angka % 1_000_000_000_000 ? " " + terbilang(angka % 1_000_000_000_000) : "");
-};
-
-const normalizeText = (value?: string | null): string => String(value ?? "").trim().toUpperCase();
-
-const parseDateOnly = (value: string): Date | null => {
-    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (!match) return null;
-    const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-    return Number.isNaN(date.getTime()) ? null : date;
-};
-
-const todayJakartaDateOnly = (): Date => {
-    const now = new Date();
-    const jakarta = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Jakarta" }));
-    return new Date(jakarta.getFullYear(), jakarta.getMonth(), jakarta.getDate());
-};
-
-const numericCurrencyValue = (value: number | string | null | undefined): number => {
-    if (value === null || value === undefined) return 0;
-    if (typeof value === "number") return Number.isFinite(value) ? value : 0;
-
-    const trimmed = String(value).trim();
-    if (/^\d+(\.\d+)?$/.test(trimmed)) return Number(trimmed);
-
-    const numeric = Number(trimmed.replace(/\./g, "").replace(",", "."));
-    return Number.isFinite(numeric) ? numeric : 0;
-};
-
-
-const isNoPpnArea = (toko: { cabang?: string | null; nama_toko?: string | null; alamat?: string | null }): boolean => {
-    const identity = [
-        toko.cabang,
-        toko.nama_toko,
-        toko.alamat,
-    ].map(normalizeText);
-
-    return identity.some(value => value === "BATAM" || value === "BINTAN" || /\bBATAM\b|\bBINTAN\b/.test(value));
 };
 
 async function uploadPdfToDrive(buffer: Buffer, filename: string, nomorUlok?: string | null, namaToko?: string | null, kodeToko?: string | null, cabang?: string | null): Promise<string> {
@@ -95,6 +59,7 @@ async function regenerateSpkPdfAndUpload(
 
     const pdfBuffer = await buildSpkPdfBuffer({
         pengajuan: data.pengajuan,
+        groupMembers: await spkGroupRepository.members(String(data.pengajuan.id)),
         tokoNama: toko.nama_toko,
         tokoKode: toko.kode_toko,
         tokoAlamat: toko.alamat,
@@ -110,114 +75,25 @@ async function regenerateSpkPdfAndUpload(
 
 export const spkService = {
     async submit(payload: SubmitSpkInput, actor?: AuthenticatedUser | null) {
-        // Validasi tambahan untuk kode toko
-        const kodeToko = payload.kode_toko?.trim().toUpperCase();
-        if (!kodeToko || kodeToko.length !== 4) {
-            throw new AppError("Kode toko wajib diisi tepat 4 karakter alfanumerik", 400);
-        }
-        if (!/^[A-Z0-9]{4}$/.test(kodeToko)) {
-            throw new AppError("Kode toko harus 4 karakter alfanumerik (huruf dan angka), contoh: T123, AB12, 1A2B", 400);
-        }
-
-        const existingToko = await tokoRepository.findById(payload.id_toko);
-        if (!existingToko) {
-            throw new AppError("id_toko tidak ditemukan di master toko", 404);
-        }
-
-        if (existingToko.nomor_ulok !== payload.nomor_ulok) {
-            throw new AppError("id_toko tidak cocok dengan nomor_ulok", 409);
-        }
-
-        const toko = await tokoRepository.updateKodeTokoByUlokAndLingkup(
-            payload.nomor_ulok,
-            payload.lingkup_pekerjaan,
-            kodeToko
-        );
-
-        if (!toko || toko.id !== payload.id_toko) {
-            throw new AppError(
-                `Data toko untuk ULOK ${payload.nomor_ulok} dengan lingkup ${payload.lingkup_pekerjaan} tidak cocok`,
-                409
-            );
-        }
-
-        const startDateOnly = parseDateOnly(payload.waktu_mulai);
-        if (!startDateOnly) {
-            throw new AppError("Tanggal mulai SPK tidak valid.", 400);
-        }
-
-        const today = todayJakartaDateOnly();
-        if (startDateOnly.getTime() < today.getTime()) {
-            const canBackdate = await spkBackdatePolicyService.canBackdateBranch(toko.cabang);
-            if (!canBackdate) {
-                throw new AppError(
-                    `Cabang ${toko.cabang || "-"} tidak memiliki izin backdate SPK. Hubungi Super Human untuk mengaktifkan policy cabang ini.`,
-                    403
-                );
-            }
-
-            if (!actor) {
-                console.warn("[SPK_BACKDATE] Request backdate tanpa session actor valid", {
-                    nomor_ulok: payload.nomor_ulok,
-                    cabang: toko.cabang,
-                    waktu_mulai: payload.waktu_mulai,
-                });
-            }
-        }
-
-        const existingSpkByToko = await spkRepository.findLatestByTokoId(payload.id_toko);
-        if (existingSpkByToko && existingSpkByToko.status !== SPK_STATUS.SPK_REJECTED) {
-            throw new AppError(
-                `SPK untuk toko dengan id_toko ${payload.id_toko} sudah ada`,
-                409
-            );
-        }
-
-        // Hitung waktu selesai
-        const startDate = new Date(payload.waktu_mulai);
-        const endDate = new Date(startDate);
-        endDate.setDate(endDate.getDate() + payload.durasi - 1);
-        const waktuSelesai = endDate.toISOString();
-
-        const approvedRabTotals = await spkRepository.findApprovedRabTotalsByTokoId(payload.id_toko);
-        const spkGrandTotal = numericCurrencyValue(approvedRabTotals?.grand_total_final)
-                || numericCurrencyValue(approvedRabTotals?.grand_total)
-                || payload.grand_total;
-
-        // Hitung terbilang
-        const totalCost = Math.floor(spkGrandTotal);
-        const terbilangText = `( ${terbilang(totalCost)} Rupiah )`;
-
-        // Generate nomor SPK
-        const now = new Date();
-        const cabangCode = getCabangCode(toko.cabang);
-        const sequence = await spkRepository.getNextSequence(toko.cabang, now.getFullYear(), now.getMonth() + 1);
-        const nomorSpk = `${String(sequence).padStart(3, "0")}/PROPNDEV-${cabangCode}/${payload.spk_manual_1}/${payload.spk_manual_2}`;
-
-        const normalizedProject = normalizeProjectByUlok(payload.nomor_ulok, payload.proyek);
-
-        const submitPayload = {
-            id_toko: payload.id_toko,
-            nomor_ulok: payload.nomor_ulok,
-            email_pembuat: payload.email_pembuat,
-            lingkup_pekerjaan: payload.lingkup_pekerjaan,
-            nama_kontraktor: payload.nama_kontraktor,
-            proyek: normalizedProject ?? payload.proyek,
-            waktu_mulai: payload.waktu_mulai,
-            durasi: payload.durasi,
-            waktu_selesai: waktuSelesai,
-            grand_total: spkGrandTotal,
-            terbilang: terbilangText,
-            nomor_spk: nomorSpk,
-            par: payload.par,
-            spk_manual_1: payload.spk_manual_1,
-            spk_manual_2: payload.spk_manual_2,
-            status: SPK_STATUS.WAITING_FOR_BM_APPROVAL
-        };
-
-        const created = existingSpkByToko?.status === SPK_STATUS.SPK_REJECTED
-            ? await spkRepository.resubmitRejected(String(existingSpkByToko.id), submitPayload)
-            : await spkRepository.create(submitPayload);
+        assertSpkRole(actor, 'submit');
+        const createdMembers = await spkGroupRepository.saveSubmission({ ...payload, email_pembuat: actor.email_sat }, {
+            terbilang,
+            validate: async members => {
+                await assertSpkBranches(actor, members.map(m => m.cabang));
+                if (!/^[A-Z0-9]{4}$/i.test(payload.kode_toko)) throw new AppError('Kode toko harus 4 karakter alfanumerik', 400);
+                const dateText = payload.waktu_mulai.slice(0, 10);
+                const start = new Date(dateText + 'T00:00:00Z');
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(dateText) || Number.isNaN(start.getTime()) || start.toISOString().slice(0,10) !== dateText) {
+                    throw new AppError('Tanggal mulai SPK tidak valid', 400);
+                }
+                const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date());
+                if (dateText < today && !await spkBackdatePolicyService.canBackdateBranch(members[0].cabang)) {
+                    throw new AppError('Cabang ini tidak memiliki izin backdate SPK', 403);
+                }
+            },
+        });
+        const created = createdMembers[0];
+        const normalizedProject = created.proyek;
 
         try {
             const linkPdf = await regenerateSpkPdfAndUpload(String(created.id), {
@@ -226,14 +102,22 @@ export const spkService = {
             });
 
             if (linkPdf) {
-                await spkRepository.updatePdfLink(String(created.id), linkPdf);
+                await spkGroupRepository.updatePdfLink(String(created.id), linkPdf);
                 created.link_pdf = linkPdf;
             }
         } catch (err) {
             console.error("Warning: Gagal upload PDF SPK ke Drive:", err);
         }
 
-        return created;
+        return { ...created, group_members: createdMembers, group_grand_total: createdMembers.reduce((sum, m) => sum + Number(m.grand_total), 0) };
+    },
+
+    async candidates(actor: AuthenticatedUser) {
+        const { getEffectiveBranchesForUser, normalizeBranchScopeName } = await import('../../common/branch-scope');
+        const scope = await getEffectiveBranchesForUser({ emailSat: actor.email_sat, cabang: actor.cabang, roles: actor.roles });
+        const allowed = scope.branches.map(normalizeBranchScopeName);
+        const sources = await spkGroupRepository.candidates(undefined, undefined, scope.source === 'global' ? undefined : allowed);
+        return buildSpkCandidates(sources);
     },
 
     async list(query: SpkListQuery) {
@@ -247,11 +131,14 @@ export const spkService = {
         }
 
         const toko = await tokoRepository.findById(data.pengajuan.id_toko);
+        const members = await spkGroupRepository.members(id);
 
         return {
             ...data,
             pengajuan: {
                 ...data.pengajuan,
+                group_members: members,
+                group_grand_total: members.reduce((sum, member) => sum + Number(member.grand_total), 0),
                 toko: {
                     id: toko?.id ?? null,
                     nomor_ulok: toko?.nomor_ulok ?? data.pengajuan.nomor_ulok,
@@ -283,10 +170,13 @@ export const spkService = {
             ? SPK_STATUS.SPK_APPROVED
             : SPK_STATUS.SPK_REJECTED;
 
-        await spkRepository.updateStatusAndInsertLog(id, newStatus, action);
+        const members = await spkGroupRepository.transition(id, currentStatus, newStatus, action);
 
         if (action.tindakan === "APPROVE") {
-            await opnameFinalService.refreshDendaByTokoId(data.pengajuan.id_toko);
+            for (const member of members) {
+                try { await opnameFinalService.refreshDendaByTokoId(member.id_toko); }
+                catch (error) { console.error('SPK approved; denda refresh failed for toko', member.id_toko, error); }
+            }
 
             try {
                 const linkPdf = await regenerateSpkPdfAndUpload(id, {
@@ -295,7 +185,7 @@ export const spkService = {
                 });
 
                 if (linkPdf) {
-                    await spkRepository.updatePdfLink(id, linkPdf);
+                    await spkGroupRepository.updatePdfLink(id, linkPdf);
                 }
             } catch (err) {
                 console.error("Warning: Gagal regenerate PDF SPK setelah approval:", err);
@@ -329,8 +219,14 @@ export const spkService = {
             throw new AppError(`Status SPK sudah ${targetStatus}`, 409);
         }
 
-        await spkRepository.interveneStatusAndInsertLog(id, currentStatus, targetStatus, action);
-        await opnameFinalService.refreshDendaByTokoId(data.pengajuan.id_toko);
+        const members = await spkGroupRepository.transition(id, currentStatus, targetStatus, {
+            approver_email: action.actor_email, tindakan: targetStatus === SPK_STATUS.SPK_APPROVED ? 'APPROVE' : 'REJECT',
+            alasan_penolakan: action.alasan_intervensi,
+        }, action);
+        for (const member of members) {
+            try { await opnameFinalService.refreshDendaByTokoId(member.id_toko); }
+            catch (error) { console.error('SPK intervention committed; denda refresh failed for toko', member.id_toko, error); }
+        }
 
         if (targetStatus === SPK_STATUS.SPK_APPROVED) {
             try {
@@ -340,7 +236,7 @@ export const spkService = {
                 });
 
                 if (linkPdf) {
-                    await spkRepository.updatePdfLink(id, linkPdf);
+                    await spkGroupRepository.updatePdfLink(id, linkPdf);
                 }
             } catch (err) {
                 console.error("Warning: Gagal regenerate PDF SPK setelah intervensi:", err);
@@ -367,6 +263,7 @@ export const spkService = {
 
         const pdfBuffer = await buildSpkPdfBuffer({
             pengajuan: data.pengajuan,
+            groupMembers: await spkGroupRepository.members(String(data.pengajuan.id)),
             tokoNama: toko.nama_toko,
             tokoKode: toko.kode_toko,
             tokoAlamat: toko.alamat,
