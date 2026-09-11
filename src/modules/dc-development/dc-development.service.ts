@@ -1043,6 +1043,24 @@ export const dcDevelopmentService = {
             throw new AppError("Tidak ada data arsip DC yang sesuai dengan filter", 404);
         }
 
+        const PROJECT_TYPE_ORDER: Record<string, number> = {
+            "DC": 1,
+            "Warehouse": 2,
+            "Depo": 3,
+            "Bulky": 4,
+            "Store-Hub": 5,
+            "Gudang Anak": 6
+        };
+
+        projects.sort((a, b) => {
+            const orderA = PROJECT_TYPE_ORDER[a.project_type] || 99;
+            const orderB = PROJECT_TYPE_ORDER[b.project_type] || 99;
+            if (orderA !== orderB) {
+                return orderA - orderB;
+            }
+            return (a.archive_name || "").localeCompare(b.archive_name || "");
+        });
+
         const flatRows: DcDocumentExportRow[] = [];
         const allStagesForPdf: { project: any, stages: PdfStage[] }[] = [];
 
