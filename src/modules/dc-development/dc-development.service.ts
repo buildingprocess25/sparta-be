@@ -235,10 +235,25 @@ const resolveDcExportStages = (stage?: string | null) => {
 const formatDcDocumentType = (jenisKey: string, slotType: string): string =>
     `${jenisKey}__${slotType.replace(/\//g, "_")}`;
 
-type DcDocumentExportRow = Record<string, string | number>;
+type DcDocumentExportRow = {
+    "No": number;
+    "Kode Proyek": string;
+    "Nama Proyek": string;
+    "DC Induk": string;
+    "Tipe Proyek": string;
+    "Tahap": string;
+    "Kategori Utama": string;
+    "Catatan Kategori Utama": string;
+    "Sub Kategori": string;
+    "Jenis Dokumen": string;
+    "Format Dokumen": string;
+    "Status": string;
+    "Catatan": string;
+    linkDriveArray: string[];
+};
 
-const applyDcWorksheetFormatting = (worksheet: xlsx.WorkSheet, rows: DcDocumentExportRow[]) => {
-    worksheet["!cols"] = [
+const applyDcWorksheetFormatting = (worksheet: xlsx.WorkSheet, rows: any[], maxLinks: number) => {
+    const cols = [
         { wch: 6 },
         { wch: 16 },
         { wch: 28 },
@@ -251,9 +266,12 @@ const applyDcWorksheetFormatting = (worksheet: xlsx.WorkSheet, rows: DcDocumentE
         { wch: 24 },
         { wch: 14 },
         { wch: 10 },
-        { wch: 26 },
-        { wch: 50 }
+        { wch: 26 }
     ];
+    for (let i = 0; i < maxLinks; i++) {
+        cols.push({ wch: 50 });
+    }
+    worksheet["!cols"] = cols;
     if (rows.length > 0) {
         worksheet["!autofilter"] = { ref: worksheet["!ref"] || "A1" };
     }
@@ -327,7 +345,7 @@ const buildDcDocumentExport = (
                             jenis: itemLabel,
                             status: isFilled,
                             notes,
-                            linkDrive: doc?.link_dokumen ? doc.link_dokumen.split(',').map(s => s.trim()).join(', ') : null
+                            linkDrive: doc?.link_dokumen ? doc.link_dokumen.split(',').map(s => s.trim()).filter(Boolean) : []
                         });
 
                         const catNoteKey = `CAT_NOTE_${utama.id}`;
@@ -348,7 +366,7 @@ const buildDcDocumentExport = (
                             "Format Dokumen": slot.type,
                             "Status": isFilled ? "ADA" : "KOSONG",
                             "Catatan": notes ?? "",
-                            "Link Drive": doc?.link_dokumen ? doc.link_dokumen.split(',').map(s => s.trim()).join(', ') : ""
+                            linkDriveArray: doc?.link_dokumen ? doc.link_dokumen.split(',').map(s => s.trim()).filter(Boolean) : []
                         });
                     }
                 }
@@ -370,7 +388,7 @@ const buildDcDocumentExport = (
                     jenis: itemLabel,
                     status: isFilled,
                     notes,
-                    linkDrive: doc?.link_dokumen ? doc.link_dokumen.split(',').map(s => s.trim()).join(', ') : null
+                    linkDrive: doc?.link_dokumen ? doc.link_dokumen.split(',').map(s => s.trim()).filter(Boolean) : []
                 });
 
                 rows.push({
@@ -387,7 +405,7 @@ const buildDcDocumentExport = (
                     "Format Dokumen": slotType,
                     "Status": isFilled ? "ADA" : "KOSONG",
                     "Catatan": notes ?? "",
-                    "Link Drive": doc?.link_dokumen ? doc.link_dokumen.split(',').map(s => s.trim()).join(', ') : ""
+                    linkDriveArray: doc?.link_dokumen ? doc.link_dokumen.split(',').map(s => s.trim()).filter(Boolean) : []
                 });
             }
         }
@@ -406,20 +424,68 @@ const buildDcDocumentExport = (
     return { rows, stages };
 };
 
+const prepareFlatRows = (rows: DcDocumentExportRow[]): { flatRows: Record<string, string | number>[], maxLinks: number } => {
+    let maxLinks = 1;
+    for (const row of rows) {
+        if (row.linkDriveArray.length > maxLinks) {
+            maxLinks = row.linkDriveArray.length;
+        }
+    }
+    const flatRows = rows.map(row => {
+        const flatRow: Record<string, string | number> = {
+            "No": row["No"],
+            "Kode Proyek": row["Kode Proyek"],
+            "Nama Proyek": row["Nama Proyek"],
+            "DC Induk": row["DC Induk"],
+            "Tipe Proyek": row["Tipe Proyek"],
+            "Tahap": row["Tahap"],
+            "Kategori Utama": row["Kategori Utama"],
+            "Catatan Kategori Utama": row["Catatan Kategori Utama"],
+            "Sub Kategori": row["Sub Kategori"],
+            "Jenis Dokumen": row["Jenis Dokumen"],
+            "Format Dokumen": row["Format Dokumen"],
+            "Status": row["Status"],
+            "Catatan": row["Catatan"]
+        };
+        for (let i = 0; i < maxLinks; i++) {
+            flatRow[`Link Drive ${i + 1}`] = row.linkDriveArray[i] || "";
+        }
+        return flatRow;
+    });
+    return { flatRows, maxLinks };
+};
+
 const buildDcCsvBuffer = (rows: DcDocumentExportRow[]): Buffer => {
     if (rows.length === 0) return Buffer.from("");
-    const headers = Object.keys(rows[0]);
+    const { flatRows } = prepareFlatRows(rows);
+    const headers = Object.keys(flatRows[0]);
     const csvRows = [
         headers.join(","),
-        ...rows.map((row) => headers.map((header) => `"${String(row[header] ?? "").replace(/"/g, '""')}"`).join(","))
+        ...flatRows.map((row) => headers.map((header) => `"${String(row[header] ?? "").replace(/"/g, '""')}"`).join(","))
     ];
     return Buffer.from(csvRows.join("\n"));
 };
 
 const buildDcExcelBuffer = (rows: DcDocumentExportRow[], sheetName: string): Buffer => {
+    const { flatRows, maxLinks } = prepareFlatRows(rows);
     const workbook = xlsx.utils.book_new();
-    const worksheet = xlsx.utils.json_to_sheet(rows);
-    applyDcWorksheetFormatting(worksheet, rows);
+    const worksheet = xlsx.utils.json_to_sheet(flatRows);
+    applyDcWorksheetFormatting(worksheet, flatRows, maxLinks);
+    
+    if (flatRows.length > 0) {
+        const range = xlsx.utils.decode_range(worksheet['!ref'] || 'A1:A1');
+        for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+            for (let i = 0; i < maxLinks; i++) {
+                const C = 13 + i;
+                const cellRef = xlsx.utils.encode_cell({ r: R, c: C });
+                const cell = worksheet[cellRef];
+                if (cell && cell.v && String(cell.v).startsWith('http')) {
+                    cell.l = { Target: String(cell.v) };
+                }
+            }
+        }
+    }
+
     xlsx.utils.book_append_sheet(workbook, worksheet, sheetName);
     return xlsx.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
 };
