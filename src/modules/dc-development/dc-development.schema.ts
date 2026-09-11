@@ -8,6 +8,17 @@ import {
 export const dcDocumentCustomSlotSchema = z.enum(["PDF/JPEG", "AUTOCAD", "WORD", "EXCEL", "PPT"]);
 export const dcDocumentCustomStageSchema = z.enum(["PEMBANGUNAN", "RENOVASI", "PERLUASAN"]);
 
+export const logDcCategoryEditSchema = z.object({
+    category_id: z.string().trim().min(1),
+    category_name: z.string().trim().min(1),
+    actor_email: z.string().email(),
+    actor_role: z.string().trim().min(1)
+});
+
+export const dcCategoryLogListQuerySchema = z.object({
+    category_id: z.string().trim().min(1)
+});
+
 export const dcProjectListQuerySchema = z.object({
     status: z.string().optional(),
     current_stage: z.string().optional(),

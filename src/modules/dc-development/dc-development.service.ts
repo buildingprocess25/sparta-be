@@ -23,8 +23,11 @@ import type {
     DcDocumentActorQuery,
     DcDocumentListQuery,
     DcProjectListQuery,
-    UpdateDcDocumentInput
+    UpdateDcDocumentInput,
+    dcCategoryLogListQuerySchema,
+    logDcCategoryEditSchema
 } from "./dc-development.schema";
+import type { z } from "zod";
 
 export type UploadedDcDocumentFile = Express.Multer.File;
 
@@ -43,8 +46,12 @@ const hasSuperHumanRole = (role?: string | null): boolean =>
 const hasDcDocumentAdminRole = (role?: string | null): boolean =>
     String(role ?? "").toUpperCase().includes(DC_ROLES.DC_DOCUMENT_ADMIN);
 
-const canBypassDocumentAccess = (role?: string | null): boolean =>
-    hasSuperHumanRole(role) || hasDcDocumentAdminRole(role);
+const canBypassDocumentAccess = (role?: string | null): boolean => {
+    const normalized = String(role ?? "").toUpperCase();
+    return hasSuperHumanRole(normalized) 
+        || hasDcDocumentAdminRole(normalized)
+        || normalized.includes(DC_ROLES.DC_SPECIALIST);
+};
 
 const canCreateArchiveProject = (role?: string | null): boolean => {
     const normalized = String(role ?? "").toUpperCase();
@@ -826,6 +833,9 @@ export const dcDevelopmentService = {
     },
 
     async createCustomDocumentItem(archiveIdRaw: string, input: CreateDcDocumentCustomItemInput) {
+        if (hasDcDocumentAdminRole(input.actor_role)) {
+            throw new AppError("DC DOCUMENT ADMIN tidak memiliki akses untuk menambah item dokumen tambahan.", 403);
+        }
         const archiveId = Number(archiveIdRaw);
         if (!Number.isInteger(archiveId) || archiveId <= 0) throw new AppError("ID arsip DC tidak valid", 400);
         const archive = await dcDevelopmentRepository.findArchiveProjectById(archiveId);
@@ -993,6 +1003,32 @@ export const dcDevelopmentService = {
             buffer,
             link: document.link_dokumen
         };
+    },
+
+    async logCategoryEdit(archiveId: string, input: z.infer<typeof logDcCategoryEditSchema>) {
+        const id = Number(archiveId);
+        const project = await dcDevelopmentRepository.findArchiveProjectById(id);
+        if (!project) throw new AppError("Arsip DC tidak ditemukan", 404);
+        await dcDevelopmentRepository.insertActivityLog({
+            project_id: project.project_id,
+            entity_type: "DC_ARCHIVE_PROJECT_CATEGORY",
+            entity_id: project.project_id,
+            actor_email: input.actor_email,
+            actor_role: input.actor_role,
+            action: "EDIT_CATEGORY_DOCUMENTS",
+            metadata: {
+                category_id: input.category_id,
+                category_name: input.category_name
+            }
+        });
+        return { success: true };
+    },
+
+    async listCategoryEditLogs(archiveId: string, query: z.infer<typeof dcCategoryLogListQuerySchema>) {
+        const id = Number(archiveId);
+        const project = await dcDevelopmentRepository.findArchiveProjectById(id);
+        if (!project) throw new AppError("Arsip DC tidak ditemukan", 404);
+        return await dcDevelopmentRepository.listCategoryActivityLogs(project.project_id, query.category_id);
     },
 
     async exportDcDocuments(id: string, actor: DcDocumentActorQuery, format: DcExportFormat, stageFilter?: string | null) {

@@ -44,7 +44,9 @@ import {
     exportDcDocumentsPdf,
     exportGlobalDcDocumentsCsv,
     exportGlobalDcDocumentsExcel,
-    exportGlobalDcDocumentsPdf
+    exportGlobalDcDocumentsPdf,
+    logDcCategoryEdit,
+    listDcCategoryEditLogs
 } from "./dc-development.controller";
 import { DC_ROLES } from "./dc-development.constants";
 
@@ -120,6 +122,8 @@ dcDevelopmentRouter.get("/archive-projects", listDcArchiveProjects);
 dcDevelopmentRouter.post("/archive-projects", createDcArchiveProject);
 dcDevelopmentRouter.get("/archive-projects/:id/custom-document-items", listDcDocumentCustomItems);
 dcDevelopmentRouter.post("/archive-projects/:id/custom-document-items", createDcDocumentCustomItem);
+dcDevelopmentRouter.post("/archive-projects/:id/category-log", logDcCategoryEdit);
+dcDevelopmentRouter.get("/archive-projects/:id/category-logs", listDcCategoryEditLogs);
 dcDevelopmentRouter.delete("/custom-document-items/:itemId", deleteDcDocumentCustomItem);
 
 dcDevelopmentRouter.get("/vendors", listDcVendors);

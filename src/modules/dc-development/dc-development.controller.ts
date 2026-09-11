@@ -28,7 +28,9 @@ import {
     updateDcBastSchema,
     createDcTermScheduleSchema,
     submitDcTermClaimSchema,
-    updateDcDocumentSchema
+    updateDcDocumentSchema,
+    dcCategoryLogListQuerySchema,
+    logDcCategoryEditSchema
 } from "./dc-development.schema";
 import { dcDevelopmentService, type UploadedDcDocumentFile } from "./dc-development.service";
 
@@ -97,6 +99,22 @@ export const deleteDcDocumentCustomItem = asyncHandler(async (req: Request, res:
         message: "Item dokumen tambahan berhasil dihapus",
         data
     });
+});
+
+export const logDcCategoryEdit = asyncHandler(async (req: Request, res: Response) => {
+    const input = withSessionActor(req, logDcCategoryEditSchema.parse(req.body));
+    const data = await dcDevelopmentService.logCategoryEdit(req.params.id, input);
+    res.json({
+        status: "success",
+        message: "Riwayat edit kategori berhasil dicatat",
+        data
+    });
+});
+
+export const listDcCategoryEditLogs = asyncHandler(async (req: Request, res: Response) => {
+    const query = dcCategoryLogListQuerySchema.parse(req.query);
+    const data = await dcDevelopmentService.listCategoryEditLogs(req.params.id, query);
+    res.json({ status: "success", data });
 });
 
 export const createDcProject = asyncHandler(async (req: Request, res: Response) => {

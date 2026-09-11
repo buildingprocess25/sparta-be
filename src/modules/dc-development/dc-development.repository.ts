@@ -165,6 +165,15 @@ export type DcIssueRow = {
     updated_at: string;
 };
 
+export type DcCategoryActivityLogRow = {
+    id: number;
+    project_id: number;
+    actor_email: string;
+    actor_role: string;
+    created_at: string;
+    metadata: any;
+};
+
 export type DcArchiveProjectRow = {
     id: number;
     project_id: number;
@@ -320,6 +329,19 @@ const insertActivityLog = async (
 };
 
 export const dcDevelopmentRepository = {
+    async listCategoryActivityLogs(projectId: number, categoryId: string): Promise<DcCategoryActivityLogRow[]> {
+        const result = await pool.query(
+            `SELECT id, project_id, actor_email, actor_role, created_at, metadata
+             FROM dc_activity_log
+             WHERE project_id = $1 
+               AND action = 'EDIT_CATEGORY_DOCUMENTS' 
+               AND metadata->>'category_id' = $2
+             ORDER BY created_at DESC`,
+            [projectId, categoryId]
+        );
+        return result.rows;
+    },
+
     async listArchiveProjects(filter: DcArchiveProjectListQuery, bypassAccess = false): Promise<DcArchiveProjectRow[]> {
         const conditions: string[] = [];
         const values: unknown[] = [];
