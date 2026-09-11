@@ -175,7 +175,12 @@ export const dashboardService = {
             });
         }
 
-        const projects = await dashboardRepository.findAllDashboard({ search: query.search });
+        const projects = await dashboardRepository.findAllDashboard({
+            search: query.search,
+            cabang_array: query.cabang_array,
+            _is_global_access: query._is_global_access,
+            tipe_bangunan: query.tipe_bangunan,
+        });
         const scopedProjects = await hydrateExportProjects(projects, query);
         const dokumentasiRows = await dashboardRepository.findDokumentasiBangunanForExport();
         const rows = buildDashboardExportRows(scopedProjects, buildDokumentasiIndex(dokumentasiRows));

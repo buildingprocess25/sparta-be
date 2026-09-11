@@ -34,6 +34,7 @@ export const dashboardExportQuerySchema = z.object({
     actor_role: z.string().trim().min(1),
     actor_cabang: z.string().trim().min(1),
     cabang_array: z.array(z.string()).optional(),
+    _is_global_access: z.boolean().optional(),
     tipe_bangunan: z.enum(["ALL", "RUKO", "NON_RUKO"]).optional()
 });
 
