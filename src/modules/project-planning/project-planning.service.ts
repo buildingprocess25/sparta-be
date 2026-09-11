@@ -200,7 +200,7 @@ import type {
 
 async function sendPpNotificationEmail(
     type: "ACTION_REQUIRED" | "REJECTED",
-    projek: { id: number; cabang: string | null | undefined; nomor_ulok: string; nama_toko: string; email_pembuat: string },
+    projek: { id: number; cabang?: string | null; nomor_ulok: string; nama_toko: string; email_pembuat: string },
     targetRole: string | "COORDINATOR",
     customPesanAtauAlasan: string,
     ditolakOleh?: string
