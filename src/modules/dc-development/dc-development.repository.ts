@@ -188,6 +188,9 @@ export type DcArchiveProjectRow = {
     docs_pembangunan: number;
     docs_renovasi: number;
     docs_perluasan: number;
+    custom_items_pembangunan: number;
+    custom_items_renovasi: number;
+    custom_items_perluasan: number;
     total_notes?: number;
     kategori_counts: Record<string, number>;
 };
@@ -386,6 +389,21 @@ export const dcDevelopmentRepository = {
                 COUNT(DISTINCT split_part(d.document_type, '__', 1)) FILTER (WHERE UPPER(COALESCE(d.stage, '')) = 'PEMBANGUNAN' AND split_part(d.document_type, '__', 1) !~ '^(H|I|J|L)_' AND v.drive_file_id IS NOT NULL)::int AS docs_pembangunan,
                 COUNT(DISTINCT split_part(d.document_type, '__', 1)) FILTER (WHERE UPPER(COALESCE(d.stage, '')) = 'RENOVASI' AND v.drive_file_id IS NOT NULL)::int AS docs_renovasi,
                 COUNT(DISTINCT split_part(d.document_type, '__', 1)) FILTER (WHERE UPPER(COALESCE(d.stage, '')) = 'PERLUASAN' AND v.drive_file_id IS NOT NULL)::int AS docs_perluasan,
+                (
+                    SELECT COUNT(*)::int
+                    FROM dc_document_custom_item
+                    WHERE archive_project_id = a.id AND stage = 'PEMBANGUNAN' AND deleted_at IS NULL
+                ) AS custom_items_pembangunan,
+                (
+                    SELECT COUNT(*)::int
+                    FROM dc_document_custom_item
+                    WHERE archive_project_id = a.id AND stage = 'RENOVASI' AND deleted_at IS NULL
+                ) AS custom_items_renovasi,
+                (
+                    SELECT COUNT(*)::int
+                    FROM dc_document_custom_item
+                    WHERE archive_project_id = a.id AND stage = 'PERLUASAN' AND deleted_at IS NULL
+                ) AS custom_items_perluasan,
                 (
                     SELECT COUNT(DISTINCT d_notes.id)::int
                     FROM dc_document d_notes
