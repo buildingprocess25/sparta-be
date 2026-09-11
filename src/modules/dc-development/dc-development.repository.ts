@@ -329,6 +329,23 @@ const insertActivityLog = async (
 };
 
 export const dcDevelopmentRepository = {
+    async insertActivityLog(input: {
+        project_id?: number | null;
+        entity_type: string;
+        entity_id?: number | null;
+        actor_email?: string | null;
+        actor_role?: string | null;
+        action: string;
+        status_before?: string | null;
+        status_after?: string | null;
+        reason?: string | null;
+        metadata?: Record<string, unknown> | null;
+    }) {
+        return withTransaction(async (client) => {
+            await insertActivityLog(client, input);
+        });
+    },
+
     async listCategoryActivityLogs(projectId: number, categoryId: string): Promise<DcCategoryActivityLogRow[]> {
         const result = await pool.query(
             `SELECT id, project_id, actor_email, actor_role, created_at, metadata
