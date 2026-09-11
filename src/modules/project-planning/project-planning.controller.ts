@@ -594,7 +594,9 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
     // Jika file gagal di-stream (misal ukuran file terlalu kecil atau restriksi), fallback ke stream public
     const publicData = await fetchPublicDriveStream(fileId);
     if (!publicData) {
-        res.status(502).json({ status: "error", message: "Gagal mengambil file dari Drive. Pastikan file RAB dapat diakses oleh token backend atau dibagikan sebagai viewer." });
+        // Fallback: biarkan frontend membuka URL aslinya saja langsung ke GDrive
+        // Jika file terlalu besar (kena virus scan) atau terproteksi, browser user bisa menanganinya
+        res.status(400).json({ status: "redirect", url: fileUrl, message: "Gagal mem-proxy file. Redirect ke link asli Google Drive." });
         return;
     }
 
