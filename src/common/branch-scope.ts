@@ -13,7 +13,6 @@ export const BRANCH_GROUPS: Record<string, string[]> = {
 
 export const GLOBAL_ACCESS_ROLES = [
     "BUILDING & MAINTENANCE SUPER HUMAN",
-    "BUILDING & MAINTENANCE REGIONAL MANAGER",
     "BUILDING MAINTENANCE & ENERGY SYSTEM MANAGER",
     "BUILDING & MAINTENANCE GENERAL MANAGER",
     "STORE & BRANCH CONTROLLING SPECIALIST",
@@ -95,6 +94,13 @@ export const isSameBranchScope = (left?: string | null, right?: string | null): 
  * Check if user has global access (can see all branches)
  */
 export const hasGlobalAccess = (cabang?: string | null, roles?: string[]): boolean => {
+    const isRegionalManager = (roles ?? []).some(role => 
+        normalizeBranchScopeName(role).includes("REGIONAL MANAGER")
+    );
+    
+    // Regional Manager TIDAK mendapat akses global, harus mematuhi coverage 2 wilayah
+    if (isRegionalManager) return false;
+
     const normalizedCabang = normalizeBranchScopeName(cabang);
     if (normalizedCabang === "HEAD OFFICE") return true;
     
