@@ -1678,7 +1678,7 @@ export const dcDevelopmentRepository = {
         await withTransaction(async (client) => {
             const updated = await client.query(
                 `UPDATE dc_document_version
-                 SET notes = $2, updated_at = timezone('Asia/Jakarta', now())
+                 SET notes = $2
                  WHERE document_id = $1 AND is_current = true`,
                 [documentId, notes]
             );
