@@ -144,7 +144,7 @@ const buildOpnameFotoDownloadPath = (
     const trimmed = (rawLink ?? "").trim();
     if (!trimmed) return null;
 
-    return `/api/opname/${opnameItemId}/foto`;
+    return trimmed;
 };
 
 const normalizeOpnameFotoLink = <T extends { id: number | string; foto: string | null }>(
