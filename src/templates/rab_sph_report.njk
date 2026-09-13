@@ -253,7 +253,10 @@
             </table>
         </li>
         <li>Memahami serta telah memperhitungkan secara seksama kewajiban kami secara teknis dan financial seperti termaksud dalam RKS dan risalah aanwijzing pada hari {{ hari_tanggal_surat }} bertempat seperti tersebut diatas.<br>
-        Dengan ini kami mengajukan penawaran senilai : <strong>Rp. {{ grand_total }}</strong>,- (Terbilang : <strong>{{ grand_total_terbilang }}</strong>), termasuk overhead, overload daya listrik, Jasa Konstruksi, PPh sesuai dengan perincian harga penawaran tercantum dalam Bill of Quantities.
+        {% if scope_sections.length > 1 %}
+        {% for section in scope_sections %}<p>Penawaran pekerjaan {{ section.scope }} senilai <strong>Rp. {{ section.grand_total }}</strong>,- ({{ section.terbilang }}).</p>{% endfor %}
+        {% endif %}
+        Dengan ini kami mengajukan penawaran total senilai : <strong>Rp. {{ grand_total }}</strong>,- (Terbilang : <strong>{{ grand_total_terbilang }}</strong>), termasuk overhead, overload daya listrik, Jasa Konstruksi, PPh sesuai dengan perincian harga penawaran tercantum dalam Bill of Quantities.
         </li>
         <li>Harga penawaran tersebut adalah fixed (tetap) dengan jangka waktu pelaksanaan Hari kalender sejak Surat Perintah Kerja dikeluarkan.</li>
         <!-- Can be customized. -->

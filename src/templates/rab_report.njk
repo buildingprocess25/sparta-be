@@ -277,7 +277,9 @@
     </div>
     {% endif %}
 
-    {% for group in grouped_items_list %}
+    {% for section in scope_sections %}
+    <h2 style="font-size:13px;margin-top:20px;break-after:avoid;">{{ section.letter }}. PEKERJAAN {{ section.scope }}</h2>
+    {% for group in section.groups %}
     <div>
         <p class="category-header">{{ loop.index }}. {{ group.category }}</p>
         <table class="price-table">
@@ -326,6 +328,8 @@
             </tbody>
         </table>
     </div>
+    {% endfor %}
+
     {% endfor %}
 
     {% if is_gabungan %}

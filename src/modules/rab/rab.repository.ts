@@ -273,6 +273,13 @@ export const rabRepository = {
              JOIN rab sibling ON sibling.id_toko = t2.id AND r.id != sibling.id
              WHERE r.id = $1
                AND sibling.status = ANY($2::text[])
+               AND sibling.status = r.status
+               AND upper(trim(t1.cabang)) = upper(trim(t2.cabang))
+               AND upper(trim(coalesce(t1.proyek,''))) = upper(trim(coalesce(t2.proyek,'')))
+               AND upper(trim(coalesce(r.nama_pt,''))) = upper(trim(coalesce(sibling.nama_pt,'')))
+               AND upper(trim(t1.lingkup_pekerjaan)) IN ('SIPIL','ME')
+               AND upper(trim(t2.lingkup_pekerjaan)) IN ('SIPIL','ME')
+               AND upper(trim(t1.lingkup_pekerjaan)) <> upper(trim(t2.lingkup_pekerjaan))
              ORDER BY sibling.id DESC
              LIMIT 1`,
             [rabId, ACTIVE_RAB_STATUSES]

@@ -1,3 +1,4 @@
+import { rabDocumentTotals, sortRabDocumentScopes } from './rab-document';
 import { PDFDocument as PdfLibDocument } from "pdf-lib";
 import { PDFParse } from "pdf-parse";
 import fs from "fs";
@@ -11,6 +12,7 @@ type BuildRabPdfInput = {
     toko: TokoJoinRow;
     alamat_cabang?: string | null;
     hideCoordinatorInfo?: boolean; // true = untuk kontraktor/direktur kontraktor
+    siblingToko?: TokoJoinRow | null;
     siblingRab?: RabRow | null;
     siblingItems?: RabItemRow[] | null;
 };
@@ -296,99 +298,27 @@ const resolvePdfTotals = (input: BuildRabPdfInput, itemTotal: number) => {
 };
 
 /** PDF detail item (Non-SBO atau semua, tergantung items yang dikirim). */
-export const buildRabPdfBuffer = async (input: BuildRabPdfInput): Promise<Buffer> => {
-    // Collect all items (main + sibling)
-    let allItems = [...input.items];
-    if (input.siblingItems && input.siblingItems.length > 0) {
-        allItems = allItems.concat(input.siblingItems);
-    }
 
+export const buildRabScopeSections = (input: BuildRabPdfInput) => {
+    const scopes = sortRabDocumentScopes(input.siblingRab && input.siblingToko
+        ? [{rab:input.rab,toko:input.toko,items:input.items},{rab:input.siblingRab,toko:input.siblingToko,items:input.siblingItems ?? []}]
+        : [{rab:input.rab,toko:input.toko,items:input.items}]);
+    return scopes.map((scope,index) => {
+        const totals = rabDocumentTotals(scope);
+        return {scope:scope.toko.lingkup_pekerjaan, letter:String.fromCharCode(65+index), groups:buildGroupedItems(scope.items),
+            total:rupiah(totals.sourceTotal),pembulatan:rupiah(totals.roundedDown),ppn:rupiah(totals.ppn),
+            grand_total:rupiah(totals.finalTotal),finalTotal:totals.finalTotal,terbilang:terbilang(totals.finalTotal)};
+    });
+};
+
+export const buildRabPdfBuffer = async (input: BuildRabPdfInput): Promise<Buffer> => {
     const templatePath = await resolveTemplatePath("rab_report.njk");
     const isBatam = isBatamBranch(input.toko.cabang);
     const isBogor = isBogorBranch(input.toko.cabang);
     const coordinatorInfo = buildCoordinatorInfo(input.rab);
-    
-    // Hide coordinator info jika untuk kontraktor/direktur kontraktor
     const shouldShowCoordinatorInfo = !input.hideCoordinatorInfo && coordinatorInfo.show;
-
-    // Group items by lingkup_pekerjaan first, then by kategori_pekerjaan
-    const lingkupMap = new Map<string, RabItemRow[]>();
-    for (const item of allItems) {
-        // Assume categories like "INSTALASI", "FIXTURE" are ME, otherwise SIPIL (matching frontend logic)
-        const cat = String(item.kategori_pekerjaan || "").toUpperCase().trim();
-        const isME = ["INSTALASI", "FIXTURE"].includes(cat);
-        const scopeName = isME ? "ME" : "SIPIL";
-        if (!lingkupMap.has(scopeName)) lingkupMap.set(scopeName, []);
-        lingkupMap.get(scopeName)!.push(item);
-    }
-
-    // Determine order: SIPIL first, then ME
-    const orderedScopes = ["SIPIL", "ME"].filter(s => lingkupMap.has(s));
-
-    let finalGrandTotal = 0;
-    const scopeTotals: any[] = [];
-    const grouped_items_list: any[] = [];
-    let globalGroupIndex = 0;
-
-    for (const scopeName of orderedScopes) {
-        const scopeItems = lingkupMap.get(scopeName)!;
-        let scopeItemTotal = 0;
-        
-        const categoryMap = new Map<string, RabItemRow[]>();
-        for (const item of scopeItems) {
-            const cat = item.kategori_pekerjaan || "LAIN-LAIN";
-            if (!categoryMap.has(cat)) categoryMap.set(cat, []);
-            categoryMap.get(cat)!.push(item);
-        }
-
-        const categoryNames = Array.from(categoryMap.keys()).sort();
-        for (const catName of categoryNames) {
-            const catItems = categoryMap.get(catName)!;
-            const mappedCatItems = catItems.map((item) => {
-                const totalMaterial = item.total_material ?? (Number(item.volume) * Number(item.harga_material));
-                const totalUpah = item.total_upah ?? (Number(item.volume) * Number(item.harga_upah));
-                const totalHarga = item.total_harga ?? (Number(totalMaterial) + Number(totalUpah));
-                scopeItemTotal += Number(totalHarga);
-                return {
-                    jenisPekerjaan: item.jenis_pekerjaan,
-                    satuan: item.satuan,
-                    volumeFormatted: formatVolume(item.volume),
-                    hargaMaterialFormatted: rupiah(item.harga_material),
-                    hargaUpahFormatted: rupiah(item.harga_upah),
-                    totalMaterialFormatted: rupiah(totalMaterial),
-                    totalUpahFormatted: rupiah(totalUpah),
-                    totalHargaFormatted: rupiah(totalHarga),
-                    catatan: item.catatan,
-                };
-            });
-
-            const subTotalMaterial = catItems.reduce((acc, it) => acc + Number(it.total_material ?? (Number(it.volume) * Number(it.harga_material))), 0);
-            const subTotalUpah = catItems.reduce((acc, it) => acc + Number(it.total_upah ?? (Number(it.volume) * Number(it.harga_upah))), 0);
-            const subTotalHarga = subTotalMaterial + subTotalUpah;
-            globalGroupIndex++;
-
-            grouped_items_list.push({
-                index: globalGroupIndex,
-                scope: scopeName,
-                category: catName,
-                items: mappedCatItems,
-                subTotalMaterialFormatted: rupiah(subTotalMaterial),
-                subTotalUpahFormatted: rupiah(subTotalUpah),
-                subTotalHargaFormatted: rupiah(subTotalHarga),
-            });
-        }
-
-        const recap = resolvePdfTotals(input, scopeItemTotal);
-        finalGrandTotal += recap.finalTotal;
-        scopeTotals.push({
-            scope: scopeName,
-            total: rupiah(recap.sourceTotal),
-            pembulatan: rupiah(recap.roundedDown),
-            ppn: rupiah(recap.ppn),
-            grand_total: rupiah(recap.finalTotal),
-        });
-    }
-
+    const scopeTotals = buildRabScopeSections(input);
+    const finalGrandTotal = scopeTotals.reduce((sum,s)=>sum+s.finalTotal,0);
     const html = await renderHtmlTemplate(templatePath, {
         data: {
             NomorUlok: formatNomorUlok(input.toko.nomor_ulok),
@@ -396,7 +326,7 @@ export const buildRabPdfBuffer = async (input: BuildRabPdfInput): Promise<Buffer
             Proyek: input.toko.proyek || "-",
             Cabang: input.toko.cabang || "-",
             Alamat: input.toko.alamat || "-",
-            LingkupPekerjaan: (input.siblingRab ? "Sipil & ME" : (input.toko.lingkup_pekerjaan || "-")),
+            LingkupPekerjaan: scopeTotals.map(s=>s.scope).join(" + "),
             DurasiPekerjaan: input.rab.durasi_pekerjaan ? `${input.rab.durasi_pekerjaan} HARI KERJA` : "",
             KategoriLokasi: input.rab.kategori_lokasi ?? "",
             LuasAreaParkir: input.rab.luas_area_parkir ?? "",
@@ -406,9 +336,9 @@ export const buildRabPdfBuffer = async (input: BuildRabPdfInput): Promise<Buffer
             LuasAreaTerbuka: input.rab.luas_area_terbuka ?? "",
             LuasTerbangun: input.rab.luas_terbangun ?? "",
         },
-        grouped_items_list,
+        scope_sections: scopeTotals,
         scopeTotals,
-        is_gabungan: orderedScopes.length > 1,
+        is_gabungan: scopeTotals.length > 1,
         final_grand_total: rupiah(finalGrandTotal),
         watermark_logo_path: staticAssetPath("Building-Logo.png"),
         tanggal_pengajuan: formatDateIndonesia(input.rab.created_at),
@@ -433,40 +363,7 @@ export const buildRabPdfBuffer = async (input: BuildRabPdfInput): Promise<Buffer
 /** PDF Rekapitulasi - ringkasan total per kategori pekerjaan. */
 export const buildRecapPdfBuffer = async (input: BuildRabPdfInput): Promise<Buffer> => {
     const templatePath = await resolveTemplatePath("rab_recap_report.njk");
-    const grouped = new Map<string, { material: number; upah: number; total: number }>();
-
-    for (const item of input.items) {
-        const key = item.kategori_pekerjaan;
-        if (!grouped.has(key)) {
-            grouped.set(key, { material: 0, upah: 0, total: 0 });
-        }
-        const row = grouped.get(key)!;
-        row.material += Number(item.total_material || 0);
-        row.upah += Number(item.total_upah || 0);
-        row.total += Number(item.total_harga || 0);
-    }
-
-    const category_totals_list = Array.from(grouped.entries()).map(([name, value]) => ({
-        name,
-        materialFormatted: rupiah(value.material),
-        upahFormatted: rupiah(value.upah),
-        totalFormatted: rupiah(value.total),
-        totalRaw: value.total,
-    }));
-
-    const itemGrandTotal = category_totals_list.reduce((acc, row) => acc + row.totalRaw, 0);
-    const recap = resolvePdfTotals(input, itemGrandTotal);
-    const hasFallbackTotal = category_totals_list.length === 0 && recap.sourceTotal > 0;
-    const resolvedCategoryTotals = hasFallbackTotal
-        ? [{
-            name: "TOTAL RAB",
-            materialFormatted: rupiah(0),
-            upahFormatted: rupiah(0),
-            totalFormatted: rupiah(recap.sourceTotal),
-            totalRaw: recap.sourceTotal,
-        }]
-        : category_totals_list;
-
+    const scopeSections = buildRabScopeSections(input);
     const html = await renderHtmlTemplate(templatePath, {
         data: {
             NomorUlok: formatNomorUlok(input.toko.nomor_ulok),
@@ -474,15 +371,11 @@ export const buildRecapPdfBuffer = async (input: BuildRabPdfInput): Promise<Buff
             Proyek: input.toko.proyek ?? "",
             Cabang: input.toko.cabang ?? "",
             Alamat: input.toko.alamat ?? "",
-            LingkupPekerjaan: input.toko.lingkup_pekerjaan ?? "",
+            LingkupPekerjaan: scopeSections.map(s=>s.scope).join(" + "),
             DurasiPekerjaan: input.rab.durasi_pekerjaan ?? "",
             KategoriLokasi: input.rab.kategori_lokasi ?? "",
         },
-        category_totals_list: resolvedCategoryTotals,
-        grand_total_formatted: rupiah(recap.sourceTotal),
-        pembulatan_formatted: rupiah(recap.roundedDown),
-        ppn_formatted: rupiah(recap.ppn),
-        final_total_formatted: rupiah(recap.finalTotal),
+        scope_sections: scopeSections,
         watermark_logo_path: staticAssetPath("Building-Logo.png"),
         tanggal_pengajuan: formatDateIndonesia(input.rab.created_at),
         nama_pt: input.rab.nama_pt || "NAMA PT. KONTRAKTOR TIDAK ADA",
@@ -496,9 +389,8 @@ export const generateSphPdf = async (
 ): Promise<Buffer> => {
     const templatePath = await resolveTemplatePath("rab_sph_report.njk");
 
-    const total = input.items.reduce((acc, item) => acc + Number(item.total_harga || 0), 0);
-    const recap = resolvePdfTotals(input, total);
-    const finalTotal = recap.finalTotal;
+    const scopeSections = buildRabScopeSections(input);
+    const finalTotal = scopeSections.reduce((sum,s)=>sum+s.finalTotal,0);
 
     const referenceDate = input.rab.waktu_persetujuan_direktur || input.rab.created_at;
     const tenderDate = formatDateIndonesia(referenceDate);
@@ -510,7 +402,8 @@ export const generateSphPdf = async (
         nomor_sph: buildSphDocumentNumber(input.rab.no_sph, referenceDate),
         langsung: true,
         proyek: input.toko.proyek || "Alfamart",
-        lingkup_pekerjaan: input.toko.lingkup_pekerjaan || "Sipil",
+        lingkup_pekerjaan: scopeSections.map(s=>s.scope).join(" + "),
+        scope_sections: scopeSections,
         cabang: input.toko.cabang || "",
         nama_toko: input.toko.nama_toko || "", 
         alamat_toko: input.toko.alamat || "",

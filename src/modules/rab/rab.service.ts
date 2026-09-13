@@ -1,3 +1,5 @@
+import { sortRabDocumentScopes } from './rab-document';
+import { buildRabDocumentExcel } from './rab-document.excel';
 import { AppError } from "../../common/app-error";
 import { emailNotificationService } from "../email-notification/email-notification.service";
 import { PDFParse } from "pdf-parse";
@@ -1394,11 +1396,13 @@ async function regenerateRabPdfs(
     const nomorUlok = filenameParts.nomorUlok ?? fullData.toko.nomor_ulok ?? "UNKNOWN";
 
     const siblingId = await rabRepository.findActiveSiblingRabId(rabId);
+    let siblingToko = null;
     let siblingRab = null;
     let siblingItems = null;
     if (siblingId) {
         const siblingData = await rabRepository.findById(String(siblingId));
         if (siblingData) {
+            siblingToko = siblingData.toko;
             siblingRab = siblingData.rab;
             siblingItems = siblingData.items;
         }
@@ -1410,14 +1414,14 @@ async function regenerateRabPdfs(
         toko: fullData.toko,
         hideCoordinatorInfo,
         siblingRab,
-        siblingItems
+        siblingItems, siblingToko
     });
     logRab("PDF", "PDF non SBO selesai dibuat", { rabId });
 
     const pdfRecap = await buildRecapPdfBuffer({
         rab: rabForPdf,
         items: fullData.items,
-        toko: fullData.toko
+        toko: fullData.toko, siblingRab, siblingItems, siblingToko
     });
     logRab("PDF", "PDF rekap selesai dibuat", { rabId });
 
@@ -1431,14 +1435,13 @@ async function regenerateRabPdfs(
         currentLingkup: fullData.toko.lingkup_pekerjaan,
         currentMateraiLink: fullData.rab.link_pdf_materai
     });
-    if (materaiPage) {
-        pdfBuffersToMerge.push(materaiPage);
-    }
+
 
     const pdfSph = await generateSphPdf({
         rab: rabForPdf,
         items: fullData.items,
         toko: fullData.toko,
+        siblingRab, siblingItems, siblingToko,
         logoOverride: logoDataUri,
         alamat_cabang: alamatCabang
     });
@@ -1453,9 +1456,10 @@ async function regenerateRabPdfs(
     logRab("PDF", "PDF SPH diupload", { rabId, linkSph });
 
     pdfBuffersToMerge.push(pdfRecap, pdfNonSbo);
+    if (materaiPage) pdfBuffersToMerge.push(materaiPage);
 
-    const insuranceLink = fullData.rab.file_asuransi?.trim();
-    if (insuranceLink) {
+    const insuranceLinks = [...new Set([fullData.rab.file_asuransi?.trim(), siblingRab?.file_asuransi?.trim()].filter((link): link is string => Boolean(link)))];
+    for (const insuranceLink of insuranceLinks) {
         try {
             const insuranceFile = await fetchFileBufferByLink(insuranceLink);
             if (insuranceFile?.buffer?.length) {
@@ -1938,8 +1942,12 @@ export const rabService = {
             ? await projekPlanningRepository.findById(data.rab.projek_planning_id)
             : null;
 
+        const siblingId = await rabRepository.findActiveSiblingRabId(id);
+        const sibling = siblingId ? await rabRepository.findById(String(siblingId)) : null;
+        const documentScopes = sortRabDocumentScopes(sibling ? [data, sibling] : [data]);
         return {
             ...data,
+            document_scopes: documentScopes,
             rab: {
                 ...normalizeRabFileLinks(data.rab),
                 coordinator_info_prefill: buildRabCoordinatorInfoPrefill(data.rab, planningData?.projek ?? null),
@@ -2236,6 +2244,7 @@ export const rabService = {
                 logRab("DOWNLOAD", `PDF gabungan diregenerate sebelum download${hideCoordinatorInfo ? ' (tanpa info koordinator)' : ''}`, { rabId: id });
             }
         } catch (err) {
+            if (await rabRepository.findActiveSiblingRabId(id)) throw err;
             console.error("Warning: Gagal regenerate PDF RAB sebelum download, memakai link lama:", err);
         }
 
@@ -2710,45 +2719,7 @@ export const rabService = {
     },
 
     async exportRabExcel(id: string): Promise<Buffer> {
-        const rabData = await rabRepository.findById(id);
-        if (!rabData) throw new AppError("RAB tidak ditemukan", 404);
-
-        const items = await rabRepository.listItemsByRabId(id);
-        
-        const excelData = items.map((item, index) => ({
-            "No": index + 1,
-            "Kategori Pekerjaan": item.kategori_pekerjaan,
-            "Jenis Pekerjaan": item.jenis_pekerjaan,
-            "Volume": Number(item.volume) || 0,
-            "Satuan": item.satuan,
-            "Harga Material": Number(item.harga_material) || 0,
-            "Harga Upah": Number(item.harga_upah) || 0,
-            "Total Material": Number(item.total_material) || 0,
-            "Total Upah": Number(item.total_upah) || 0,
-            "Total Harga": Number(item.total_harga) || 0,
-            "Catatan": item.catatan || ""
-        }));
-
-        const workbook = XLSX.utils.book_new();
-        const worksheet = XLSX.utils.json_to_sheet(excelData);
-        
-        const wscols = [
-            { wch: 5 },  // No
-            { wch: 30 }, // Kategori
-            { wch: 40 }, // Pekerjaan
-            { wch: 10 }, // Volume
-            { wch: 10 }, // Satuan
-            { wch: 15 }, // Hrg Mat
-            { wch: 15 }, // Hrg Upah
-            { wch: 15 }, // Tot Mat
-            { wch: 15 }, // Tot Upah
-            { wch: 15 }, // Tot Harga
-            { wch: 30 }  // Catatan
-        ];
-        worksheet["!cols"] = wscols;
-
-        XLSX.utils.book_append_sheet(workbook, worksheet, "RAB Items");
-        
-        return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
+        const data = await this.getById(id);
+        return buildRabDocumentExcel(data.document_scopes);
     }
 };

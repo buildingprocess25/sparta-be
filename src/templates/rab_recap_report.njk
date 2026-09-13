@@ -94,6 +94,8 @@
         </table>
     </div>
 
+    {% for section in scope_sections %}
+    <h2 style="font-size:13px;margin-top:20px;break-after:avoid;">PEKERJAAN {{ section.scope }}</h2>
     <table class="price-table">
         <thead>
             <tr>
@@ -105,13 +107,13 @@
             </tr>
         </thead>
         <tbody>
-            {% for row in category_totals_list %}
+            {% for row in section.groups %}
             <tr>
                 <td>{{ loop.index }}</td>
-                <td class="text-left">{{ row.name }}</td>
-                <td class="text-right">{{ row.materialFormatted }}</td>
-                <td class="text-right">{{ row.upahFormatted }}</td>
-                <td class="text-right"><strong>{{ row.totalFormatted }}</strong></td>
+                <td class="text-left">{{ row.category }}</td>
+                <td class="text-right">{{ row.subTotalMaterialFormatted }}</td>
+                <td class="text-right">{{ row.subTotalUpahFormatted }}</td>
+                <td class="text-right"><strong>{{ row.subTotalHargaFormatted }}</strong></td>
             </tr>
             {% endfor %}
         </tbody>
@@ -119,11 +121,13 @@
 
     <table class="grand-total-table">
         <tbody>
-            <tr><td>TOTAL (Rp)</td><td class="total-amount-cell">{{ grand_total_formatted }}</td></tr>
-            <tr><td>PEMBULATAN (Rp)</td><td class="total-amount-cell">{{ pembulatan_formatted }}</td></tr>
-            <tr><td>PPN 11% (Rp)</td><td class="total-amount-cell">{{ ppn_formatted }}</td></tr>
-            <tr><td>GRAND TOTAL (Rp)</td><td class="total-amount-cell">{{ final_total_formatted }}</td></tr>
+            <tr><td>TOTAL (Rp)</td><td class="total-amount-cell">{{ section.total }}</td></tr>
+            <tr><td>PEMBULATAN (Rp)</td><td class="total-amount-cell">{{ section.pembulatan }}</td></tr>
+            <tr><td>PPN 11% (Rp)</td><td class="total-amount-cell">{{ section.ppn }}</td></tr>
+            <tr><td>GRAND TOTAL (Rp)</td><td class="total-amount-cell">{{ section.grand_total }}</td></tr>
         </tbody>
     </table>
+    <div style="clear:both;"></div>
+    {% endfor %}
 </body>
 </html>
