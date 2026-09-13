@@ -1,3 +1,4 @@
+import { rabApprovalNotificationSql } from './rab-approval-notification.sql';
 import { getBranchScopeCandidates } from "../../common/branch-scope";
 import { pool } from "../../db/pool";
 import type { AuthenticatedUser } from "../auth/auth-session.service";
@@ -288,29 +289,7 @@ const findRabApproval = async (user: AuthenticatedUser): Promise<NotificationRow
     const companyWhere = addCompanyScope(user, values, "r.nama_pt");
     values.push(ITEM_LIMIT);
 
-    return queryNotificationRows(`
-        SELECT
-            'RAB' AS entity_type,
-            r.id AS entity_id,
-            r.id_toko,
-            COALESCE(t.nama_toko, t.nomor_ulok) AS title,
-            t.nomor_ulok,
-            t.lingkup_pekerjaan,
-            t.cabang,
-            r.nama_pt,
-            r.status,
-            'RAB menunggu approval sesuai role Anda.' AS description,
-            'Buka Approval RAB' AS action_label,
-            '/approval?type=RAB&id=' || r.id AS action_url,
-            COUNT(*) OVER() AS total_count
-        FROM rab r
-        JOIN toko t ON t.id = r.id_toko
-        WHERE r.status = ANY($1::text[])
-          ${branchWhere}
-          ${companyWhere}
-        ORDER BY r.created_at DESC, r.id DESC
-        LIMIT $${values.length}
-    `, values);
+    return queryNotificationRows(rabApprovalNotificationSql(branchWhere, companyWhere, values.length), values);
 };
 
 const findSpkApproval = async (user: AuthenticatedUser): Promise<NotificationRow[]> => {
