@@ -1,3 +1,4 @@
+import { spkNotificationSql } from './spk-notification.sql';
 import { rabApprovalNotificationSql } from './rab-approval-notification.sql';
 import { getBranchScopeCandidates } from "../../common/branch-scope";
 import { pool } from "../../db/pool";
@@ -298,27 +299,7 @@ const findSpkApproval = async (user: AuthenticatedUser): Promise<NotificationRow
     const branchWhere = addApprovalBranchScope(user, values, "t.cabang");
     values.push(ITEM_LIMIT);
 
-    return queryNotificationRows(`
-        SELECT
-            'SPK' AS entity_type,
-            p.id AS entity_id,
-            p.id_toko,
-            COALESCE(t.nama_toko, p.nomor_ulok) AS title,
-            p.nomor_ulok,
-            p.lingkup_pekerjaan,
-            t.cabang,
-            p.status,
-            'SPK menunggu approval Branch Manager.' AS description,
-            'Buka Approval SPK' AS action_label,
-            '/approval?type=SPK&id=' || p.id AS action_url,
-            COUNT(*) OVER() AS total_count
-        FROM pengajuan_spk p
-        LEFT JOIN toko t ON t.id = p.id_toko
-        WHERE p.status = 'WAITING_FOR_BM_APPROVAL'
-          ${branchWhere}
-        ORDER BY p.created_at DESC, p.id DESC
-        LIMIT $${values.length}
-    `, values);
+    return queryNotificationRows(spkNotificationSql(branchWhere, values.length), values);
 };
 
 const findPertambahanSpkApproval = async (user: AuthenticatedUser): Promise<NotificationRow[]> => {
@@ -780,54 +761,14 @@ const findRevisionRequired = async (user: AuthenticatedUser): Promise<Notificati
             emailCondition = `(UPPER(TRIM(COALESCE(r.email_pembuat, ''))) = ${emailPlaceholder} ${companyWhere ? `OR ${companyWhere.replace(/^AND\s+/, "")}` : ""})`;
         }
         values.push(ITEM_LIMIT);
-        rows.push(await queryNotificationRows(`
-            SELECT
-                'RAB_REJECTED' AS entity_type,
-                r.id AS entity_id,
-                r.id_toko,
-                COALESCE(t.nama_toko, t.nomor_ulok) AS title,
-                t.nomor_ulok,
-                t.lingkup_pekerjaan,
-                t.cabang,
-                r.status,
-                COALESCE('Alasan: ' || NULLIF(r.alasan_penolakan, ''), 'RAB perlu direvisi dan diajukan ulang.') AS description,
-                'Revisi RAB' AS action_label,
-                '/rab?revision_id=' || r.id AS action_url,
-                COUNT(*) OVER() AS total_count
-            FROM rab r
-            JOIN toko t ON t.id = r.id_toko
-            WHERE r.status IN ('Ditolak oleh Koordinator', 'Ditolak oleh Manajer', 'Ditolak oleh Direktur Kontraktor')
-              AND ${emailCondition}
-            ORDER BY r.created_at DESC, r.id DESC
-            LIMIT $${values.length}
-        `, values));
+        rows.push(await queryNotificationRows(rabApprovalNotificationSql(`AND ${emailCondition}`, "", values.length, true), values));
     }
 
     if (isSuperHuman(user) || hasActiveRole(user, "BRANCH BUILDING COORDINATOR") || hasActiveRole(user, "BRANCH BUILDING & MAINTENANCE MANAGER")) {
         const values: SqlValue[] = [];
         const branchWhere = addBranchScope(user, values, "t.cabang");
         values.push(ITEM_LIMIT);
-        rows.push(await queryNotificationRows(`
-            SELECT
-                'SPK_REJECTED' AS entity_type,
-                p.id AS entity_id,
-                p.id_toko,
-                COALESCE(t.nama_toko, p.nomor_ulok) AS title,
-                p.nomor_ulok,
-                p.lingkup_pekerjaan,
-                t.cabang,
-                p.status,
-                COALESCE('Alasan: ' || NULLIF(p.alasan_penolakan, ''), 'SPK perlu diperbaiki/diajukan ulang.') AS description,
-                'Revisi SPK' AS action_label,
-                '/spk?spk_id=' || p.id || '&nomor_ulok=' || COALESCE(p.nomor_ulok, '') || '&lingkup=' || replace(replace(COALESCE(p.lingkup_pekerjaan, ''), '&', '%26'), ' ', '%20') || '&id_toko=' || COALESCE(p.id_toko::text, '') AS action_url,
-                COUNT(*) OVER() AS total_count
-            FROM pengajuan_spk p
-            LEFT JOIN toko t ON t.id = p.id_toko
-            WHERE p.status = 'SPK_REJECTED'
-              ${branchWhere}
-            ORDER BY p.created_at DESC, p.id DESC
-            LIMIT $${values.length}
-        `, values));
+        rows.push(await queryNotificationRows(spkNotificationSql(branchWhere, values.length, true), values));
     }
 
     if (isSuperHuman(user) || hasActiveRole(user, "BRANCH BUILDING COORDINATOR")) {

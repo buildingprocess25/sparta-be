@@ -10,9 +10,9 @@ test('RAB notifications group before limit and count, retaining scope and access
  try{
   await c.query('BEGIN');
   await c.query(`CREATE TEMP TABLE toko(id int,nomor_ulok varchar,lingkup_pekerjaan varchar,cabang varchar,proyek varchar,nama_toko varchar) ON COMMIT DROP;
-  CREATE TEMP TABLE rab(id int,id_toko int,status varchar,nama_pt varchar,created_at timestamp) ON COMMIT DROP;
+  CREATE TEMP TABLE rab(id int,id_toko int,status varchar,nama_pt varchar,created_at timestamp,alasan_penolakan text) ON COMMIT DROP;
   INSERT INTO toko SELECT n,'ULOK-'||((n+1)/2),CASE WHEN n%2=1 THEN 'SIPIL' ELSE 'ME' END,'HEAD OFFICE','Reguler','Fixture' FROM generate_series(1,50) n;
-  INSERT INTO rab SELECT n,n,'Menunggu Persetujuan Manajer','CV FIXTURE','2026-09-13'::timestamp FROM generate_series(1,50) n;`);
+  INSERT INTO rab SELECT n,n,'Menunggu Persetujuan Manajer','CV FIXTURE','2026-09-13'::timestamp,NULL FROM generate_series(1,50) n;`);
   const args=[['Menunggu Persetujuan Manajer'],20];
   let rows=(await c.query(rabApprovalNotificationSql('','',2),args)).rows;
   assert.equal(rows.length,20);assert.ok(rows.every(r=>Number(r.total_count)===25&&r.lingkup_pekerjaan==='SIPIL + ME'&&r.entity_id%2===1));
