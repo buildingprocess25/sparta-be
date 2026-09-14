@@ -1018,7 +1018,8 @@ export const dcDevelopmentService = {
             action: "EDIT_CATEGORY_DOCUMENTS",
             metadata: {
                 category_id: input.category_id,
-                category_name: input.category_name
+                category_name: input.category_name,
+                ...(input.action_details && { action_details: input.action_details })
             }
         });
         return { success: true };

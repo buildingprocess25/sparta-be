@@ -12,7 +12,8 @@ export const logDcCategoryEditSchema = z.object({
     category_id: z.string().trim().min(1),
     category_name: z.string().trim().min(1),
     actor_email: z.string().email(),
-    actor_role: z.string().trim().min(1)
+    actor_role: z.string().trim().min(1),
+    action_details: z.array(z.string()).optional()
 });
 
 export const dcCategoryLogListQuerySchema = z.object({
