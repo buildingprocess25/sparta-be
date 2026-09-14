@@ -1019,7 +1019,8 @@ export const dcDevelopmentService = {
             metadata: {
                 category_id: input.category_id,
                 category_name: input.category_name,
-                ...(input.action_details && { action_details: input.action_details })
+                ...(input.action_details && { action_details: input.action_details }),
+                ...(input.itemized_details && { itemized_details: input.itemized_details })
             }
         });
         return { success: true };
