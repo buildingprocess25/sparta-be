@@ -88,8 +88,8 @@ app.use(cors({
     },
     exposedHeaders: ["Content-Disposition", "X-SPARTA-PDF-Source"]
 }));
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+app.use(express.json({ limit: "500mb" }));
+app.use(express.urlencoded({ extended: true, limit: "500mb" }));
 
 app.use((req, res, next) => {
     const redactKeys = new Set([
@@ -243,14 +243,14 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
         if (error.code === "LIMIT_FILE_SIZE") {
             return res.status(400).json({
                 status: "error",
-                message: "Ukuran file melebihi batas maksimal 10MB per file"
+                message: "Ukuran file melebihi batas maksimal yang diizinkan per file"
             });
         }
 
         if (error.code === "LIMIT_FIELD_VALUE") {
             return res.status(400).json({
                 status: "error",
-                message: "Data form upload melebihi batas maksimal 10MB. Kurangi jumlah item RAB atau ukuran lampiran teks."
+                message: "Data form upload melebihi batas maksimal. Kurangi jumlah item RAB atau ukuran lampiran teks."
             });
         }
 
