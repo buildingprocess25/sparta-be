@@ -462,7 +462,10 @@ export const spService = {
         let actions = await spRepository.listActions(query);
         const isSuperHuman = actor?.roles?.some(r => r.toUpperCase().includes('BUILDING & MAINTENANCE SUPER HUMAN'));
         if (!isSuperHuman) {
-            actions = actions.filter(sp => sp.cabang?.toUpperCase() !== 'Z001');
+            actions = actions.filter(sp => {
+            const cab = sp.cabang?.toUpperCase();
+            return cab !== 'Z001' && cab !== 'HEAD OFFICE';
+        });
         }
 
         if (actions.length > 0) {
@@ -502,7 +505,10 @@ export const spService = {
         let actions = await spRepository.listKontraktorActions(namaKontraktor);
         const isSuperHuman = actor?.roles?.some(r => r.toUpperCase().includes('BUILDING & MAINTENANCE SUPER HUMAN'));
         if (!isSuperHuman) {
-            actions = actions.filter(sp => sp.cabang?.toUpperCase() !== 'Z001');
+            actions = actions.filter(sp => {
+            const cab = sp.cabang?.toUpperCase();
+            return cab !== 'Z001' && cab !== 'HEAD OFFICE';
+        });
         }
         return actions;
     },
