@@ -428,7 +428,8 @@ const findInstruksiLapanganApproval = async (user: AuthenticatedUser): Promise<N
     if (!stage || stage === "DIREKTUR" || stage === "DIREKTUR_KONTRAKTOR" || stage === "KONTRAKTOR") return [];
 
     const values: SqlValue[] = [];
-    const statuses = stage === "ALL"
+    const isBatamKoordinator = stage === "KOORDINATOR" && user.cabang?.toUpperCase() === "BATAM";
+    const statuses = stage === "ALL" || isBatamKoordinator
         ? ["Menunggu Persetujuan Koordinator", "Menunggu Persetujuan Manager"]
         : stage === "KOORDINATOR"
             ? ["Menunggu Persetujuan Koordinator"]

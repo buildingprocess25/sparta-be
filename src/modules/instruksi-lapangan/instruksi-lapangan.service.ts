@@ -404,23 +404,35 @@ export const instruksiLapanganService = {
                     throw new AppError("Instruksi Lapangan saat ini menunggu approval Koordinator", 403);
                 }
 
+                const isBatam = data.toko.cabang?.toUpperCase() === "BATAM";
+
                 await instruksiLapanganRepository.updateApproval(
                     id,
-                    "Menunggu Persetujuan Manager",
+                    isBatam ? "Disetujui" : "Menunggu Persetujuan Manager",
                     "koordinator",
                     action.approver_email,
                     undefined,
                     action.catatan_approval ?? null
                 );
+                
+                if (isBatam) {
+                    // Sync to Opname Final if exists, since we bypass manager
+                    await opnameRepository.syncApprovedInstruksiLapangan(data.toko.id, Number(id)).catch(err => {
+                        console.error("Failed to sync approved Instruksi Lapangan to Opname:", err);
+                    });
+                }
             } else if (currentStatus === "Menunggu Persetujuan Manager") {
-                if (action.jabatan !== "MANAGER") {
+                const isBatam = data.toko.cabang?.toUpperCase() === "BATAM";
+                const isKoordinatorBatam = isBatam && action.jabatan === "KOORDINATOR";
+
+                if (action.jabatan !== "MANAGER" && !isKoordinatorBatam) {
                     throw new AppError("Instruksi Lapangan saat ini menunggu approval Manager", 403);
                 }
 
                 await instruksiLapanganRepository.updateApproval(
                     id,
                     "Disetujui",
-                    "manager",
+                    isKoordinatorBatam ? "koordinator" : "manager",
                     action.approver_email,
                     undefined,
                     action.catatan_approval ?? null
