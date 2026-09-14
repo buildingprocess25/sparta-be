@@ -457,9 +457,13 @@ export const spService = {
         return spRepository.listCandidates(cabang_array);
     },
 
-    async listActions(query: ListDendaActionsQuery) {
+    async listActions(query: ListDendaActionsQuery, actor?: AuthenticatedUser | null) {
         await spRepository.ensureSchema();
-        const actions = await spRepository.listActions(query);
+        let actions = await spRepository.listActions(query);
+        const isSuperHuman = actor?.roles?.some(r => r.toUpperCase().includes('BUILDING & MAINTENANCE SUPER HUMAN'));
+        if (!isSuperHuman) {
+            actions = actions.filter(sp => sp.cabang?.toUpperCase() !== 'Z001');
+        }
 
         if (actions.length > 0) {
             const tokoIds = [...new Set(actions.map(a => a.id_toko).filter(id => id != null))];
@@ -493,9 +497,14 @@ export const spService = {
         return actions;
     },
 
-    async listActionsForKontraktor(namaKontraktor: string) {
+    async listActionsForKontraktor(namaKontraktor: string, actor?: AuthenticatedUser | null) {
         await spRepository.ensureSchema();
-        return spRepository.listKontraktorActions(namaKontraktor);
+        let actions = await spRepository.listKontraktorActions(namaKontraktor);
+        const isSuperHuman = actor?.roles?.some(r => r.toUpperCase().includes('BUILDING & MAINTENANCE SUPER HUMAN'));
+        if (!isSuperHuman) {
+            actions = actions.filter(sp => sp.cabang?.toUpperCase() !== 'Z001');
+        }
+        return actions;
     },
 
     async createAction(input: CreateDendaActionInput & {

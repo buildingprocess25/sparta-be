@@ -63,7 +63,7 @@ export const listDendaActions = asyncHandler(async (req: Request, res: Response)
     if (isContractor) {
         const data = !query.action_type || query.action_type === "SP"
             ? req.user.nama_pt
-                ? await spService.listActionsForKontraktor(req.user.nama_pt)
+                ? await spService.listActionsForKontraktor(req.user.nama_pt, req.user)
                 : []
             : [];
 
@@ -75,7 +75,7 @@ export const listDendaActions = asyncHandler(async (req: Request, res: Response)
     }
 
     query = await injectBranchFilter(req.user, query);
-    const data = await spService.listActions(query);
+    const data = await spService.listActions(query, req.user);
 
     res.json({
         status: "success",
