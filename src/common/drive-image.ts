@@ -29,19 +29,32 @@ const normalizeDriveDownloadLink = (value: string): string => {
 };
 
 const inferImageMimeType = (buffer: Buffer, explicitMime?: string | null, filename?: string | null): string | null => {
-    const mime = (explicitMime ?? "").toLowerCase();
-    if (mime.startsWith("image/")) return mime;
-
     if (buffer.length >= 12) {
         if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return "image/jpeg";
         if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) return "image/png";
         if (buffer.toString("ascii", 0, 4) === "RIFF" && buffer.toString("ascii", 8, 12) === "WEBP") return "image/webp";
+        
+        const ftyp = buffer.toString("ascii", 4, 8);
+        if (ftyp === "ftyp") {
+            const brand = buffer.toString("ascii", 8, 12);
+            if (["heic", "heix", "hevc", "heim", "heis", "hevm", "mif1", "msf1"].includes(brand)) {
+                return "image/heic";
+            }
+        }
+    }
+
+    const mime = (explicitMime ?? "").toLowerCase();
+    if (mime.startsWith("image/")) {
+        // Jangan percaya mime type JPEG/PNG dari Google Drive jika extension-nya bukan itu, 
+        // tapi kita biarkan saja karena magic bytes di atas sudah mengecek JPEG/PNG sejati.
+        return mime;
     }
 
     const ext = path.extname(filename ?? "").toLowerCase();
     if (ext === ".jpg" || ext === ".jpeg") return "image/jpeg";
     if (ext === ".png") return "image/png";
     if (ext === ".webp") return "image/webp";
+    if (ext === ".heic" || ext === ".heif") return "image/heic";
 
     return null;
 };
@@ -97,7 +110,6 @@ export const resolveDriveImageDataUrl = async (rawLink?: string | null): Promise
         if (!buffer && !fileId && /^https?:\/\//i.test(link)) {
             try {
                 const downloadUrl = normalizeDriveDownloadLink(link);
-
                 const response = await fetch(downloadUrl, {
                     redirect: "follow",
                     signal: AbortSignal.timeout(5000),
@@ -106,7 +118,7 @@ export const resolveDriveImageDataUrl = async (rawLink?: string | null): Promise
                     }
                 });
                 if (response.ok) {
-                    const contentType = response.headers.get("content-type") ?? "";
+                    const contentType = response.headers.get("content-type") || "";
                     // Pastikan bukan HTML (halaman error/login Google)
                     if (!contentType.includes("text/html")) {
                         buffer = Buffer.from(await response.arrayBuffer());
@@ -123,17 +135,22 @@ export const resolveDriveImageDataUrl = async (rawLink?: string | null): Promise
         let imageMime = inferImageMimeType(buffer, mimeType, filename);
         if (!imageMime) return null;
 
+        const convertHeicIfNeeded = async () => {
+            console.log(`[drive-image] Mengkonversi HEIC ke JPEG menggunakan heic-convert...`);
+            const heicConvert = require("heic-convert");
+            const jpegBuffer = await heicConvert({
+                buffer: buffer as Buffer,
+                format: 'JPEG',
+                quality: 0.5 // Kurangi quality agar lebih cepat
+            });
+            buffer = Buffer.from(jpegBuffer);
+            imageMime = "image/jpeg";
+        };
+
         // Jika format HEIC/HEIF, konversi dulu ke JPEG sebelum diproses oleh sharp
         if (imageMime.includes("heic") || imageMime.includes("heif")) {
             try {
-                const heicConvert = require("heic-convert");
-                const jpegBuffer = await heicConvert({
-                    buffer: buffer,
-                    format: 'JPEG',
-                    quality: 0.8
-                });
-                buffer = Buffer.from(jpegBuffer);
-                imageMime = "image/jpeg";
+                await convertHeicIfNeeded();
             } catch (convErr) {
                 console.warn("[drive-image] Konversi HEIC ke JPEG gagal:", convErr instanceof Error ? convErr.message : String(convErr));
                 return null; // Skip karena tidak bisa diproses
@@ -158,20 +175,31 @@ export const resolveDriveImageDataUrl = async (rawLink?: string | null): Promise
             const errMsg = err instanceof Error ? err.message : String(err);
             console.warn("[drive-image] Gagal mengompres gambar menggunakan sharp:", errMsg);
             
+            // Jika heic terlewat dari deteksi magic bytes
+            if (errMsg.includes("heif:") || errMsg.includes("heic")) {
+                try {
+                    await convertHeicIfNeeded();
+                    return `data:image/jpeg;base64,${buffer!.toString("base64")}`;
+                } catch (convErr) {
+                    console.warn("[drive-image] Konversi darurat heic-convert gagal:", convErr instanceof Error ? convErr.message : String(convErr));
+                    return null;
+                }
+            }
+
             // Chromium/Puppeteer tidak mendukung native HEIC/HEIF dalam tag <img>.
-            if (imageMime.includes("heic") || imageMime.includes("heif")) {
+            if (imageMime!.includes("heic") || imageMime!.includes("heif")) {
                 console.warn(`[drive-image] Format ${imageMime} tidak didukung Chromium, foto di-skip untuk PDF.`);
                 return null;
             }
 
             // Jika gagal kompresi tapi formatnya didukung (JPEG/PNG), kita fallback ke gambar asli
             // HANYA JIKA ukurannya masuk akal (< 2.5 MB) agar tidak menyebabkan WebSocket payload / OOM crash.
-            if (buffer.length > 2.5 * 1024 * 1024) {
-                console.warn(`[drive-image] Ukuran gambar terlalu besar (${(buffer.length/1024/1024).toFixed(2)} MB) setelah gagal kompresi, di-skip untuk mencegah OOM.`);
+            if (buffer!.length > 2.5 * 1024 * 1024) {
+                console.warn(`[drive-image] Ukuran gambar terlalu besar (${(buffer!.length/1024/1024).toFixed(2)} MB) setelah gagal kompresi, di-skip untuk mencegah OOM.`);
                 return null;
             }
 
-            return `data:${imageMime};base64,${buffer.toString("base64")}`;
+            return `data:${imageMime};base64,${buffer!.toString("base64")}`;
         }
     } catch (error) {
         console.warn("[pdf-image] Gagal memuat foto Drive untuk PDF", {
