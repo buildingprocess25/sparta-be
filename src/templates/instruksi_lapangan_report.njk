@@ -244,7 +244,7 @@
     </table>
     <div style="clear:both;"></div>
 
-    <div class="signatures">
+    <div class="signatures {% if is_batam_branch %}batam-two-cols{% endif %}">
         <div class="signature-box">
             <p>Dibuat</p>
             <div class="signature-content">
@@ -253,7 +253,7 @@
             </div>
             <p>Branch Building Support</p>
         </div>
-        <div class="signature-box" style="width: 25%;">
+        <div class="signature-box"{% if not is_batam_branch %} style="width: 25%;"{% endif %}>
             <p>Mengetahui</p>
             <div class="signature-content">
                 {{ coordinator_approval_details | safe }}
@@ -261,6 +261,7 @@
             </div>
             <p>Branch Building Coordinator</p>
         </div>
+        {% if not is_batam_branch %}
         <div class="signature-box">
             <p>Disetujui</p>
             <div class="signature-content">
@@ -269,6 +270,7 @@
             </div>
             <p>Branch Building &amp; Maintenance Manager</p>
         </div>
+        {% endif %}
     </div>
     <div class="footer">Dokumen ini di-generate otomatis oleh sistem SPARTA Building pada {{ tanggal_pengajuan }}</div>
 </body>
