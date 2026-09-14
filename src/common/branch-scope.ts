@@ -199,6 +199,12 @@ export const getEffectiveBranchesForUser = async (input: {
         return { branches: branchGroup.sort(), source: "support" };
     }
 
+    // PRIORITAS: Cek Coverage Database (Untuk Regional Manager atau Manager subdivisi)
+    const coverage = await getUserCoverageBranches(emailSat, cabang);
+    if (coverage.length > 0) {
+        return { branches: coverage.sort(), source: "coverage" };
+    }
+
     // 3. Check if this branch has specific coverage rules (CIKOKOL/CILEUNGSI only)
     const hasSpecificRules = hasSpecificCoverageRules(normalizedCabang);
 
@@ -210,13 +216,7 @@ export const getEffectiveBranchesForUser = async (input: {
             return { branches: branchGroup.sort(), source: "branch_group" };
         }
 
-        // Manager/Coordinator → use coverage subdivisions from user_branch_coverage
-        const coverage = await getUserCoverageBranches(emailSat, cabang);
-
-        if (coverage.length > 0) {
-            return { branches: coverage.sort(), source: "coverage" };
-        }
-
+        // Manager/Coordinator tanpa coverage di atas
         // Fallback: login branch only
         return { 
             branches: normalizedCabang ? [normalizedCabang] : [], 
