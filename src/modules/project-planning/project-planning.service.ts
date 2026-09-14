@@ -4,7 +4,7 @@ import { projekPlanningRepository } from "./project-planning.repository";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
 import { emailNotificationService } from "../email-notification/email-notification.service";
-import { buildProjekPlanningPdfBuffer } from "./project-planning.pdf";
+import { buildProjekPlanningPdfBuffer, buildProjekPlanningPhotosPdfBuffer } from "./project-planning.pdf";
 import { compressImage } from "../../common/image-compressor";
 import { normalizeProjectByUlok } from "../../common/project-type";
 import { userCabangRepository } from "../user-cabang/user-cabang.repository";
@@ -622,6 +622,15 @@ export const projekPlanningService = {
         }
 
         return buildProjekPlanningPdfBuffer(item.projek);
+    },
+
+    async generatePhotosPdf(projekPlanningId: number): Promise<Buffer> {
+        const item = await projekPlanningRepository.findById(projekPlanningId);
+        if (!item) {
+            throw new AppError("Data Project Planning tidak ditemukan", 404);
+        }
+
+        return buildProjekPlanningPhotosPdfBuffer(item.projek);
     },
 
     async generatePdfAndStoreLink(projekPlanningId: number): Promise<{ buffer: Buffer; link_pdf: string }> {

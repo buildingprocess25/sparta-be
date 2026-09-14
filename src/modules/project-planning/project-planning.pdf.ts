@@ -197,3 +197,28 @@ export const buildProjekPlanningPdfBuffer = async (
 
     return renderPdfFromHtml(html);
 };
+
+export const buildProjekPlanningPhotosPdfBuffer = async (
+    projek: ProjekPlanningRow
+): Promise<Buffer> => {
+    const templatePath = await resolveTemplatePath("projek_planning_photos_report.njk");
+
+    // Enrich foto_items: download dari GDrive sebagai base64 dan tambahkan label
+    const enrichedFotoItems = await Promise.all(
+        (projek.foto_items || []).map(async (foto) => {
+            const base64 = await gdriveUrlToBase64(foto.link_foto);
+            const label = PHOTO_POINT_LABELS[foto.item_index] ?? `Titik ${foto.item_index}`;
+            return { ...foto, base64, label };
+        })
+    );
+
+    const html = await renderHtmlTemplate(templatePath, {
+        projek: { ...projek, foto_items: enrichedFotoItems },
+        watermark_logo_path: staticAssetPath("Building-Logo.png"),
+        alfamart_logo_path: staticAssetPath("Alfamart-Emblem.png"),
+        sparta_logo_path: staticAssetPath("Building-Logo.png"),
+        generated_at: formatDateIndonesia(new Date().toISOString())
+    });
+
+    return renderPdfFromHtml(html);
+};

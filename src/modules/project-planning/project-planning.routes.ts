@@ -18,6 +18,7 @@ import {
     getRabPrefill,
     handleProjekPlanningIntervention,
     downloadPdf,
+    downloadPhotosPdf,
     proxyFile,
 } from "./project-planning.controller";
 
@@ -48,6 +49,7 @@ projekPlanningRouter.get("/:id/rab-prefill", getRabPrefill);
 projekPlanningRouter.get("/:id", getProjekPlanningById);
 projekPlanningRouter.get("/:id/logs", getProjekPlanningLogs);
 projekPlanningRouter.get("/:id/pdf", downloadPdf);
+projekPlanningRouter.get("/:id/photos-pdf", downloadPhotosPdf);
 projekPlanningRouter.get("/:id/proxy-file", proxyFile);
 projekPlanningRouter.post("/:id/intervention", handleProjekPlanningIntervention);
 

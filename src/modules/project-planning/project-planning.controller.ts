@@ -475,6 +475,22 @@ export const downloadPdf = asyncHandler(async (req: Request, res: Response) => {
     res.send(buffer);
 });
 
+export const downloadPhotosPdf = asyncHandler(async (req: Request, res: Response) => {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+        res.status(400).json({ status: "error", message: "ID tidak valid" });
+        return;
+    }
+
+    const detail = await projekPlanningService.getById(id);
+    await assertProjectPlanningBranchAccess(req, detail.projek.cabang);
+    const buffer = await projekPlanningService.generatePhotosPdf(id);
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename=Project_Planning_Photos_${id}.pdf`);
+    res.send(buffer);
+});
+
 // ============================================================
 // PROXY FILE — stream GDrive file ke client (agar semua role bisa lihat/unduh)
 // GET /:id/proxy-file?field=fpd|rab_sipil|rab_me|rab|gambar_kerja|desain_3d|fpd_approved|foto_item&item_index=N&mode=view|download
