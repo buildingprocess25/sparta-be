@@ -120,8 +120,25 @@ export const resolveDriveImageDataUrl = async (rawLink?: string | null): Promise
 
         if (!buffer?.length) return null;
 
-        const imageMime = inferImageMimeType(buffer, mimeType, filename);
+        let imageMime = inferImageMimeType(buffer, mimeType, filename);
         if (!imageMime) return null;
+
+        // Jika format HEIC/HEIF, konversi dulu ke JPEG sebelum diproses oleh sharp
+        if (imageMime.includes("heic") || imageMime.includes("heif")) {
+            try {
+                const heicConvert = require("heic-convert");
+                const jpegBuffer = await heicConvert({
+                    buffer: buffer,
+                    format: 'JPEG',
+                    quality: 0.8
+                });
+                buffer = Buffer.from(jpegBuffer);
+                imageMime = "image/jpeg";
+            } catch (convErr) {
+                console.warn("[drive-image] Konversi HEIC ke JPEG gagal:", convErr instanceof Error ? convErr.message : String(convErr));
+                return null; // Skip karena tidak bisa diproses
+            }
+        }
 
         try {
             const sharpInstance = sharp(buffer, { failOn: "none" });
@@ -141,22 +158,6 @@ export const resolveDriveImageDataUrl = async (rawLink?: string | null): Promise
             const errMsg = err instanceof Error ? err.message : String(err);
             console.warn("[drive-image] Gagal mengompres gambar menggunakan sharp:", errMsg);
             
-            // Coba konversi dengan heic-convert murni (jika heif error di sharp)
-            if (imageMime.includes("heic") || imageMime.includes("heif") || errMsg.includes("heif:")) {
-                try {
-                    console.log(`[drive-image] Mencoba konversi darurat HEIC ke JPEG menggunakan heic-convert...`);
-                    const heicConvert = require("heic-convert");
-                    const jpegBuffer = await heicConvert({
-                        buffer: buffer,
-                        format: 'JPEG',
-                        quality: 0.8
-                    });
-                    return `data:image/jpeg;base64,${Buffer.from(jpegBuffer).toString("base64")}`;
-                } catch (convErr) {
-                    console.warn("[drive-image] Konversi darurat heic-convert gagal:", convErr instanceof Error ? convErr.message : String(convErr));
-                }
-            }
-
             // Chromium/Puppeteer tidak mendukung native HEIC/HEIF dalam tag <img>.
             if (imageMime.includes("heic") || imageMime.includes("heif")) {
                 console.warn(`[drive-image] Format ${imageMime} tidak didukung Chromium, foto di-skip untuk PDF.`);
