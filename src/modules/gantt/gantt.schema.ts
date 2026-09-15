@@ -278,6 +278,17 @@ export const ganttDetailByTokoSchema = z.object({
     id_toko: z.string().min(1).regex(/^\d+$/, "id_toko harus berupa angka")
 });
 
+// --- Takeover Inspection ---
+
+export const submitTakeoverInspectionSchema = z.object({
+    nomor_ulok: z.string().min(1),
+    tanggal_takeover: z.string().min(1),
+    items: z.array(z.object({
+        id_pengawasan: z.number(),
+        status: z.enum(["Selesai", "Tidak Dikerjakan"])
+    }))
+});
+
 // --- Types ---
 
 export type GanttDetailByTokoParams = z.infer<typeof ganttDetailByTokoSchema>;
@@ -295,3 +306,4 @@ export type UpdateKeterlambatanInput = z.infer<typeof updateKeterlambatanSchema>
 export type UpdateKecepatanInput = z.infer<typeof updateKecepatanSchema>;
 export type ManagePengawasanInput = z.infer<typeof managePengawasanSchema>;
 export type CreateGanttNoteInput = z.infer<typeof createGanttNoteSchema>;
+export type SubmitTakeoverInspectionInput = z.infer<typeof submitTakeoverInspectionSchema>;

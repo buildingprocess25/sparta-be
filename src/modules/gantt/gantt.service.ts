@@ -19,7 +19,8 @@ import type {
     SubmitGanttInput,
     UpdateGanttInput,
     UpdateKecepatanInput,
-    UpdateKeterlambatanInput
+    UpdateKeterlambatanInput,
+    SubmitTakeoverInspectionInput
 } from "./gantt.schema";
 
 // ---------------------------------------------------------------------------
@@ -1023,5 +1024,41 @@ export const ganttService = {
             total_groups:   ganttRows.length,
             limit_applied:  limit,
         };
+    },
+
+    async submitTakeoverInspection(input: SubmitTakeoverInspectionInput) {
+        const { pool } = await import("../../db/pool");
+        
+        // 1. Validasi Toko (Proyek Lama)
+        const { tokoRepository } = await import("../toko/toko.repository");
+        const existingTokos = await tokoRepository.findAllByNomorUlok(input.nomor_ulok);
+        if (existingTokos.length === 0) {
+            throw new AppError("ULOK tidak ditemukan.", 404);
+        }
+        
+        // Cek apakah sudah pernah diinspeksi
+        const check = await pool.query(`SELECT id FROM takeover_inspections WHERE nomor_ulok = $1`, [input.nomor_ulok]);
+        if (check.rowCount && check.rowCount > 0) {
+            throw new AppError("Inspeksi Takeover untuk ULOK ini sudah pernah dilakukan.", 400);
+        }
+
+        // 2. Update status pengawasan items
+        for (const item of input.items) {
+            await pool.query(
+                `UPDATE pengawasan 
+                 SET status = $1, updated_at = timezone('Asia/Jakarta', now()) 
+                 WHERE id = $2`,
+                [item.status, item.id_pengawasan]
+            );
+        }
+
+        // 3. Simpan rekam inspeksi takeover
+        const result = await pool.query(
+            `INSERT INTO takeover_inspections (nomor_ulok, tanggal_takeover) 
+             VALUES ($1, $2) RETURNING id`,
+            [input.nomor_ulok, input.tanggal_takeover]
+        );
+
+        return result.rows[0];
     }
 };

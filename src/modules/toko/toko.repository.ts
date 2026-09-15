@@ -12,6 +12,7 @@ export type TokoRow = {
     cabang: string;
     alamat: string;
     nama_kontraktor: string | null;
+    has_takeover_inspection?: boolean;
 };
 
 export type UserCabangRow = {
@@ -246,10 +247,12 @@ export const tokoRepository = {
         const whereClause = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
         const result = await pool.query<TokoRow>(
             `
-      SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor
-      FROM toko
-      ${whereClause}
-      ORDER BY nama_toko ASC
+      SELECT t.id, t.nomor_ulok, t.lingkup_pekerjaan, t.nama_toko, t.kode_toko, t.proyek, t.cabang, t.alamat, t.nama_kontraktor,
+             (ti.id IS NOT NULL) AS has_takeover_inspection
+      FROM toko t
+      LEFT JOIN takeover_inspections ti ON ti.nomor_ulok = t.nomor_ulok
+      ${whereClause ? whereClause.replace(/nomor_ulok/g, 't.nomor_ulok').replace(/nama_toko/g, 't.nama_toko').replace(/kode_toko/g, 't.kode_toko').replace(/cabang/g, 't.cabang') : ""}
+      ORDER BY t.nama_toko ASC
       `,
             values
         );

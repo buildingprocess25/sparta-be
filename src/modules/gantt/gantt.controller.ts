@@ -13,6 +13,7 @@ import {
     lockGanttSchema,
     managePengawasanSchema,
     submitGanttSchema,
+    submitTakeoverInspectionSchema,
     updateGanttSchema,
     updateKecepatanSchema,
     updateKeterlambatanSchema
@@ -99,6 +100,17 @@ export const listGanttNotes = asyncHandler(async (req: Request, res: Response) =
     const data = await ganttService.listNotes(req.params.id);
 
     res.json({ status: "success", data });
+});
+
+export const submitTakeoverInspection = asyncHandler(async (req: Request, res: Response) => {
+    const payload = submitTakeoverInspectionSchema.parse(req.body);
+    const data = await ganttService.submitTakeoverInspection(payload);
+
+    res.status(201).json({
+        status: "success",
+        message: "Inspeksi Takeover berhasil disimpan",
+        data
+    });
 });
 
 export const createGanttNote = asyncHandler(async (req: Request, res: Response) => {
