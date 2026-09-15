@@ -1571,6 +1571,7 @@ export const rabService = {
         let rejectedRabExistingInsurance: string | null = null;
         let rejectedRabExistingCabang: string | null = null;
         const isRevisionSubmit = payload.is_revisi === true;
+        const isTakeover = payload.is_takeover === true;
         const existingTokoByCombination = await tokoRepository.findByNomorUlokAndLingkup(
             payload.nomor_ulok,
             normalizedLingkupPekerjaan
@@ -1598,7 +1599,7 @@ export const rabService = {
             rejectedRabExistingLogo = targetRab.logo;
             rejectedRabExistingInsurance = targetRab.file_asuransi;
             rejectedRabExistingCabang = targetRab.cabang;
-        } else if (existingTokoByCombination) {
+        } else if (existingTokoByCombination && !isTakeover) {
             const latestRab = await rabRepository.findLatestByTokoId(existingTokoByCombination.id);
             const sameSubmitter = latestRab
                 && REJECTED_RAB_STATUSES.includes(latestRab.status)
@@ -1805,6 +1806,7 @@ export const rabService = {
             alamat: payload.alamat,
             nama_kontraktor: submittedNamaPt,
             projek_planning_id: payload.projek_planning_id,
+            is_takeover: isTakeover,
             // rab fields
             email_pembuat: payload.email_pembuat,
             nama_pt: submittedNamaPt,

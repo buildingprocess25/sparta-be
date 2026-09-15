@@ -49,6 +49,13 @@ export const submitRabSchema = z.object({
             z.enum(["true", "false"]).transform((value) => value === "true")
         ])
         .optional(),
+    is_takeover: z
+        .union([
+            z.boolean(),
+            z.enum(["true", "false"]).transform((value) => value === "true")
+        ])
+        .optional()
+        .default(false),
     id_rab_revisi: z.coerce.number().int().positive().optional(),
     kategori_lokasi: z.string().optional(),
     no_polis: z.string().optional(),

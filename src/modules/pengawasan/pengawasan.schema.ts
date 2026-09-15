@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const pengawasanStatusSchema = z.enum(["progress", "selesai", "terlambat"]);
+export const pengawasanStatusSchema = z.enum(["progress", "selesai", "terlambat", "tidak_dikerjakan"]);
 
 export const createPengawasanSchema = z.object({
     id_gantt: z.coerce.number().int().positive(),

@@ -401,9 +401,9 @@ export const ganttRepository = {
                     tpg.id_pengawasan_gantt,
                     tpg.tanggal_pengawasan,
                     COUNT(p.id)::int AS total_items,
-                    COUNT(p.id) FILTER (WHERE LOWER(TRIM(p.status)) = 'selesai')::int AS selesai_items,
+                    COUNT(p.id) FILTER (WHERE LOWER(TRIM(p.status)) IN ('selesai', 'tidak_dikerjakan'))::int AS selesai_items,
                     COUNT(p.id) FILTER (
-                        WHERE LOWER(TRIM(p.status)) IN ('selesai', 'progress', 'terlambat')
+                        WHERE LOWER(TRIM(p.status)) IN ('selesai', 'progress', 'terlambat', 'tidak_dikerjakan')
                     )::int AS filled_items,
                     COUNT(p.id) FILTER (
                         WHERE NULLIF(TRIM(COALESCE(p.dokumentasi, '')), '') IS NOT NULL
@@ -978,7 +978,7 @@ export const ganttRepository = {
 
         const result = await pool.query(
             `SELECT ${GANTT_COLUMNS},
-                t.nomor_ulok, t.lingkup_pekerjaan, t.nama_toko, t.cabang, t.proyek
+                t.nomor_ulok, t.lingkup_pekerjaan, t.nama_toko, t.cabang, t.proyek, t.takeover_sequence
              FROM gantt_chart g
              JOIN toko t ON t.id = g.id_toko
              ${whereClause}

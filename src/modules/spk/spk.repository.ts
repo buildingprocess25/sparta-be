@@ -437,9 +437,9 @@ export const spkRepository = {
         END AS effective_durasi,
         psp.approved_until::text AS pertambahan_spk_approved_until,
         t.id AS toko_id,
-        t.nomor_ulok AS toko_nomor_ulok,
+        t.nomor_ulok AS toko_nomor_ulok, t.takeover_sequence AS toko_takeover_sequence,
         t.kode_toko AS toko_kode_toko,
-        t.nama_toko AS toko_nama_toko,
+        t.nama_toko AS toko_nama_toko, t.takeover_sequence AS toko_takeover_sequence,
         t.cabang AS toko_cabang,
         t.alamat AS toko_alamat
       FROM pengajuan_spk p

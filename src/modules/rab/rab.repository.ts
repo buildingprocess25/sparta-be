@@ -607,6 +607,7 @@ export const rabRepository = {
         alamat?: string;
         nama_kontraktor?: string;
         projek_planning_id?: number;
+        is_takeover?: boolean;
         // rab fields
         email_pembuat: string;
         nama_pt: string;
@@ -633,12 +634,12 @@ export const rabRepository = {
             const normalizedLingkup = payload.lingkup_pekerjaan?.trim().toUpperCase() || null;
             
             // 1. Ambil toko by nomor_ulok+lingkup. Jika tidak ada, insert baru.
-            const existingTokoRes = await client.query<{ id: number; cabang: string | null; nama_toko: string | null }>(
-                `SELECT id, cabang, nama_toko
+            const existingTokoRes = await client.query<{ id: number; cabang: string | null; nama_toko: string | null; takeover_sequence: number }>(
+                `SELECT id, cabang, nama_toko, takeover_sequence
                  FROM toko
                  WHERE UPPER(TRIM(nomor_ulok)) = UPPER(TRIM($1))
                    AND UPPER(TRIM(COALESCE(lingkup_pekerjaan, ''))) = UPPER(TRIM(COALESCE($2, '')))
-                 ORDER BY id DESC
+                 ORDER BY takeover_sequence DESC, id DESC
                  LIMIT 1
                  FOR UPDATE`,
                 [payload.nomor_ulok, normalizedLingkup]
@@ -646,7 +647,7 @@ export const rabRepository = {
 
             let tokoId: number;
 
-            if ((existingTokoRes.rowCount ?? 0) > 0) {
+            if ((existingTokoRes.rowCount ?? 0) > 0 && !payload.is_takeover) {
                 const existing = existingTokoRes.rows[0];
                 tokoId = existing.id;
 
@@ -673,15 +674,22 @@ export const rabRepository = {
                     ]
                 );
             } else {
-                console.log('[RAB DEBUG] Toko tidak ditemukan, akan insert baru:', {
+                console.log('[RAB DEBUG] Toko tidak ditemukan atau is_takeover true, akan insert baru:', {
                     nomor_ulok: payload.nomor_ulok,
-                    lingkup: normalizedLingkup
+                    lingkup: normalizedLingkup,
+                    is_takeover: payload.is_takeover
                 });
+
+                let nextSequence = 0;
+                if (payload.is_takeover && (existingTokoRes.rowCount ?? 0) > 0) {
+                    nextSequence = (existingTokoRes.rows[0].takeover_sequence ?? 0) + 1;
+                }
+
                 const tokoInsertRes = await client.query<{ id: number }>(
                     `INSERT INTO toko (
                         nomor_ulok, lingkup_pekerjaan, nama_toko,
-                        proyek, cabang, alamat, nama_kontraktor
-                    ) VALUES (UPPER(TRIM($1)), $2, $3,$4,$5,$6,$7)
+                        proyek, cabang, alamat, nama_kontraktor, takeover_sequence
+                    ) VALUES (UPPER(TRIM($1)), $2, $3,$4,$5,$6,$7,$8)
                     RETURNING id`,
                     [
                         payload.nomor_ulok,
@@ -690,7 +698,8 @@ export const rabRepository = {
                         payload.proyek ?? null,
                         payload.cabang ?? null,
                         payload.alamat ?? null,
-                        payload.nama_kontraktor ?? null
+                        payload.nama_kontraktor ?? null,
+                        nextSequence
                     ]
                 );
                 tokoId = tokoInsertRes.rows[0].id;
@@ -1138,7 +1147,7 @@ export const rabRepository = {
 
         const result = await pool.query(
             `SELECT ${RAB_COLUMNS},
-                t.nomor_ulok, t.lingkup_pekerjaan, t.nama_toko, t.cabang, t.proyek
+                t.nomor_ulok, t.lingkup_pekerjaan, t.nama_toko, t.cabang, t.proyek, t.takeover_sequence
             FROM rab r
             JOIN toko t ON t.id = r.id_toko
             ${whereClause}
