@@ -82,7 +82,8 @@ export const listGantt = asyncHandler(async (req: Request, res: Response) => {
 
 export const getSupervisionWorkspace = asyncHandler(async (req: Request, res: Response) => {
     const { nomor_ulok } = supervisionWorkspaceParamsSchema.parse(req.params);
-    const data = await ganttService.getSupervisionWorkspace(nomor_ulok);
+    const ts = req.query.ts ? Number(req.query.ts) : undefined;
+    const data = await ganttService.getSupervisionWorkspace(nomor_ulok, ts);
     res.json({ status: "success", data });
 });
 

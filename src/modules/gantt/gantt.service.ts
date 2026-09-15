@@ -327,8 +327,8 @@ async function autoSyncPicPengawasanForGantt(
 }
 
 export const ganttService = {
-    async getSupervisionWorkspace(nomorUlok: string) {
-        const scopes = await ganttRepository.findSupervisionWorkspace(nomorUlok);
+    async getSupervisionWorkspace(nomorUlok: string, takeoverSequence?: number) {
+        const scopes = await ganttRepository.findSupervisionWorkspace(nomorUlok, takeoverSequence);
         if (scopes.length === 0) {
             throw new AppError("ULOK tidak ditemukan", 404);
         }

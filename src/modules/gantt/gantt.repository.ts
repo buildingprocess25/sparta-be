@@ -276,7 +276,14 @@ const effectiveSpkExpression = `
 // ---------------------------------------------------------------------------
 
 export const ganttRepository = {
-    async findSupervisionWorkspace(nomorUlok: string) {
+    async findSupervisionWorkspace(nomorUlok: string, takeoverSequence?: number) {
+        const values: unknown[] = [nomorUlok];
+        let tsFilter = "AND COALESCE(t.takeover_sequence, 0) = (SELECT COALESCE(MAX(takeover_sequence), 0) FROM toko WHERE nomor_ulok = $1)";
+        if (takeoverSequence !== undefined) {
+            values.push(takeoverSequence);
+            tsFilter = "AND COALESCE(t.takeover_sequence, 0) = $2";
+        }
+
         const result = await pool.query(
             `
             WITH scope AS (
@@ -352,7 +359,7 @@ export const ganttRepository = {
                     ORDER BY p.id DESC
                     LIMIT 1
                 ) spk ON true
-                WHERE t.nomor_ulok = $1
+                WHERE t.nomor_ulok = $1 ${tsFilter}
             ),
             target_pengawasan_gantt AS (
                 SELECT
@@ -547,7 +554,7 @@ export const ganttRepository = {
                 END,
                 s.id_toko
             `,
-            [nomorUlok]
+            values
         );
 
         return result.rows.map((row: any) => {
