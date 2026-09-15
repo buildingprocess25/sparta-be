@@ -96,6 +96,7 @@ export type TokoJoinRow = {
     cabang: string | null;
     alamat: string | null;
     nama_kontraktor: string | null;
+    takeover_sequence: number;
 };
 
 export type TokoStableFields = {
@@ -792,8 +793,8 @@ export const rabRepository = {
     } | null> {
         const header = await pool.query<RabRow & TokoJoinRow>(
             `SELECT ${RAB_COLUMNS},
-                t.id AS toko_id, t.nomor_ulok, t.lingkup_pekerjaan,
-                t.nama_toko, t.kode_toko, t.proyek, t.cabang, t.alamat, t.nama_kontraktor,
+                    t.id AS toko_id, t.nomor_ulok, t.lingkup_pekerjaan,
+                    t.nama_toko, t.kode_toko, t.proyek, t.cabang, t.alamat, t.nama_kontraktor, t.takeover_sequence,
                 director_user.nama_lengkap AS nama_lengkap_persetujuan_direktur
             FROM rab r
             JOIN toko t ON t.id = r.id_toko
@@ -896,7 +897,8 @@ export const rabRepository = {
             proyek: row.proyek,
             cabang: row.cabang,
             alamat: row.alamat,
-            nama_kontraktor: row.nama_kontraktor
+            nama_kontraktor: row.nama_kontraktor,
+            takeover_sequence: row.takeover_sequence
         };
 
         return { rab, toko, items: items.rows, revisi_items: revisiItems.rows };
