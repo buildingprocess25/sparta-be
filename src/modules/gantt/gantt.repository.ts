@@ -71,6 +71,7 @@ export type TokoJoinRow = {
     cabang: string | null;
     alamat: string | null;
     nama_kontraktor: string | null;
+    takeover_sequence: number;
 };
 
 export type TokoStableFields = {
@@ -825,9 +826,9 @@ export const ganttRepository = {
 
         const header = await pool.query<GanttRow & TokoJoinRow>(
             `SELECT ${GANTT_COLUMNS},
-                t.id AS toko_id, t.nomor_ulok, t.lingkup_pekerjaan,
-                t.nama_toko, t.kode_toko, t.proyek, t.cabang, t.alamat, t.nama_kontraktor
-            FROM gantt_chart g
+                    t.id AS toko_id, t.nomor_ulok, t.lingkup_pekerjaan,
+                    t.nama_toko, t.kode_toko, t.proyek, t.cabang, t.alamat, t.nama_kontraktor, t.takeover_sequence
+             FROM gantt_chart g
             JOIN toko t ON t.id = g.id_toko
             WHERE ${headerConditions.join(" AND ")}`,
             headerValues
@@ -901,7 +902,8 @@ export const ganttRepository = {
             proyek: row.proyek,
             cabang: row.cabang,
             alamat: row.alamat,
-            nama_kontraktor: row.nama_kontraktor
+            nama_kontraktor: row.nama_kontraktor,
+            takeover_sequence: row.takeover_sequence
         };
         const instruksiLapanganItems = await instruksiLapanganRepository.getApprovedItemsByTokoId(gantt.id_toko);
 
@@ -1493,7 +1495,7 @@ export const ganttRepository = {
         // 1. Cek toko exists
         const tokoRes = await pool.query<TokoJoinRow>(
             `SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko,
-                    proyek, cabang, alamat, nama_kontraktor
+                    proyek, cabang, alamat, nama_kontraktor, takeover_sequence
              FROM toko WHERE id = $1`,
             [tokoId]
         );
