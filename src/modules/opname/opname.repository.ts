@@ -1119,11 +1119,7 @@ export const opnameRepository = {
         if (existing.status !== "ditolak") {
             throw new AppError("Hanya item opname yang ditolak support yang dapat direvisi kontraktor.", 409);
         }
-        const targetPengawasan = await this.findTargetPengawasanForOpnameItem(input.id_opname_item, existingClient);
-        const targetStatus = String(targetPengawasan?.status || "").trim().toLowerCase();
-        if (targetStatus !== "selesai") {
-            throw new AppError("Revisi opname menu hanya berlaku untuk item dengan pengawasan selesai. Revisi progress/terlambat harus diajukan dari Gantt Chart kontraktor.", 409);
-        }
+
 
         const result = await db.query<OpnameRow>(
             `
@@ -1297,13 +1293,13 @@ export const opnameRepository = {
 
         if (query.assigned_to === "contractor") {
             conditions.push(`(
-                (oi.workflow_version = 'contractor_first' AND oi.status = 'ditolak' AND oi.locked_at IS NULL AND LOWER(TRIM(p.status)) = 'selesai')
+                (oi.workflow_version = 'contractor_first' AND oi.status = 'ditolak' AND oi.locked_at IS NULL)
                 OR
                 (COALESCE(oi.workflow_version, 'legacy') = 'legacy' AND oi.status IN ('pending', 'disetujui', 'ditolak'))
             )`);
         } else if (query.assigned_to === "support") {
             conditions.push(`(
-                (oi.workflow_version = 'contractor_first' AND oi.status = 'pending' AND oi.locked_at IS NULL AND LOWER(TRIM(p.status)) = 'selesai')
+                (oi.workflow_version = 'contractor_first' AND oi.status = 'pending' AND oi.locked_at IS NULL)
                 OR
                 (COALESCE(oi.workflow_version, 'legacy') = 'legacy' AND oi.status = 'ditolak')
             )`);
