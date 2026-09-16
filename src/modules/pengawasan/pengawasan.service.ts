@@ -101,7 +101,7 @@ const resolveFileExtension = (file: UploadedDokumentasiFile): string => {
     return ".bin";
 };
 
-const uploadDokumentasiToDrive = async (
+export const uploadDokumentasiToDrive = async (
     idGantt: number,
     file: UploadedDokumentasiFile
 ): Promise<string> => {

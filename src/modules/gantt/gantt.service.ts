@@ -1029,20 +1029,22 @@ export const ganttService = {
 
     submitTakeoverInspection: async (input: SubmitTakeoverInspectionInput, files: Express.Multer.File[] = [], userEmail: string = "system") => {
         const { pool } = await import("../../db/pool");
-        
-        // 1. Validasi ULOK & Dapatkan ID Toko
-        const { rows: existingTokos } = await pool.query(
-            `SELECT p.id_toko FROM rab r
-             JOIN project p ON p.id = r.id_project
-             WHERE r.nomor_ulok = $1 LIMIT 1`,
-            [input.nomor_ulok]
-        );
 
-        if (existingTokos.length === 0) {
-            throw new AppError("ULOK tidak ditemukan.", 404);
-        }
+        // 1. Dapatkan ID Toko untuk setiap Gantt Chart yang terkait
+        const ganttIds = Array.from(new Set(input.items.map(i => i.id_gantt)));
+        const ganttTokoMap: Record<number, number> = {};
         
-        const idToko = existingTokos[0].id_toko;
+        if (ganttIds.length > 0) {
+            const { rows: ganttRows } = await pool.query(
+                `SELECT g.id, t.id AS id_toko FROM gantt_chart g
+                 JOIN toko t ON t.id = g.id_toko
+                 WHERE g.id = ANY($1::int[])`,
+                [ganttIds]
+            );
+            for (const row of ganttRows) {
+                ganttTokoMap[row.id] = row.id_toko;
+            }
+        }
 
         // Cek apakah sudah pernah diinspeksi
         const check = await pool.query(`SELECT id FROM takeover_inspections WHERE nomor_ulok = $1`, [input.nomor_ulok]);
@@ -1054,25 +1056,44 @@ export const ganttService = {
         try {
             await client.query('BEGIN');
 
-            const opnamePayloads: any[] = [];
+            const opnamePayloadsByToko: Record<number, any[]> = {};
 
             // 2. Insert or update pengawasan items
             for (let i = 0; i < input.items.length; i++) {
                 const item = input.items[i];
+                const idToko = ganttTokoMap[item.id_gantt];
+                if (!idToko) continue; // Gantt tidak valid
                 
+                // Cek dokumentasi pengawasan (untuk Tidak Dikerjakan, dsb)
+                const fileDokumentasi = files.find(f => f.fieldname === `file_dokumentasi_${i}`);
+                let dokumentasiLink: string | null = null;
+                if (fileDokumentasi) {
+                    const { uploadDokumentasiToDrive } = await import("../pengawasan/pengawasan.service");
+                    dokumentasiLink = await uploadDokumentasiToDrive(item.id_gantt, fileDokumentasi as any);
+                }
+
+                const updateArgs: any[] = [item.status, "Sistem: Pre-inspeksi Takeover", item.id_gantt, item.kategori_pekerjaan, item.jenis_pekerjaan || null];
+                let setDokumentasi = "";
+                if (dokumentasiLink) {
+                    updateArgs.push(dokumentasiLink);
+                    setDokumentasi = `, dokumentasi = $${updateArgs.length}`;
+                }
+
                 const updateRes = await client.query(
                     `UPDATE pengawasan
-                     SET status = $1, updated_at = timezone('Asia/Jakarta', now())
-                     WHERE id_gantt = $2 AND kategori_pekerjaan = $3 AND (jenis_pekerjaan = $4 OR (jenis_pekerjaan IS NULL AND $4 IS NULL))
+                     SET status = $1, catatan = $2, updated_at = timezone('Asia/Jakarta', now()) ${setDokumentasi}
+                     WHERE id_gantt = $3 AND kategori_pekerjaan = $4 AND (jenis_pekerjaan = $5 OR (jenis_pekerjaan IS NULL AND $5 IS NULL))
                      RETURNING id`,
-                    [item.status, item.id_gantt, item.kategori_pekerjaan, item.jenis_pekerjaan || null]
+                    updateArgs
                 );
 
                 if (updateRes.rowCount === 0) {
                     await client.query(
-                        `INSERT INTO pengawasan (id_gantt, kategori_pekerjaan, jenis_pekerjaan, status, catatan)
-                         VALUES ($1, $2, $3, $4, $5)`,
-                        [item.id_gantt, item.kategori_pekerjaan, item.jenis_pekerjaan || null, item.status, "Sistem: Pre-inspeksi Takeover"]
+                        `INSERT INTO pengawasan (id_gantt, kategori_pekerjaan, jenis_pekerjaan, status, catatan${dokumentasiLink ? ', dokumentasi' : ''})
+                         VALUES ($1, $2, $3, $4, $5${dokumentasiLink ? `, $6` : ''})`,
+                        dokumentasiLink 
+                            ? [item.id_gantt, item.kategori_pekerjaan, item.jenis_pekerjaan || null, item.status, "Sistem: Pre-inspeksi Takeover", dokumentasiLink]
+                            : [item.id_gantt, item.kategori_pekerjaan, item.jenis_pekerjaan || null, item.status, "Sistem: Pre-inspeksi Takeover"]
                     );
                 }
 
@@ -1086,10 +1107,11 @@ export const ganttService = {
                     const fileField = `file_opname_${i}`;
                     const uploadedFile = files.find(f => f.fieldname === fileField);
                     if (uploadedFile) {
-                        payload.foto = await uploadFotoOpnameToDrive(idToko, uploadedFile);
+                        payload.foto = await uploadFotoOpnameToDrive(idToko, uploadedFile as any);
                     }
 
-                    opnamePayloads.push(payload);
+                    if (!opnamePayloadsByToko[idToko]) opnamePayloadsByToko[idToko] = [];
+                    opnamePayloadsByToko[idToko].push(payload);
                 }
             }
 
@@ -1100,15 +1122,17 @@ export const ganttService = {
                 [input.nomor_ulok, input.tanggal_takeover]
             );
 
-            // 4. Proses opname data (bulk insert ke opname_item)
-            if (opnamePayloads.length > 0) {
+            // 4. Proses opname data (bulk insert ke opname_item per toko)
+            for (const [tokoIdStr, payloads] of Object.entries(opnamePayloadsByToko)) {
+                if (payloads.length === 0) continue;
+                const tokoId = parseInt(tokoIdStr, 10);
                 const opnameResult = await opnameService.createBulk({
-                    id_toko: idToko,
+                    id_toko: tokoId,
                     tipe_opname: "OPNAME",
                     email_pembuat: userEmail,
                     grand_total_opname: "0",
                     grand_total_rab: "0",
-                    items: opnamePayloads
+                    items: payloads
                 }, [], undefined, client);
 
                 if (opnameResult && (opnameResult as any).statusCode) {
