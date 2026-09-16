@@ -1068,7 +1068,24 @@ export const ganttService = {
         try {
             await client.query('BEGIN');
 
-            if (ganttIds.length > 0) {
+            // Parse tanggal_takeover
+        let dateObj: Date;
+        if (typeof input.tanggal_takeover === 'string') {
+            dateObj = new Date(input.tanggal_takeover);
+        } else {
+            dateObj = new Date(input.tanggal_takeover);
+        }
+
+        // Format untuk kolom date di takeover_inspections (YYYY-MM-DD)
+        const yyyy = dateObj.getFullYear();
+        const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const dd = String(dateObj.getDate()).padStart(2, '0');
+        const takeoverDateStr = `${yyyy}-${mm}-${dd}`;
+        
+        // Format untuk kolom varchar di pengawasan_gantt (DD/MM/YYYY)
+        const takeoverDateStrPengawasan = `${dd}/${mm}/${yyyy}`;
+
+        if (ganttIds.length > 0) {
                 const { rows: ganttRows } = await client.query(
                     `SELECT g.id, t.id AS id_toko FROM gantt_chart g
                      JOIN toko t ON t.id = g.id_toko
@@ -1080,24 +1097,6 @@ export const ganttService = {
                 }
 
                 // Temukan atau buat pengawasan_gantt untuk tanggal_takeover
-                let dateObj: Date;
-                if (typeof input.tanggal_takeover === 'string') {
-                    // Handle "YYYY-MM-D" or other formats by parsing it
-                    dateObj = new Date(input.tanggal_takeover);
-                } else {
-                    dateObj = new Date(input.tanggal_takeover);
-                }
-                
-                // Adjust to local time if needed to avoid timezone shift, but since it's just a date, pad it manually
-                // or just use ISO string if it's already correctly offset
-                // Format untuk kolom date di takeover_inspections (YYYY-MM-DD)
-                const yyyy = dateObj.getFullYear();
-                const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
-                const dd = String(dateObj.getDate()).padStart(2, '0');
-                const takeoverDateStr = `${yyyy}-${mm}-${dd}`;
-                
-                // Format untuk kolom varchar di pengawasan_gantt (DD/MM/YYYY)
-                const takeoverDateStrPengawasan = `${dd}/${mm}/${yyyy}`;
                 
                 for (const idGantt of ganttIds) {
                     const { rows: pgRows } = await client.query(
