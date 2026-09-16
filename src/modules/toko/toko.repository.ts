@@ -122,9 +122,9 @@ export const tokoRepository = {
         return result.rows[0] ?? null;
     },
 
-    async findById(id: number): Promise<TokoRow | null> {
-        const result = await pool.query<TokoRow>(
-            `SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor FROM toko WHERE id = $1`,
+    async findById(id: number): Promise<TokoRow & { takeover_sequence?: number }> {
+        const result = await pool.query<TokoRow & { takeover_sequence?: number }>(
+            `SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor, takeover_sequence FROM toko WHERE id = $1`,
             [id]
         );
 

@@ -159,7 +159,14 @@ export const serahTerimaRepository = {
         `);
     },
 
-    async findTokoScopesByNomorUlok(nomorUlok: string): Promise<TokoRow[]> {
+    async findTokoScopesByNomorUlok(nomorUlok: string, takeoverSequence?: number): Promise<TokoRow[]> {
+        const values: any[] = [nomorUlok];
+        let tsFilter = "AND COALESCE(takeover_sequence, 0) = (SELECT COALESCE(MAX(takeover_sequence), 0) FROM toko WHERE nomor_ulok = $1)";
+        if (takeoverSequence !== undefined) {
+            values.push(takeoverSequence);
+            tsFilter = "AND COALESCE(takeover_sequence, 0) = $2";
+        }
+
         const result = await pool.query<TokoRow>(
             `
             SELECT
@@ -173,7 +180,7 @@ export const serahTerimaRepository = {
                 alamat,
                 nama_kontraktor
             FROM toko
-            WHERE nomor_ulok = $1
+            WHERE nomor_ulok = $1 ${tsFilter}
             ORDER BY
                 CASE
                     WHEN UPPER(TRIM(COALESCE(lingkup_pekerjaan, ''))) = 'SIPIL' THEN 0
@@ -182,7 +189,7 @@ export const serahTerimaRepository = {
                 END,
                 id
             `,
-            [nomorUlok]
+            values
         );
 
         return result.rows;

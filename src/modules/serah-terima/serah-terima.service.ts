@@ -139,7 +139,7 @@ const getSerahTerimaReadiness = async (idToko: number) => {
         };
     }
 
-    const scopes = await ganttRepository.findSupervisionWorkspace(toko.nomor_ulok);
+    const scopes = await ganttRepository.findSupervisionWorkspace(toko.nomor_ulok, toko.takeover_sequence || 0);
     if (!scopes || scopes.length === 0) {
         return { ready: false, reason: "Gantt chart belum tersedia untuk toko ini" };
     }
@@ -561,8 +561,8 @@ export const serahTerimaService = {
         };
     },
 
-    async createPdfSerahTerimaUnified(nomorUlok: string, options?: { createdAt?: string | null }) {
-        const scopes = await serahTerimaRepository.findTokoScopesByNomorUlok(nomorUlok);
+    async createPdfSerahTerimaUnified(nomorUlok: string, options?: { createdAt?: string | null, takeoverSequence?: number }) {
+        const scopes = await serahTerimaRepository.findTokoScopesByNomorUlok(nomorUlok, options?.takeoverSequence);
         if (scopes.length === 0) {
             throw new AppError("ULOK tidak ditemukan", 404);
         }

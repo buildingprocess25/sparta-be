@@ -11,6 +11,7 @@ export type CreateSerahTerimaPdfInput = z.infer<typeof createSerahTerimaPdfSchem
 
 export const createUnifiedSerahTerimaPdfSchema = z.object({
     nomor_ulok: z.string().trim().min(1),
+    takeover_sequence: z.number().optional(),
 });
 
 export type CreateUnifiedSerahTerimaPdfInput = z.infer<typeof createUnifiedSerahTerimaPdfSchema>;

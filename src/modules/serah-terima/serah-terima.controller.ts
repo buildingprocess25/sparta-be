@@ -46,8 +46,8 @@ export const createPdfSerahTerima = asyncHandler(async (req: Request, res: Respo
 });
 
 export const createUnifiedPdfSerahTerima = asyncHandler(async (req: Request, res: Response) => {
-    const { nomor_ulok } = createUnifiedSerahTerimaPdfSchema.parse(req.body);
-    const data = await serahTerimaService.createPdfSerahTerimaUnified(nomor_ulok);
+    const { nomor_ulok, takeover_sequence } = createUnifiedSerahTerimaPdfSchema.parse(req.body);
+    const data = await serahTerimaService.createPdfSerahTerimaUnified(nomor_ulok, { takeoverSequence: takeover_sequence });
 
     res.json({
         status: "success",
