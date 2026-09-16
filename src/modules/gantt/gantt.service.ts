@@ -726,6 +726,14 @@ export const ganttService = {
 
         const gantt = await ganttRepository.findById(id);
         if (gantt) {
+            const { rows: takeoverRows } = await pool.query(
+                `SELECT 1 FROM takeover_inspections WHERE nomor_ulok = $1 LIMIT 1`,
+                [gantt.toko.nomor_ulok]
+            );
+            if (takeoverRows.length > 0) {
+                throw new AppError("ULOK ini sudah di-takeover. Tidak dapat mengisi pengawasan lagi.", 403);
+            }
+
             const isSpkApproved = await spkRepository.existsApprovedByUlokAndLingkup(
                 gantt.toko.nomor_ulok,
                 gantt.toko.lingkup_pekerjaan ?? ""
@@ -1082,16 +1090,20 @@ export const ganttService = {
                 
                 // Adjust to local time if needed to avoid timezone shift, but since it's just a date, pad it manually
                 // or just use ISO string if it's already correctly offset
+                // Format untuk kolom date di takeover_inspections (YYYY-MM-DD)
                 const yyyy = dateObj.getFullYear();
                 const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
                 const dd = String(dateObj.getDate()).padStart(2, '0');
                 const takeoverDateStr = `${yyyy}-${mm}-${dd}`;
                 
+                // Format untuk kolom varchar di pengawasan_gantt (DD/MM/YYYY)
+                const takeoverDateStrPengawasan = `${dd}/${mm}/${yyyy}`;
+                
                 for (const idGantt of ganttIds) {
                     const { rows: pgRows } = await client.query(
                         `SELECT id AS id_pengawasan_gantt FROM pengawasan_gantt 
-                         WHERE id_gantt = $1 AND tanggal_pengawasan = $2`,
-                        [idGantt, takeoverDateStr]
+                         WHERE id_gantt = $1 AND (tanggal_pengawasan = $2 OR tanggal_pengawasan = $3)`,
+                        [idGantt, takeoverDateStrPengawasan, takeoverDateStr]
                     );
                     
                     if (pgRows.length > 0) {
@@ -1100,7 +1112,7 @@ export const ganttService = {
                         const { rows: inserted } = await client.query(
                             `INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan) 
                              VALUES ($1, $2) RETURNING id as id_pengawasan_gantt`,
-                            [idGantt, takeoverDateStr]
+                            [idGantt, takeoverDateStrPengawasan]
                         );
                         if (inserted.length > 0) {
                             ganttPengawasanMap[idGantt] = inserted[0].id_pengawasan_gantt;
