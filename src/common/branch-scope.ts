@@ -199,23 +199,23 @@ export const getEffectiveBranchesForUser = async (input: {
         return { branches: branchGroup.sort(), source: "support" };
     }
 
+    // 3. Kontraktor & Direktur Kontraktor → Full branch group access (no subdivision)
+    // Always override coverage for Kontraktor
+    if (isKontraktorRole(roles)) {
+        const branchGroup = getBranchScopeCandidates(normalizedCabang);
+        return { branches: branchGroup.sort(), source: "branch_group" };
+    }
+
     // PRIORITAS: Cek Coverage Database (Untuk Regional Manager atau Manager subdivisi)
     const coverage = await getUserCoverageBranches(emailSat, cabang);
     if (coverage.length > 0) {
         return { branches: coverage.sort(), source: "coverage" };
     }
 
-    // 3. Check if this branch has specific coverage rules (CIKOKOL/CILEUNGSI only)
+    // 4. Check if this branch has specific coverage rules (CIKOKOL/CILEUNGSI only)
     const hasSpecificRules = hasSpecificCoverageRules(normalizedCabang);
 
     if (hasSpecificRules) {
-        // Kontraktor & Direktur Kontraktor → full branch group access, no subdivision
-        // They can work on any project in the entire CIKOKOL/CILEUNGSI group
-        if (isKontraktorRole(roles)) {
-            const branchGroup = getBranchScopeCandidates(normalizedCabang);
-            return { branches: branchGroup.sort(), source: "branch_group" };
-        }
-
         // Manager/Coordinator tanpa coverage di atas
         // Fallback: login branch only
         return { 
@@ -252,13 +252,17 @@ export const getApprovalBranchesForUser = async (input: {
         return { branches: ALL_BRANCHES, source: "global" };
     }
 
+    if (isBranchSupportRole(roles)) {
+        return { branches: getBranchGroupOrFallback(normalizedCabang), source: "support" };
+    }
+
+    if (isKontraktorRole(roles)) {
+        return { branches: getBranchGroupOrFallback(normalizedCabang), source: "branch_group" };
+    }
+
     const coverage = await getUserCoverageBranches(emailSat, cabang);
     if (coverage.length > 0) {
         return { branches: coverage.sort(), source: "coverage" };
-    }
-
-    if (isBranchSupportRole(roles)) {
-        return { branches: getBranchGroupOrFallback(normalizedCabang), source: "support" };
     }
 
     if (hasSpecificCoverageRules(normalizedCabang)) {
@@ -284,28 +288,27 @@ export const getDashboardBranchesForUser = async (input: {
     const { emailSat, cabang, roles } = input;
     const normalizedCabang = normalizeBranchScopeName(cabang);
 
-    // 1. PRIORITAS UTAMA: Cek Coverage Database
-    const coverage = await getUserCoverageBranches(emailSat, cabang);
-    if (coverage.length > 0) {
-        return { branches: coverage.sort(), source: "coverage" };
-    }
-
-    // 2. Jika tidak ada coverage, jalankan logic standar
-    if (hasGlobalAccess(cabang, roles)) {
-        return { branches: ALL_BRANCHES, source: "global" };
-    }
-
+    // 1. PRIORITAS UTAMA: Branch Support
     if (isBranchSupportRole(roles)) {
         const branchGroup = getBranchScopeCandidates(normalizedCabang);
         return { branches: branchGroup.sort(), source: "support" };
     }
 
+    // 2. Kontraktor → Selalu mendapat full branch group
+    if (isKontraktorRole(roles)) {
+        const branchGroup = getBranchScopeCandidates(normalizedCabang);
+        return { branches: branchGroup.sort(), source: "branch_group" };
+    }
+
+    // 3. Cek Coverage Database
+    const coverage = await getUserCoverageBranches(emailSat, cabang);
+    if (coverage.length > 0) {
+        return { branches: coverage.sort(), source: "coverage" };
+    }
+
+    // 4. Jika tidak ada coverage, jalankan logic standar
     const hasSpecificRules = hasSpecificCoverageRules(normalizedCabang);
     if (hasSpecificRules) {
-        if (isKontraktorRole(roles)) {
-            const branchGroup = getBranchScopeCandidates(normalizedCabang);
-            return { branches: branchGroup.sort(), source: "branch_group" };
-        }
         return { 
             branches: normalizedCabang ? [normalizedCabang] : [], 
             source: "fallback" 
