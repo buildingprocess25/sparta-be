@@ -10,6 +10,8 @@ import { ganttRepository } from "./gantt.repository";
 import { spkRepository } from "../spk/spk.repository";
 import { SPK_APPROVED_STATUSES } from "../spk/spk.constants";
 import { opnameService, uploadFotoOpnameToDrive } from "../opname/opname.service";
+import { uploadDokumentasiToDrive } from "../pengawasan/pengawasan.service";
+import { pool } from "../../db/pool";
 import type {
     AddDayItemsInput,
     CreateGanttNoteInput,
@@ -1028,8 +1030,6 @@ export const ganttService = {
     },
 
     submitTakeoverInspection: async (input: SubmitTakeoverInspectionInput, files: Express.Multer.File[] = [], userEmail: string = "system") => {
-        const { pool } = await import("../../db/pool");
-
         // 1. Dapatkan ID Toko untuk setiap Gantt Chart yang terkait
         const ganttIds = Array.from(new Set(input.items.map(i => i.id_gantt)));
         const ganttTokoMap: Record<number, number> = {};
@@ -1068,7 +1068,6 @@ export const ganttService = {
                 const fileDokumentasi = files.find(f => f.fieldname === `file_dokumentasi_${i}`);
                 let dokumentasiLink: string | null = null;
                 if (fileDokumentasi) {
-                    const { uploadDokumentasiToDrive } = await import("../pengawasan/pengawasan.service");
                     dokumentasiLink = await uploadDokumentasiToDrive(item.id_gantt, fileDokumentasi as any);
                 }
 
