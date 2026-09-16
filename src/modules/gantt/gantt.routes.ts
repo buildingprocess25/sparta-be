@@ -27,7 +27,7 @@ const ganttRouter = Router();
 ganttRouter.post("/migration/preview", upload.single("file"), previewGanttMigration);
 ganttRouter.post("/migration/commit", upload.single("file"), commitGanttMigration);
 ganttRouter.post("/submit", submitGantt);
-ganttRouter.post("/takeover-inspection", submitTakeoverInspection);
+ganttRouter.post("/takeover-inspection", upload.any(), submitTakeoverInspection);
 ganttRouter.get("/", listGantt);
 ganttRouter.get("/supervision-workspace/:nomor_ulok", getSupervisionWorkspace);
 ganttRouter.get("/detail/:id_toko", getDetailByToko);

@@ -9,6 +9,7 @@ import { GANTT_STATUS } from "./gantt.constants";
 import { ganttRepository } from "./gantt.repository";
 import { spkRepository } from "../spk/spk.repository";
 import { SPK_APPROVED_STATUSES } from "../spk/spk.constants";
+import { opnameService, uploadFotoOpnameToDrive } from "../opname/opname.service";
 import type {
     AddDayItemsInput,
     CreateGanttNoteInput,
@@ -1026,39 +1027,102 @@ export const ganttService = {
         };
     },
 
-    async submitTakeoverInspection(input: SubmitTakeoverInspectionInput) {
+    submitTakeoverInspection: async (input: SubmitTakeoverInspectionInput, files: Express.Multer.File[] = [], userEmail: string = "system") => {
         const { pool } = await import("../../db/pool");
         
-        // 1. Validasi Toko (Proyek Lama)
-        const { tokoRepository } = await import("../toko/toko.repository");
-        const existingTokos = await tokoRepository.findAllByNomorUlok(input.nomor_ulok);
+        // 1. Validasi ULOK & Dapatkan ID Toko
+        const { rows: existingTokos } = await pool.query(
+            `SELECT p.id_toko FROM rab r
+             JOIN project p ON p.id = r.id_project
+             WHERE r.nomor_ulok = $1 LIMIT 1`,
+            [input.nomor_ulok]
+        );
+
         if (existingTokos.length === 0) {
             throw new AppError("ULOK tidak ditemukan.", 404);
         }
         
+        const idToko = existingTokos[0].id_toko;
+
         // Cek apakah sudah pernah diinspeksi
         const check = await pool.query(`SELECT id FROM takeover_inspections WHERE nomor_ulok = $1`, [input.nomor_ulok]);
         if (check.rowCount && check.rowCount > 0) {
             throw new AppError("Inspeksi Takeover untuk ULOK ini sudah pernah dilakukan.", 400);
         }
 
-        // 2. Update status pengawasan items
-        for (const item of input.items) {
-            await pool.query(
-                `UPDATE pengawasan 
-                 SET status = $1, updated_at = timezone('Asia/Jakarta', now()) 
-                 WHERE id = $2`,
-                [item.status, item.id_pengawasan]
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            const opnamePayloads: any[] = [];
+
+            // 2. Insert or update pengawasan items
+            for (let i = 0; i < input.items.length; i++) {
+                const item = input.items[i];
+                
+                const updateRes = await client.query(
+                    `UPDATE pengawasan
+                     SET status = $1, updated_at = timezone('Asia/Jakarta', now())
+                     WHERE id_gantt = $2 AND kategori_pekerjaan = $3 AND (jenis_pekerjaan = $4 OR (jenis_pekerjaan IS NULL AND $4 IS NULL))
+                     RETURNING id`,
+                    [item.status, item.id_gantt, item.kategori_pekerjaan, item.jenis_pekerjaan || null]
+                );
+
+                if (updateRes.rowCount === 0) {
+                    await client.query(
+                        `INSERT INTO pengawasan (id_gantt, kategori_pekerjaan, jenis_pekerjaan, status, catatan)
+                         VALUES ($1, $2, $3, $4, $5)`,
+                        [item.id_gantt, item.kategori_pekerjaan, item.jenis_pekerjaan || null, item.status, "Sistem: Pre-inspeksi Takeover"]
+                    );
+                }
+
+                if (item.status === 'Selesai' && item.opname_data) {
+                    const payload: any = {
+                        ...item.opname_data,
+                        status: "pending",
+                        id_toko: idToko
+                    };
+
+                    const fileField = `file_opname_${i}`;
+                    const uploadedFile = files.find(f => f.fieldname === fileField);
+                    if (uploadedFile) {
+                        payload.foto = await uploadFotoOpnameToDrive(idToko, uploadedFile);
+                    }
+
+                    opnamePayloads.push(payload);
+                }
+            }
+
+            // 3. Simpan rekam inspeksi takeover
+            const result = await client.query(
+                `INSERT INTO takeover_inspections (nomor_ulok, tanggal_takeover)
+                 VALUES ($1, $2) RETURNING id`,
+                [input.nomor_ulok, input.tanggal_takeover]
             );
+
+            // 4. Proses opname data (bulk insert ke opname_item)
+            if (opnamePayloads.length > 0) {
+                const opnameResult = await opnameService.createBulk({
+                    id_toko: idToko,
+                    tipe_opname: "OPNAME",
+                    email_pembuat: userEmail,
+                    grand_total_opname: "0",
+                    grand_total_rab: "0",
+                    items: opnamePayloads
+                }, [], undefined, client);
+
+                if (opnameResult && (opnameResult as any).statusCode) {
+                    throw new AppError((opnameResult as any).message || "Gagal menyimpan opname dari takeover.", (opnameResult as any).statusCode);
+                }
+            }
+
+            await client.query('COMMIT');
+            return result.rows[0];
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
         }
-
-        // 3. Simpan rekam inspeksi takeover
-        const result = await pool.query(
-            `INSERT INTO takeover_inspections (nomor_ulok, tanggal_takeover) 
-             VALUES ($1, $2) RETURNING id`,
-            [input.nomor_ulok, input.tanggal_takeover]
-        );
-
-        return result.rows[0];
     }
 };

@@ -284,8 +284,22 @@ export const submitTakeoverInspectionSchema = z.object({
     nomor_ulok: z.string().min(1),
     tanggal_takeover: z.string().min(1),
     items: z.array(z.object({
-        id_pengawasan: z.number(),
-        status: z.enum(["Selesai", "Tidak Dikerjakan"])
+        id_gantt: z.number(),
+        kategori_pekerjaan: z.string(),
+        jenis_pekerjaan: z.string().nullable().optional(),
+        status: z.enum(["Selesai", "Tidak Dikerjakan"]),
+        opname_data: z.object({
+            id_rab_item: z.number().optional(),
+            id_instruksi_lapangan_item: z.number().optional(),
+            volume_akhir: z.number(),
+            selisih_volume: z.number(),
+            total_selisih: z.number(),
+            total_harga_opname: z.number(),
+            desain: z.string(),
+            kualitas: z.string(),
+            spesifikasi: z.string(),
+            catatan: z.string().optional()
+        }).optional()
     }))
 });
 

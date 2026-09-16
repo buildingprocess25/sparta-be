@@ -103,8 +103,25 @@ export const listGanttNotes = asyncHandler(async (req: Request, res: Response) =
 });
 
 export const submitTakeoverInspection = asyncHandler(async (req: Request, res: Response) => {
-    const payload = submitTakeoverInspectionSchema.parse(req.body);
-    const data = await ganttService.submitTakeoverInspection(payload);
+    let parsedItems = req.body.items;
+    if (typeof req.body.items === "string") {
+        try {
+            parsedItems = JSON.parse(req.body.items);
+        } catch {
+            throw new AppError("Format items tidak valid. Untuk multipart/form-data kirim items sebagai JSON string.", 400);
+        }
+    }
+
+    const payloadCandidate = {
+        ...req.body,
+        items: parsedItems
+    };
+
+    const payload = submitTakeoverInspectionSchema.parse(payloadCandidate);
+    const files = (req.files as Express.Multer.File[]) || [];
+    const userEmail = req.user?.email_sat || "system";
+    
+    const data = await ganttService.submitTakeoverInspection(payload, files, userEmail);
 
     res.status(201).json({
         status: "success",
