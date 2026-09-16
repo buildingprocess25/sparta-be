@@ -1678,15 +1678,46 @@ export const rabService = {
         const fileAsuransiInput = (payload.file_asuransi ?? "").trim();
         const revFileAsuransiInput = (payload.rev_file_asuransi ?? "").trim();
 
-        const hasLogoInput = logoInput.length > 0 && !isRabAssetProxyPath(logoInput);
-        const hasRevLogoInput = revLogoInput.length > 0 && !isRabAssetProxyPath(revLogoInput);
-        const hasFileAsuransiInput = fileAsuransiInput.length > 0 && !isRabAssetProxyPath(fileAsuransiInput);
-        const hasRevFileAsuransiInput = revFileAsuransiInput.length > 0 && !isRabAssetProxyPath(revFileAsuransiInput);
         const isRejectedResubmit = rejectedRabToReplaceId !== null;
 
         let logoLink = rejectedRabToReplaceId !== null
             ? normalizeIncomingAssetLink(rejectedRabExistingLogo)
             : undefined;
+
+        // Resolve Proxy URLs for logo auto-fill
+        const resolveProxyUrl = async (input: string): Promise<string | undefined> => {
+            const match = input.match(/^\/api\/rab\/(\d+)\/(logo|file-asuransi)$/i);
+            if (match) {
+                const id = parseInt(match[1], 10);
+                const column = match[2].replace('-', '_'); // "logo" or "file_asuransi"
+                try {
+                    const result = await pool.query(`SELECT ${column} FROM rab WHERE id = $1`, [id]);
+                    if (result.rows.length > 0 && result.rows[0][column]) {
+                        return result.rows[0][column];
+                    }
+                } catch (err) {
+                    console.error(`Failed to resolve proxy URL ${input}:`, err);
+                }
+            }
+            return undefined;
+        };
+
+        if (!isRejectedResubmit && isRabAssetProxyPath(logoInput)) {
+            const resolved = await resolveProxyUrl(logoInput);
+            if (resolved) logoLink = resolved;
+        } else if (isRejectedResubmit && isRabAssetProxyPath(revLogoInput)) {
+            const resolved = await resolveProxyUrl(revLogoInput);
+            if (resolved) logoLink = resolved;
+        } else if (isRejectedResubmit && isRabAssetProxyPath(logoInput) && !revLogoInput) {
+            // Jika resubmit tanpa revisi logo, logoLink sudah terisi rejectedRabExistingLogo
+            // Tapi jika kita perlu mengambil dari proxy input, kita cek apakah perlu ditimpa.
+            // Biasanya ditangani oleh `rejectedRabToReplaceId`
+        }
+
+        const hasLogoInput = logoInput.length > 0 && !isRabAssetProxyPath(logoInput);
+        const hasRevLogoInput = revLogoInput.length > 0 && !isRabAssetProxyPath(revLogoInput);
+        const hasFileAsuransiInput = fileAsuransiInput.length > 0 && !isRabAssetProxyPath(fileAsuransiInput);
+        const hasRevFileAsuransiInput = revFileAsuransiInput.length > 0 && !isRabAssetProxyPath(revFileAsuransiInput);
 
         if (!isRejectedResubmit && hasLogoInput) {
             const logoValue = logoInput;
@@ -1741,6 +1772,14 @@ export const rabService = {
         let insuranceLink = rejectedRabToReplaceId !== null
             ? normalizeIncomingAssetLink(rejectedRabExistingInsurance)
             : undefined;
+
+        if (!isRejectedResubmit && isRabAssetProxyPath(fileAsuransiInput)) {
+            const resolved = await resolveProxyUrl(fileAsuransiInput);
+            if (resolved) insuranceLink = resolved;
+        } else if (isRejectedResubmit && isRabAssetProxyPath(revFileAsuransiInput)) {
+            const resolved = await resolveProxyUrl(revFileAsuransiInput);
+            if (resolved) insuranceLink = resolved;
+        }
 
         if (!isRejectedResubmit && hasFileAsuransiInput) {
             insuranceLink = normalizeIncomingAssetLink(fileAsuransiInput);
