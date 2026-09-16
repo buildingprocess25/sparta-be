@@ -1142,8 +1142,9 @@ export const ganttService = {
 
             await client.query('COMMIT');
             return result.rows[0];
-        } catch (error) {
+        } catch (error: any) {
             await client.query('ROLLBACK');
+            require('fs').appendFileSync('error.log', new Date().toISOString() + ' - Takeover Inspection Error: ' + (error.stack || error) + '\n');
             throw error;
         } finally {
             client.release();
