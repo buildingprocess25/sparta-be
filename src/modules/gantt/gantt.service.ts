@@ -1080,7 +1080,7 @@ export const ganttService = {
 
                 const updateRes = await client.query(
                     `UPDATE pengawasan
-                     SET status = $1, catatan = $2, updated_at = timezone('Asia/Jakarta', now()) ${setDokumentasi}
+                     SET status = $1, catatan = $2 ${setDokumentasi}
                      WHERE id_gantt = $3 AND kategori_pekerjaan = $4 AND (jenis_pekerjaan = $5 OR (jenis_pekerjaan IS NULL AND $5 IS NULL))
                      RETURNING id`,
                     updateArgs
