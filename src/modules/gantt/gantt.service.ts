@@ -1072,9 +1072,20 @@ export const ganttService = {
                 }
 
                 // Temukan atau buat pengawasan_gantt untuk tanggal_takeover
-                const takeoverDateStr = typeof input.tanggal_takeover === 'string'
-                    ? input.tanggal_takeover.split('T')[0]
-                    : new Date(input.tanggal_takeover).toISOString().split('T')[0];
+                let dateObj: Date;
+                if (typeof input.tanggal_takeover === 'string') {
+                    // Handle "YYYY-MM-D" or other formats by parsing it
+                    dateObj = new Date(input.tanggal_takeover);
+                } else {
+                    dateObj = new Date(input.tanggal_takeover);
+                }
+                
+                // Adjust to local time if needed to avoid timezone shift, but since it's just a date, pad it manually
+                // or just use ISO string if it's already correctly offset
+                const yyyy = dateObj.getFullYear();
+                const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const dd = String(dateObj.getDate()).padStart(2, '0');
+                const takeoverDateStr = `${yyyy}-${mm}-${dd}`;
                 
                 for (const idGantt of ganttIds) {
                     const { rows: pgRows } = await client.query(
@@ -1170,7 +1181,7 @@ export const ganttService = {
             const result = await client.query(
                 `INSERT INTO takeover_inspections (nomor_ulok, tanggal_takeover)
                  VALUES ($1, $2) RETURNING id`,
-                [input.nomor_ulok, input.tanggal_takeover]
+                [input.nomor_ulok, takeoverDateStr]
             );
 
             // 4. Proses opname data (bulk insert ke opname_item per toko)
