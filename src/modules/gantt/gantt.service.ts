@@ -336,6 +336,20 @@ export const ganttService = {
         if (scopes.length === 0) {
             throw new AppError("ULOK tidak ditemukan", 404);
         }
+        
+        let tanggalTakeover: string | null = null;
+        try {
+            const { rows } = await pool.query(
+                `SELECT tanggal_takeover FROM takeover_inspections WHERE nomor_ulok = $1 ORDER BY id DESC LIMIT 1`,
+                [nomorUlok]
+            );
+            if (rows.length > 0) {
+                tanggalTakeover = rows[0].tanggal_takeover;
+            }
+        } catch (e) {
+            console.error("Error fetching tanggal_takeover:", e);
+        }
+
         const unifiedMetadata = buildUnifiedSupervisionMetadata(scopes);
         const activeScopes = scopes.filter((scope) => scope.gantt_id);
         const allActiveScopesReady = activeScopes.length > 0
@@ -355,6 +369,7 @@ export const ganttService = {
             kode_toko: scopes[0]?.kode_toko ?? null,
             cabang: scopes[0]?.cabang ?? null,
             pic_bersama: scopes.find((scope) => scope.plc_building_support)?.plc_building_support ?? null,
+            tanggal_takeover: tanggalTakeover,
             scopes,
             serah_terima_ready: scopes
                 .filter((scope) => scope.gantt_id)
@@ -1030,31 +1045,58 @@ export const ganttService = {
     },
 
     submitTakeoverInspection: async (input: SubmitTakeoverInspectionInput, files: Express.Multer.File[] = [], userEmail: string = "system") => {
-        // 1. Dapatkan ID Toko untuk setiap Gantt Chart yang terkait
-        const ganttIds = Array.from(new Set(input.items.map(i => i.id_gantt)));
-        const ganttTokoMap: Record<number, number> = {};
-        
-        if (ganttIds.length > 0) {
-            const { rows: ganttRows } = await pool.query(
-                `SELECT g.id, t.id AS id_toko FROM gantt_chart g
-                 JOIN toko t ON t.id = g.id_toko
-                 WHERE g.id = ANY($1::int[])`,
-                [ganttIds]
-            );
-            for (const row of ganttRows) {
-                ganttTokoMap[row.id] = row.id_toko;
-            }
-        }
-
         // Cek apakah sudah pernah diinspeksi
         const check = await pool.query(`SELECT id FROM takeover_inspections WHERE nomor_ulok = $1`, [input.nomor_ulok]);
         if (check.rowCount && check.rowCount > 0) {
             throw new AppError("Inspeksi Takeover untuk ULOK ini sudah pernah dilakukan.", 400);
         }
 
+        // 1. Dapatkan ID Toko untuk setiap Gantt Chart yang terkait
+        const ganttIds = Array.from(new Set(input.items.map(i => i.id_gantt)));
+        const ganttTokoMap: Record<number, number> = {};
+        const ganttPengawasanMap: Record<number, number> = {}; // Mapping id_gantt to id_pengawasan_gantt
+
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
+
+            if (ganttIds.length > 0) {
+                const { rows: ganttRows } = await client.query(
+                    `SELECT g.id, t.id AS id_toko FROM gantt_chart g
+                     JOIN toko t ON t.id = g.id_toko
+                     WHERE g.id = ANY($1::int[])`,
+                    [ganttIds]
+                );
+                for (const row of ganttRows) {
+                    ganttTokoMap[row.id] = row.id_toko;
+                }
+
+                // Temukan atau buat pengawasan_gantt untuk tanggal_takeover
+                const takeoverDateStr = typeof input.tanggal_takeover === 'string'
+                    ? input.tanggal_takeover.split('T')[0]
+                    : new Date(input.tanggal_takeover).toISOString().split('T')[0];
+                
+                for (const idGantt of ganttIds) {
+                    const { rows: pgRows } = await client.query(
+                        `SELECT id AS id_pengawasan_gantt FROM pengawasan_gantt 
+                         WHERE id_gantt = $1 AND tanggal_pengawasan = $2`,
+                        [idGantt, takeoverDateStr]
+                    );
+                    
+                    if (pgRows.length > 0) {
+                        ganttPengawasanMap[idGantt] = pgRows[0].id_pengawasan_gantt;
+                    } else {
+                        const { rows: inserted } = await client.query(
+                            `INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan) 
+                             VALUES ($1, $2) RETURNING id as id_pengawasan_gantt`,
+                            [idGantt, takeoverDateStr]
+                        );
+                        if (inserted.length > 0) {
+                            ganttPengawasanMap[idGantt] = inserted[0].id_pengawasan_gantt;
+                        }
+                    }
+                }
+            }
 
             const opnamePayloadsByToko: Record<number, any[]> = {};
 
@@ -1071,7 +1113,9 @@ export const ganttService = {
                     dokumentasiLink = await uploadDokumentasiToDrive(item.id_gantt, fileDokumentasi as any);
                 }
 
-                const updateArgs: any[] = [item.status, "Sistem: Pre-inspeksi Takeover", item.id_gantt, item.kategori_pekerjaan, item.jenis_pekerjaan || null];
+                const idPengawasanGantt = ganttPengawasanMap[item.id_gantt] || null;
+
+                const updateArgs: any[] = [item.status, "Sistem: Pre-inspeksi Takeover", item.id_gantt, item.kategori_pekerjaan, item.jenis_pekerjaan || null, idPengawasanGantt];
                 let setDokumentasi = "";
                 if (dokumentasiLink) {
                     updateArgs.push(dokumentasiLink);
@@ -1080,19 +1124,27 @@ export const ganttService = {
 
                 const updateRes = await client.query(
                     `UPDATE pengawasan
-                     SET status = $1, catatan = $2 ${setDokumentasi}
+                     SET status = $1, catatan = $2, id_pengawasan_gantt = $6 ${setDokumentasi}
                      WHERE id_gantt = $3 AND kategori_pekerjaan = $4 AND (jenis_pekerjaan = $5 OR (jenis_pekerjaan IS NULL AND $5 IS NULL))
                      RETURNING id`,
                     updateArgs
                 );
 
                 if (updateRes.rowCount === 0) {
+                    const insertArgs: any[] = [
+                        item.id_gantt, 
+                        item.kategori_pekerjaan, 
+                        item.jenis_pekerjaan || null, 
+                        item.status, 
+                        "Sistem: Pre-inspeksi Takeover", 
+                        idPengawasanGantt
+                    ];
+                    if (dokumentasiLink) insertArgs.push(dokumentasiLink);
+
                     await client.query(
-                        `INSERT INTO pengawasan (id_gantt, kategori_pekerjaan, jenis_pekerjaan, status, catatan${dokumentasiLink ? ', dokumentasi' : ''})
-                         VALUES ($1, $2, $3, $4, $5${dokumentasiLink ? `, $6` : ''})`,
-                        dokumentasiLink 
-                            ? [item.id_gantt, item.kategori_pekerjaan, item.jenis_pekerjaan || null, item.status, "Sistem: Pre-inspeksi Takeover", dokumentasiLink]
-                            : [item.id_gantt, item.kategori_pekerjaan, item.jenis_pekerjaan || null, item.status, "Sistem: Pre-inspeksi Takeover"]
+                        `INSERT INTO pengawasan (id_gantt, kategori_pekerjaan, jenis_pekerjaan, status, catatan, id_pengawasan_gantt${dokumentasiLink ? ', dokumentasi' : ''})
+                         VALUES ($1, $2, $3, $4, $5, $6${dokumentasiLink ? `, $7` : ''})`,
+                        insertArgs
                     );
                 }
 
