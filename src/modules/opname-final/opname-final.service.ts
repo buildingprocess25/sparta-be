@@ -85,12 +85,16 @@ const parseAreaNumber = (value?: string | number | null): number => {
 
 const resolveStatusTransition = (
     currentStatus: OpnameFinalStatus,
-    action: ApprovalActionInput
+    action: ApprovalActionInput,
+    cabang?: string | null
 ): OpnameFinalStatus => {
     if (action.tindakan === "APPROVE") {
         if (action.jabatan === "KOORDINATOR") {
             if (currentStatus !== OPNAME_FINAL_STATUS.WAITING_FOR_COORDINATOR) {
                 throw new AppError(`Status saat ini "${currentStatus}" tidak valid untuk approval koordinator`, 409);
+            }
+            if (cabang?.toUpperCase() === "BATAM") {
+                return OPNAME_FINAL_STATUS.WAITING_FOR_DIREKTUR;
             }
             return OPNAME_FINAL_STATUS.WAITING_FOR_MANAGER;
         }
@@ -496,7 +500,7 @@ export const opnameFinalService = {
         }
 
         const currentStatus = detail.opname_final.status_opname_final;
-        const newStatus = resolveStatusTransition(currentStatus, action);
+        const newStatus = resolveStatusTransition(currentStatus, action, detail.toko.cabang);
 
         await opnameFinalRepository.updateApproval(id, newStatus, action);
         await refreshDendaAllocation(id, detail.toko.id);

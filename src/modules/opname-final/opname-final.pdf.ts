@@ -422,6 +422,7 @@ export const buildOpnameFinalPdfBuffer = async (
         generated_at: formatDateIndonesia(new Date().toISOString()),
         opname_final: detail.opname_final,
         document_label: documentLabel,
+        skip_bm_approval: detail.toko.cabang?.toUpperCase() === "BATAM",
         toko: detail.toko,
         header_left_logo_path: staticAssetPath("Alfamart-Emblem.png"),
         header_right_logo_path: staticAssetPath("Building-Logo.png"),

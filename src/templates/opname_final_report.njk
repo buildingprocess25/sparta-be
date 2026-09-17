@@ -706,20 +706,21 @@
 
   <table class="approval-table">
     <tr>
-      <td style="width:25%; vertical-align: top;">
+      <td style="width:{{ '33.33%' if skip_bm_approval else '25%' }}; vertical-align: top;">
         <div class="approval-title">DIBUAT</div>
         <div class="approval-box">
           {{ creator_details | safe }}
           <div class="approval-role">Branch Building Support</div>
         </div>
       </td>
-      <td style="width:25%; vertical-align: top;">
+      <td style="width:{{ '33.33%' if skip_bm_approval else '25%' }}; vertical-align: top;">
         <div class="approval-title">MENGETAHUI</div>
         <div class="approval-box">
           {{ coordinator_approval_details | safe }}
           <div class="approval-role">Branch Building Coordinator</div>
         </div>
       </td>
+      {% if not skip_bm_approval %}
       <td style="width:25%; vertical-align: top;">
         <div class="approval-title">MENYETUJUI</div>
         <div class="approval-box">
@@ -727,7 +728,8 @@
           <div class="approval-role">Building &amp; Maintenance Manager</div>
         </div>
       </td>
-      <td style="width:25%; vertical-align: top;">
+      {% endif %}
+      <td style="width:{{ '33.33%' if skip_bm_approval else '25%' }}; vertical-align: top;">
         <div class="approval-title">MENYETUJUI</div>
         <div class="approval-box">
           {{ director_approval_details | safe }}
