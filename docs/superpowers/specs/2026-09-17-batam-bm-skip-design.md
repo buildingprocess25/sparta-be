@@ -1,8 +1,8 @@
 # Design Spec: Bypass BM Manager Approval for Batam Branch
 
 ## Context & Goal
-Currently, the branch `BOGOR` has a special flow where the "Branch Building & Maintenance Manager" (BM Manager) approval step in the Project Planning feature is completely bypassed. 
-We need to implement the exact same behavior for the `BATAM` branch, as they also do not have a BM Manager. 
+Previously, the branch `BOGOR` had a special flow where the "Branch Building & Maintenance Manager" (BM Manager) approval step in the Project Planning feature was bypassed. 
+We need to remove this behavior from `BOGOR` and apply it exclusively to the `BATAM` branch, as only Batam does not have a BM Manager. 
 When bypassed, the approval flow should skip straight to `WAITING_PP_APPROVAL_1` after submission. The generated PDF report must also omit the BM Manager's signature box and evenly distribute the remaining 4 signature columns (25% width each). 
 Additionally, we need to clean up legacy logic that previously allowed BATAM coordinators to approve on behalf of the BM Manager.
 
@@ -10,14 +10,14 @@ Additionally, we need to clean up legacy logic that previously allowed BATAM coo
 
 ### Backend (`sparta-be`)
 1. **`src/modules/project-planning/project-planning.service.ts`**:
-   - Update `shouldSkipBmApproval` to include `BATAM`: `["BOGOR", "BATAM"].includes(normalizeCabang(cabang))`
+   - Update `shouldSkipBmApproval` to ONLY include `BATAM`: `["BATAM"].includes(normalizeCabang(cabang))` (removing `BOGOR`).
    - Remove `BATAM` from `BRANCHES_WITH_COORDINATOR_BM_APPROVAL` since it's no longer needed.
 
 2. **`src/modules/project-planning/project-planning.controller.ts`**:
    - Remove `BATAM` from `BRANCHES_WITH_COORDINATOR_BM_APPROVAL` in this file as well.
 
 3. **`src/modules/project-planning/project-planning.pdf.ts`**:
-   - Inject a new `skip_bm_approval` boolean into the Nunjucks template context for both `buildProjekPlanningPdfBuffer` and `buildProjekPlanningPhotosPdfBuffer`. This boolean will be determined by checking if the project's branch is in `["BOGOR", "BATAM"]`.
+   - Inject a new `skip_bm_approval` boolean into the Nunjucks template context for both `buildProjekPlanningPdfBuffer` and `buildProjekPlanningPhotosPdfBuffer`. This boolean will be determined by checking if the project's branch is `["BATAM"]`.
 
 4. **`src/templates/projek_planning_report.njk`**:
    - Wrap the BM Manager signature `<td>` inside a `{% if not skip_bm_approval %}` block.
@@ -25,7 +25,7 @@ Additionally, we need to clean up legacy logic that previously allowed BATAM coo
 
 ### Frontend (`sparta-fe`)
 1. **`app/projek-planning/form/page.tsx`**:
-   - Update the `skipBmApproval` constant inside the `handleSubmit` function to include `BATAM`: `["BOGOR", "BATAM"].includes(finalCabang.toUpperCase())`. This ensures the success notification text accurately reflects that the BM Manager step is bypassed.
+   - Update the `skipBmApproval` constant inside the `handleSubmit` function to ONLY check `BATAM`: `["BATAM"].includes(finalCabang.toUpperCase())` (removing `BOGOR`). This ensures the success notification text accurately reflects that the BM Manager step is bypassed.
 
 ## Verification
 - Create a project planning request as a Coordinator for BATAM.
