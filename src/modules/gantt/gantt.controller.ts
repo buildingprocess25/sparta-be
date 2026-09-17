@@ -245,6 +245,7 @@ export const getDetailByToko = asyncHandler(async (req: Request, res: Response) 
         day_gantt_data: data.day_items,
         dependency_data: data.dependencies,
         pengawasan_data: data.pengawasan,
+        pengawasan_items: data.pengawasan_items,
         kategori_pekerjaan: data.kategori_pekerjaan,
         instruksi_lapangan_items: data.instruksi_lapangan_items,
         toko: data.toko

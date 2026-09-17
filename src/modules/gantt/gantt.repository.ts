@@ -1504,6 +1504,7 @@ export const ganttRepository = {
         kategori_pekerjaan: KategoriPekerjaanGanttRow[];
         day_items: (DayGanttRow & { kategori_pekerjaan: string })[];
         pengawasan: PengawasanGanttRow[];
+        pengawasan_items?: any[];
         dependencies: (DependencyGanttRow & {
             kategori_pekerjaan: string;
             kategori_pekerjaan_terikat: string;
@@ -1587,6 +1588,7 @@ export const ganttRepository = {
                 kategori_pekerjaan: [],
                 day_items: [],
                 pengawasan: [],
+                pengawasan_items: [],
                 dependencies: [],
                 instruksi_lapangan_items: instruksiLapanganItems
             };
@@ -1622,6 +1624,15 @@ export const ganttRepository = {
             [gantt.id]
         );
 
+        // 7.1 Pengawasan Items
+        const pengawasanItemsRes = await pool.query(
+            `SELECT id, id_gantt, kategori_pekerjaan, jenis_pekerjaan, status
+             FROM pengawasan
+             WHERE id_gantt = $1
+             ORDER BY id ASC`,
+            [gantt.id]
+        );
+
         // 8. Dependencies
         const depRes = await pool.query<
             DependencyGanttRow & {
@@ -1648,6 +1659,7 @@ export const ganttRepository = {
             kategori_pekerjaan: kategoriRes.rows,
             day_items: dayRes.rows,
             pengawasan: pengawasanRes.rows,
+            pengawasan_items: pengawasanItemsRes.rows,
             dependencies: depRes.rows,
             instruksi_lapangan_items: instruksiLapanganItems
         };
