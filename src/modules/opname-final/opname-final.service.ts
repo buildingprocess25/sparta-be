@@ -243,7 +243,7 @@ const sumEffectiveInstruksiLapanganTotal = (
     }, 0);
 };
 
-const loadRabData = async (opnameFinalId: number) => {
+const loadRabData = async (opnameFinalId: number, idToko: number) => {
     const items = await rabRepository.listItemsByOpnameFinalId(opnameFinalId);
     if (items.length === 0) {
         return { header: null, items: [] };
@@ -251,7 +251,38 @@ const loadRabData = async (opnameFinalId: number) => {
 
     const rabId = items[0]?.id_rab;
     const header = rabId ? (await rabRepository.findById(String(rabId)))?.rab ?? null : null;
-    return { header, items };
+    
+    // Filter out "Tidak Dikerjakan" items from the RAB items list
+    const { rows: pengawasanRows } = await pool.query(
+        `SELECT p.kategori_pekerjaan, p.jenis_pekerjaan, p.status 
+         FROM pengawasan p
+         JOIN gantt_chart g ON p.id_gantt = g.id
+         WHERE g.id_toko = $1
+         ORDER BY p.id DESC`,
+        [idToko]
+    );
+
+    const excludedKeys = new Set<string>();
+    pengawasanRows.forEach(row => {
+        const k = (row.kategori_pekerjaan || '').toUpperCase();
+        const j = (row.jenis_pekerjaan || row.kategori_pekerjaan || '').toUpperCase();
+        const key = `${k}|${j}`;
+        if (!excludedKeys.has(key) && !excludedKeys.has(`NOT_${key}`)) {
+            if (row.status?.toLowerCase().replace(/\s+/g, '_') === 'tidak_dikerjakan') {
+                excludedKeys.add(key);
+            } else {
+                excludedKeys.add(`NOT_${key}`);
+            }
+        }
+    });
+
+    const filteredItems = items.filter(item => {
+        const k = (item.kategori || '').toUpperCase();
+        const j = (item.jenis_pekerjaan || item.kategori || '').toUpperCase();
+        return !excludedKeys.has(`${k}|${j}`);
+    });
+
+    return { header, items: filteredItems };
 };
 
 const calculateOpnameKtkTotal = (
@@ -396,7 +427,7 @@ const regeneratePdfAndUpload = async (opnameFinalId: string): Promise<string> =>
     }
 
     const instruksiLapanganItems = await loadInstruksiLapanganItems(detail.toko.id);
-    const rabData = await loadRabData(detail.opname_final.id);
+    const rabData = await loadRabData(detail.opname_final.id, detail.toko.id);
     await applyRukoConversionIfNeeded(detail, instruksiLapanganItems, rabData);
     const pdfBuffer = await buildOpnameFinalPdfBuffer(detail, instruksiLapanganItems, rabData);
     const proyek = sanitizeFilenamePart(detail.toko.proyek ?? undefined, "PROYEK");
@@ -567,7 +598,7 @@ export const opnameFinalService = {
         }
 
         const instruksiLapanganItems = await loadInstruksiLapanganItems(refreshedDetail.toko.id);
-        const rabData = await loadRabData(refreshedDetail.opname_final.id);
+        const rabData = await loadRabData(refreshedDetail.opname_final.id, refreshedDetail.toko.id);
         await applyRukoConversionIfNeeded(refreshedDetail, instruksiLapanganItems, rabData);
         const pdfBuffer = await buildOpnameFinalPdfBuffer(refreshedDetail, instruksiLapanganItems, rabData);
         uploadPdfToDrive(pdfBuffer, filename, refreshedDetail.toko.nomor_ulok, refreshedDetail.toko.proyek).then((linkPdf) =>
