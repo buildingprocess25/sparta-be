@@ -59,7 +59,7 @@ const isPpSpecialistRole = (roles: string[] | undefined) => roleIncludes(roles, 
 const isPpManagerRole = (roles: string[] | undefined) => roleIncludes(roles, "PROJECT PLANNING & DEVELOPMENT MANAGER", "PROJECT PLANNING MANAGER", "PP MANAGER");
 const isHeadOfficeRole = (roles: string[] | undefined) => (roles ?? []).map(normalizeRole).includes("HEAD OFFICE");
 const isStoreBranchControllingRole = (roles: string[] | undefined) => roleIncludes(roles, "STORE & BRANCH CONTROLLING");
-const BRANCHES_WITH_COORDINATOR_BM_APPROVAL = ["BATAM"];
+const BRANCHES_WITH_COORDINATOR_BM_APPROVAL: string[] = [];
 const canCoordinatorApproveBmForBranch = (branch?: string | null) =>
     BRANCHES_WITH_COORDINATOR_BM_APPROVAL.includes(normalizeBranchScopeName(branch));
 

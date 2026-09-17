@@ -175,8 +175,11 @@ export const buildProjekPlanningPdfBuffer = async (
         })
     );
 
+    const skip_bm_approval = ["BATAM"].includes(String(projek.cabang ?? "").trim().toUpperCase());
+
     const html = await renderHtmlTemplate(templatePath, {
         projek: { ...projek, foto_items: enrichedFotoItems },
+        skip_bm_approval,
         watermark_logo_path: staticAssetPath("Building-Logo.png"),
         alfamart_logo_path: staticAssetPath("Alfamart-Emblem.png"),
         sparta_logo_path: staticAssetPath("Building-Logo.png"),
@@ -212,8 +215,11 @@ export const buildProjekPlanningPhotosPdfBuffer = async (
         })
     );
 
+    const skip_bm_approval = ["BATAM"].includes(String(projek.cabang ?? "").trim().toUpperCase());
+
     const html = await renderHtmlTemplate(templatePath, {
         projek: { ...projek, foto_items: enrichedFotoItems },
+        skip_bm_approval,
         watermark_logo_path: staticAssetPath("Building-Logo.png"),
         alfamart_logo_path: staticAssetPath("Alfamart-Emblem.png"),
         sparta_logo_path: staticAssetPath("Building-Logo.png"),

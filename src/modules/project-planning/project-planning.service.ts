@@ -76,10 +76,10 @@ function isDarkStoreDesign(value: unknown): boolean {
 }
 
 function shouldSkipBmApproval(cabang: unknown): boolean {
-    return ["BOGOR"].includes(normalizeCabang(cabang));
+    return ["BATAM"].includes(normalizeCabang(cabang));
 }
 
-const BRANCHES_WITH_COORDINATOR_BM_APPROVAL = ["BATAM"];
+const BRANCHES_WITH_COORDINATOR_BM_APPROVAL: string[] = [];
 const canCoordinatorApproveBmForBranch = (branch?: string | null) =>
     BRANCHES_WITH_COORDINATOR_BM_APPROVAL.includes(normalizeCabang(branch));
 function getInitialSubmitMeta(cabang: unknown) {
