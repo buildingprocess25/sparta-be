@@ -277,8 +277,8 @@ const loadRabData = async (opnameFinalId: number, idToko: number) => {
     });
 
     const filteredItems = items.filter(item => {
-        const k = (item.kategori || '').toUpperCase();
-        const j = (item.jenis_pekerjaan || item.kategori || '').toUpperCase();
+        const k = (item.kategori_pekerjaan || '').toUpperCase();
+        const j = (item.jenis_pekerjaan || item.kategori_pekerjaan || '').toUpperCase();
         return !excludedKeys.has(`${k}|${j}`);
     });
 
