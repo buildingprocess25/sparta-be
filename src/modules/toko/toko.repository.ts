@@ -95,21 +95,32 @@ export const tokoRepository = {
         return result.rows;
     },
 
-    async findByNomorUlokAndLingkup(nomorUlok: string, lingkupPekerjaan?: string | null): Promise<TokoRow | null> {
+    async findByNomorUlokAndLingkup(nomorUlok: string, lingkupPekerjaan?: string | null, takeoverSequence?: number): Promise<TokoRow | null> {
         const normalizedLingkup = lingkupPekerjaan?.trim().toUpperCase() || null;
         console.log('[TOKO DEBUG] findByNomorUlokAndLingkup called:', {
             input_ulok: nomorUlok,
             input_lingkup: lingkupPekerjaan,
-            normalized_lingkup: normalizedLingkup
+            normalized_lingkup: normalizedLingkup,
+            takeover_sequence: takeoverSequence
         });
+
+        let tsFilter = "";
+        let values: any[] = [nomorUlok, normalizedLingkup];
+        
+        if (takeoverSequence !== undefined) {
+            values.push(takeoverSequence);
+            tsFilter = `AND COALESCE(takeover_sequence, 0) = $3`;
+        }
+
         const result = await pool.query<TokoRow>(
-            `SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor
+            `SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor, takeover_sequence
              FROM toko
              WHERE UPPER(TRIM(nomor_ulok)) = UPPER(TRIM($1))
                AND UPPER(TRIM(COALESCE(lingkup_pekerjaan, ''))) = UPPER(TRIM(COALESCE($2, '')))
+               ${tsFilter}
              ORDER BY id DESC
              LIMIT 1`,
-            [nomorUlok, normalizedLingkup]
+            values
         );
 
         console.log('[TOKO DEBUG] Query result:', {

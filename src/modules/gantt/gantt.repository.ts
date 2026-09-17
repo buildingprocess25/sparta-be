@@ -700,6 +700,7 @@ export const ganttRepository = {
     async createWithDetails(payload: {
         // toko
         nomor_ulok: string;
+        takeover_sequence?: number;
         lingkup_pekerjaan?: string | null;
         nama_toko?: string | null;
         kode_toko?: string | null;
@@ -718,16 +719,25 @@ export const ganttRepository = {
         dependencies?: DependencyItemInput[];
     }): Promise<GanttRow & { toko_id: number }> {
         return withTransaction(async (client) => {
-            // 1. Upsert toko by kombinasi nomor_ulok + lingkup_pekerjaan
+            // 1. Upsert toko by kombinasi nomor_ulok + lingkup_pekerjaan + takeover_sequence
+            let tsFilter = "";
+            let values: unknown[] = [payload.nomor_ulok, payload.lingkup_pekerjaan ?? null];
+
+            if (payload.takeover_sequence !== undefined) {
+                values.push(payload.takeover_sequence);
+                tsFilter = `AND COALESCE(takeover_sequence, 0) = $3`;
+            }
+
             const existingTokoRes = await client.query<{ id: number }>(
                 `SELECT id
                  FROM toko
                  WHERE nomor_ulok = $1
                    AND LOWER(COALESCE(lingkup_pekerjaan, '')) = LOWER(COALESCE($2, ''))
+                   ${tsFilter}
                  ORDER BY id DESC
                  LIMIT 1
                  FOR UPDATE`,
-                [payload.nomor_ulok, payload.lingkup_pekerjaan ?? null]
+                values
             );
 
             let tokoId: number;
@@ -757,8 +767,8 @@ export const ganttRepository = {
                 const insertedTokoRes = await client.query<{ id: number }>(
                     `INSERT INTO toko (
                         nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko,
-                        proyek, cabang, alamat, nama_kontraktor
-                    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+                        proyek, cabang, alamat, nama_kontraktor, takeover_sequence
+                    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
                     RETURNING id`,
                     [
                         payload.nomor_ulok,
@@ -768,7 +778,8 @@ export const ganttRepository = {
                         payload.proyek ?? null,
                         payload.cabang ?? null,
                         payload.alamat ?? null,
-                        payload.nama_kontraktor ?? null
+                        payload.nama_kontraktor ?? null,
+                        payload.takeover_sequence ?? 0
                     ]
                 );
 

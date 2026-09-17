@@ -391,7 +391,8 @@ export const ganttService = {
 
         const existingToko = await tokoRepository.findByNomorUlokAndLingkup(
             payload.nomor_ulok,
-            payload.lingkup_pekerjaan
+            payload.lingkup_pekerjaan,
+            payload.takeover_sequence
         );
 
         if (existingToko) {
@@ -432,6 +433,7 @@ export const ganttService = {
         const gantt = await ganttRepository.createWithDetails({
             // toko fields
             nomor_ulok: payload.nomor_ulok,
+            takeover_sequence: payload.takeover_sequence,
             lingkup_pekerjaan: payload.lingkup_pekerjaan,
             nama_toko: payload.nama_toko,
             kode_toko: payload.kode_toko,

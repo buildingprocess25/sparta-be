@@ -126,6 +126,7 @@ const addDependencyValidationIssues = (
 export const submitGanttSchema = z.object({
     // toko fields
     nomor_ulok: z.string().min(1),
+    takeover_sequence: z.number().optional(),
     lingkup_pekerjaan: nullableOptionalString,
     nama_toko: nullableOptionalString,
     kode_toko: nullableOptionalString,
