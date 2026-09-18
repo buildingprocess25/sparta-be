@@ -377,6 +377,7 @@ export type DashboardData = {
 };
 
 const toArrayParam = (values: number[]) => values.length > 0 ? values : [0];
+const toStringArrayParam = (values: string[]) => values.length > 0 ? values : [''];
 
 const pushMapArray = <T>(map: Map<number, T[]>, key: number | string, value: T) => {
     const numericKey = Number(key);
@@ -1084,10 +1085,10 @@ export const dashboardRepository = {
                        status, luas_bangunan, luas_area_terbuka, luas_area_terbangun, luas_gudang,
                        luas_area_parkir, luas_area_sales, bm_waktu_persetujuan, created_at
                 FROM projek_planning
-                WHERE id_toko = ANY($1::int[])
+                WHERE id_toko = ANY($1::int[]) OR UPPER(nomor_ulok) = ANY($2::text[])
                 ORDER BY created_at DESC, id DESC
                 `,
-                [toArrayParam(tokoIds)]
+                [toArrayParam(tokoIds), toStringArrayParam(ulokKeys)]
             ),
             pool.query<DashboardPengawasanPdfPendingRow>(
                 `
@@ -1369,8 +1370,15 @@ export const dashboardRepository = {
         }
 
         const ppByTokoId = new Map<number, DashboardProjectPlanningRow[]>();
+        const ppByUlok = new Map<string, DashboardProjectPlanningRow[]>();
         for (const row of projectPlanningResult.rows) {
-            if (row.id_toko != null) pushMapArray(ppByTokoId, row.id_toko, row);
+            if (row.id_toko && row.id_toko !== 0) pushMapArray(ppByTokoId, row.id_toko, row);
+            const key = normalizeDashboardUlok(row.nomor_ulok);
+            if (key) {
+                const items = ppByUlok.get(key) ?? [];
+                items.push(row);
+                ppByUlok.set(key, items);
+            }
         }
 
         const pendingPdfByUlok = new Map<string, DashboardPengawasanPdfPendingRow[]>();
@@ -1391,7 +1399,7 @@ export const dashboardRepository = {
             instruksi_lapangan: instruksiByTokoId.get(toko.id) ?? [],
             opname_final: opnameFinalByTokoId.get(toko.id) ?? [],
             berkas_serah_terima: berkasSerahByTokoId.get(toko.id) ?? [],
-            project_planning: ppByTokoId.get(toko.id) ?? []
+            project_planning: [...(ppByTokoId.get(toko.id) ?? []), ...(ppByUlok.get(normalizeDashboardUlok(toko.nomor_ulok)) ?? [])].filter((v, i, a) => a.findIndex(t => t.id === v.id) === i)
         }));
 
     },
