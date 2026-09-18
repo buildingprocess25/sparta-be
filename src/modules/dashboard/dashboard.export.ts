@@ -1210,6 +1210,15 @@ export const filterDashboardExportAccess = (projects: DashboardData[], query: Da
         if (selectedTokoIds.size > 0 && !selectedTokoIds.has(Number(project.toko.id))) return false;
         if (query.spk_status === "with_spk" && !hasSpk(project)) return false;
         if (query.spk_status === "without_spk" && hasSpk(project)) return false;
+
+        if (query.jenis_proyek === "reguler") {
+            const isReguler = String(project.toko.proyek || "").toUpperCase() === "REGULER";
+            if (!isReguler) return false;
+        } else if (query.jenis_proyek === "renovasi") {
+            const isRenovasi = String(project.toko.proyek || "").toUpperCase().includes("RENOVASI");
+            if (!isRenovasi) return false;
+        }
+
         if (!matchesPeriodFilter(project, query)) return false;
         return true;
     });
