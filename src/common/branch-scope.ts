@@ -288,6 +288,11 @@ export const getDashboardBranchesForUser = async (input: {
     const { emailSat, cabang, roles } = input;
     const normalizedCabang = normalizeBranchScopeName(cabang);
 
+    // 0. Global access
+    if (hasGlobalAccess(cabang, roles)) {
+        return { branches: ALL_BRANCHES, source: "global" };
+    }
+
     // 1. PRIORITAS UTAMA: Branch Support
     if (isBranchSupportRole(roles)) {
         const branchGroup = getBranchScopeCandidates(normalizedCabang);
