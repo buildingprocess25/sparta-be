@@ -12,6 +12,7 @@ import type { AuthenticatedUser } from "../auth/auth-session.service";
 import { spkBackdatePolicyService } from "../spk-backdate-policy/spk-backdate-policy.service";
 import { pertambahanSpkRepository } from "../pertambahan-spk/pertambahan-spk.repository";
 import { calculateEffectiveStDate, toIsoDateString } from "../../common/national-holidays";
+import { generateStandardFilename } from "../../common/filename-helper";
 
 const terbilang = (angka: number): string => {
     const satuan = ["", "Satu", "Dua", "Tiga", "Empat", "Lima", "Enam", "Tujuh", "Delapan", "Sembilan", "Sepuluh", "Sebelas"];
@@ -428,7 +429,7 @@ export const spkService = {
             tokoCabang: toko.cabang
         });
 
-        const filename = `SPK_${data.pengajuan.proyek}_${data.pengajuan.nomor_ulok}.pdf`;
+        const filename = generateStandardFilename("SPK", data.pengajuan.nomor_ulok, toko.nama_toko, toko.lingkup_pekerjaan, ".pdf");
         return { filename, pdfBuffer };
     }
 };

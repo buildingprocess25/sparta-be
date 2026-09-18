@@ -11,6 +11,7 @@ import { userCabangRepository } from "../user-cabang/user-cabang.repository";
 import type { ApprovalActionInput } from "../approval/approval.schema";
 import { activityLogRepository } from "../activity-log/activity-log.repository";
 import { pool } from "../../db/pool";
+import { generateStandardFilename } from "../../common/filename-helper";
 import { SUPPORTED_PRICE_BRANCHES } from "../price-rab/price-rab.constants";
 import { priceRabService, type PriceResult } from "../price-rab/price-rab.service";
 import { projekPlanningRepository } from "../project-planning/project-planning.repository";
@@ -2036,9 +2037,7 @@ export const rabService = {
             throw new AppError("PDF hasil generate tidak bisa diambil dari Drive", 502);
         }
 
-        const filename = links.has_materai_pdf
-            ? `RAB_GABUNGAN_MATERAI_${data.toko.nomor_ulok}_${data.rab.id}.pdf`
-            : `RAB_GABUNGAN_${data.toko.nomor_ulok}_${data.rab.id}.pdf`;
+        const filename = generateStandardFilename("RAB", data.toko.nomor_ulok, data.toko.nama_toko, data.toko.lingkup_pekerjaan, ".pdf");
 
         return {
             filename,
@@ -2240,7 +2239,7 @@ export const rabService = {
             throw new AppError("Link PDF gabungan belum tersedia", 404);
         }
 
-        const filename = `RAB_GABUNGAN_${data.toko.nomor_ulok}_${data.rab.id}.pdf`;
+        const filename = generateStandardFilename("RAB", data.toko.nomor_ulok, data.toko.nama_toko, data.toko.lingkup_pekerjaan, ".pdf");
 
         const fileId = extractDriveFileId(rawLink);
         const gp = GoogleProvider.instance;
@@ -2706,7 +2705,7 @@ export const rabService = {
         };
     },
 
-    async exportRabExcel(id: string): Promise<Buffer> {
+    async exportRabExcel(id: string): Promise<{ filename: string; excelBuffer: Buffer }> {
         const rabData = await rabRepository.findById(id);
         if (!rabData) throw new AppError("RAB tidak ditemukan", 404);
 
@@ -2746,6 +2745,10 @@ export const rabService = {
 
         XLSX.utils.book_append_sheet(workbook, worksheet, "RAB Items");
         
-        return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
+        const excelBuffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+
+        const filename = generateStandardFilename("RAB", rabData.toko.nomor_ulok, rabData.toko.nama_toko, rabData.toko.lingkup_pekerjaan, ".xlsx");
+
+        return { filename, excelBuffer };
     }
 };

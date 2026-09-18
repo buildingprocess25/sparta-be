@@ -19,6 +19,7 @@ import type {
     UpdatePertambahanSpkInput,
     PertambahanSpkInterventionInput
 } from "./pertambahan-spk.schema";
+import { generateStandardFilename } from "../../common/filename-helper";
 
 const PERTAMBAHAN_SPK_STATUS = {
     WAITING_FOR_BM_APPROVAL: "Menunggu Persetujuan",
@@ -544,8 +545,14 @@ export const pertambahanSpkService = {
             : "LAMPIRAN_PENDUKUNG_PERTAMBAHAN_SPK";
         const defaultContentType = field === "link_pdf" ? "application/pdf" : "application/octet-stream";
         const defaultExt = field === "link_pdf" ? ".pdf" : inferFileExtension(contentType);
-        const safeNomorSpk = sanitizeFilenamePart(data.nomor_spk ?? data.spk?.nomor_spk ?? "SPK", "SPK");
-        const resolvedFilename = filename || `${defaultPrefix}_${safeNomorSpk}_${data.id}${defaultExt}`;
+        
+        let resolvedFilename: string;
+        if (field === "link_pdf" && data.toko) {
+            resolvedFilename = generateStandardFilename("TAMBAH SPK", data.toko.nomor_ulok, data.toko.nama_toko, data.toko.lingkup_pekerjaan, ".pdf");
+        } else {
+            const safeNomorSpk = sanitizeFilenamePart(data.nomor_spk ?? data.spk?.nomor_spk ?? "SPK", "SPK");
+            resolvedFilename = filename || `${defaultPrefix}_${safeNomorSpk}_${data.id}${defaultExt}`;
+        }
 
         return {
             filename: resolvedFilename,

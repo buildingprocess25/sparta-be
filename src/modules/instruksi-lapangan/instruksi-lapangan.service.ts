@@ -14,6 +14,7 @@ import {
     mergePdfBuffers
 } from "./instruksi-lapangan.pdf";
 import { opnameRepository } from "../opname/opname.repository";
+import { generateStandardFilename } from "../../common/filename-helper";
 
 const MailComposer = require("nodemailer/lib/mail-composer");
 
@@ -360,7 +361,7 @@ export const instruksiLapanganService = {
         const mergedBuffer = await mergePdfBuffers(buffersToMerge);
 
         return {
-            filename: `Instruksi_Lapangan_${data.toko.nomor_ulok}.pdf`,
+            filename: generateStandardFilename("IL", data.toko.nomor_ulok, data.toko.nama_toko, data.toko.lingkup_pekerjaan, ".pdf"),
             pdfBuffer: mergedBuffer
         };
     },
