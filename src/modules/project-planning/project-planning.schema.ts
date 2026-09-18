@@ -139,10 +139,13 @@ export type SubmitProjekPlanningInput = z.infer<typeof submitProjekPlanningSchem
 // ============================================================
 
 export const resubmitProjekPlanningSchema = z.object({
+    id_toko: z.coerce.number().int().min(0).optional().default(0),
+    nomor_ulok: z.string().optional(),
     cabang: optionalText,
     nama_toko: optionalText,
     kode_toko: optionalText,
     alamat_toko: optionalText,
+    proyek: optionalText,
     link_google_maps: optionalText,
     akhir_masa_sewa: optionalDate,
     spd: z.coerce.number().nonnegative().optional().nullable(),
@@ -317,6 +320,14 @@ export type Upload3dInput = z.infer<typeof upload3dSchema>;
 
 export const uploadRabSchema = z.object({
     uploader_email: z.string().email(),
+    id_toko: z.coerce.number().int().min(0).optional().default(0),
+    nomor_ulok: z.string().optional(),
+    cabang: optionalText,
+    nama_toko: optionalText,
+    kode_toko: optionalText,
+    alamat_toko: optionalText,
+    proyek: optionalText,
+    jenis_proyek: optionalText,
     link_rab_sipil: z.string().optional(),
     link_rab_me: z.string().optional(),
     id_rab_sipil: z.coerce.number().int().positive({ message: "RAB Sipil wajib dipilih" }),

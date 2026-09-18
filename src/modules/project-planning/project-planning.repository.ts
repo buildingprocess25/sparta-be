@@ -662,6 +662,8 @@ export const projekPlanningRepository = {
     // ----------------------------------------------------------
 
     async resubmitDraft(id: number, payload: ResubmitProjekPlanningInput & {
+        id_toko: number;
+        nomor_ulok: string | null;
         nama_toko: string | null;
         kode_toko: string | null;
         cabang: string | null;
@@ -672,6 +674,8 @@ export const projekPlanningRepository = {
         return withTransaction(async (client) => {
             // Build update fields as paired array to avoid manual placeholder numbering errors
             const updateFields: Array<[string, unknown]> = [
+                ["id_toko",                  payload.id_toko],
+                ["nomor_ulok",               payload.nomor_ulok],
                 ["email_pembuat",            payload.email_pembuat],
                 ["lingkup_pekerjaan",        payload.lingkup_pekerjaan],
                 ["jenis_proyek",             payload.jenis_proyek],
@@ -1017,6 +1021,14 @@ export const projekPlanningRepository = {
         id: number,
         newStatus: PpStatus,
         payload: {
+            id_toko?: number;
+            nomor_ulok?: string | null;
+            nama_toko?: string | null;
+            kode_toko?: string | null;
+            cabang?: string | null;
+            alamat_toko?: string | null;
+            proyek?: string | null;
+            jenis_proyek?: string | null;
             link_rab_sipil?: string;
             link_rab_me?: string;
             id_rab_sipil?: number;
@@ -1044,6 +1056,14 @@ export const projekPlanningRepository = {
                  id_rab_me = COALESCE($5, id_rab_me),
                  link_gambar_kerja_final_sipil = COALESCE($6, link_gambar_kerja_final_sipil),
                  link_gambar_kerja_final_me = COALESCE($7, link_gambar_kerja_final_me),
+                 nomor_ulok = COALESCE($11, nomor_ulok),
+                 nama_toko = COALESCE($12, nama_toko),
+                 kode_toko = COALESCE($13, kode_toko),
+                 cabang = COALESCE($14, cabang),
+                 alamat_toko = COALESCE($15, alamat_toko),
+                 id_toko = COALESCE($16, id_toko),
+                 proyek = COALESCE($17, proyek),
+                 jenis_proyek = COALESCE($18, jenis_proyek),
                  bm2_approver_email = NULL,
                  bm2_waktu_persetujuan = NULL,
                  bm2_alasan_penolakan = NULL,
@@ -1078,6 +1098,14 @@ export const projekPlanningRepository = {
                 id,
                 payload.rab_changed ?? false,
                 payload.gambar_changed ?? false,
+                payload.nomor_ulok ?? null,
+                payload.nama_toko ?? null,
+                payload.kode_toko ?? null,
+                payload.cabang ?? null,
+                payload.alamat_toko ?? null,
+                payload.id_toko ?? null,
+                payload.proyek ?? null,
+                payload.jenis_proyek ?? null,
             ]
         );
 

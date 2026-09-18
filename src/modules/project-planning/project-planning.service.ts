@@ -505,7 +505,7 @@ export const projekPlanningService = {
             link_ba_tidak_sesuai_standar: baTidakSesuaiStandarLink ?? projek.link_ba_tidak_sesuai_standar ?? null,
         });
 
-        const normalizedProject = normalizeProjectByUlok(projek.nomor_ulok, payload.jenis_proyek || projek.proyek);
+        const normalizedProject = normalizeProjectByUlok(payload.nomor_ulok || projek.nomor_ulok, payload.jenis_proyek || projek.proyek);
 
         const updated = await projekPlanningRepository.resubmitDraft(id, {
             ...payload,
@@ -513,6 +513,8 @@ export const projekPlanningService = {
             jarak_head_to_head: darkStoreDesign ? null : payload.jarak_head_to_head,
             is_seating_area: darkStoreDesign ? false : payload.is_seating_area,
             is_dark_store: darkStoreDesign ? false : payload.is_dark_store,
+            id_toko: payload.id_toko ?? projek.id_toko ?? 0,
+            nomor_ulok: payload.nomor_ulok || projek.nomor_ulok || null,
             nama_toko: payload.nama_toko || payload.nama_lokasi || projek.nama_toko || null,
             kode_toko: payload.kode_toko || projek.kode_toko || null,
             cabang: payload.cabang || projek.cabang || null,
@@ -1014,6 +1016,7 @@ export const projekPlanningService = {
             normalizeLink(linkGambarMe) !== normalizeLink(projek.link_gambar_kerja_final_me);
 
         const newStatus = PP_STATUS.WAITING_BM_APPROVAL_2;
+        const normalizedProject = normalizeProjectByUlok(payload.nomor_ulok || projek.nomor_ulok, payload.jenis_proyek || projek.proyek);
 
         const { projek: updated } = await projekPlanningRepository.updateStatusWithLog(
             id,
@@ -1027,6 +1030,14 @@ export const projekPlanningService = {
             },
             (client) => projekPlanningRepository.updateRabUpload(id, newStatus, {
                 ...payload,
+                nomor_ulok: payload.nomor_ulok || projek.nomor_ulok || null,
+                nama_toko: payload.nama_toko || projek.nama_toko || null,
+                kode_toko: payload.kode_toko || projek.kode_toko || null,
+                cabang: payload.cabang || projek.cabang || null,
+                alamat_toko: payload.alamat_toko || projek.alamat_toko || null,
+                id_toko: payload.id_toko ?? projek.id_toko ?? 0,
+                proyek: normalizedProject,
+                jenis_proyek: normalizedProject,
                 link_rab_sipil: linkRabSipil,
                 link_rab_me: linkRabMe,
                 id_rab_sipil: selectedRabSipil?.id,
