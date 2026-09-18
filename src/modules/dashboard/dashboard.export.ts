@@ -711,7 +711,6 @@ const projectPlanningExportColumns: DashboardExportColumn[] = [
     { key: "lingkup_pekerjaan", label: "Lingkup Pekerjaan" },
     { key: "nama_pengaju", label: "Nama Pengaju" },
     { key: "nama_lokasi", label: "Nama Lokasi" },
-    { key: "jenis_proyek", label: "Jenis Proyek" },
     { key: "jenis_pengajuan", label: "Jenis Pengajuan Desain" },
     { key: "estimasi_biaya", label: "Estimasi Biaya" },
     { key: "luas_bangunan", label: "Luas Bangunan" },
@@ -999,7 +998,6 @@ const buildProjectPlanningRows = (projects: DashboardData[]): Array<Record<strin
                 lingkup_pekerjaan: normalize(pp.lingkup_pekerjaan),
                 nama_pengaju: normalize(pp.nama_pengaju),
                 nama_lokasi: normalize(pp.nama_lokasi),
-                jenis_proyek: normalize(pp.jenis_proyek),
                 jenis_pengajuan: normalize(pp.jenis_pengajuan),
                 estimasi_biaya: normalize(pp.estimasi_biaya),
                 luas_bangunan: normalize(pp.luas_bangunan),
@@ -1204,6 +1202,11 @@ export const filterDashboardExportAccess = (projects: DashboardData[], query: Da
         // Jika FE mengirim cabangs, filter lebih ketat per cabang spesifik
         if (strictCabangs !== null && !strictCabangs.has(projectCabang)) return false;
         if (selectedJobTypes.size > 0 && ![...selectedJobTypes].some((item) => projectWorkItems.has(item))) return false;
+        if (query.beanspot === "yes" || query.beanspot === "no") {
+            const hasBeanspotJob = [...projectWorkItems].some((item) => item.includes("BEANSPOT"));
+            if (query.beanspot === "yes" && !hasBeanspotJob) return false;
+            if (query.beanspot === "no" && hasBeanspotJob) return false;
+        }
         if (selectedTokoIds.size > 0 && !selectedTokoIds.has(Number(project.toko.id))) return false;
         if (query.spk_status === "with_spk" && !hasSpk(project)) return false;
         if (query.spk_status === "without_spk" && hasSpk(project)) return false;
