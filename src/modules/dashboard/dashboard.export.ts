@@ -414,23 +414,23 @@ const findTanggalGo = (
 
 const parseSelectedTokoIds = (value?: string): Set<number> => {
     const ids = String(value ?? "")
-        .split(",")
+        .split("|")
         .map((item) => Number(item.trim()))
         .filter((id) => Number.isInteger(id) && id > 0);
     return new Set(ids);
 };
 const parseCsvSet = (value?: string): Set<string> => new Set(
     String(value ?? "")
-        .split(",")
+        .split("|")
         .map((item) => normalizeUpper(item))
         .filter(Boolean)
 );
 
 const parseMonthSet = (value?: string): Set<number> => new Set(
     String(value ?? "")
-        .split(",")
+        .split("|")
         .map((item) => Number(item.trim()))
-        .filter((month) => Number.isInteger(month) && month >= 1 && month <= 12)
+        .filter((id) => Number.isInteger(id) && id > 0 && id <= 12)
 );
 
 const getProjectDates = (project: DashboardData): Date[] => [

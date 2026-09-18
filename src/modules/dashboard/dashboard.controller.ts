@@ -33,7 +33,7 @@ export const getDashboardAll = asyncHandler(async (req: Request, res: Response) 
 export const exportDashboard = asyncHandler(async (req: Request, res: Response) => {
     let query = dashboardExportQuerySchema.parse(req.query);
     query = await injectDashboardBranchFilter(req.user!, query);
-    const result = await dashboardService.exportDashboard(query);
+    console.log("EXPORT QUERY:", query); const result = await dashboardService.exportDashboard(query);
 
     res.setHeader("Content-Type", result.contentType);
     res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);
