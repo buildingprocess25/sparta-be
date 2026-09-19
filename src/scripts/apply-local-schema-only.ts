@@ -7,12 +7,8 @@ config();
 
 const SQL_DIR = join(__dirname, "..", "..", "sql");
 const PRIMARY_SCHEMA_FILE = "sparta-schema.sql";
-const ALWAYS_INCLUDE = new Set([
-    "2026-06-27-create-auth-session.sql"
-]);
-const SKIP_FILES = new Set([
-    "RUN-THIS-MIGRATION.sql"
-]);
+const ALWAYS_INCLUDE = new Set<string>();
+const SKIP_FILES = new Set<string>();
 
 function requiredEnv(name: string): string {
     const value = process.env[name]?.trim();
@@ -123,17 +119,32 @@ function shouldExecuteStatement(statement: string): boolean {
 }
 
 function getSqlFiles(): string[] {
-    const files = readdirSync(SQL_DIR)
-        .filter((file) => file.endsWith(".sql"))
-        .filter((file) => file !== PRIMARY_SCHEMA_FILE)
-        .filter((file) => !SKIP_FILES.has(file))
-        .sort();
+    const files: string[] = [];
+    const schemaDir = join(SQL_DIR, "schema");
+    const fs = require("fs");
+    
+    if (!fs.existsSync(schemaDir)) {
+        if (fs.existsSync(join(SQL_DIR, "sparta-schema.sql"))) {
+            return ["sparta-schema.sql"];
+        }
+        return [];
+    }
 
-    return [
-        PRIMARY_SCHEMA_FILE,
-        ...files.filter((file) => ALWAYS_INCLUDE.has(file)),
-        ...files.filter((file) => !ALWAYS_INCLUDE.has(file))
-    ];
+    const stages = readdirSync(schemaDir)
+        .filter((d) => fs.statSync(join(schemaDir, d)).isDirectory())
+        .sort();
+    
+    for (const stage of stages) {
+        const stagePath = join(schemaDir, stage);
+        const stageFiles = readdirSync(stagePath)
+            .filter((f) => f.endsWith(".sql"))
+            .sort()
+            .map((f) => join("schema", stage, f));
+            
+        files.push(...stageFiles);
+    }
+    
+    return files;
 }
 
 async function main() {
