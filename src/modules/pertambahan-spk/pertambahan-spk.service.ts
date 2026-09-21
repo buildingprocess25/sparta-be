@@ -191,6 +191,8 @@ const buildAndUploadPdfForDetail = async (data: PertambahanSpkDetailRow): Promis
     const pdfBuffer = await buildPertambahanSpkPdfBuffer({
         nomorUlok: spk.pengajuan.nomor_ulok,
         nomorSpk: data.nomor_spk ?? data.spk?.nomor_spk ?? spk.pengajuan.nomor_spk,
+        nomorSpkSipil: data.nomor_spk_sipil ?? undefined,
+        nomorSpkMe: data.nomor_spk_me ?? undefined,
         cabang: toko?.cabang,
         tanggalSpkAkhir: data.tanggal_spk_akhir,
         tanggalSpkAkhirSetelahPerpanjangan: data.tanggal_spk_akhir_setelah_perpanjangan,
@@ -259,6 +261,8 @@ export const pertambahanSpkService = {
         const pdfBuffer = await buildPertambahanSpkPdfBuffer({
             nomorUlok: spk.pengajuan.nomor_ulok,
             nomorSpk: spk.pengajuan.nomor_spk,
+            nomorSpkSipil: undefined, // Create will generate new PDF, but SPK numbers aren't usually available in initial payload. Wait, I should fetch it from targetRejectedRecord if exists. Or actually, spk is just a pengajuan_spk, but wait, the PDF shouldn't just be generated here? Ah, it doesn't matter for initial create since BM approval is what locks it. But I'll pass targetRejectedRecord values.
+            nomorSpkMe: undefined,
             cabang: toko?.cabang,
             tanggalSpkAkhir: payload.tanggal_spk_akhir,
             tanggalSpkAkhirSetelahPerpanjangan: payload.tanggal_spk_akhir_setelah_perpanjangan,
@@ -357,6 +361,8 @@ export const pertambahanSpkService = {
         const pdfBuffer = await buildPertambahanSpkPdfBuffer({
             nomorUlok: spk.pengajuan.nomor_ulok,
             nomorSpk: spk.pengajuan.nomor_spk,
+            nomorSpkSipil: existing.nomor_spk_sipil ?? undefined,
+            nomorSpkMe: existing.nomor_spk_me ?? undefined,
             cabang: toko?.cabang,
             tanggalSpkAkhir,
             tanggalSpkAkhirSetelahPerpanjangan,

@@ -5,6 +5,8 @@ import { renderHtmlTemplate, renderPdfFromHtml, resolveTemplatePath } from "../.
 type BuildPertambahanSpkPdfInput = {
     nomorUlok: string;
     nomorSpk: string;
+    nomorSpkSipil?: string;
+    nomorSpkMe?: string;
     cabang?: string | null;
     tanggalSpkAkhir: string;
     tanggalSpkAkhirSetelahPerpanjangan: string;
@@ -106,6 +108,8 @@ export const buildPertambahanSpkPdfBuffer = async (
         tanggal_surat: formatDateIndonesia(new Date().toISOString()),
         nomor_ulok: input.nomorUlok,
         nomor_spk: input.nomorSpk,
+        nomor_spk_sipil: input.nomorSpkSipil,
+        nomor_spk_me: input.nomorSpkMe,
         tanggal_spk_akhir: formatDateIndonesia(input.tanggalSpkAkhir),
         pertambahan_hari: `${input.pertambahanHari} hari`,
         tanggal_spk_akhir_setelah_perpanjangan: formatDateIndonesia(input.tanggalSpkAkhirSetelahPerpanjangan),

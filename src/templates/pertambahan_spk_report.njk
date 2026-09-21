@@ -147,6 +147,18 @@
       <td class="label">Nomor SPK</td>
       <td>: {{ nomor_spk }}</td>
     </tr>
+    {% if nomor_spk_sipil %}
+    <tr>
+      <td class="label">Nomor SPK (Sipil)</td>
+      <td>: {{ nomor_spk_sipil }}</td>
+    </tr>
+    {% endif %}
+    {% if nomor_spk_me %}
+    <tr>
+      <td class="label">Nomor SPK (ME)</td>
+      <td>: {{ nomor_spk_me }}</td>
+    </tr>
+    {% endif %}
     <tr>
       <td class="label">Tanggal SPK Akhir</td>
       <td>: {{ tanggal_spk_akhir }}</td>
