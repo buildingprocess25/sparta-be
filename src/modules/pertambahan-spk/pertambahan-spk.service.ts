@@ -184,7 +184,7 @@ async function ensureSpkExists(idSpk: number) {
     return spk;
 }
 
-const buildAndUploadPdfForDetail = async (data: PertambahanSpkDetailRow): Promise<string> => {
+export const buildAndUploadPdfForDetail = async (data: PertambahanSpkDetailRow): Promise<string> => {
     const spk = await ensureSpkExists(Number(data.id_spk));
     const toko = data.toko ?? await tokoRepository.findByNomorUlok(spk.pengajuan.nomor_ulok);
 
