@@ -448,7 +448,7 @@ export const generateSphPdf = async (
         no_polis: input.rab.no_polis ?? "",
         berlaku_polis: input.rab.berlaku_polis ?? "",
         coordinator_info: coordinatorInfo,
-        fallback_logo: input.logoOverride || input.rab.logo || staticAssetPath("Building-Logo.png"),
+        fallback_logo: input.logoOverride || input.rab.logo || "",
         watermark_logo_path: staticAssetPath("Building-Logo.png")
     });
 
