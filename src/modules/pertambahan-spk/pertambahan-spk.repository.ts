@@ -93,8 +93,8 @@ const PERTAMBAHAN_SPK_DETAIL_COLUMNS = `
     p.link_lampiran_pendukung,
     p.created_at,
     s.nomor_spk,
-    (SELECT spk_sipil.nomor_spk FROM pengajuan_spk spk_sipil WHERE spk_sipil.nomor_ulok = s.nomor_ulok AND spk_sipil.lingkup_pekerjaan = 'Sipil' ORDER BY spk_sipil.created_at DESC LIMIT 1) AS nomor_spk_sipil,
-    (SELECT spk_me.nomor_spk FROM pengajuan_spk spk_me WHERE spk_me.nomor_ulok = s.nomor_ulok AND spk_me.lingkup_pekerjaan = 'ME' ORDER BY spk_me.created_at DESC LIMIT 1) AS nomor_spk_me,
+    (SELECT spk_sipil.nomor_spk FROM pengajuan_spk spk_sipil WHERE spk_sipil.nomor_ulok = s.nomor_ulok AND UPPER(spk_sipil.lingkup_pekerjaan) = 'SIPIL' ORDER BY spk_sipil.created_at DESC LIMIT 1) AS nomor_spk_sipil,
+    (SELECT spk_me.nomor_spk FROM pengajuan_spk spk_me WHERE spk_me.nomor_ulok = s.nomor_ulok AND UPPER(spk_me.lingkup_pekerjaan) = 'ME' ORDER BY spk_me.created_at DESC LIMIT 1) AS nomor_spk_me,
     CASE
         WHEN s.id IS NULL THEN NULL
         ELSE jsonb_build_object(

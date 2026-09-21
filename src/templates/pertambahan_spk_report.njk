@@ -143,10 +143,12 @@
       <td class="label">Nomor ULOK</td>
       <td>: {{ nomor_ulok }}</td>
     </tr>
+    {% if not nomor_spk_sipil and not nomor_spk_me %}
     <tr>
       <td class="label">Nomor SPK</td>
       <td>: {{ nomor_spk }}</td>
     </tr>
+    {% endif %}
     {% if nomor_spk_sipil %}
     <tr>
       <td class="label">Nomor SPK (Sipil)</td>
