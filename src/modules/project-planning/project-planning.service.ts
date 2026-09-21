@@ -955,7 +955,10 @@ export const projekPlanningService = {
         let linkRabMe = payload.link_rab_me;
         let linkGambarSipil = payload.link_gambar_kerja_final_sipil;
         let linkGambarMe = payload.link_gambar_kerja_final_me;
-        const approvedRabs = await projekPlanningRepository.findApprovedRabsByNomorUlok(projek.nomor_ulok);
+        
+        const ulokToUse = payload.nomor_ulok || projek.nomor_ulok;
+        const approvedRabs = await projekPlanningRepository.findApprovedRabsByNomorUlok(ulokToUse);
+        
         if (approvedRabs.length === 0) {
             throw new AppError(
                 "RAB untuk ULOK ini belum diinput kontraktor atau belum selesai approval. Input dan approve RAB terlebih dahulu sebelum melanjutkan FPD.",
