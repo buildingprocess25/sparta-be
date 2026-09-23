@@ -389,7 +389,9 @@ export const handleUploadRab = asyncHandler(async (req: Request, res: Response) 
 
     res.json({
         status: "success",
-        message: "Data tahap kedua berhasil dikirim, menunggu approval B&M Manager tahap 2",
+        message: result.new_status === "WAITING_BM_REGIONAL_APPROVAL"
+            ? "Data tahap kedua berhasil dikirim, bypass approval B&M Manager, menunggu approval B&M Regional Manager"
+            : "Data tahap kedua berhasil dikirim, menunggu approval B&M Manager tahap 2",
         data: result,
     });
 });

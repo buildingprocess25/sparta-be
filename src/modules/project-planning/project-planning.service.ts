@@ -1018,7 +1018,8 @@ export const projekPlanningService = {
             normalizeLink(linkGambarSipil) !== normalizeLink(projek.link_gambar_kerja_final_sipil) ||
             normalizeLink(linkGambarMe) !== normalizeLink(projek.link_gambar_kerja_final_me);
 
-        const newStatus = PP_STATUS.WAITING_BM_APPROVAL_2;
+        const isSkipBm = shouldSkipBmApproval(payload.cabang || projek.cabang);
+        const newStatus = isSkipBm ? PP_STATUS.WAITING_BM_REGIONAL_APPROVAL : PP_STATUS.WAITING_BM_APPROVAL_2;
         const normalizedProject = normalizeProjectByUlok(payload.nomor_ulok || projek.nomor_ulok, payload.jenis_proyek || projek.proyek);
 
         const { projek: updated } = await projekPlanningRepository.updateStatusWithLog(
@@ -1029,7 +1030,9 @@ export const projekPlanningService = {
                 aksi: PP_AKSI.UPLOAD_RAB,
                 status_sebelum: projek.status,
                 status_sesudah: newStatus,
-                keterangan: payload.keterangan ?? "Input tahap kedua berhasil dikirim, menunggu approval B&M Manager tahap 2",
+                keterangan: payload.keterangan ?? (isSkipBm 
+                    ? "Input tahap kedua berhasil dikirim, bypass approval B&M Manager tahap 2, menunggu approval B&M Regional Manager"
+                    : "Input tahap kedua berhasil dikirim, menunggu approval B&M Manager tahap 2"),
             },
             (client) => projekPlanningRepository.updateRabUpload(id, newStatus, {
                 ...payload,
@@ -1052,9 +1055,11 @@ export const projekPlanningService = {
             }, client)
         );
 
+        const pInfo = { id, cabang: projek.cabang, nomor_ulok: projek.nomor_ulok, nama_toko: projek.nama_toko || projek.nama_lokasi || "", email_pembuat: projek.email_pembuat };
         if (newStatus === PP_STATUS.WAITING_BM_APPROVAL_2) {
-            const pInfo = { id, cabang: projek.cabang, nomor_ulok: projek.nomor_ulok, nama_toko: projek.nama_toko || projek.nama_lokasi || "", email_pembuat: projek.email_pembuat };
             sendPpNotificationEmail("ACTION_REQUIRED", pInfo, "BRANCH BUILDING & MAINTENANCE MANAGER", "RAB dan Gambar Kerja Final telah diupload, menunggu persetujuan B&M Manager Tahap 2.");
+        } else if (newStatus === PP_STATUS.WAITING_BM_REGIONAL_APPROVAL) {
+            sendPpNotificationEmail("ACTION_REQUIRED", pInfo, "BUILDING & MAINTENANCE REGIONAL MANAGER", "RAB dan Gambar Kerja Final telah diupload (Bypass B&M Manager), menunggu persetujuan B&M Regional Manager.");
         }
 
         return {
