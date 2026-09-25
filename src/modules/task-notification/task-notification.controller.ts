@@ -59,13 +59,3 @@ export const subscribeToWebPush = asyncHandler(async (req: Request, res: Respons
         message: "Berhasil berlangganan notifikasi web push."
     });
 });
-
-import { sendDailyWebPush } from "./web-push.service";
-export const testWebPush = asyncHandler(async (req: Request, res: Response) => {
-    // Memanggil service push notification secara manual untuk testing
-    sendDailyWebPush().catch(console.error);
-    res.json({
-        status: "success",
-        message: "Proses pengiriman notifikasi sedang berjalan di background."
-    });
-});

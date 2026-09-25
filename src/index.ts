@@ -114,11 +114,14 @@ const bootstrap = async () => {
         await spCronService.generateWeeklySummary();
     }, "SP weeklySummary");
 
-    // ── Web Push: pengingat tugas harian — setiap hari jam 08:00 WIB ──
-    scheduleDailyWib(8, 0, async () => {
-        console.log("[Web Push Cron] Auto: sendDailyWebPush");
-        await sendDailyWebPush();
-    }, "WebPush dailyReminder");
+    // ── Web Push: pengingat tugas — 08:00, 10:00, 13:00, 16:00 WIB ──
+    const pushHours = [8, 10, 13, 16];
+    for (const h of pushHours) {
+        scheduleDailyWib(h, 0, async () => {
+            console.log(`[Web Push Cron] Auto: sendDailyWebPush (Jam ${h}:00)`);
+            await sendDailyWebPush();
+        }, `WebPush dailyReminder ${h}:00`);
+    }
 };
 
 app.listen(env.PORT, () => {
