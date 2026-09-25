@@ -11,7 +11,7 @@ import { pool } from "../../db/pool";
 import jwt from "jsonwebtoken";
 
 const SSO_EXCHANGE_URL = process.env.SSO_EXCHANGE_URL || "http://localhost:10000/v1/sso/exchange";
-const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3002";
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3001";
 const SSO_JWT_SECRET = process.env.SSO_JWT_SECRET || "building_sso_secret_key_12345";
 
 export const ssoCallback = asyncHandler(async (req: Request, res: Response) => {

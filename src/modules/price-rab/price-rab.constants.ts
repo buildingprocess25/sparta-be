@@ -44,7 +44,8 @@ export const SPREADSHEET_IDS: Record<string, Record<"ME" | "SIPIL", string>> = {
     "SORONG": { "ME": "1BfAWqaN-7fk5kZMWhK0SOKousSYM6pis6jVEplQLnYs", "SIPIL": "1NbG4HOt_Zl1auzR_kw-e8mG0ajrP9P-FFLfjNCD6Oyg" },
     "SUMBAWA": { "ME": "1WB6KA2sFD11Ol81IYbM3ugH34Sg1JU1Aw6Ny8zUgCpg", "SIPIL": "1Y3AqDtyXUyJhyrvT0slbQRlW14VUd9zA8P_1vPqqI8A" },
     "TEGAL": { "ME": "13qXfMnPrOYB-fJEf_7FGgL-UENA3KWBj5uTiY4PLoAQ", "SIPIL": "1i_2TLKswkCUoNm1Z6hDmc3j9k0qNcF38MZoC-z2-PNM" },
-    "HEAD OFFICE": { "ME": "1oQfZkWSP-TWQmQMY-gM1qVcLP_i47REBmJj1IfDNzkg", "SIPIL": "1Jf_qTHOMpmyLWp9zR_5CiwjyzWWtD8cH99qt4kJvLOw" }
+    "HEAD OFFICE": { "ME": "1oQfZkWSP-TWQmQMY-gM1qVcLP_i47REBmJj1IfDNzkg", "SIPIL": "1Jf_qTHOMpmyLWp9zR_5CiwjyzWWtD8cH99qt4kJvLOw" },
+    "PALANGKARAYA": { "ME": "1_1alrg4qaA2HeI_FpKqCczP-S8iasQ6P93jUDUISfgw", "SIPIL": "1uZ7Coh2zqkrU8ZCEgBYyi-qWp5b8cillMs_Gn4-GycY" }
 };
 
 export const SUPPORTED_PRICE_BRANCHES: string[] = Object.keys(SPREADSHEET_IDS);
@@ -63,7 +64,7 @@ export const BRANCH_TO_ULOK_MAP: Record<string, string> = {
     "JAMBI": "1DZ1", "HEAD OFFICE": "Z001", "BANDUNG 1": "BZ01", "BANDUNG 2": "NZ01",
     "BEKASI": "CZ01", "CILACAP": "IZ01", "CILEUNGSI": "JZ01", "SEMARANG": "HZ01",
     "CIKOKOL": "KZ01", "BINTAN": "KZ01", "LAMPUNG": "LZ01", "MALANG": "MZ01", "MANADO": "1YZ1",
-    "BATAM": "2DZ1", "MADIUN": "2MZ1"
+    "BATAM": "2DZ1", "MADIUN": "2MZ1", "PALANGKARAYA": "1GZ1"
 };
 
 export const ULOK_TO_BRANCH_MAP: Record<string, string> = Object.fromEntries(

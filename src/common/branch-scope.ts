@@ -9,6 +9,7 @@ export const BRANCH_GROUPS: Record<string, string[]> = {
     LAMPUNG: ["LAMPUNG", "KOTABUMI"],
     PALEMBANG: ["PALEMBANG", "BENGKULU", "BANGKA", "BELITUNG"],
     SIDOARJO: ["SIDOARJO", "SIDOARJO BPN SMD", "MANOKWARI", "NTT", "SORONG"], // FIX: Use space not underscore
+    BANJARMASIN: ["BANJARMASIN", "PALANGKARAYA"],
 };
 
 export const GLOBAL_ACCESS_ROLES = [
@@ -30,13 +31,13 @@ export const normalizeBranchScopeName = (value?: string | null): string =>
 const ALL_BRANCHES = Array.from(
     new Set([
         ...Object.values(BRANCH_GROUPS).flat(),
-        "LUWU", "REMBANG", "BANJARMASIN", "TEGAL", "GORONTALO", "PONTIANAK",
+        "LUWU", "REMBANG", "TEGAL", "GORONTALO", "PONTIANAK",
         "CIANJUR", "JEMBER", "BALI", "KLATEN", "MAKASSAR", "PLUMBON",
         "PEKANBARU", "JAMBI", "HEAD OFFICE", "BANDUNG RAYA", "CILACAP",
         "SEMARANG", "MALANG", "MANADO", "BATAM", "MADIUN", "PALEMBANG",
         "BENGKULU", "BANGKA", "BELITUNG", "KOTABUMI", "ACEH", "SUMBAWA",
         "BOGOR", "BEKASI", "KARAWANG", "PARUNG", "BALARAJA", "SERANG", "BINTAN",
-        "SIDOARJO BPN SMD", "MANOKWARI", "NTT", "SORONG"
+        "SIDOARJO BPN SMD", "MANOKWARI", "NTT", "SORONG", "PALANGKARAYA"
     ])
 ).map(normalizeBranchScopeName).filter(Boolean).sort();
 
