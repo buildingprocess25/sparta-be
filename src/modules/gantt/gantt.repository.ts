@@ -1223,7 +1223,7 @@ export const ganttRepository = {
              WHERE d.id_kategori_pekerjaan_gantt = k.id
                AND d.id_gantt = $2
                AND k.id_gantt = $2
-               AND k.kategori_pekerjaan = $3
+               AND k.kategori_pekerjaan ILIKE $3
              RETURNING d.id`,
             [keterlambatan, ganttId, kategoriPekerjaan]
         );
@@ -1246,7 +1246,7 @@ export const ganttRepository = {
              FROM kategori_pekerjaan_gantt k
              WHERE d.id_kategori_pekerjaan_gantt = k.id
                AND d.id_gantt = $2
-               AND k.kategori_pekerjaan = $3
+               AND k.kategori_pekerjaan ILIKE $3
                AND d.h_awal = $4
                AND d.h_akhir = $5
              RETURNING d.id`,
