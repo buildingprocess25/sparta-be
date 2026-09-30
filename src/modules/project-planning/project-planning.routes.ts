@@ -37,6 +37,8 @@ projekPlanningRouter.post(
     fpdUpload.fields([
         { name: "file_gambar_kerja_final_sipil", maxCount: 2 },
         { name: "file_gambar_kerja_final_me", maxCount: 2 },
+        { name: "file_rab_sipil_final", maxCount: 2 },
+        { name: "file_rab_me_final", maxCount: 2 },
     ]),
     handleUploadRab
 );

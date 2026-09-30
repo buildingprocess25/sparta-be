@@ -959,9 +959,15 @@ export const projekPlanningService = {
         const ulokToUse = payload.nomor_ulok || projek.nomor_ulok;
         const approvedRabs = await projekPlanningRepository.findApprovedRabsByNomorUlok(ulokToUse);
         
-        if (approvedRabs.length === 0) {
+        const fRabSipil = files ? (files["file_rab_sipil_final"] ?? []) : [];
+        const fRabMe = files ? (files["file_rab_me_final"] ?? []) : [];
+        
+        const hasManualRabSipil = payload.link_rab_sipil || fRabSipil.length > 0;
+        const hasManualRabMe = payload.link_rab_me || fRabMe.length > 0;
+
+        if (approvedRabs.length === 0 && (!hasManualRabSipil || !hasManualRabMe)) {
             throw new AppError(
-                "RAB untuk ULOK ini belum diinput kontraktor atau belum selesai approval. Input dan approve RAB terlebih dahulu sebelum melanjutkan FPD.",
+                "RAB untuk ULOK ini belum diinput kontraktor atau belum selesai approval. Input dan approve RAB terlebih dahulu sebelum melanjutkan FPD, atau upload dokumen RAB manual.",
                 422
             );
         }
@@ -979,9 +985,9 @@ export const projekPlanningService = {
         if (payload.id_rab_me && !selectedRabMe) {
             throw new AppError("RAB ME yang dipilih tidak ditemukan atau belum approved untuk ULOK ini.", 422);
         }
-        if (!selectedRabSipil && !selectedRabMe) {
+        if (!selectedRabSipil && !selectedRabMe && (!hasManualRabSipil || !hasManualRabMe)) {
             throw new AppError(
-                "RAB approved tersedia, tetapi belum ada RAB dengan lingkup Sipil atau ME untuk ULOK ini.",
+                "RAB approved tersedia, tetapi belum ada RAB dengan lingkup Sipil atau ME untuk ULOK ini. Silakan upload secara manual jika diperlukan.",
                 422
             );
         }
@@ -1001,6 +1007,14 @@ export const projekPlanningService = {
                 if (fGambarMe.length > 0) {
                     const link = await uploadCompressedFiles(fGambarMe, folderId);
                     if (link) linkGambarMe = link;
+                }
+                if (fRabSipil.length > 0) {
+                    const link = await uploadCompressedFiles(fRabSipil, folderId);
+                    if (link) linkRabSipil = link;
+                }
+                if (fRabMe.length > 0) {
+                    const link = await uploadCompressedFiles(fRabMe, folderId);
+                    if (link) linkRabMe = link;
                 }
             } catch (e) {
                 console.error("Gagal upload RAB/Gambar ke Drive:", e);
