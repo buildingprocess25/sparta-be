@@ -721,7 +721,12 @@ const projectPlanningExportColumns: DashboardExportColumn[] = [
     { key: "luas_area_sales", label: "Luas Area Sales" },
     { key: "status", label: "Status" },
     { key: "tanggal_pengajuan", label: "Tanggal Pengajuan" },
-    { key: "tanggal_persetujuan_bm", label: "Tanggal Persetujuan BM" }
+    { key: "tanggal_persetujuan_bm", label: "Tanggal Persetujuan BM Manager 1" },
+    { key: "tanggal_persetujuan_pp1", label: "Tanggal Persetujuan PP Tahap 1" },
+    { key: "tanggal_persetujuan_bm2", label: "Tanggal Persetujuan B&M Tahap 2" },
+    { key: "tanggal_persetujuan_bm_regional", label: "Tanggal Persetujuan B&M Regional" },
+    { key: "tanggal_persetujuan_pp2", label: "Tanggal Persetujuan PP Tahap 2" },
+    { key: "tanggal_persetujuan_pp_manager", label: "Tanggal Persetujuan PP Manager" }
 ];
 
 const userExportColumns: DashboardExportColumn[] = [
@@ -1008,7 +1013,12 @@ const buildProjectPlanningRows = (projects: DashboardData[]): Array<Record<strin
                 luas_area_sales: normalize(pp.luas_area_sales),
                 status: humanizePpStatus(pp.status),
                 tanggal_pengajuan: toIsoDate(pp.created_at),
-                tanggal_persetujuan_bm: toIsoDate(pp.bm_waktu_persetujuan)
+                tanggal_persetujuan_bm: toIsoDate(pp.bm_waktu_persetujuan),
+                tanggal_persetujuan_pp1: toIsoDate(pp.pp1_waktu_persetujuan),
+                tanggal_persetujuan_bm2: toIsoDate(pp.bm2_waktu_persetujuan),
+                tanggal_persetujuan_bm_regional: toIsoDate(pp.bm_regional_waktu_persetujuan),
+                tanggal_persetujuan_pp2: toIsoDate(pp.pp2_waktu_persetujuan),
+                tanggal_persetujuan_pp_manager: toIsoDate(pp.pp_manager_waktu_persetujuan)
             });
         }
     }

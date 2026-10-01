@@ -340,6 +340,11 @@ export type DashboardProjectPlanningRow = {
     luas_gudang: string | null;
     luas_area_parkir: string | null;
     luas_area_sales: string | null;
+    pp1_waktu_persetujuan: string | null;
+    bm2_waktu_persetujuan: string | null;
+    bm_regional_waktu_persetujuan: string | null;
+    pp2_waktu_persetujuan: string | null;
+    pp_manager_waktu_persetujuan: string | null;
     bm_waktu_persetujuan: string | null;
     created_at: string | null;
 };
@@ -685,7 +690,9 @@ export const dashboardRepository = {
             SELECT id, id_toko, nomor_ulok, nama_toko, kode_toko, cabang, proyek, lingkup_pekerjaan,
                    jenis_proyek, estimasi_biaya, nama_pengaju, nama_lokasi, jenis_pengajuan,
                    status, luas_bangunan, luas_area_terbuka, luas_area_terbangun, luas_gudang,
-                   luas_area_parkir, luas_area_sales, bm_waktu_persetujuan, created_at
+                   luas_area_parkir, luas_area_sales, bm_waktu_persetujuan, 
+                   pp1_waktu_persetujuan, bm2_waktu_persetujuan, bm_regional_waktu_persetujuan, 
+                   pp2_waktu_persetujuan, pp_manager_waktu_persetujuan, created_at
             FROM projek_planning
             WHERE id_toko = $1
             ORDER BY created_at DESC, id DESC
