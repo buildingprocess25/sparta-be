@@ -192,9 +192,7 @@ export type DashboardUserExportRow = {
     email_user: string;
     role: string;
     cabang: string;
-    tanggal_login_terakhir: number | string;
-    bulan_login_terakhir: string;
-    tahun_login_terakhir: number | string;
+    tanggal_login_terakhir: string;
 };
 
 export const dashboardExportColumns: DashboardExportColumn[] = [
@@ -721,7 +719,12 @@ const projectPlanningExportColumns: DashboardExportColumn[] = [
     { key: "luas_area_sales", label: "Luas Area Sales" },
     { key: "status", label: "Status" },
     { key: "tanggal_pengajuan", label: "Tanggal Pengajuan" },
-    { key: "tanggal_persetujuan_bm", label: "Tanggal Persetujuan BM Manager 1" }
+    { key: "tanggal_persetujuan_bm", label: "Tanggal Persetujuan BM Manager 1" },
+    { key: "tanggal_persetujuan_pp1", label: "Tanggal Persetujuan PP Tahap 1" },
+    { key: "tanggal_persetujuan_bm2", label: "Tanggal Persetujuan B&M Tahap 2" },
+    { key: "tanggal_persetujuan_bm_regional", label: "Tanggal Persetujuan B&M Regional" },
+    { key: "tanggal_persetujuan_pp2", label: "Tanggal Persetujuan PP Tahap 2" },
+    { key: "tanggal_persetujuan_pp_manager", label: "Tanggal Persetujuan PP Manager" }
 ];
 
 const userExportColumns: DashboardExportColumn[] = [
@@ -729,9 +732,7 @@ const userExportColumns: DashboardExportColumn[] = [
     { key: "email_user", label: "Email User" },
     { key: "role", label: "Role" },
     { key: "cabang", label: "Cabang" },
-    { key: "tanggal_login_terakhir", label: "Tanggal Login Terakhir" },
-    { key: "bulan_login_terakhir", label: "Bulan Login Terakhir" },
-    { key: "tahun_login_terakhir", label: "Tahun Login Terakhir" }
+    { key: "tanggal_login_terakhir", label: "Tanggal Login Terakhir" }
 ];
 
 const dataTypeLabels: Record<string, string> = {
@@ -1007,8 +1008,13 @@ const buildProjectPlanningRows = (projects: DashboardData[]): Array<Record<strin
                 luas_area_parkir: normalize(pp.luas_area_parkir),
                 luas_area_sales: normalize(pp.luas_area_sales),
                 status: humanizePpStatus(pp.status),
-                tanggal_pengajuan: toIsoDate(pp.created_at),
-                tanggal_persetujuan_bm: toIsoDate(pp.bm_waktu_persetujuan)
+                tanggal_pengajuan: formatIndonesianDate(pp.created_at),
+                tanggal_persetujuan_bm: formatIndonesianDate(pp.bm_waktu_persetujuan),
+                tanggal_persetujuan_pp1: formatIndonesianDate(pp.pp1_waktu_persetujuan),
+                tanggal_persetujuan_bm2: formatIndonesianDate(pp.bm2_waktu_persetujuan),
+                tanggal_persetujuan_bm_regional: formatIndonesianDate(pp.bm_regional_waktu_persetujuan),
+                tanggal_persetujuan_pp2: formatIndonesianDate(pp.pp2_waktu_persetujuan),
+                tanggal_persetujuan_pp_manager: formatIndonesianDate(pp.pp_manager_waktu_persetujuan)
             });
         }
     }
@@ -1020,20 +1026,18 @@ const monthName = (date: Date): string => new Intl.DateTimeFormat("id-ID", {
     timeZone: "Asia/Jakarta"
 }).format(date);
 
-const splitLoginDate = (value: unknown): Pick<DashboardUserExportRow, "tanggal_login_terakhir" | "bulan_login_terakhir" | "tahun_login_terakhir"> => {
+const formatIndonesianDate = (value: unknown): string => {
     const date = toDate(value);
-    if (!date) {
-        return {
-            tanggal_login_terakhir: "",
-            bulan_login_terakhir: "",
-            tahun_login_terakhir: ""
-        };
-    }
+    if (!date) return "";
+    const day = new Intl.DateTimeFormat("id-ID", { day: "numeric", timeZone: "Asia/Jakarta" }).format(date);
+    const month = monthName(date);
+    const year = new Intl.DateTimeFormat("id-ID", { year: "numeric", timeZone: "Asia/Jakarta" }).format(date);
+    return `${day} ${month} ${year}`;
+};
 
+const formatFullLoginDate = (value: unknown): { tanggal_login_terakhir: string } => {
     return {
-        tanggal_login_terakhir: Number(new Intl.DateTimeFormat("id-ID", { day: "numeric", timeZone: "Asia/Jakarta" }).format(date)),
-        bulan_login_terakhir: monthName(date),
-        tahun_login_terakhir: Number(new Intl.DateTimeFormat("id-ID", { year: "numeric", timeZone: "Asia/Jakarta" }).format(date))
+        tanggal_login_terakhir: formatIndonesianDate(value)
     };
 };
 
@@ -1042,7 +1046,7 @@ const buildUserRows = (users: DashboardUserSourceRow[]): DashboardUserExportRow[
     email_user: normalize(user.email_user),
     role: normalize(user.role),
     cabang: normalize(user.cabang),
-    ...splitLoginDate(user.last_login_at)
+    ...formatFullLoginDate(user.last_login_at)
 }));
 
 export const ktkOpnameFinalExportSection = (projects: DashboardData[]): DashboardExportSection => ({
