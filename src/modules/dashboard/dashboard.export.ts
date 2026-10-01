@@ -720,11 +720,17 @@ const projectPlanningExportColumns: DashboardExportColumn[] = [
     { key: "status", label: "Status" },
     { key: "tanggal_pengajuan", label: "Tanggal Pengajuan" },
     { key: "tanggal_persetujuan_bm", label: "Tanggal Persetujuan BM Manager 1" },
+    { key: "approver_bm", label: "Approver BM Manager 1" },
     { key: "tanggal_persetujuan_pp1", label: "Tanggal Persetujuan PP Tahap 1" },
+    { key: "approver_pp1", label: "Approver PP Tahap 1" },
     { key: "tanggal_persetujuan_bm2", label: "Tanggal Persetujuan B&M Tahap 2" },
+    { key: "approver_bm2", label: "Approver B&M Tahap 2" },
     { key: "tanggal_persetujuan_bm_regional", label: "Tanggal Persetujuan B&M Regional" },
+    { key: "approver_bm_regional", label: "Approver B&M Regional" },
     { key: "tanggal_persetujuan_pp2", label: "Tanggal Persetujuan PP Tahap 2" },
-    { key: "tanggal_persetujuan_pp_manager", label: "Tanggal Persetujuan PP Manager" }
+    { key: "approver_pp2", label: "Approver PP Tahap 2" },
+    { key: "tanggal_persetujuan_pp_manager", label: "Tanggal Persetujuan PP Manager" },
+    { key: "approver_pp_manager", label: "Approver PP Manager" }
 ];
 
 const userExportColumns: DashboardExportColumn[] = [
@@ -1010,11 +1016,17 @@ const buildProjectPlanningRows = (projects: DashboardData[]): Array<Record<strin
                 status: humanizePpStatus(pp.status),
                 tanggal_pengajuan: formatIndonesianDate(pp.created_at),
                 tanggal_persetujuan_bm: formatIndonesianDate(pp.bm_waktu_persetujuan),
+                approver_bm: normalize(pp.bm_approver_email),
                 tanggal_persetujuan_pp1: formatIndonesianDate(pp.pp1_waktu_persetujuan),
+                approver_pp1: normalize(pp.pp1_approver_email),
                 tanggal_persetujuan_bm2: formatIndonesianDate(pp.bm2_waktu_persetujuan),
+                approver_bm2: normalize(pp.bm2_approver_email),
                 tanggal_persetujuan_bm_regional: formatIndonesianDate(pp.bm_regional_waktu_persetujuan),
+                approver_bm_regional: normalize(pp.bm_regional_approver_email),
                 tanggal_persetujuan_pp2: formatIndonesianDate(pp.pp2_waktu_persetujuan),
-                tanggal_persetujuan_pp_manager: formatIndonesianDate(pp.pp_manager_waktu_persetujuan)
+                approver_pp2: normalize(pp.pp2_approver_email),
+                tanggal_persetujuan_pp_manager: formatIndonesianDate(pp.pp_manager_waktu_persetujuan),
+                approver_pp_manager: normalize(pp.pp_manager_approver_email)
             });
         }
     }
