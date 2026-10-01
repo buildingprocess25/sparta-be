@@ -721,7 +721,7 @@ const projectPlanningExportColumns: DashboardExportColumn[] = [
     { key: "luas_area_sales", label: "Luas Area Sales" },
     { key: "status", label: "Status" },
     { key: "tanggal_pengajuan", label: "Tanggal Pengajuan" },
-    { key: "tanggal_persetujuan_bm", label: "Tanggal Persetujuan BM" }
+    { key: "tanggal_persetujuan_bm", label: "Tanggal Persetujuan BM Manager 1" }
 ];
 
 const userExportColumns: DashboardExportColumn[] = [

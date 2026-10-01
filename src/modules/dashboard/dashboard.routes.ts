@@ -44,8 +44,16 @@ const isContractorPerformanceBlocked = (req: Request): boolean =>
         return normalized.includes("KONTRAKTOR") || normalized === "DIREKTUR";
     }));
 
-const requireSuperHumanForPerformance = (req: Request, res: Response, next: NextFunction) => {
-    if (isSuperHuman(req) && !isContractorPerformanceBlocked(req)) {
+const hasInternalPerformanceAccess = (req: Request): boolean => {
+    if (isSuperHuman(req)) return true;
+    const cabang = req.user?.cabang?.toUpperCase().trim();
+    if (cabang === "HEAD OFFICE") return true;
+    if (req.user?.roles.some(r => r.toUpperCase().includes("REGIONAL MANAGER"))) return true;
+    return false;
+};
+
+const requireInternalPerformanceAccess = (req: Request, res: Response, next: NextFunction) => {
+    if (hasInternalPerformanceAccess(req) && !isContractorPerformanceBlocked(req)) {
         next();
         return;
     }
@@ -55,6 +63,19 @@ const requireSuperHumanForPerformance = (req: Request, res: Response, next: Next
         message: "Performance Internal SAT sedang disiapkan dan tidak tersedia untuk kontraktor atau direktur kontraktor."
     });
 };
+
+const requireContractorPerformanceAccess = (req: Request, res: Response, next: NextFunction) => {
+    if (req.user?.email_sat?.toLowerCase() === 'wildan.fadillah@nusaputra.ac.id') {
+        next();
+        return;
+    }
+
+    res.status(403).json({
+        status: "coming_soon",
+        message: "Performance Kontraktor sedang dalam tahap uji coba dan ditutup sementara."
+    });
+};
+
 const dashboardRouter = Router();
 
 dashboardRouter.get("/export", exportDashboard);
@@ -66,26 +87,26 @@ dashboardRouter.get("/v2/charts", getDashboardV2Charts);
 dashboardRouter.get("/summary", getDashboardSummary);
 dashboardRouter.get("/projects", getDashboardProjects);
 dashboardRouter.get("/projects/:tokoId", getDashboardProjectDetail);
-dashboardRouter.get("/kpi-performance", requireSuperHumanForPerformance, getDashboardKpiPerformance);
-dashboardRouter.get("/kpi-filters", requireSuperHumanForPerformance, getDashboardKpiFilters);
-dashboardRouter.get("/kpi-drilldown", requireSuperHumanForPerformance, getDashboardKpiDrilldown);
+dashboardRouter.get("/kpi-performance", requireInternalPerformanceAccess, getDashboardKpiPerformance);
+dashboardRouter.get("/kpi-filters", requireInternalPerformanceAccess, getDashboardKpiFilters);
+dashboardRouter.get("/kpi-drilldown", requireInternalPerformanceAccess, getDashboardKpiDrilldown);
 
 // Performance KPI SAT routes.
-dashboardRouter.get("/performance/summary", requireSuperHumanForPerformance, getPerformanceSummary);
-dashboardRouter.get("/performance/filters", requireSuperHumanForPerformance, getPerformanceFilters);
-dashboardRouter.get("/performance/options-stats", requireSuperHumanForPerformance, getPerformanceOptionStats);
-dashboardRouter.get("/performance/drilldown", requireSuperHumanForPerformance, getPerformanceDrilldown);
-dashboardRouter.get("/performance/detail", requireSuperHumanForPerformance, getPerformanceDetail);
-dashboardRouter.get("/performance/table", requireSuperHumanForPerformance, getPerformanceTable);
+dashboardRouter.get("/performance/summary", requireInternalPerformanceAccess, getPerformanceSummary);
+dashboardRouter.get("/performance/filters", requireInternalPerformanceAccess, getPerformanceFilters);
+dashboardRouter.get("/performance/options-stats", requireInternalPerformanceAccess, getPerformanceOptionStats);
+dashboardRouter.get("/performance/drilldown", requireInternalPerformanceAccess, getPerformanceDrilldown);
+dashboardRouter.get("/performance/detail", requireInternalPerformanceAccess, getPerformanceDetail);
+dashboardRouter.get("/performance/table", requireInternalPerformanceAccess, getPerformanceTable);
 
 // Contractor Performance routes
-dashboardRouter.get("/contractor/summary", requireSuperHumanForPerformance, getContractorSummary);
-dashboardRouter.get("/contractor/charts", requireSuperHumanForPerformance, getContractorCharts);
-dashboardRouter.get("/contractor/leaderboard", requireSuperHumanForPerformance, getContractorLeaderboard);
-dashboardRouter.get("/contractor/drilldown-ranking", requireSuperHumanForPerformance, getContractorDrilldownRanking);
-dashboardRouter.get("/contractor/drilldown-sp-history", requireSuperHumanForPerformance, getContractorDrilldownSpHistory);
-dashboardRouter.get("/contractor/drilldown-ulok", requireSuperHumanForPerformance, getContractorDrilldownUlok);
-dashboardRouter.get("/contractor/drilldown-detail", requireSuperHumanForPerformance, getContractorDrilldownDetail);
+dashboardRouter.get("/contractor/summary", requireContractorPerformanceAccess, getContractorSummary);
+dashboardRouter.get("/contractor/charts", requireContractorPerformanceAccess, getContractorCharts);
+dashboardRouter.get("/contractor/leaderboard", requireContractorPerformanceAccess, getContractorLeaderboard);
+dashboardRouter.get("/contractor/drilldown-ranking", requireContractorPerformanceAccess, getContractorDrilldownRanking);
+dashboardRouter.get("/contractor/drilldown-sp-history", requireContractorPerformanceAccess, getContractorDrilldownSpHistory);
+dashboardRouter.get("/contractor/drilldown-ulok", requireContractorPerformanceAccess, getContractorDrilldownUlok);
+dashboardRouter.get("/contractor/drilldown-detail", requireContractorPerformanceAccess, getContractorDrilldownDetail);
 
 dashboardRouter.get("/", getDashboardView);
 dashboardRouter.get("/all", getDashboardAll);

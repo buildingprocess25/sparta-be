@@ -84,7 +84,7 @@ const roleFromJabatan = (jabatan: string | null | undefined): IdentityRole | nul
     if (!normalized) return null;
     if (normalized.includes("SUPPORT") || normalized.includes("PENGAWAS")) return "support";
     if (normalized.includes("COORD") || normalized.includes("KOORD")) return "coordinator";
-    if (normalized.includes("BRANCH") && normalized.includes("MANAGER")) return "branch_manager";
+    if (normalized.includes("BRANCH MANAGER")) return "branch_manager";
     if (normalized.includes("MANAGER")) return "bm_manager";
     return null;
 };
@@ -117,7 +117,7 @@ const canonicalizeName = (value: string | null | undefined, aliases: IdentityAli
     const mapped = aliases.map.get(normalizeUpper(raw));
     if (mapped) return mapped;
     if (isEmailAddress(raw)) return null;
-    return raw;
+    return mapped ?? raw;
 };
 
 const canonicalizeNames = (values: string[], aliases: IdentityAliases): string[] =>

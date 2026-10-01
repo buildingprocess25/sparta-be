@@ -79,11 +79,11 @@ export const contractorPerformanceService = {
         // 1. Avg Denda & Avg Keterlambatan
         const dendaQuery = `
             SELECT 
-                COALESCE(AVG(ofn.nilai_denda), 0) as avg_denda,
-                COALESCE(AVG(ofn.hari_denda), 0) as avg_keterlambatan
+                COALESCE(AVG(NULLIF(ofn.nilai_denda, '')::numeric), 0) as avg_denda,
+                COALESCE(AVG(NULLIF(ofn.hari_denda, '')::numeric), 0) as avg_keterlambatan
             FROM opname_final ofn
             JOIN toko t ON t.id = ofn.id_toko
-            WHERE ofn.hari_denda > 0
+            WHERE NULLIF(ofn.hari_denda, '')::numeric > 0
             ${branchFilter}
             ${jobTypeFilter}
             ${periodFilterOpname}
@@ -107,9 +107,9 @@ export const contractorPerformanceService = {
         const selisihQuery = `
             WITH final_data AS (
                 SELECT 
-                    ofn.grand_total_opname,
+                    NULLIF(ofn.grand_total_opname, '')::numeric as grand_total_opname,
                     ps.grand_total as spk_total,
-                    (ofn.grand_total_opname - ps.grand_total) as selisih
+                    (NULLIF(ofn.grand_total_opname, '')::numeric - ps.grand_total) as selisih
                 FROM opname_final ofn
                 JOIN toko t ON t.id = ofn.id_toko
                 JOIN pengajuan_spk ps ON ps.id_toko = t.id 
@@ -180,9 +180,9 @@ export const contractorPerformanceService = {
             WITH monthly_data AS (
                 SELECT 
                     to_char(ps.created_at, 'YYYY-MM') as month,
-                    SUM(COALESCE(rab.grand_total_final, 0)) as total_penawaran,
+                    SUM(COALESCE(NULLIF(rab.grand_total_final, '')::numeric, 0)) as total_penawaran,
                     SUM(COALESCE(ps.grand_total, 0)) as total_spk,
-                    SUM(COALESCE(ofn.grand_total_opname, 0)) as total_opname
+                    SUM(COALESCE(NULLIF(ofn.grand_total_opname, '')::numeric, 0)) as total_opname
                 FROM pengajuan_spk ps
                 JOIN toko t ON t.id = ps.id_toko
                 LEFT JOIN opname_final ofn ON ofn.id_toko = t.id
@@ -198,8 +198,13 @@ export const contractorPerformanceService = {
             ORDER BY month ASC
         `;
         
-        const result = await pool.query<ContractorChartPoint>(query, values);
-        return result.rows;
+        const result = await pool.query(query, values);
+        return result.rows.map(row => ({
+            month: row.month,
+            penawaran: Number(row.penawaran || 0),
+            spk: Number(row.spk || 0),
+            opname: Number(row.opname || 0)
+        }));
     },
     
     async getLeaderboard(filters: ContractorPerformanceFilters, allowedBranches: string[]): Promise<ContractorLeaderboardRow[]> {
