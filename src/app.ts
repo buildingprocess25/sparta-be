@@ -9,6 +9,7 @@ import { AppError } from "./common/app-error";
 import { pool } from "./db/pool";
 import { apiAuthMiddleware } from "./modules/auth/auth.middleware";
 import { tokoRouter } from "./modules/toko/toko.routes";
+import { maintenanceStoreRouter } from "./modules/maintenance-store/maintenance-store.routes";
 import { rabRouter } from "./modules/rab/rab.routes";
 import { spkRouter } from "./modules/spk/spk.routes";
 import { documentRouter } from "./modules/document/document.routes";
@@ -195,6 +196,7 @@ app.get("/api/proxy-file", proxyFile); // Generic path
 app.use(apiAuthMiddleware);
 
 app.use("/api/toko", tokoRouter);
+app.use("/api/maintenance-stores", maintenanceStoreRouter);
 app.get("/api/get_kontraktor", getKontraktor);
 app.use("/api/rab", rabRouter);
 app.use("/api/spk", spkRouter);

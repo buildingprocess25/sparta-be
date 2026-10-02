@@ -6,6 +6,7 @@ config();
 const envSchema = z.object({
     PORT: z.coerce.number().default(8081),
     DATABASE_URL: z.string().min(1, "DATABASE_URL wajib diisi"),
+    MAINTENANCE_DATABASE_URL: z.string().optional(),
     CORS_ORIGINS: z.string().default("*"),
 
     // Google credentials – Penyimpanan dokumen
