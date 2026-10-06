@@ -86,7 +86,7 @@ async function uploadPdfToDrive(buffer: Buffer, filename: string, nomorUlok?: st
     return result.webViewLink ?? `https://drive.google.com/file/d/${result.id}/view`;
 }
 
-async function regenerateSpkPdfAndUpload(
+export async function regenerateSpkPdfAndUpload(
     pengajuanSpkId: string,
     filenameParts?: { proyek?: string | null; nomorUlok?: string | null }
 ): Promise<string | null> {
