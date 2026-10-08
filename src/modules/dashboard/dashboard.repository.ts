@@ -352,6 +352,12 @@ export type DashboardProjectPlanningRow = {
     pp_manager_waktu_persetujuan: string | null;
     pp_manager_approver_email: string | null;
     bm_waktu_persetujuan: string | null;
+    revisi_bm_tahap_1: string | null;
+    revisi_pp_tahap_1: string | null;
+    revisi_bm_tahap_2: string | null;
+    revisi_bm_regional: string | null;
+    revisi_pp_tahap_2: string | null;
+    revisi_pp_manager: string | null;
     created_at: string | null;
 };
 
@@ -693,16 +699,31 @@ export const dashboardRepository = {
 
         const projectPlanningResult = await pool.query<DashboardProjectPlanningRow>(
             `
-            SELECT id, id_toko, nomor_ulok, nama_toko, kode_toko, cabang, proyek, lingkup_pekerjaan,
-                   jenis_proyek, estimasi_biaya, nama_pengaju, nama_lokasi, jenis_pengajuan,
-                   status, luas_bangunan, luas_area_terbuka, luas_area_terbangun, luas_gudang,
-                   luas_area_parkir, luas_area_sales, bm_waktu_persetujuan, bm_approver_email,
-                   pp1_waktu_persetujuan, pp1_approver_email, bm2_waktu_persetujuan, bm2_approver_email, 
-                   bm_regional_waktu_persetujuan, bm_regional_approver_email, 
-                   pp2_waktu_persetujuan, pp2_approver_email, pp_manager_waktu_persetujuan, pp_manager_approver_email, created_at
-            FROM projek_planning
-            WHERE id_toko = $1
-            ORDER BY created_at DESC, id DESC
+            SELECT pp.id, pp.id_toko, pp.nomor_ulok, pp.nama_toko, pp.kode_toko, pp.cabang, pp.proyek, pp.lingkup_pekerjaan,
+                   pp.jenis_proyek, pp.estimasi_biaya, pp.nama_pengaju, pp.nama_lokasi, pp.jenis_pengajuan,
+                   pp.status, pp.luas_bangunan, pp.luas_area_terbuka, pp.luas_area_terbangun, pp.luas_gudang,
+                   pp.luas_area_parkir, pp.luas_area_sales, pp.bm_waktu_persetujuan, pp.bm_approver_email,
+                   pp.pp1_waktu_persetujuan, pp.pp1_approver_email, pp.bm2_waktu_persetujuan, pp.bm2_approver_email, 
+                   pp.bm_regional_waktu_persetujuan, pp.bm_regional_approver_email, 
+                   pp.pp2_waktu_persetujuan, pp.pp2_approver_email, pp.pp_manager_waktu_persetujuan, pp.pp_manager_approver_email, pp.created_at,
+                   revisi_log.revisi_bm_tahap_1, revisi_log.revisi_pp_tahap_1, revisi_log.revisi_bm_tahap_2,
+                   revisi_log.revisi_bm_regional, revisi_log.revisi_pp_tahap_2, revisi_log.revisi_pp_manager
+            FROM projek_planning pp
+            LEFT JOIN (
+                SELECT 
+                    projek_planning_id,
+                    COUNT(CASE WHEN status_sebelum = 'WAITING_BM_APPROVAL' THEN 1 END) as revisi_bm_tahap_1,
+                    COUNT(CASE WHEN status_sebelum = 'WAITING_PP_APPROVAL_1' THEN 1 END) as revisi_pp_tahap_1,
+                    COUNT(CASE WHEN status_sebelum = 'WAITING_BM_APPROVAL_2' THEN 1 END) as revisi_bm_tahap_2,
+                    COUNT(CASE WHEN status_sebelum = 'WAITING_BM_REGIONAL_APPROVAL' THEN 1 END) as revisi_bm_regional,
+                    COUNT(CASE WHEN status_sebelum = 'WAITING_PP_APPROVAL_2' THEN 1 END) as revisi_pp_tahap_2,
+                    COUNT(CASE WHEN status_sebelum = 'WAITING_PP_MANAGER_APPROVAL' THEN 1 END) as revisi_pp_manager
+                FROM projek_planning_log
+                WHERE aksi = 'REJECT'
+                GROUP BY projek_planning_id
+            ) revisi_log ON revisi_log.projek_planning_id = pp.id
+            WHERE pp.id_toko = $1
+            ORDER BY pp.created_at DESC, pp.id DESC
             `,
             [tokoId]
         );
@@ -1094,16 +1115,31 @@ export const dashboardRepository = {
             ),
             pool.query<DashboardProjectPlanningRow>(
                 `
-                SELECT id, id_toko, nomor_ulok, nama_toko, kode_toko, cabang, proyek, lingkup_pekerjaan,
-                       jenis_proyek, estimasi_biaya, nama_pengaju, nama_lokasi, jenis_pengajuan,
-                       status, luas_bangunan, luas_area_terbuka, luas_area_terbangun, luas_gudang,
-                       luas_area_parkir, luas_area_sales, bm_waktu_persetujuan, bm_approver_email,
-                       pp1_waktu_persetujuan, pp1_approver_email, bm2_waktu_persetujuan, bm2_approver_email, 
-                       bm_regional_waktu_persetujuan, bm_regional_approver_email, 
-                       pp2_waktu_persetujuan, pp2_approver_email, pp_manager_waktu_persetujuan, pp_manager_approver_email, created_at
-                FROM projek_planning
-                WHERE id_toko = ANY($1::int[]) OR UPPER(nomor_ulok) = ANY($2::text[])
-                ORDER BY created_at DESC, id DESC
+                SELECT pp.id, pp.id_toko, pp.nomor_ulok, pp.nama_toko, pp.kode_toko, pp.cabang, pp.proyek, pp.lingkup_pekerjaan,
+                       pp.jenis_proyek, pp.estimasi_biaya, pp.nama_pengaju, pp.nama_lokasi, pp.jenis_pengajuan,
+                       pp.status, pp.luas_bangunan, pp.luas_area_terbuka, pp.luas_area_terbangun, pp.luas_gudang,
+                       pp.luas_area_parkir, pp.luas_area_sales, pp.bm_waktu_persetujuan, pp.bm_approver_email,
+                       pp.pp1_waktu_persetujuan, pp.pp1_approver_email, pp.bm2_waktu_persetujuan, pp.bm2_approver_email, 
+                       pp.bm_regional_waktu_persetujuan, pp.bm_regional_approver_email, 
+                       pp.pp2_waktu_persetujuan, pp.pp2_approver_email, pp.pp_manager_waktu_persetujuan, pp.pp_manager_approver_email, pp.created_at,
+                       revisi_log.revisi_bm_tahap_1, revisi_log.revisi_pp_tahap_1, revisi_log.revisi_bm_tahap_2,
+                       revisi_log.revisi_bm_regional, revisi_log.revisi_pp_tahap_2, revisi_log.revisi_pp_manager
+                FROM projek_planning pp
+                LEFT JOIN (
+                    SELECT 
+                        projek_planning_id,
+                        COUNT(CASE WHEN status_sebelum = 'WAITING_BM_APPROVAL' THEN 1 END) as revisi_bm_tahap_1,
+                        COUNT(CASE WHEN status_sebelum = 'WAITING_PP_APPROVAL_1' THEN 1 END) as revisi_pp_tahap_1,
+                        COUNT(CASE WHEN status_sebelum = 'WAITING_BM_APPROVAL_2' THEN 1 END) as revisi_bm_tahap_2,
+                        COUNT(CASE WHEN status_sebelum = 'WAITING_BM_REGIONAL_APPROVAL' THEN 1 END) as revisi_bm_regional,
+                        COUNT(CASE WHEN status_sebelum = 'WAITING_PP_APPROVAL_2' THEN 1 END) as revisi_pp_tahap_2,
+                        COUNT(CASE WHEN status_sebelum = 'WAITING_PP_MANAGER_APPROVAL' THEN 1 END) as revisi_pp_manager
+                    FROM projek_planning_log
+                    WHERE aksi = 'REJECT'
+                    GROUP BY projek_planning_id
+                ) revisi_log ON revisi_log.projek_planning_id = pp.id
+                WHERE pp.id_toko = ANY($1::int[]) OR UPPER(pp.nomor_ulok) = ANY($2::text[])
+                ORDER BY pp.created_at DESC, pp.id DESC
                 `,
                 [toArrayParam(tokoIds), toStringArrayParam(ulokKeys)]
             ),
