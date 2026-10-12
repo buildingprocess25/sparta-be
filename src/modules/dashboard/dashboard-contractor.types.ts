@@ -50,6 +50,7 @@ export interface ContractorLeaderboardRow {
 
 export interface ContractorRankingRow {
     nama_kontraktor: string;
+    cabang?: string;
     metric_value: number;
     metric_label: string;
     total_toko?: number;
