@@ -115,7 +115,7 @@ export const buildSpkPdfBuffer = async (input: BuildSpkPdfInput): Promise<Buffer
         spk_location: input.tokoCabang,
         spk_date: today,
         spk_number: p.nomor_spk || "____/PROPNDEV-____/____/____",
-        par_number: p.par || "____/PROPNDEV-____-____-____",
+        par_number: p.par || "____/PROPNDEV-____/____/____",
         contractor_name: p.nama_kontraktor,
         lingkup_pekerjaan: p.lingkup_pekerjaan,
         proyek: p.proyek,
