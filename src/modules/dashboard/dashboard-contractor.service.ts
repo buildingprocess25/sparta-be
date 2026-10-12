@@ -1,4 +1,8 @@
 import { pool } from "../../db/pool";
+
+export const NORM_KONTRAKTOR = (col1: string, col2: string = 'NULL') => 
+    `TRIM(REGEXP_REPLACE(UPPER(COALESCE(NULLIF(TRIM(${col1}), ''), NULLIF(TRIM(${col2}), ''))), '(^(CV|PT)[. ,]+|[. ,]+(CV|PT)$)', '', 'ig'))`;
+
 import type { 
     ContractorPerformanceFilters, 
     ContractorGlobalSummary, 
@@ -39,16 +43,16 @@ const getPeriodDateRange = (period?: string): { start: Date | null, end: Date | 
 
 export const contractorPerformanceService = {
     async getSummary(filters: ContractorPerformanceFilters, allowedBranches: string[]): Promise<ContractorGlobalSummary> {
-        const { cabang, job_type, period } = filters;
+        const { cabang, job_type, period, search, proyek, bangunan, kontraktor: filterKontraktor } = filters;
         
-        let branchFilter = "";
+        let branchFilter = " AND 1=1";
         const values: any[] = [];
         
         // Allowed branches
         if (allowedBranches.length > 0) {
             const normalized = allowedBranches.map(b => b.trim().toUpperCase());
             values.push(normalized);
-            branchFilter = `AND UPPER(t.cabang) = ANY($${values.length})`;
+            branchFilter += ` AND UPPER(t.cabang) = ANY($${values.length})`;
         }
         
         // Specific cabang filter
@@ -60,13 +64,45 @@ export const contractorPerformanceService = {
         let jobTypeFilter = "";
         if (job_type && job_type !== "ALL") {
             values.push(job_type.toUpperCase());
-            jobTypeFilter = `AND UPPER(t.jenis_pekerjaan) = $${values.length}`;
+            jobTypeFilter = `AND UPPER(t.lingkup_pekerjaan) = $${values.length}`;
         }
         
         let periodFilterSpk = "";
         let periodFilterOpname = "";
         let periodFilterSp = "";
         
+        
+        let searchFilter = "";
+        if (search) {
+            values.push(`%${search.toUpperCase()}%`);
+            searchFilter = `AND UPPER(t.nama_kontraktor) LIKE $${values.length}`;
+        }
+
+        let proyekFilter = "";
+        if (proyek && proyek !== "ALL") {
+            if (proyek.toUpperCase() === "REGULER") {
+                proyekFilter = `AND (UPPER(COALESCE(t.proyek, '')) NOT LIKE '%RENOVASI%' AND UPPER(COALESCE(t.proyek, '')) != '')`;
+            } else if (proyek.toUpperCase() === "RENOVASI") {
+                proyekFilter = `AND UPPER(COALESCE(t.proyek, '')) LIKE '%RENOVASI%'`;
+            }
+        }
+        
+        let bangunanFilter = "";
+        if (bangunan && bangunan !== "ALL") {
+            if (bangunan.toUpperCase() === "RUKO") {
+                bangunanFilter = `AND t.id IN (SELECT id_toko FROM rab WHERE UPPER(kategori_lokasi) = 'RUKO')`;
+            } else if (bangunan.toUpperCase() === "NON RUKO") {
+                bangunanFilter = `AND t.id IN (SELECT id_toko FROM rab WHERE UPPER(kategori_lokasi) LIKE '%NON RUKO%')`;
+            }
+        }
+        let kontraktorFilter = "";
+        let dkaKontraktorFilter = "";
+        if (filterKontraktor && filterKontraktor !== "ALL") {
+            values.push(filterKontraktor.toUpperCase());
+            kontraktorFilter = `AND UPPER(${NORM_KONTRAKTOR('t.nama_kontraktor')}) = $${values.length}`;
+            dkaKontraktorFilter = `AND UPPER(${NORM_KONTRAKTOR('t.nama_kontraktor')}) = $${values.length}`;
+        }
+
         const { start, end } = getPeriodDateRange(period);
         if (start && end) {
             values.push(start);
@@ -78,15 +114,53 @@ export const contractorPerformanceService = {
         
         // 1. Avg Denda & Avg Keterlambatan
         const dendaQuery = `
+            WITH penalty_data AS (
+                SELECT 
+                    MIN(ofn.nilai_denda) as denda_value
+                FROM opname_final ofn
+                JOIN toko t ON t.id = ofn.id_toko
+                WHERE ofn.nilai_denda > 0
+                ${branchFilter}
+                ${jobTypeFilter}
+                  ${searchFilter}
+                  ${proyekFilter}
+                  ${bangunanFilter}
+              ${kontraktorFilter}
+                ${periodFilterOpname}
+                GROUP BY COALESCE(NULLIF(TRIM(t.nomor_ulok), ''), t.id::text)
+            ),
+            base_keterlambatan AS (
+                SELECT 
+                    COALESCE(NULLIF(TRIM(t.nomor_ulok), ''), t.id::text) as ulok_id,
+                    EXTRACT(DAY FROM (
+                        CURRENT_DATE::timestamp
+                        - (COALESCE(ps.waktu_persetujuan, ps.created_at) + ((COALESCE(ps.durasi, 0) + COALESCE((SELECT SUM(NULLIF(REGEXP_REPLACE(pertambahan_hari, '[^0-9]', '', 'g'), '')::integer) FROM pertambahan_spk WHERE id_spk = ps.id AND status_persetujuan IN ('APPROVED_BY_BM', 'APPROVED')), 0)) || ' days')::interval)
+                    )) as late_days
+                FROM pengajuan_spk ps
+                JOIN toko t ON t.id = ps.id_toko
+                LEFT JOIN opname_final ofn ON ofn.id_toko = t.id
+                WHERE ofn.id IS NULL
+                  AND (SELECT MIN(created_at) FROM berkas_serah_terima WHERE id_toko = t.id AND link_pdf IS NOT NULL AND link_pdf != '') IS NULL
+                  AND UPPER(TRIM(COALESCE(ps.status, ''))) IN ('SPK_APPROVED', 'APPROVED', 'DISETUJUI', 'AKTIF', 'ACTIVE', 'SELESAI')
+                ${branchFilter.replace(/UPPER\(t.cabang\)/g, "UPPER(t.cabang)")}
+                ${jobTypeFilter}
+                  ${searchFilter}
+                  ${proyekFilter}
+                  ${bangunanFilter}
+              ${kontraktorFilter}
+                ${periodFilterSpk}
+            ),
+            keterlambatan_data AS (
+                SELECT ulok_id, MAX(late_days) as late_days
+                FROM base_keterlambatan
+                WHERE late_days > 0
+                GROUP BY ulok_id
+            )
             SELECT 
-                COALESCE(AVG(NULLIF(ofn.nilai_denda, '')::numeric), 0) as avg_denda,
-                COALESCE(AVG(NULLIF(ofn.hari_denda, '')::numeric), 0) as avg_keterlambatan
-            FROM opname_final ofn
-            JOIN toko t ON t.id = ofn.id_toko
-            WHERE NULLIF(ofn.hari_denda, '')::numeric > 0
-            ${branchFilter}
-            ${jobTypeFilter}
-            ${periodFilterOpname}
+                (SELECT COALESCE(AVG(denda_value), 0) FROM penalty_data) as avg_denda,
+                (SELECT COALESCE(SUM(denda_value), 0) FROM penalty_data) as total_denda,
+                (SELECT COALESCE(AVG(late_days), 0) FROM keterlambatan_data) as avg_keterlambatan,
+                (SELECT COUNT(*) FROM keterlambatan_data) as total_keterlambatan
         `;
         
         // 2. SP Aktif
@@ -98,6 +172,11 @@ export const contractorPerformanceService = {
               AND dka.status IN ('APPROVED', 'SENT_TO_CONTRACTOR', 'VIEWED_BY_CONTRACTOR', 'ACKNOWLEDGED_BY_CONTRACTOR')
               AND (dka.expires_at IS NULL OR dka.expires_at >= timezone('Asia/Jakarta', now()))
             ${branchFilter.replace(/UPPER\(t.cabang\)/g, "UPPER(dka.cabang)")}
+            ${jobTypeFilter}
+            ${searchFilter}
+            ${proyekFilter}
+            ${bangunanFilter}
+            ${dkaKontraktorFilter}
             ${periodFilterSp}
         `;
         
@@ -105,24 +184,52 @@ export const contractorPerformanceService = {
         // Kerja Tambah = opname > spk
         // Kerja Kurang = spk > opname
         const selisihQuery = `
-            WITH final_data AS (
+            WITH latest_spk AS (
+                SELECT DISTINCT ON (id_toko)
+                    id_toko, grand_total, nama_kontraktor
+                FROM pengajuan_spk
+                WHERE UPPER(COALESCE(status, '')) IN ('SPK_APPROVED', 'ACTIVE', 'SELESAI', 'APPROVED', 'DISETUJUI', 'AKTIF')
+                ORDER BY id_toko, COALESCE(waktu_persetujuan, waktu_selesai, created_at) DESC NULLS LAST, id DESC
+            ),
+            latest_opname AS (
+                SELECT DISTINCT ON (id_toko)
+                    id, id_toko, grand_total_final, grand_total_opname, created_at
+                FROM opname_final
+                ORDER BY id_toko, 
+                    CASE WHEN UPPER(COALESCE(status_opname_final, '')) LIKE '%SETUJU%' THEN 0 ELSE 1 END,
+                    COALESCE(NULLIF(waktu_persetujuan_direktur, '')::timestamp, created_at) DESC NULLS LAST,
+                    id DESC
+            ),
+            scope_data AS (
                 SELECT 
-                    NULLIF(ofn.grand_total_opname, '')::numeric as grand_total_opname,
-                    ps.grand_total as spk_total,
-                    (NULLIF(ofn.grand_total_opname, '')::numeric - ps.grand_total) as selisih
-                FROM opname_final ofn
+                    COALESCE(NULLIF(TRIM(t.nomor_ulok), ''), t.id::text) as ulok_id,
+                    (COALESCE(NULLIF(ofn.grand_total_final, ''), NULLIF(ofn.grand_total_opname, ''))::numeric - ps.grand_total) as selisih
+                FROM latest_opname ofn
                 JOIN toko t ON t.id = ofn.id_toko
-                JOIN pengajuan_spk ps ON ps.id_toko = t.id 
-                    AND UPPER(TRIM(COALESCE(ps.status, ''))) IN ('SPK_APPROVED', 'APPROVED', 'DISETUJUI', 'AKTIF', 'ACTIVE', 'SELESAI')
+                JOIN latest_spk ps ON ps.id_toko = t.id 
                 WHERE 1=1
                 ${branchFilter}
                 ${jobTypeFilter}
+                  ${searchFilter}
+                  ${proyekFilter}
+                  ${bangunanFilter}
+              ${dkaKontraktorFilter}
                 ${periodFilterOpname}
+            ),
+            ulok_data AS (
+                SELECT 
+                    ulok_id,
+                    AVG(selisih) FILTER (WHERE selisih > 0) as kerja_tambah,
+                    AVG(ABS(selisih)) FILTER (WHERE selisih < 0) as kerja_kurang
+                FROM scope_data
+                GROUP BY ulok_id
             )
             SELECT 
-                COALESCE(AVG(selisih) FILTER (WHERE selisih > 0), 0) as avg_kerja_tambah,
-                COALESCE(AVG(ABS(selisih)) FILTER (WHERE selisih < 0), 0) as avg_kerja_kurang
-            FROM final_data
+                COALESCE(AVG(kerja_tambah), 0) as avg_kerja_tambah,
+                COALESCE(AVG(kerja_kurang), 0) as avg_kerja_kurang,
+                COALESCE(SUM(kerja_tambah), 0) as total_kerja_tambah,
+                COALESCE(SUM(kerja_kurang), 0) as total_kerja_kurang
+            FROM ulok_data
         `;
         
         const [dendaResult, spResult, selisihResult] = await Promise.all([
@@ -133,23 +240,27 @@ export const contractorPerformanceService = {
         
         return {
             avg_denda: Number(dendaResult.rows[0]?.avg_denda || 0),
+            total_denda: Number(dendaResult.rows[0]?.total_denda || 0),
             avg_keterlambatan: Number(dendaResult.rows[0]?.avg_keterlambatan || 0),
+            total_keterlambatan: Number(dendaResult.rows[0]?.total_keterlambatan || 0),
             sp_aktif_count: Number(spResult.rows[0]?.count || 0),
             avg_kerja_tambah: Number(selisihResult.rows[0]?.avg_kerja_tambah || 0),
-            avg_kerja_kurang: Number(selisihResult.rows[0]?.avg_kerja_kurang || 0)
+            avg_kerja_kurang: Number(selisihResult.rows[0]?.avg_kerja_kurang || 0),
+            total_kerja_tambah: Number(selisihResult.rows[0]?.total_kerja_tambah || 0),
+            total_kerja_kurang: Number(selisihResult.rows[0]?.total_kerja_kurang || 0)
         };
     },
     
     async getCharts(filters: ContractorPerformanceFilters, allowedBranches: string[]): Promise<ContractorChartPoint[]> {
-        const { cabang, job_type, period } = filters;
+        const { cabang, job_type, period, search, proyek, bangunan, kontraktor: filterKontraktor } = filters;
         
-        let branchFilter = "";
+        let branchFilter = " AND 1=1";
         const values: any[] = [];
         
         if (allowedBranches.length > 0) {
             const normalized = allowedBranches.map(b => b.trim().toUpperCase());
             values.push(normalized);
-            branchFilter = `AND UPPER(t.cabang) = ANY($${values.length})`;
+            branchFilter += ` AND UPPER(t.cabang) = ANY($${values.length})`;
         }
         
         if (cabang && cabang !== "ALL" && cabang !== "SEMUA CABANG") {
@@ -160,10 +271,42 @@ export const contractorPerformanceService = {
         let jobTypeFilter = "";
         if (job_type && job_type !== "ALL") {
             values.push(job_type.toUpperCase());
-            jobTypeFilter = `AND UPPER(t.jenis_pekerjaan) = $${values.length}`;
+            jobTypeFilter = `AND UPPER(t.lingkup_pekerjaan) = $${values.length}`;
         }
         
         let periodFilter = "";
+        
+        let searchFilter = "";
+        if (search) {
+            values.push(`%${search.toUpperCase()}%`);
+            searchFilter = `AND UPPER(t.nama_kontraktor) LIKE $${values.length}`;
+        }
+
+        let proyekFilter = "";
+        if (proyek && proyek !== "ALL") {
+            if (proyek.toUpperCase() === "REGULER") {
+                proyekFilter = `AND (UPPER(COALESCE(t.proyek, '')) NOT LIKE '%RENOVASI%' AND UPPER(COALESCE(t.proyek, '')) != '')`;
+            } else if (proyek.toUpperCase() === "RENOVASI") {
+                proyekFilter = `AND UPPER(COALESCE(t.proyek, '')) LIKE '%RENOVASI%'`;
+            }
+        }
+        
+        let bangunanFilter = "";
+        if (bangunan && bangunan !== "ALL") {
+            if (bangunan.toUpperCase() === "RUKO") {
+                bangunanFilter = `AND t.id IN (SELECT id_toko FROM rab WHERE UPPER(kategori_lokasi) = 'RUKO')`;
+            } else if (bangunan.toUpperCase() === "NON RUKO") {
+                bangunanFilter = `AND t.id IN (SELECT id_toko FROM rab WHERE UPPER(kategori_lokasi) LIKE '%NON RUKO%')`;
+            }
+        }
+        let kontraktorFilter = "";
+        let dkaKontraktorFilter = "";
+        if (filterKontraktor && filterKontraktor !== "ALL") {
+            values.push(filterKontraktor.toUpperCase());
+            kontraktorFilter = `AND UPPER(${NORM_KONTRAKTOR('t.nama_kontraktor')}) = $${values.length}`;
+            dkaKontraktorFilter = `AND UPPER(${NORM_KONTRAKTOR('t.nama_kontraktor')}) = $${values.length}`;
+        }
+
         const { start, end } = getPeriodDateRange(period);
         if (start && end) {
             values.push(start);
@@ -182,7 +325,7 @@ export const contractorPerformanceService = {
                     to_char(ps.created_at, 'YYYY-MM') as month,
                     SUM(COALESCE(NULLIF(rab.grand_total_final, '')::numeric, 0)) as total_penawaran,
                     SUM(COALESCE(ps.grand_total, 0)) as total_spk,
-                    SUM(COALESCE(NULLIF(ofn.grand_total_opname, '')::numeric, 0)) as total_opname
+                    SUM(COALESCE(NULLIF(ofn.grand_total_final, ''), NULLIF(ofn.grand_total_opname, ''))::numeric) as total_opname
                 FROM pengajuan_spk ps
                 JOIN toko t ON t.id = ps.id_toko
                 LEFT JOIN opname_final ofn ON ofn.id_toko = t.id
@@ -190,6 +333,10 @@ export const contractorPerformanceService = {
                 WHERE UPPER(TRIM(COALESCE(ps.status, ''))) IN ('SPK_APPROVED', 'APPROVED', 'DISETUJUI', 'AKTIF', 'ACTIVE', 'SELESAI')
                 ${branchFilter}
                 ${jobTypeFilter}
+                  ${searchFilter}
+                  ${proyekFilter}
+                  ${bangunanFilter}
+              ${kontraktorFilter}
                 ${periodFilter}
                 GROUP BY to_char(ps.created_at, 'YYYY-MM')
             )
@@ -208,17 +355,17 @@ export const contractorPerformanceService = {
     },
     
     async getLeaderboard(filters: ContractorPerformanceFilters, allowedBranches: string[]): Promise<ContractorLeaderboardRow[]> {
-        const { cabang, job_type, period } = filters;
+        const { cabang, job_type, period, search, proyek, bangunan, kontraktor: filterKontraktor } = filters;
         
-        let branchFilter = "";
-        let dkaBranchFilter = "";
+        let branchFilter = " AND 1=1";
+        let dkaBranchFilter = " AND 1=1";
         const values: any[] = [];
         
         if (allowedBranches.length > 0) {
             const normalized = allowedBranches.map(b => b.trim().toUpperCase());
             values.push(normalized);
-            branchFilter = `AND UPPER(t.cabang) = ANY($${values.length})`;
-            dkaBranchFilter = `AND UPPER(dka.cabang) = ANY($${values.length})`;
+            branchFilter += ` AND UPPER(t.cabang) = ANY($${values.length})`;
+            dkaBranchFilter += ` AND UPPER(dka.cabang) = ANY($${values.length})`;
         }
         
         if (cabang && cabang !== "ALL" && cabang !== "SEMUA CABANG") {
@@ -230,13 +377,45 @@ export const contractorPerformanceService = {
         let jobTypeFilter = "";
         if (job_type && job_type !== "ALL") {
             values.push(job_type.toUpperCase());
-            jobTypeFilter = `AND UPPER(t.jenis_pekerjaan) = $${values.length}`;
+            jobTypeFilter = `AND UPPER(t.lingkup_pekerjaan) = $${values.length}`;
         }
         
         let periodFilterSpk = "";
         let periodFilterOpname = "";
         let periodFilterSp = "";
         
+        
+        let searchFilter = "";
+        if (search) {
+            values.push(`%${search.toUpperCase()}%`);
+            searchFilter = `AND UPPER(t.nama_kontraktor) LIKE $${values.length}`;
+        }
+
+        let proyekFilter = "";
+        if (proyek && proyek !== "ALL") {
+            if (proyek.toUpperCase() === "REGULER") {
+                proyekFilter = `AND (UPPER(COALESCE(t.proyek, '')) NOT LIKE '%RENOVASI%' AND UPPER(COALESCE(t.proyek, '')) != '')`;
+            } else if (proyek.toUpperCase() === "RENOVASI") {
+                proyekFilter = `AND UPPER(COALESCE(t.proyek, '')) LIKE '%RENOVASI%'`;
+            }
+        }
+        
+        let bangunanFilter = "";
+        if (bangunan && bangunan !== "ALL") {
+            if (bangunan.toUpperCase() === "RUKO") {
+                bangunanFilter = `AND t.id IN (SELECT id_toko FROM rab WHERE UPPER(kategori_lokasi) = 'RUKO')`;
+            } else if (bangunan.toUpperCase() === "NON RUKO") {
+                bangunanFilter = `AND t.id IN (SELECT id_toko FROM rab WHERE UPPER(kategori_lokasi) LIKE '%NON RUKO%')`;
+            }
+        }
+        let kontraktorFilter = "";
+        let dkaKontraktorFilter = "";
+        if (filterKontraktor && filterKontraktor !== "ALL") {
+            values.push(filterKontraktor.toUpperCase());
+            kontraktorFilter = `AND UPPER(${NORM_KONTRAKTOR('t.nama_kontraktor')}) = $${values.length}`;
+            dkaKontraktorFilter = `AND UPPER(${NORM_KONTRAKTOR('t.nama_kontraktor')}) = $${values.length}`;
+        }
+
         const { start, end } = getPeriodDateRange(period);
         if (start && end) {
             values.push(start);
@@ -248,29 +427,39 @@ export const contractorPerformanceService = {
         
         const query = `
             WITH kontraktor_list AS (
-                SELECT DISTINCT COALESCE(NULLIF(TRIM(ps.nama_kontraktor), ''), NULLIF(TRIM(t.nama_kontraktor), '')) AS nama_kontraktor
+                SELECT DISTINCT ${NORM_KONTRAKTOR('t.nama_kontraktor')} AS nama_kontraktor
                 FROM pengajuan_spk ps
                 JOIN toko t ON t.id = ps.id_toko
                 WHERE UPPER(TRIM(COALESCE(ps.status, ''))) IN ('SPK_APPROVED', 'APPROVED', 'DISETUJUI', 'AKTIF', 'ACTIVE', 'SELESAI')
                 ${branchFilter}
                 ${jobTypeFilter}
+                  ${searchFilter}
+                  ${proyekFilter}
+                  ${bangunanFilter}
+              ${kontraktorFilter}
                 ${periodFilterSpk}
             ),
             sp_history AS (
                 SELECT 
-                    COALESCE(NULLIF(TRIM(dka.nama_kontraktor), ''), NULLIF(TRIM(t.nama_kontraktor), '')) AS nama_kontraktor,
-                    COUNT(*) as sp_count
+                    ${NORM_KONTRAKTOR('t.nama_kontraktor')} AS nama_kontraktor,
+                    COUNT(*) as sp_count,
+                    SUM(CASE WHEN dka.status IN ('APPROVED', 'SENT_TO_CONTRACTOR', 'VIEWED_BY_CONTRACTOR', 'ACKNOWLEDGED_BY_CONTRACTOR') 
+                             AND (dka.expires_at IS NULL OR dka.expires_at >= timezone('Asia/Jakarta', now())) THEN 1 ELSE 0 END) as active_sp_count
                 FROM denda_keterlambatan_action dka
                 JOIN toko t ON t.id = dka.id_toko
                 WHERE dka.action_type = 'SP'
                 ${branchFilter}
                 ${jobTypeFilter}
+                  ${searchFilter}
+                  ${proyekFilter}
+                  ${bangunanFilter}
+              ${dkaKontraktorFilter}
                 ${periodFilterSp}
-                GROUP BY COALESCE(NULLIF(TRIM(dka.nama_kontraktor), ''), NULLIF(TRIM(t.nama_kontraktor), ''))
+                GROUP BY ${NORM_KONTRAKTOR('t.nama_kontraktor')}
             ),
             opname_stats AS (
                 SELECT 
-                    COALESCE(NULLIF(TRIM(ps.nama_kontraktor), ''), NULLIF(TRIM(t.nama_kontraktor), '')) AS nama_kontraktor,
+                    ${NORM_KONTRAKTOR('t.nama_kontraktor')} AS nama_kontraktor,
                     COUNT(oi.id) as total_items,
                     SUM(CASE WHEN oi.desain = 'Sesuai' THEN 1 ELSE 0 END) as total_desain_sesuai,
                     SUM(CASE WHEN oi.kualitas = 'Baik' THEN 1 ELSE 0 END) as total_kualitas_baik,
@@ -282,13 +471,18 @@ export const contractorPerformanceService = {
                 WHERE 1=1
                 ${branchFilter}
                 ${jobTypeFilter}
+                  ${searchFilter}
+                  ${proyekFilter}
+                  ${bangunanFilter}
+              ${kontraktorFilter}
                 ${periodFilterOpname}
-                GROUP BY COALESCE(NULLIF(TRIM(ps.nama_kontraktor), ''), NULLIF(TRIM(t.nama_kontraktor), ''))
+                GROUP BY ${NORM_KONTRAKTOR('t.nama_kontraktor')}
             ),
             raw_data AS (
                 SELECT 
                     kl.nama_kontraktor,
                     COALESCE(sp.sp_count, 0)::int as history_sp_count,
+                    COALESCE(sp.active_sp_count, 0)::int as active_sp_count,
                     CASE WHEN COALESCE(os.total_items, 0) > 0 THEN (os.total_desain_sesuai::numeric / os.total_items) * 100 ELSE 0 END as avg_design,
                     CASE WHEN COALESCE(os.total_items, 0) > 0 THEN (os.total_kualitas_baik::numeric / os.total_items) * 100 ELSE 0 END as avg_kualitas,
                     CASE WHEN COALESCE(os.total_items, 0) > 0 THEN (os.total_spek_sesuai::numeric / os.total_items) * 100 ELSE 0 END as avg_spek
@@ -300,6 +494,7 @@ export const contractorPerformanceService = {
             SELECT 
                 nama_kontraktor,
                 history_sp_count,
+                active_sp_count,
                 avg_design,
                 avg_kualitas,
                 avg_spek,
@@ -313,6 +508,7 @@ export const contractorPerformanceService = {
         return result.rows.map(row => ({
             nama_kontraktor: row.nama_kontraktor,
             history_sp_count: Number(row.history_sp_count || 0),
+            active_sp_count: Number(row.active_sp_count || 0),
             avg_design: Number(row.avg_design || 0),
             avg_kualitas: Number(row.avg_kualitas || 0),
             avg_spek: Number(row.avg_spek || 0),
@@ -321,16 +517,16 @@ export const contractorPerformanceService = {
     },
 
     async getDrilldownRanking(metric: string, filters: ContractorPerformanceFilters, allowedBranches: string[]): Promise<ContractorRankingRow[]> {
-        const { cabang, job_type, period } = filters;
-        let branchFilter = "";
-        let dkaBranchFilter = "";
+        const { cabang, job_type, period, search, proyek, bangunan, kontraktor: filterKontraktor } = filters;
+        let branchFilter = " AND 1=1";
+        let dkaBranchFilter = " AND 1=1";
         const values: any[] = [];
         
         if (allowedBranches.length > 0) {
             const normalized = allowedBranches.map(b => b.trim().toUpperCase());
             values.push(normalized);
-            branchFilter = `AND UPPER(t.cabang) = ANY($${values.length})`;
-            dkaBranchFilter = `AND UPPER(dka.cabang) = ANY($${values.length})`;
+            branchFilter += ` AND UPPER(t.cabang) = ANY($${values.length})`;
+            dkaBranchFilter += ` AND UPPER(dka.cabang) = ANY($${values.length})`;
         }
         
         if (cabang && cabang !== "ALL" && cabang !== "SEMUA CABANG") {
@@ -342,69 +538,225 @@ export const contractorPerformanceService = {
         let jobTypeFilter = "";
         if (job_type && job_type !== "ALL") {
             values.push(job_type.toUpperCase());
-            jobTypeFilter = `AND UPPER(t.jenis_pekerjaan) = $${values.length}`;
+            jobTypeFilter = `AND UPPER(t.lingkup_pekerjaan) = $${values.length}`;
         }
         
         let periodFilterOpname = "";
         let periodFilterSp = "";
+        let periodFilterSpk = "";
+        
+        let searchFilter = "";
+        if (search) {
+            values.push(`%${search.toUpperCase()}%`);
+            searchFilter = `AND UPPER(t.nama_kontraktor) LIKE $${values.length}`;
+        }
+
+        let proyekFilter = "";
+        if (proyek && proyek !== "ALL") {
+            if (proyek.toUpperCase() === "REGULER") {
+                proyekFilter = `AND (UPPER(COALESCE(t.proyek, '')) NOT LIKE '%RENOVASI%' AND UPPER(COALESCE(t.proyek, '')) != '')`;
+            } else if (proyek.toUpperCase() === "RENOVASI") {
+                proyekFilter = `AND UPPER(COALESCE(t.proyek, '')) LIKE '%RENOVASI%'`;
+            }
+        }
+        
+        let bangunanFilter = "";
+        if (bangunan && bangunan !== "ALL") {
+            if (bangunan.toUpperCase() === "RUKO") {
+                bangunanFilter = `AND t.id IN (SELECT id_toko FROM rab WHERE UPPER(kategori_lokasi) = 'RUKO')`;
+            } else if (bangunan.toUpperCase() === "NON RUKO") {
+                bangunanFilter = `AND t.id IN (SELECT id_toko FROM rab WHERE UPPER(kategori_lokasi) LIKE '%NON RUKO%')`;
+            }
+        }
+        let kontraktorFilter = "";
+        let dkaKontraktorFilter = "";
+        if (filterKontraktor && filterKontraktor !== "ALL") {
+            values.push(filterKontraktor.toUpperCase());
+            kontraktorFilter = `AND UPPER(${NORM_KONTRAKTOR('t.nama_kontraktor')}) = $${values.length}`;
+            dkaKontraktorFilter = `AND UPPER(${NORM_KONTRAKTOR('t.nama_kontraktor')}) = $${values.length}`;
+        }
+
         const { start, end } = getPeriodDateRange(period);
         if (start && end) {
             values.push(start);
             values.push(end);
             periodFilterOpname = `AND ofn.created_at >= $${values.length - 1} AND ofn.created_at <= $${values.length}`;
             periodFilterSp = `AND dka.created_at >= $${values.length - 1} AND dka.created_at <= $${values.length}`;
+            periodFilterSpk = `AND ps.created_at >= $${values.length - 1} AND ps.created_at <= $${values.length}`;
         }
 
         let query = "";
         
-        if (metric === "avg_denda" || metric === "avg_keterlambatan") {
-            const metricColumn = metric === "avg_denda" ? "nilai_denda" : "hari_denda";
+        if (metric === "avg_denda" || metric === "total_denda") {
             query = `
+                WITH denda_toko AS (
+                    SELECT 
+                        MAX(${NORM_KONTRAKTOR('t.nama_kontraktor')}) AS nama_kontraktor,
+                        COALESCE(NULLIF(TRIM(t.nomor_ulok), ''), t.id::text) as ulok_id,
+                        MIN(ofn.nilai_denda) as denda_value
+                    FROM opname_final ofn
+                    JOIN toko t ON t.id = ofn.id_toko
+                    LEFT JOIN pengajuan_spk ps ON ps.id_toko = t.id AND UPPER(TRIM(COALESCE(ps.status, ''))) IN ('SPK_APPROVED', 'APPROVED', 'DISETUJUI', 'AKTIF', 'ACTIVE', 'SELESAI')
+                    WHERE ofn.nilai_denda > 0
+                    ${branchFilter} ${jobTypeFilter}
+                  ${searchFilter}
+                  ${proyekFilter}
+                  ${bangunanFilter}
+              ${kontraktorFilter} ${periodFilterOpname}
+                    GROUP BY COALESCE(NULLIF(TRIM(t.nomor_ulok), ''), t.id::text)
+                )
                 SELECT 
-                    COALESCE(NULLIF(TRIM(ps.nama_kontraktor), ''), NULLIF(TRIM(t.nama_kontraktor), '')) AS nama_kontraktor,
-                    AVG(ofn.${metricColumn}) as metric_value,
-                    CASE WHEN '${metric}' = 'avg_denda' THEN 'Rupiah' ELSE 'Hari' END as metric_label
-                FROM opname_final ofn
-                JOIN toko t ON t.id = ofn.id_toko
-                JOIN pengajuan_spk ps ON ps.id_toko = t.id AND UPPER(TRIM(COALESCE(ps.status, ''))) IN ('SPK_APPROVED', 'APPROVED', 'DISETUJUI', 'AKTIF', 'ACTIVE', 'SELESAI')
-                WHERE ofn.hari_denda > 0
-                ${branchFilter} ${jobTypeFilter} ${periodFilterOpname}
-                GROUP BY COALESCE(NULLIF(TRIM(ps.nama_kontraktor), ''), NULLIF(TRIM(t.nama_kontraktor), ''))
+                    nama_kontraktor,
+                    SUM(denda_value) as metric_value,
+                    'Rupiah' as metric_label,
+                    COUNT(DISTINCT ulok_id) as total_toko
+                FROM denda_toko
+                WHERE nama_kontraktor IS NOT NULL
+                GROUP BY nama_kontraktor
+                ORDER BY metric_value DESC
+            `;
+        } else if (metric === "avg_keterlambatan") {
+            query = `
+                WITH base_keterlambatan AS (
+                    SELECT 
+                        COALESCE(NULLIF(TRIM(t.nomor_ulok), ''), t.id::text) as ulok_id,
+                        ${NORM_KONTRAKTOR('t.nama_kontraktor')} AS nama_kontraktor,
+                        EXTRACT(DAY FROM (
+                            CURRENT_DATE::timestamp
+                            - (COALESCE(ps.waktu_persetujuan, ps.created_at) + ((COALESCE(ps.durasi, 0) + COALESCE((SELECT SUM(NULLIF(REGEXP_REPLACE(pertambahan_hari, '[^0-9]', '', 'g'), '')::integer) FROM pertambahan_spk WHERE id_spk = ps.id AND status_persetujuan IN ('APPROVED_BY_BM', 'APPROVED')), 0)) || ' days')::interval)
+                        )) as late_days
+                    FROM pengajuan_spk ps
+                    JOIN toko t ON t.id = ps.id_toko
+                    LEFT JOIN opname_final ofn ON ofn.id_toko = t.id
+                    WHERE ofn.id IS NULL
+                      AND (SELECT MIN(created_at) FROM berkas_serah_terima WHERE id_toko = t.id AND link_pdf IS NOT NULL AND link_pdf != '') IS NULL
+                      AND UPPER(TRIM(COALESCE(ps.status, ''))) IN ('SPK_APPROVED', 'APPROVED', 'DISETUJUI', 'AKTIF', 'ACTIVE', 'SELESAI')
+                    ${branchFilter} ${jobTypeFilter}
+                  ${searchFilter}
+                  ${proyekFilter}
+                  ${bangunanFilter}
+              ${kontraktorFilter} ${periodFilterSpk}
+                ),
+                keterlambatan_toko AS (
+                    SELECT 
+                        ulok_id,
+                        MAX(nama_kontraktor) as nama_kontraktor,
+                        MAX(late_days) as late_days
+                    FROM base_keterlambatan
+                    WHERE late_days > 0
+                    GROUP BY ulok_id
+                )
+                SELECT 
+                    nama_kontraktor,
+                    AVG(late_days) as metric_value,
+                    'Hari' as metric_label,
+                    COUNT(DISTINCT ulok_id) as total_toko
+                FROM keterlambatan_toko
+                WHERE nama_kontraktor IS NOT NULL
+                GROUP BY nama_kontraktor
                 ORDER BY metric_value DESC
             `;
         } else if (metric === "sp_aktif") {
             query = `
                 SELECT 
-                    COALESCE(NULLIF(TRIM(dka.nama_kontraktor), ''), NULLIF(TRIM(t.nama_kontraktor), '')) AS nama_kontraktor,
+                    ${NORM_KONTRAKTOR('t.nama_kontraktor')} AS nama_kontraktor,
                     COUNT(*) as metric_value,
-                    'SP Aktif' as metric_label
+                    'SP Aktif' as metric_label,
+                    COUNT(DISTINCT COALESCE(NULLIF(TRIM(t.nomor_ulok), ''), t.id::text)) as total_toko
                 FROM denda_keterlambatan_action dka
                 JOIN toko t ON t.id = dka.id_toko
                 WHERE dka.action_type = 'SP'
                   AND dka.status IN ('APPROVED', 'SENT_TO_CONTRACTOR', 'VIEWED_BY_CONTRACTOR', 'ACKNOWLEDGED_BY_CONTRACTOR')
                   AND (dka.expires_at IS NULL OR dka.expires_at >= timezone('Asia/Jakarta', now()))
                 ${dkaBranchFilter} ${periodFilterSp}
-                GROUP BY COALESCE(NULLIF(TRIM(dka.nama_kontraktor), ''), NULLIF(TRIM(t.nama_kontraktor), ''))
+                GROUP BY ${NORM_KONTRAKTOR('t.nama_kontraktor')}
                 ORDER BY metric_value DESC
             `;
         } else if (metric === "kerja_tambah" || metric === "kerja_kurang") {
             query = `
-                WITH selisih_data AS (
+                WITH latest_spk AS (
+                    SELECT DISTINCT ON (id_toko)
+                        id_toko, grand_total, nama_kontraktor
+                    FROM pengajuan_spk
+                    WHERE UPPER(COALESCE(status, '')) IN ('SPK_APPROVED', 'ACTIVE', 'SELESAI', 'APPROVED', 'DISETUJUI', 'AKTIF')
+                    ORDER BY id_toko, COALESCE(waktu_persetujuan, waktu_selesai, created_at) DESC NULLS LAST, id DESC
+                ),
+                latest_opname AS (
+                    SELECT DISTINCT ON (id_toko)
+                        id, id_toko, grand_total_final, grand_total_opname, created_at
+                    FROM opname_final
+                    ORDER BY id_toko, 
+                        CASE WHEN UPPER(COALESCE(status_opname_final, '')) LIKE '%SETUJU%' THEN 0 ELSE 1 END,
+                        COALESCE(NULLIF(waktu_persetujuan_direktur, '')::timestamp, created_at) DESC NULLS LAST,
+                        id DESC
+                ),
+                scope_data AS (
                     SELECT 
-                        COALESCE(NULLIF(TRIM(ps.nama_kontraktor), ''), NULLIF(TRIM(t.nama_kontraktor), '')) AS nama_kontraktor,
-                        (ofn.grand_total_opname - ps.grand_total) as selisih
-                    FROM opname_final ofn
+                        COALESCE(NULLIF(TRIM(t.nomor_ulok), ''), t.id::text) as ulok_id,
+                        MAX(${NORM_KONTRAKTOR('t.nama_kontraktor')}) AS nama_kontraktor,
+                        (COALESCE(NULLIF(ofn.grand_total_final, ''), NULLIF(ofn.grand_total_opname, ''))::numeric - ps.grand_total) as selisih
+                    FROM latest_opname ofn
                     JOIN toko t ON t.id = ofn.id_toko
-                    JOIN pengajuan_spk ps ON ps.id_toko = t.id AND UPPER(TRIM(COALESCE(ps.status, ''))) IN ('SPK_APPROVED', 'APPROVED', 'DISETUJUI', 'AKTIF', 'ACTIVE', 'SELESAI')
-                    WHERE 1=1 ${branchFilter} ${jobTypeFilter} ${periodFilterOpname}
+                    JOIN latest_spk ps ON ps.id_toko = t.id 
+                    WHERE 1=1 ${branchFilter} ${jobTypeFilter}
+                  ${searchFilter}
+                  ${proyekFilter}
+                  ${bangunanFilter}
+              ${dkaKontraktorFilter} ${periodFilterOpname}
+                    GROUP BY COALESCE(NULLIF(TRIM(t.nomor_ulok), ''), t.id::text), (COALESCE(NULLIF(ofn.grand_total_final, ''), NULLIF(ofn.grand_total_opname, ''))::numeric - ps.grand_total)
+                ),
+                ulok_data AS (
+                    SELECT 
+                        ulok_id,
+                        MAX(nama_kontraktor) as nama_kontraktor,
+                        AVG(selisih) FILTER (WHERE selisih > 0) as kerja_tambah,
+                        AVG(ABS(selisih)) FILTER (WHERE selisih < 0) as kerja_kurang
+                    FROM scope_data
+                    GROUP BY ulok_id
                 )
                 SELECT 
                     nama_kontraktor,
-                    AVG(${metric === "kerja_tambah" ? "selisih" : "ABS(selisih)"}) as metric_value,
-                    'Rupiah' as metric_label
-                FROM selisih_data
-                WHERE ${metric === "kerja_tambah" ? "selisih > 0" : "selisih < 0"}
+                    AVG(${metric === "kerja_tambah" ? "kerja_tambah" : "kerja_kurang"}) as metric_value,
+                    'Rupiah' as metric_label,
+                    COUNT(DISTINCT ulok_id) as total_toko
+                FROM ulok_data
+                WHERE ${metric === "kerja_tambah" ? "kerja_tambah IS NOT NULL" : "kerja_kurang IS NOT NULL"}
                 GROUP BY nama_kontraktor
+                ORDER BY metric_value DESC
+            `;
+        } else if (metric === "evaluasi_toko") {
+            query = `
+                WITH opname_stats AS (
+                    SELECT 
+                        ${NORM_KONTRAKTOR('t.nama_kontraktor')} AS nama_kontraktor,
+                        COUNT(oi.id) as total_items,
+                        SUM(CASE WHEN oi.desain = 'Sesuai' THEN 1 ELSE 0 END) as total_desain_sesuai,
+                        SUM(CASE WHEN oi.kualitas = 'Baik' THEN 1 ELSE 0 END) as total_kualitas_baik,
+                        SUM(CASE WHEN oi.spesifikasi = 'Sesuai' THEN 1 ELSE 0 END) as total_spek_sesuai,
+                        COUNT(DISTINCT COALESCE(NULLIF(TRIM(t.nomor_ulok), ''), t.id::text)) as total_toko
+                    FROM opname_final ofn
+                    JOIN toko t ON t.id = ofn.id_toko
+                    JOIN opname_item oi ON oi.id_opname_final = ofn.id
+                    JOIN pengajuan_spk ps ON ps.id_toko = t.id AND UPPER(TRIM(COALESCE(ps.status, ''))) IN ('SPK_APPROVED', 'APPROVED', 'DISETUJUI', 'AKTIF', 'ACTIVE', 'SELESAI')
+                    WHERE (SELECT MIN(created_at) FROM berkas_serah_terima WHERE id_toko = t.id AND link_pdf IS NOT NULL AND link_pdf != '') IS NOT NULL
+                    ${branchFilter} ${jobTypeFilter}
+                  ${searchFilter}
+                  ${proyekFilter}
+                  ${bangunanFilter}
+              ${kontraktorFilter} ${periodFilterOpname}
+                    GROUP BY ${NORM_KONTRAKTOR('t.nama_kontraktor')}
+                )
+                SELECT 
+                    nama_kontraktor,
+                    CASE WHEN COALESCE(total_items, 0) > 0 THEN 
+                        ((total_kualitas_baik::numeric / total_items * 35) + 
+                         (total_desain_sesuai::numeric / total_items * 35) + 
+                         (total_spek_sesuai::numeric / total_items * 30))
+                    ELSE 0 END as metric_value,
+                    'Max 100' as metric_label,
+                    total_toko
+                FROM opname_stats
+                WHERE nama_kontraktor IS NOT NULL
                 ORDER BY metric_value DESC
             `;
         } else {
@@ -415,53 +767,437 @@ export const contractorPerformanceService = {
         return result.rows.map(r => ({
             nama_kontraktor: r.nama_kontraktor,
             metric_value: Number(r.metric_value || 0),
-            metric_label: r.metric_label
+            metric_label: r.metric_label,
+            total_toko: Number(r.total_toko || 0)
         }));
     },
 
-    async getDrilldownSpHistory(kontraktor: string): Promise<any[]> {
+    async getDrilldownSpActiveAll(filters: ContractorPerformanceFilters, allowedBranches: string[]): Promise<any[]> {
+        const { cabang, job_type, period, search, proyek, bangunan, kontraktor: filterKontraktor } = filters;
+        let branchFilter = " AND 1=1";
+        const values: any[] = [];
+        
+        if (allowedBranches.length > 0) {
+            const normalized = allowedBranches.map(b => b.trim().toUpperCase());
+            values.push(normalized);
+            branchFilter += ` AND UPPER(dka.cabang) = ANY($${values.length})`;
+        }
+        
+        if (cabang && cabang !== "ALL" && cabang !== "SEMUA CABANG") {
+            values.push(cabang.trim().toUpperCase());
+            branchFilter += ` AND UPPER(dka.cabang) = $${values.length}`;
+        }
+        
+        let jobTypeFilter = "";
+        if (job_type && job_type !== "ALL") {
+            values.push(job_type.toUpperCase());
+            jobTypeFilter = `AND UPPER(t.lingkup_pekerjaan) = $${values.length}`;
+        }
+        
+        let periodFilter = "";
+        
+        let searchFilter = "";
+        if (search) {
+            values.push(`%${search.toUpperCase()}%`);
+            searchFilter = `AND UPPER(t.nama_kontraktor) LIKE $${values.length}`;
+        }
+
+        let proyekFilter = "";
+        if (proyek && proyek !== "ALL") {
+            if (proyek.toUpperCase() === "REGULER") {
+                proyekFilter = `AND (UPPER(COALESCE(t.proyek, '')) NOT LIKE '%RENOVASI%' AND UPPER(COALESCE(t.proyek, '')) != '')`;
+            } else if (proyek.toUpperCase() === "RENOVASI") {
+                proyekFilter = `AND UPPER(COALESCE(t.proyek, '')) LIKE '%RENOVASI%'`;
+            }
+        }
+        
+        let bangunanFilter = "";
+        if (bangunan && bangunan !== "ALL") {
+            if (bangunan.toUpperCase() === "RUKO") {
+                bangunanFilter = `AND t.id IN (SELECT id_toko FROM rab WHERE UPPER(kategori_lokasi) = 'RUKO')`;
+            } else if (bangunan.toUpperCase() === "NON RUKO") {
+                bangunanFilter = `AND t.id IN (SELECT id_toko FROM rab WHERE UPPER(kategori_lokasi) LIKE '%NON RUKO%')`;
+            }
+        }
+        let kontraktorFilter = "";
+        let dkaKontraktorFilter = "";
+        if (filterKontraktor && filterKontraktor !== "ALL") {
+            values.push(filterKontraktor.toUpperCase());
+            kontraktorFilter = `AND UPPER(${NORM_KONTRAKTOR('t.nama_kontraktor')}) = $${values.length}`;
+            dkaKontraktorFilter = `AND UPPER(${NORM_KONTRAKTOR('t.nama_kontraktor')}) = $${values.length}`;
+        }
+
+        const { start, end } = getPeriodDateRange(period);
+        if (start && end) {
+            values.push(start);
+            values.push(end);
+            periodFilter = `AND dka.created_at >= $${values.length - 1} AND dka.created_at <= $${values.length}`;
+        }
+        
+        const query = `
+            WITH sp_data AS (
+                SELECT 
+                    dka.id,
+                    ${NORM_KONTRAKTOR('t.nama_kontraktor')} AS nama_kontraktor,
+                    dka.action_type,
+                    dka.sp_level,
+                    dka.created_at,
+                    dka.expires_at as original_expires_at,
+                    COALESCE(dka.alasan_sp, dka.catatan) as alasan_sp,
+                    dka.lampiran_1_url,
+                    dka.link_pdf,
+                    dka.cabang,
+                    t.nama_toko,
+                    t.id as id_toko,
+                    dka.status,
+                    LEAD(dka.created_at) OVER (PARTITION BY ${NORM_KONTRAKTOR('t.nama_kontraktor')}, dka.cabang ORDER BY dka.created_at ASC) as next_sp_created_at
+                FROM denda_keterlambatan_action dka
+                JOIN toko t ON t.id = dka.id_toko
+                WHERE dka.action_type = 'SP'
+                  ${branchFilter}
+                  ${jobTypeFilter}
+                  ${searchFilter}
+                  ${proyekFilter}
+                  ${bangunanFilter}
+                  ${dkaKontraktorFilter}
+                  ${periodFilter}
+            )
+            SELECT 
+                id,
+                nama_kontraktor,
+                action_type,
+                sp_level,
+                created_at,
+                COALESCE(next_sp_created_at, original_expires_at) as expires_at,
+                alasan_sp,
+                lampiran_1_url,
+                link_pdf,
+                cabang,
+                nama_toko,
+                id_toko
+            FROM sp_data
+            WHERE status IN ('APPROVED', 'SENT_TO_CONTRACTOR', 'VIEWED_BY_CONTRACTOR', 'ACKNOWLEDGED_BY_CONTRACTOR')
+              AND next_sp_created_at IS NULL 
+              AND (original_expires_at IS NULL OR original_expires_at >= timezone('Asia/Jakarta', now()))
+            ORDER BY created_at DESC
+        `;
+        const result = await pool.query(query, values);
+        return result.rows;
+    },
+
+    async getAllSpHistory(filters: ContractorPerformanceFilters, allowedBranches: string[]): Promise<any[]> {
+        const { cabang, job_type, period, search, proyek, bangunan, kontraktor: filterKontraktor } = filters;
+        let branchFilter = " AND 1=1";
+        const values: any[] = [];
+        
+        if (allowedBranches.length > 0) {
+            const normalized = allowedBranches.map(b => b.trim().toUpperCase());
+            values.push(normalized);
+            branchFilter += ` AND UPPER(dka.cabang) = ANY($${values.length})`;
+        }
+        
+        if (cabang && cabang !== "ALL" && cabang !== "SEMUA CABANG") {
+            values.push(cabang.trim().toUpperCase());
+            branchFilter += ` AND UPPER(dka.cabang) = $${values.length}`;
+        }
+        
+        let jobTypeFilter = "";
+        if (job_type && job_type !== "ALL") {
+            values.push(job_type.toUpperCase());
+            jobTypeFilter = `AND UPPER(t.lingkup_pekerjaan) = $${values.length}`;
+        }
+        
+        let periodFilter = "";
+        
+        let searchFilter = "";
+        if (search) {
+            values.push(`%${search.toUpperCase()}%`);
+            searchFilter = `AND UPPER(t.nama_kontraktor) LIKE $${values.length}`;
+        }
+
+        let proyekFilter = "";
+        if (proyek && proyek !== "ALL") {
+            if (proyek.toUpperCase() === "REGULER") {
+                proyekFilter = `AND (UPPER(COALESCE(t.proyek, '')) NOT LIKE '%RENOVASI%' AND UPPER(COALESCE(t.proyek, '')) != '')`;
+            } else if (proyek.toUpperCase() === "RENOVASI") {
+                proyekFilter = `AND UPPER(COALESCE(t.proyek, '')) LIKE '%RENOVASI%'`;
+            }
+        }
+        
+        let bangunanFilter = "";
+        if (bangunan && bangunan !== "ALL") {
+            if (bangunan.toUpperCase() === "RUKO") {
+                bangunanFilter = `AND t.id IN (SELECT id_toko FROM rab WHERE UPPER(kategori_lokasi) = 'RUKO')`;
+            } else if (bangunan.toUpperCase() === "NON RUKO") {
+                bangunanFilter = `AND t.id IN (SELECT id_toko FROM rab WHERE UPPER(kategori_lokasi) LIKE '%NON RUKO%')`;
+            }
+        }
+        let kontraktorFilter = "";
+        let dkaKontraktorFilter = "";
+        if (filterKontraktor && filterKontraktor !== "ALL") {
+            values.push(filterKontraktor.toUpperCase());
+            kontraktorFilter = `AND UPPER(${NORM_KONTRAKTOR('t.nama_kontraktor')}) = $${values.length}`;
+            dkaKontraktorFilter = `AND UPPER(${NORM_KONTRAKTOR('t.nama_kontraktor')}) = $${values.length}`;
+        }
+
+        const { start, end } = getPeriodDateRange(period);
+        if (start && end) {
+            values.push(start);
+            values.push(end);
+            periodFilter = `AND dka.created_at >= $${values.length - 1} AND dka.created_at <= $${values.length}`;
+        }
+        
+        const query = `
+            WITH sp_data AS (
+                SELECT 
+                    dka.id,
+                    ${NORM_KONTRAKTOR('t.nama_kontraktor')} AS nama_kontraktor,
+                    dka.action_type,
+                    dka.sp_level,
+                    dka.created_at,
+                    dka.expires_at as original_expires_at,
+                    COALESCE(dka.alasan_sp, dka.catatan) as alasan_sp,
+                    dka.lampiran_1_url,
+                    dka.link_pdf,
+                    dka.cabang,
+                    t.nama_toko,
+                    t.id as id_toko,
+                    dka.status,
+                    LEAD(dka.created_at) OVER (PARTITION BY ${NORM_KONTRAKTOR('t.nama_kontraktor')}, dka.cabang ORDER BY dka.created_at ASC) as next_sp_created_at
+                FROM denda_keterlambatan_action dka
+                JOIN toko t ON t.id = dka.id_toko
+                WHERE dka.action_type = 'SP'
+                  ${branchFilter}
+                  ${jobTypeFilter}
+                  ${searchFilter}
+                  ${proyekFilter}
+                  ${bangunanFilter}
+                  ${dkaKontraktorFilter}
+                  ${periodFilter}
+            )
+            SELECT 
+                id,
+                nama_kontraktor,
+                action_type,
+                sp_level,
+                created_at,
+                COALESCE(next_sp_created_at, original_expires_at) as expires_at,
+                alasan_sp,
+                lampiran_1_url,
+                link_pdf,
+                cabang,
+                nama_toko,
+                id_toko,
+                CASE 
+                    WHEN status IN ('APPROVED', 'SENT_TO_CONTRACTOR', 'VIEWED_BY_CONTRACTOR', 'ACKNOWLEDGED_BY_CONTRACTOR')
+                         AND next_sp_created_at IS NULL 
+                         AND (original_expires_at IS NULL OR original_expires_at >= timezone('Asia/Jakarta', now()))
+                    THEN true 
+                    ELSE false 
+                END as is_active
+            FROM sp_data
+            ORDER BY created_at DESC
+        `;
+        const result = await pool.query(query, values);
+        return result.rows;
+    },
+
+    async getDrilldownSpHistory(kontraktor: string, filters: ContractorPerformanceFilters, allowedBranches: string[]): Promise<any[]> {
+        const { cabang, job_type, period, search, proyek, bangunan, kontraktor: filterKontraktor } = filters;
+        let branchFilter = " AND 1=1";
+        const values = [];
+        
+        if (allowedBranches.length > 0) {
+            const normalized = allowedBranches.map(b => b.trim().toUpperCase());
+            values.push(normalized);
+            branchFilter += ` AND UPPER(t.cabang) = ANY($${values.length})`;
+        }
+        if (cabang && cabang !== "ALL" && cabang !== "SEMUA CABANG") {
+            values.push(cabang.trim().toUpperCase());
+            branchFilter += ` AND UPPER(t.cabang) = $${values.length}`;
+        }
+        let jobTypeFilter = "";
+        if (job_type && job_type !== "ALL") {
+            values.push(job_type.toUpperCase());
+            jobTypeFilter = `AND UPPER(t.lingkup_pekerjaan) = $${values.length}`;
+        }
+        let proyekFilter = "";
+        if (proyek && proyek !== "ALL") {
+            if (proyek.toUpperCase() === "REGULER") {
+                proyekFilter = `AND (UPPER(COALESCE(t.proyek, '')) NOT LIKE '%RENOVASI%' AND UPPER(COALESCE(t.proyek, '')) != '')`;
+            } else if (proyek.toUpperCase() === "RENOVASI") {
+                proyekFilter = `AND UPPER(COALESCE(t.proyek, '')) LIKE '%RENOVASI%'`;
+            }
+        }
+        let bangunanFilter = "";
+        if (bangunan && bangunan !== "ALL") {
+            if (bangunan.toUpperCase() === "RUKO") {
+                bangunanFilter = `AND t.id IN (SELECT id_toko FROM rab WHERE UPPER(kategori_lokasi) = 'RUKO')`;
+            } else if (bangunan.toUpperCase() === "NON RUKO") {
+                bangunanFilter = `AND t.id IN (SELECT id_toko FROM rab WHERE UPPER(kategori_lokasi) LIKE '%NON RUKO%')`;
+            }
+        }
+        let kontraktorFilter = "";
+        let dkaKontraktorFilter = "";
+        if (filterKontraktor && filterKontraktor !== "ALL") {
+            values.push(filterKontraktor.toUpperCase());
+            kontraktorFilter = `AND UPPER(${NORM_KONTRAKTOR('t.nama_kontraktor')}) = $${values.length}`;
+            dkaKontraktorFilter = `AND UPPER(${NORM_KONTRAKTOR('t.nama_kontraktor')}) = $${values.length}`;
+        }
+        let periodFilterSp = "";
+        const { start, end } = getPeriodDateRange(period);
+        if (start && end) {
+            values.push(start);
+            values.push(end);
+            periodFilterSp = `AND dka.created_at >= $${values.length - 1} AND dka.created_at <= $${values.length}`;
+        }
+        values.push(kontraktor);
+        const kontraktorParam = `$${values.length}`;
+
         const query = `
             SELECT 
-                dka.id_action,
-                COALESCE(NULLIF(TRIM(dka.nama_kontraktor), ''), NULLIF(TRIM(t.nama_kontraktor), '')) AS nama_kontraktor,
+                dka.id,
+                ${NORM_KONTRAKTOR('t.nama_kontraktor')} AS nama_kontraktor,
                 dka.action_type,
+                dka.sp_level,
                 dka.created_at,
-                dka.keterangan as alasan_sp,
+                COALESCE(dka.alasan_sp, dka.catatan) as alasan_sp,
                 dka.lampiran_1_url,
+                dka.link_pdf,
                 t.nama_toko,
                 t.id as id_toko
             FROM denda_keterlambatan_action dka
             JOIN toko t ON t.id = dka.id_toko
             WHERE dka.action_type = 'SP'
-              AND LOWER(TRIM(COALESCE(NULLIF(TRIM(dka.nama_kontraktor), ''), NULLIF(TRIM(t.nama_kontraktor), '')))) = LOWER(TRIM($1))
+              AND 1=1
+              AND ${NORM_KONTRAKTOR('t.nama_kontraktor')} = ${NORM_KONTRAKTOR(kontraktorParam)}
+              ${branchFilter}
+              ${jobTypeFilter}
+              ${proyekFilter}
+              ${bangunanFilter}
+              ${dkaKontraktorFilter}
+              ${periodFilterSp}
             ORDER BY dka.created_at DESC
         `;
-        const result = await pool.query(query, [kontraktor]);
+        const result = await pool.query(query, values);
         return result.rows;
     },
 
-    async getDrilldownUlok(kontraktor: string, idTokoFilter?: string): Promise<any[]> {
+    async getDrilldownUlok(kontraktor: string, idTokoFilter?: string, metric?: string, filters?: ContractorPerformanceFilters, allowedBranches?: string[]): Promise<any[]> {
+        const { cabang, job_type, period, search, proyek, bangunan, kontraktor: filterKontraktor } = filters || {};
+        const values = [];
+        let branchFilter = "";
+        
+        if (allowedBranches && allowedBranches.length > 0) {
+            const normalized = allowedBranches.map(b => b.trim().toUpperCase());
+            values.push(normalized);
+            branchFilter += ` AND UPPER(t.cabang) = ANY($${values.length})`;
+        }
+        if (cabang && cabang !== "ALL" && cabang !== "SEMUA CABANG") {
+            values.push(cabang.trim().toUpperCase());
+            branchFilter += ` AND UPPER(t.cabang) = $${values.length}`;
+        }
+        let jobTypeFilter = "";
+        if (job_type && job_type !== "ALL") {
+            values.push(job_type.toUpperCase());
+            jobTypeFilter = `AND UPPER(t.lingkup_pekerjaan) = $${values.length}`;
+        }
+        let proyekFilter = "";
+        if (proyek && proyek !== "ALL") {
+            if (proyek.toUpperCase() === "REGULER") {
+                proyekFilter = `AND (UPPER(COALESCE(t.proyek, '')) NOT LIKE '%RENOVASI%' AND UPPER(COALESCE(t.proyek, '')) != '')`;
+            } else if (proyek.toUpperCase() === "RENOVASI") {
+                proyekFilter = `AND UPPER(COALESCE(t.proyek, '')) LIKE '%RENOVASI%'`;
+            }
+        }
+        let bangunanFilter = "";
+        if (bangunan && bangunan !== "ALL") {
+            if (bangunan.toUpperCase() === "RUKO") {
+                bangunanFilter = `AND t.id IN (SELECT id_toko FROM rab WHERE UPPER(kategori_lokasi) = 'RUKO')`;
+            } else if (bangunan.toUpperCase() === "NON RUKO") {
+                bangunanFilter = `AND t.id IN (SELECT id_toko FROM rab WHERE UPPER(kategori_lokasi) LIKE '%NON RUKO%')`;
+            }
+        }
+        let kontraktorFilter = "";
+        let dkaKontraktorFilter = "";
+        if (filterKontraktor && filterKontraktor !== "ALL") {
+            values.push(filterKontraktor.toUpperCase());
+            kontraktorFilter = `AND UPPER(${NORM_KONTRAKTOR('t.nama_kontraktor')}) = $${values.length}`;
+            dkaKontraktorFilter = `AND UPPER(${NORM_KONTRAKTOR('t.nama_kontraktor')}) = $${values.length}`;
+        }
+        let periodFilterOpname = "";
+        const { start, end } = getPeriodDateRange(period);
+        if (start && end) {
+            values.push(start);
+            values.push(end);
+            periodFilterOpname = `AND ofn.created_at >= $${values.length - 1} AND ofn.created_at <= $${values.length}`;
+        }
+
         // Return full list of ULOK for this contractor (mixed Sipil & ME)
         // If idTokoFilter is provided, return only that toko (for SP history flow)
-        let filter = `LOWER(TRIM(COALESCE(NULLIF(TRIM(ps.nama_kontraktor), ''), NULLIF(TRIM(t.nama_kontraktor), '')))) = LOWER(TRIM($1))`;
-        const values: any[] = [kontraktor];
+        let filter = `1=1 ${branchFilter} ${jobTypeFilter} ${proyekFilter} ${bangunanFilter}
+              ${kontraktorFilter} ${periodFilterOpname}`;
+        
+        if (kontraktor) {
+            values.push(kontraktor);
+            filter += ` AND ${NORM_KONTRAKTOR('t.nama_kontraktor')} = ${NORM_KONTRAKTOR(`$${values.length}`)}`;
+        }
         
         if (idTokoFilter) {
             values.push(idTokoFilter);
-            filter += ` AND t.id = $2`;
+            filter += ` AND t.id = $${values.length}`;
+        }
+
+        if (metric === 'avg_denda' || metric === 'total_denda') {
+            filter += ` AND ofn.nilai_denda > 0`;
+        } else if (metric === 'avg_keterlambatan' || metric === 'total_keterlambatan') {
+            filter += ` AND ofn.id IS NULL AND (SELECT MIN(created_at) FROM berkas_serah_terima WHERE id_toko = t.id AND link_pdf IS NOT NULL AND link_pdf != '') IS NULL AND CURRENT_DATE::timestamp > (COALESCE(ps.waktu_persetujuan, ps.created_at) + ((COALESCE(ps.durasi, 0) + COALESCE((SELECT SUM(NULLIF(REGEXP_REPLACE(pertambahan_hari, '[^0-9]', '', 'g'), '')::integer) FROM pertambahan_spk WHERE id_spk = ps.id AND status_persetujuan IN ('APPROVED_BY_BM', 'APPROVED')), 0)) || ' days')::interval)`;
+        } else if (metric === 'kerja_tambah') {
+            filter += ` AND ofn.id IS NOT NULL AND (COALESCE(NULLIF(ofn.grand_total_final, ''), NULLIF(ofn.grand_total_opname, ''))::numeric - ps.grand_total) > 0`;
+        } else if (metric === 'kerja_kurang') {
+            filter += ` AND ofn.id IS NOT NULL AND (COALESCE(NULLIF(ofn.grand_total_final, ''), NULLIF(ofn.grand_total_opname, ''))::numeric - ps.grand_total) < 0`;
+        } else if (metric === 'evaluasi_toko') {
+            filter += ` AND ofn.id IS NOT NULL AND (SELECT MIN(created_at) FROM berkas_serah_terima WHERE id_toko = t.id AND link_pdf IS NOT NULL AND link_pdf != '') IS NOT NULL`;
         }
 
         const query = `
+            WITH latest_spk AS (
+                SELECT DISTINCT ON (id_toko)
+                    id_toko, grand_total, nama_kontraktor, lingkup_pekerjaan, status, waktu_persetujuan, created_at, durasi, id
+                FROM pengajuan_spk
+                WHERE UPPER(COALESCE(status, '')) IN ('SPK_APPROVED', 'ACTIVE', 'SELESAI', 'APPROVED', 'DISETUJUI', 'AKTIF')
+                ORDER BY id_toko, COALESCE(waktu_persetujuan, waktu_selesai, created_at) DESC NULLS LAST, id DESC
+            ),
+            latest_opname AS (
+                SELECT DISTINCT ON (id_toko)
+                    id, id_toko, grand_total_final, grand_total_opname, created_at, hari_denda, nilai_denda
+                FROM opname_final
+                ORDER BY id_toko, 
+                    CASE WHEN UPPER(COALESCE(status_opname_final, '')) LIKE '%SETUJU%' THEN 0 ELSE 1 END,
+                    COALESCE(NULLIF(waktu_persetujuan_direktur, '')::timestamp, created_at) DESC NULLS LAST,
+                    id DESC
+            )
             SELECT 
                 ofn.id as id_opname_final,
                 t.id as id_toko,
-                t.nomor_toko as nomor_ulok,
+                COALESCE(NULLIF(TRIM(t.nomor_ulok), ''), t.id::text) as nomor_ulok,
                 t.nama_toko,
                 t.cabang,
-                COALESCE(NULLIF(TRIM(ps.nama_kontraktor), ''), NULLIF(TRIM(t.nama_kontraktor), '')) AS nama_kontraktor,
-                ofn.hari_denda,
+                ${NORM_KONTRAKTOR('t.nama_kontraktor')} AS nama_kontraktor,
+                COALESCE(
+                    ofn.hari_denda,
+                    EXTRACT(DAY FROM (
+                        COALESCE(
+                            (SELECT MIN(created_at) FROM berkas_serah_terima WHERE id_toko = t.id AND link_pdf IS NOT NULL AND link_pdf != ''),
+                            CURRENT_DATE::timestamp
+                        )
+                        - (COALESCE(ps.waktu_persetujuan, ps.created_at) + ((COALESCE(ps.durasi, 0) + COALESCE((SELECT SUM(NULLIF(REGEXP_REPLACE(pertambahan_hari, '[^0-9]', '', 'g'), '')::integer) FROM pertambahan_spk WHERE id_spk = ps.id AND status_persetujuan IN ('APPROVED_BY_BM', 'APPROVED')), 0)) || ' days')::interval)
+                    ))
+                ) as hari_denda,
                 ofn.nilai_denda,
-                (ofn.grand_total_opname - ps.grand_total) as selisih_kerja,
+                (COALESCE(ps.waktu_persetujuan, ps.created_at) + ((COALESCE(ps.durasi, 0) + COALESCE((SELECT SUM(NULLIF(REGEXP_REPLACE(pertambahan_hari, '[^0-9]', '', 'g'), '')::integer) FROM pertambahan_spk WHERE id_spk = ps.id AND status_persetujuan IN ('APPROVED_BY_BM', 'APPROVED')), 0)) || ' days')::interval) as akhir_spk,
+                (SELECT MIN(created_at) FROM berkas_serah_terima WHERE id_toko = t.id AND link_pdf IS NOT NULL AND link_pdf != '') as serah_terima_date,
+                (COALESCE(NULLIF(ofn.grand_total_final, ''), NULLIF(ofn.grand_total_opname, ''))::numeric - ps.grand_total) as selisih_kerja,
                 COALESCE(
                     (SELECT json_agg(
                         json_build_object(
@@ -476,16 +1212,19 @@ export const contractorPerformanceService = {
                     (SELECT json_agg(
                         json_build_object(
                             'lingkup_pekerjaan', ps_scope.lingkup_pekerjaan,
-                            'project_type', t.jenis_pekerjaan
+                            'project_type', t_scope.lingkup_pekerjaan,
+                            'id_toko', t_scope.id
                         )
-                    ) FROM pengajuan_spk ps_scope WHERE ps_scope.id_toko = t.id AND UPPER(TRIM(COALESCE(ps_scope.status, ''))) IN ('SPK_APPROVED', 'APPROVED', 'DISETUJUI', 'AKTIF', 'ACTIVE', 'SELESAI')),
+                    ) FROM toko t_scope 
+                      JOIN latest_spk ps_scope ON ps_scope.id_toko = t_scope.id 
+                      WHERE COALESCE(NULLIF(TRIM(t_scope.nomor_ulok), ''), t_scope.id::text) = COALESCE(NULLIF(TRIM(t.nomor_ulok), ''), t.id::text)),
                     '[]'::json
                 ) as scopes
             FROM toko t
-            JOIN pengajuan_spk ps ON ps.id_toko = t.id AND UPPER(TRIM(COALESCE(ps.status, ''))) IN ('SPK_APPROVED', 'APPROVED', 'DISETUJUI', 'AKTIF', 'ACTIVE', 'SELESAI')
-            LEFT JOIN opname_final ofn ON ofn.id_toko = t.id
+            LEFT JOIN latest_spk ps ON ps.id_toko = t.id
+            LEFT JOIN latest_opname ofn ON ofn.id_toko = t.id
             WHERE ${filter}
-            ORDER BY t.created_at DESC
+            ORDER BY t.id DESC
         `;
         const result = await pool.query(query, values);
         
@@ -515,6 +1254,8 @@ export const contractorPerformanceService = {
                 nama_kontraktor: r.nama_kontraktor,
                 hari_denda: r.hari_denda,
                 nilai_denda: r.nilai_denda,
+                akhir_spk: r.akhir_spk,
+                serah_terima_date: r.serah_terima_date,
                 kerja_tambah: Number(r.selisih_kerja) > 0 ? Number(r.selisih_kerja) : 0,
                 kerja_kurang: Number(r.selisih_kerja) < 0 ? Math.abs(Number(r.selisih_kerja)) : 0,
                 kualitas,
@@ -526,38 +1267,148 @@ export const contractorPerformanceService = {
         });
     },
 
-    async getDrilldownDetail(idToko: string, lingkup: string): Promise<any> {
+    async getDrilldownDetail(idToko: string, lingkup: string, filters?: ContractorPerformanceFilters, allowedBranches?: string[]): Promise<any> {
         // Context-aware detail implies we return everything for the Slide-Out panel,
         // and let the frontend pick what to emphasize based on the context.
         const query = `
             SELECT 
-                t.nomor_toko,
+                COALESCE(NULLIF(TRIM(ps.nomor_ulok), ''), NULLIF(TRIM(t.nomor_ulok), ''), t.id::text) as nomor_ulok,
                 t.nama_toko,
                 t.cabang,
-                t.jenis_pekerjaan,
-                COALESCE(NULLIF(TRIM(ps.nama_kontraktor), ''), NULLIF(TRIM(t.nama_kontraktor), '')) AS nama_kontraktor,
+                t.lingkup_pekerjaan as jenis_pekerjaan,
+                ${NORM_KONTRAKTOR('t.nama_kontraktor')} AS nama_kontraktor,
                 ps.lingkup_pekerjaan,
                 ofn.hari_denda,
                 ofn.nilai_denda,
-                ofn.grand_total_opname,
+                COALESCE(NULLIF(ofn.grand_total_final, ''), NULLIF(ofn.grand_total_opname, '')) as grand_total_opname,
                 ps.grand_total as spk_total,
-                (ofn.grand_total_opname - ps.grand_total) as selisih_kerja,
+                (COALESCE(NULLIF(ofn.grand_total_final, ''), NULLIF(ofn.grand_total_opname, ''))::numeric - ps.grand_total) as selisih_kerja,
+                ps.created_at as spk_created_at,
+                ps.waktu_persetujuan as spk_waktu_persetujuan,
+                rab.created_at as rab_created_at,
+                rab.waktu_persetujuan_manager as rab_waktu_persetujuan,
+                rab.grand_total_final as rab_grand_total,
+                (SELECT SUM(NULLIF(REGEXP_REPLACE(pertambahan_hari, '[^0-9]', '', 'g'), '')::integer) FROM pertambahan_spk WHERE id_spk = ps.id AND status_persetujuan IN ('APPROVED_BY_BM', 'APPROVED')) as spk_tambah_hari,
+                EXTRACT(DAY FROM (COALESCE((SELECT MIN(created_at) FROM berkas_serah_terima WHERE id_toko = t.id AND link_pdf IS NOT NULL AND link_pdf != ''), CURRENT_DATE::timestamp) - (COALESCE(ps.waktu_persetujuan, ps.created_at) + ((COALESCE(ps.durasi, 0) + COALESCE((SELECT SUM(NULLIF(REGEXP_REPLACE(pertambahan_hari, '[^0-9]', '', 'g'), '')::integer) FROM pertambahan_spk WHERE id_spk = ps.id AND status_persetujuan IN ('APPROVED_BY_BM', 'APPROVED')), 0)) || ' days')::interval))) as true_late_days,
+                ofn.id as id_opname_final,
                 (SELECT json_agg(
                         json_build_object(
                             'kualitas', oi.kualitas,
                             'desain', oi.desain,
                             'spesifikasi', oi.spesifikasi
                         )
-                    ) FROM opname_item oi WHERE oi.id_opname_final = ofn.id) as item_stats
+                    ) FROM opname_item oi WHERE oi.id_opname_final = ofn.id) as item_stats,
+                (SELECT json_agg(DISTINCT UPPER(ps2.lingkup_pekerjaan)) 
+                    FROM toko t2 
+                    JOIN pengajuan_spk ps2 ON ps2.id_toko = t2.id 
+                    WHERE COALESCE(NULLIF(TRIM(t2.nomor_ulok), ''), t2.id::text) = COALESCE(NULLIF(TRIM(t.nomor_ulok), ''), t.id::text)
+                ) as available_scopes
             FROM toko t
             JOIN pengajuan_spk ps ON ps.id_toko = t.id 
                 AND UPPER(TRIM(COALESCE(ps.status, ''))) IN ('SPK_APPROVED', 'APPROVED', 'DISETUJUI', 'AKTIF', 'ACTIVE', 'SELESAI')
-                AND UPPER(ps.lingkup_pekerjaan) = UPPER($2)
+                AND ($2 = 'Sipil + ME' OR UPPER(ps.lingkup_pekerjaan) = UPPER($2))
             LEFT JOIN opname_final ofn ON ofn.id_toko = t.id
+            LEFT JOIN rab ON rab.id_toko = t.id AND UPPER(TRIM(COALESCE(rab.status, ''))) = 'APPROVED'
             WHERE t.id = $1
             LIMIT 1
         `;
         const result = await pool.query(query, [idToko, lingkup]);
         return result.rows[0];
     }
+    , async getContractorBalanceChart(filters: ContractorPerformanceFilters, allowedBranches: string[]): Promise<any[]> {
+        const { cabang, job_type, period, search, proyek, bangunan, kontraktor: filterKontraktor } = filters;
+        
+        let branchFilter = " AND 1=1";
+        const values: any[] = [];
+
+        let searchFilter = "";
+        if (search) {
+            values.push(`%${search.toUpperCase()}%`);
+            searchFilter = `AND UPPER(t.nama_kontraktor) LIKE $${values.length}`;
+        }
+
+        let proyekFilter = "";
+        if (proyek && proyek !== "ALL") {
+            if (proyek.toUpperCase() === "REGULER") {
+                proyekFilter = `AND (UPPER(COALESCE(t.proyek, '')) NOT LIKE '%RENOVASI%' AND UPPER(COALESCE(t.proyek, '')) != '')`;
+            } else if (proyek.toUpperCase() === "RENOVASI") {
+                proyekFilter = `AND UPPER(COALESCE(t.proyek, '')) LIKE '%RENOVASI%'`;
+            }
+        }
+        
+        let bangunanFilter = "";
+        if (bangunan && bangunan !== "ALL") {
+            if (bangunan.toUpperCase() === "RUKO") {
+                bangunanFilter = `AND t.id IN (SELECT id_toko FROM rab WHERE UPPER(kategori_lokasi) = 'RUKO')`;
+            } else if (bangunan.toUpperCase() === "NON RUKO") {
+                bangunanFilter = `AND t.id IN (SELECT id_toko FROM rab WHERE UPPER(kategori_lokasi) LIKE '%NON RUKO%')`;
+            }
+        }
+        let kontraktorFilter = "";
+        let dkaKontraktorFilter = "";
+        if (filterKontraktor && filterKontraktor !== "ALL") {
+            values.push(filterKontraktor.toUpperCase());
+            kontraktorFilter = `AND UPPER(${NORM_KONTRAKTOR('t.nama_kontraktor')}) = $${values.length}`;
+            dkaKontraktorFilter = `AND UPPER(${NORM_KONTRAKTOR('t.nama_kontraktor')}) = $${values.length}`;
+        }
+        
+        // Allowed branches
+        if (allowedBranches.length > 0) {
+            const normalized = allowedBranches.map(b => b.trim().toUpperCase());
+            values.push(normalized);
+            branchFilter += ` AND ${branchGroupSql('t.cabang')} = ANY($${values.length})`;
+        }
+        
+        // Specific cabang filter
+        if (cabang && cabang !== "ALL" && cabang !== "SEMUA CABANG") {
+            values.push(cabang.trim().toUpperCase());
+            branchFilter += ` AND ${branchGroupSql('t.cabang')} = $${values.length}`;
+        }
+        
+        let jobTypeFilter = "";
+        if (job_type && job_type !== "ALL") {
+            values.push(job_type.toUpperCase());
+            jobTypeFilter = `AND UPPER(t.lingkup_pekerjaan) = $${values.length}`;
+        }
+
+        let periodFilterOpname = "";
+        const { start, end } = getPeriodDateRange(period);
+        if (start && end) {
+            values.push(start);
+            values.push(end);
+            periodFilterOpname = `AND ps.created_at >= $${values.length - 1} AND ps.created_at <= $${values.length}`;
+        }
+
+        const query = `
+            SELECT 
+                ${NORM_KONTRAKTOR('t.nama_kontraktor')} AS nama_kontraktor,
+                ${branchGroupSql('t.cabang')} AS cabang,
+                SUM(COALESCE(NULLIF(rab.grand_total_final, '')::numeric, 0)) as total_penawaran,
+                SUM(COALESCE(ps.grand_total, 0)) as total_spk,
+                COUNT(DISTINCT COALESCE(NULLIF(TRIM(t.nomor_ulok), ''), t.id::text)) as total_toko
+            FROM pengajuan_spk ps
+            JOIN toko t ON t.id = ps.id_toko
+            LEFT JOIN rab ON rab.id_toko = t.id
+            WHERE UPPER(TRIM(COALESCE(ps.status, ''))) IN ('SPK_APPROVED', 'APPROVED', 'DISETUJUI', 'AKTIF', 'ACTIVE', 'SELESAI')
+              ${branchFilter}
+              ${searchFilter}
+              ${jobTypeFilter}
+              ${proyekFilter}
+              ${bangunanFilter}
+              ${kontraktorFilter}
+              ${periodFilterOpname}
+            GROUP BY ${NORM_KONTRAKTOR('t.nama_kontraktor')}, ${branchGroupSql('t.cabang')}
+            HAVING SUM(COALESCE(ps.grand_total, 0)) > 0 OR SUM(COALESCE(NULLIF(rab.grand_total_final, '')::numeric, 0)) > 0
+            ORDER BY total_spk DESC
+        `;
+        
+        const result = await pool.query(query, values);
+        return result.rows.map(r => ({
+            nama_kontraktor: `${r.nama_kontraktor} - ${r.cabang}`,
+            total_penawaran: Number(r.total_penawaran),
+            total_spk: Number(r.total_spk),
+            total_toko: Number(r.total_toko)
+        }));
+    }
+
 };

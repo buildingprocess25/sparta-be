@@ -29,17 +29,22 @@ import {
     getContractorLeaderboard,
     getContractorDrilldownRanking,
     getContractorDrilldownSpHistory,
+    getContractorDrilldownSpActiveAll,
+    getContractorAllSpHistory,
     getContractorDrilldownUlok,
-    getContractorDrilldownDetail
+    getContractorDrilldownDetail,
+    getContractorBalanceChart,
+    getContractorAvailableCabang,
+    getContractorAvailableKontraktors
 } from "./dashboard-contractor.controller";
 
 const normalizeRole = (role: string): string => role.trim().toUpperCase();
 
 const isSuperHuman = (req: Request): boolean =>
-    Boolean(req.user?.roles.some((role) => normalizeRole(role).includes("SUPER HUMAN")));
+    Boolean(req.user?.roles?.some((role: string) => normalizeRole(role).includes("SUPER HUMAN")));
 
 const isContractorPerformanceBlocked = (req: Request): boolean =>
-    Boolean(req.user?.roles.some((role) => {
+    Boolean(req.user?.roles?.some((role: string) => {
         const normalized = normalizeRole(role);
         return normalized.includes("KONTRAKTOR") || normalized === "DIREKTUR";
     }));
@@ -48,7 +53,7 @@ const hasInternalPerformanceAccess = (req: Request): boolean => {
     if (isSuperHuman(req)) return true;
     const cabang = req.user?.cabang?.toUpperCase().trim();
     if (cabang === "HEAD OFFICE") return true;
-    if (req.user?.roles.some(r => r.toUpperCase().includes("REGIONAL MANAGER"))) return true;
+    if (req.user?.roles?.some((r: string) => r.toUpperCase().includes("REGIONAL MANAGER"))) return true;
     return false;
 };
 
@@ -65,7 +70,7 @@ const requireInternalPerformanceAccess = (req: Request, res: Response, next: Nex
 };
 
 const requireContractorPerformanceAccess = (req: Request, res: Response, next: NextFunction) => {
-    if (req.user?.email_sat?.toLowerCase() === 'wildan.fadillah@nusaputra.ac.id') {
+    if (isSuperHuman(req)) {
         next();
         return;
     }
@@ -100,13 +105,18 @@ dashboardRouter.get("/performance/detail", requireInternalPerformanceAccess, get
 dashboardRouter.get("/performance/table", requireInternalPerformanceAccess, getPerformanceTable);
 
 // Contractor Performance routes
-dashboardRouter.get("/contractor/summary", requireContractorPerformanceAccess, getContractorSummary);
-dashboardRouter.get("/contractor/charts", requireContractorPerformanceAccess, getContractorCharts);
-dashboardRouter.get("/contractor/leaderboard", requireContractorPerformanceAccess, getContractorLeaderboard);
-dashboardRouter.get("/contractor/drilldown-ranking", requireContractorPerformanceAccess, getContractorDrilldownRanking);
-dashboardRouter.get("/contractor/drilldown-sp-history", requireContractorPerformanceAccess, getContractorDrilldownSpHistory);
-dashboardRouter.get("/contractor/drilldown-ulok", requireContractorPerformanceAccess, getContractorDrilldownUlok);
-dashboardRouter.get("/contractor/drilldown-detail", requireContractorPerformanceAccess, getContractorDrilldownDetail);
+dashboardRouter.get("/contractor/filters/cabang", getContractorAvailableCabang);
+dashboardRouter.get("/contractor/filters/kontraktor", getContractorAvailableKontraktors);
+dashboardRouter.get("/contractor/summary",  getContractorSummary);
+dashboardRouter.get("/contractor/charts",  getContractorCharts);
+dashboardRouter.get("/contractor/leaderboard",  getContractorLeaderboard);
+dashboardRouter.get("/contractor/drilldown-ranking",  getContractorDrilldownRanking);
+dashboardRouter.get("/contractor/drilldown-sp-history",  getContractorDrilldownSpHistory);
+dashboardRouter.get("/contractor/drilldown-sp-active-all",  getContractorDrilldownSpActiveAll);
+dashboardRouter.get("/contractor/all-sp-history",  getContractorAllSpHistory);
+dashboardRouter.get("/contractor/drilldown-ulok",  getContractorDrilldownUlok);
+dashboardRouter.get("/contractor/drilldown-detail",  getContractorDrilldownDetail);
+dashboardRouter.get("/contractor/balance-chart",  getContractorBalanceChart);
 
 dashboardRouter.get("/", getDashboardView);
 dashboardRouter.get("/all", getDashboardAll);

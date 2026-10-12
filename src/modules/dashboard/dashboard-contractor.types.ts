@@ -14,14 +14,21 @@ export interface ContractorPerformanceFilters {
     job_type?: ContractorJobType;
     period?: ContractorPerformancePeriod;
     search?: string;
+    proyek?: string;
+    bangunan?: string;
+    kontraktor?: string;
 }
 
 export interface ContractorGlobalSummary {
     avg_denda: number;
+    total_denda: number;
     avg_keterlambatan: number;
+    total_keterlambatan: number;
     sp_aktif_count: number;
     avg_kerja_tambah: number;
+    total_kerja_tambah: number;
     avg_kerja_kurang: number;
+    total_kerja_kurang: number;
 }
 
 export interface ContractorChartPoint {
@@ -35,6 +42,7 @@ export interface ContractorLeaderboardRow {
     nama_kontraktor: string;
     avg_nilai_toko: number;
     history_sp_count: number;
+    active_sp_count: number;
     avg_design: number;
     avg_kualitas: number;
     avg_spek: number;
@@ -44,6 +52,7 @@ export interface ContractorRankingRow {
     nama_kontraktor: string;
     metric_value: number;
     metric_label: string;
+    total_toko?: number;
 }
 
 export interface ContractorSpHistoryRow {

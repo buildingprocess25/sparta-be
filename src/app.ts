@@ -232,6 +232,19 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
     if (error instanceof ZodError) {
         console.error("[ZOD_ERROR] req.body:", JSON.stringify(_req.body));
         console.error("[ZOD_ERROR] Content-Type:", _req.get("content-type"));
+        
+        try {
+            const fs = require('fs');
+            const logData = {
+                timestamp: new Date().toISOString(),
+                body: _req.body,
+                issues: error.issues
+            };
+            fs.appendFileSync('C:\\alfamart\\KERJA\\scratch\\zod_error.log', JSON.stringify(logData, null, 2) + "\n");
+        } catch (err) {
+            console.error("Gagal menulis zod_error.log", err);
+        }
+
         return res.status(422).json({
             status: "error",
             message: "Validasi request gagal",
