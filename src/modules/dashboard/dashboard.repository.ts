@@ -333,6 +333,7 @@ export type DashboardProjectPlanningRow = {
     nama_pengaju: string | null;
     nama_lokasi: string | null;
     jenis_pengajuan: string | null;
+    jenis_pengajuan_lainnya?: string | null;
     status: string | null;
     luas_bangunan: string | null;
     luas_area_terbuka: string | null;
@@ -340,25 +341,59 @@ export type DashboardProjectPlanningRow = {
     luas_gudang: string | null;
     luas_area_parkir: string | null;
     luas_area_sales: string | null;
+    p_bangunan?: string | null;
+    l_bangunan?: string | null;
+    p_area_parkir?: string | null;
+    l_area_parkir?: string | null;
+    is_ruko?: boolean | null;
+    jumlah_lantai?: number | null;
+    beanspot_tipe?: string | null;
+    is_head_to_head?: boolean | null;
+    jarak_head_to_head?: string | null;
+    is_seating_area?: boolean | null;
+    is_dark_store?: boolean | null;
+    akhir_masa_sewa?: string | null;
+    spd?: string | null;
+    keterangan?: string | null;
+    link_pdf?: string | null;
+    link_fpd?: string | null;
+    link_gambar_kerja?: string | null;
+    link_siteplan?: string | null;
+    link_google_maps?: string | null;
+    link_rab_sipil?: string | null;
+    link_rab_me?: string | null;
+    link_gambar_kerja_final_sipil?: string | null;
+    link_gambar_kerja_final_me?: string | null;
+    link_ba_tidak_sesuai_standar?: string | null;
+    link_desain_3d?: string | null;
+    link_gambar_kompetitor?: string | null;
+    link_fpd_approved?: string | null;
+    total_foto_dokumentasi?: number | null;
     bm_approver_email: string | null;
-    pp1_waktu_persetujuan: string | null;
-    pp1_approver_email: string | null;
-    bm2_waktu_persetujuan: string | null;
-    bm2_approver_email: string | null;
-    bm_regional_waktu_persetujuan: string | null;
-    bm_regional_approver_email: string | null;
-    pp2_waktu_persetujuan: string | null;
-    pp2_approver_email: string | null;
-    pp_manager_waktu_persetujuan: string | null;
-    pp_manager_approver_email: string | null;
+    bm_approver_name?: string | null;
     bm_waktu_persetujuan: string | null;
+    pp1_approver_email: string | null;
+    pp1_approver_name?: string | null;
+    pp1_waktu_persetujuan: string | null;
+    bm2_approver_email: string | null;
+    bm2_approver_name?: string | null;
+    bm2_waktu_persetujuan: string | null;
+    bm_regional_approver_email: string | null;
+    bm_regional_approver_name?: string | null;
+    bm_regional_waktu_persetujuan: string | null;
+    pp2_approver_email: string | null;
+    pp2_approver_name?: string | null;
+    pp2_waktu_persetujuan: string | null;
+    pp_manager_approver_email: string | null;
+    pp_manager_approver_name?: string | null;
+    pp_manager_waktu_persetujuan: string | null;
+    created_at: string | null;
     revisi_bm_tahap_1: string | null;
     revisi_pp_tahap_1: string | null;
     revisi_bm_tahap_2: string | null;
     revisi_bm_regional: string | null;
     revisi_pp_tahap_2: string | null;
     revisi_pp_manager: string | null;
-    created_at: string | null;
 };
 
 export type DashboardDokumentasiBangunanRow = {
@@ -700,15 +735,38 @@ export const dashboardRepository = {
         const projectPlanningResult = await pool.query<DashboardProjectPlanningRow>(
             `
             SELECT pp.id, pp.id_toko, pp.nomor_ulok, pp.nama_toko, pp.kode_toko, pp.cabang, pp.proyek, pp.lingkup_pekerjaan,
-                   pp.jenis_proyek, pp.estimasi_biaya, pp.nama_pengaju, pp.nama_lokasi, pp.jenis_pengajuan,
+                   pp.jenis_proyek, pp.estimasi_biaya, pp.nama_pengaju, pp.nama_lokasi, pp.jenis_pengajuan, pp.jenis_pengajuan_lainnya,
                    pp.status, pp.luas_bangunan, pp.luas_area_terbuka, pp.luas_area_terbangun, pp.luas_gudang,
-                   pp.luas_area_parkir, pp.luas_area_sales, pp.bm_waktu_persetujuan, pp.bm_approver_email,
-                   pp.pp1_waktu_persetujuan, pp.pp1_approver_email, pp.bm2_waktu_persetujuan, pp.bm2_approver_email, 
-                   pp.bm_regional_waktu_persetujuan, pp.bm_regional_approver_email, 
-                   pp.pp2_waktu_persetujuan, pp.pp2_approver_email, pp.pp_manager_waktu_persetujuan, pp.pp_manager_approver_email, pp.created_at,
+                   pp.luas_area_parkir, pp.luas_area_sales, pp.p_bangunan, pp.l_bangunan, pp.p_area_parkir, pp.l_area_parkir,
+                   pp.is_ruko, pp.jumlah_lantai, pp.beanspot_tipe, pp.is_head_to_head, pp.jarak_head_to_head,
+                   pp.is_seating_area, pp.is_dark_store, pp.akhir_masa_sewa, pp.spd, pp.keterangan,
+                   pp.link_pdf, pp.link_fpd, pp.link_gambar_kerja, pp.link_siteplan, pp.link_google_maps,
+                   pp.link_rab_sipil, pp.link_rab_me,
+                   pp.link_gambar_kerja_final_sipil, pp.link_gambar_kerja_final_me,
+                   pp.link_ba_tidak_sesuai_standar, pp.link_desain_3d, pp.link_gambar_kompetitor,
+                   pp.link_fpd_approved,
+                   COALESCE(foto_count.total_foto, 0)::int AS total_foto_dokumentasi,
+                   pp.bm_waktu_persetujuan, pp.bm_approver_email, u_bm.nama_lengkap AS bm_approver_name,
+                   pp.pp1_waktu_persetujuan, pp.pp1_approver_email, u_pp1.nama_lengkap AS pp1_approver_name,
+                   pp.bm2_waktu_persetujuan, pp.bm2_approver_email, u_bm2.nama_lengkap AS bm2_approver_name, 
+                   pp.bm_regional_waktu_persetujuan, pp.bm_regional_approver_email, u_reg.nama_lengkap AS bm_regional_approver_name,
+                   pp.pp2_waktu_persetujuan, pp.pp2_approver_email, u_pp2.nama_lengkap AS pp2_approver_name,
+                   pp.pp_manager_waktu_persetujuan, pp.pp_manager_approver_email, u_ppm.nama_lengkap AS pp_manager_approver_name,
+                   pp.created_at,
                    revisi_log.revisi_bm_tahap_1, revisi_log.revisi_pp_tahap_1, revisi_log.revisi_bm_tahap_2,
                    revisi_log.revisi_bm_regional, revisi_log.revisi_pp_tahap_2, revisi_log.revisi_pp_manager
             FROM projek_planning pp
+            LEFT JOIN (
+                SELECT id_projek_planning, COUNT(id) AS total_foto
+                FROM projek_planning_foto_item
+                GROUP BY id_projek_planning
+            ) foto_count ON foto_count.id_projek_planning = pp.id
+            LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_bm ON u_bm.email_sat = pp.bm_approver_email
+            LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_pp1 ON u_pp1.email_sat = pp.pp1_approver_email
+            LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_bm2 ON u_bm2.email_sat = pp.bm2_approver_email
+            LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_reg ON u_reg.email_sat = pp.bm_regional_approver_email
+            LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_pp2 ON u_pp2.email_sat = pp.pp2_approver_email
+            LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_ppm ON u_ppm.email_sat = pp.pp_manager_approver_email
             LEFT JOIN (
                 SELECT 
                     projek_planning_id,
@@ -722,7 +780,7 @@ export const dashboardRepository = {
                 WHERE aksi = 'REJECT'
                 GROUP BY projek_planning_id
             ) revisi_log ON revisi_log.projek_planning_id = pp.id
-            WHERE pp.id_toko = $1
+            WHERE pp.id_toko = $1 OR UPPER(pp.nomor_ulok) = (SELECT UPPER(nomor_ulok) FROM toko WHERE id = $1)
             ORDER BY pp.created_at DESC, pp.id DESC
             `,
             [tokoId]
@@ -1116,15 +1174,38 @@ export const dashboardRepository = {
             pool.query<DashboardProjectPlanningRow>(
                 `
                 SELECT pp.id, pp.id_toko, pp.nomor_ulok, pp.nama_toko, pp.kode_toko, pp.cabang, pp.proyek, pp.lingkup_pekerjaan,
-                       pp.jenis_proyek, pp.estimasi_biaya, pp.nama_pengaju, pp.nama_lokasi, pp.jenis_pengajuan,
+                       pp.jenis_proyek, pp.estimasi_biaya, pp.nama_pengaju, pp.nama_lokasi, pp.jenis_pengajuan, pp.jenis_pengajuan_lainnya,
                        pp.status, pp.luas_bangunan, pp.luas_area_terbuka, pp.luas_area_terbangun, pp.luas_gudang,
-                       pp.luas_area_parkir, pp.luas_area_sales, pp.bm_waktu_persetujuan, pp.bm_approver_email,
-                       pp.pp1_waktu_persetujuan, pp.pp1_approver_email, pp.bm2_waktu_persetujuan, pp.bm2_approver_email, 
-                       pp.bm_regional_waktu_persetujuan, pp.bm_regional_approver_email, 
-                       pp.pp2_waktu_persetujuan, pp.pp2_approver_email, pp.pp_manager_waktu_persetujuan, pp.pp_manager_approver_email, pp.created_at,
+                       pp.luas_area_parkir, pp.luas_area_sales, pp.p_bangunan, pp.l_bangunan, pp.p_area_parkir, pp.l_area_parkir,
+                       pp.is_ruko, pp.jumlah_lantai, pp.beanspot_tipe, pp.is_head_to_head, pp.jarak_head_to_head,
+                       pp.is_seating_area, pp.is_dark_store, pp.akhir_masa_sewa, pp.spd, pp.keterangan,
+                       pp.link_pdf, pp.link_fpd, pp.link_gambar_kerja, pp.link_siteplan, pp.link_google_maps,
+                       pp.link_rab_sipil, pp.link_rab_me,
+                    pp.link_gambar_kerja_final_sipil, pp.link_gambar_kerja_final_me,
+                    pp.link_ba_tidak_sesuai_standar, pp.link_desain_3d, pp.link_gambar_kompetitor,
+                    pp.link_fpd_approved,
+                    COALESCE(foto_count.total_foto, 0)::int AS total_foto_dokumentasi,
+                       pp.bm_waktu_persetujuan, pp.bm_approver_email, u_bm.nama_lengkap AS bm_approver_name,
+                       pp.pp1_waktu_persetujuan, pp.pp1_approver_email, u_pp1.nama_lengkap AS pp1_approver_name,
+                       pp.bm2_waktu_persetujuan, pp.bm2_approver_email, u_bm2.nama_lengkap AS bm2_approver_name, 
+                       pp.bm_regional_waktu_persetujuan, pp.bm_regional_approver_email, u_reg.nama_lengkap AS bm_regional_approver_name,
+                       pp.pp2_waktu_persetujuan, pp.pp2_approver_email, u_pp2.nama_lengkap AS pp2_approver_name,
+                       pp.pp_manager_waktu_persetujuan, pp.pp_manager_approver_email, u_ppm.nama_lengkap AS pp_manager_approver_name,
+                       pp.created_at,
                        revisi_log.revisi_bm_tahap_1, revisi_log.revisi_pp_tahap_1, revisi_log.revisi_bm_tahap_2,
                        revisi_log.revisi_bm_regional, revisi_log.revisi_pp_tahap_2, revisi_log.revisi_pp_manager
                 FROM projek_planning pp
+                LEFT JOIN (
+                    SELECT id_projek_planning, COUNT(id) AS total_foto
+                    FROM projek_planning_foto_item
+                    GROUP BY id_projek_planning
+                ) foto_count ON foto_count.id_projek_planning = pp.id
+                LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_bm ON u_bm.email_sat = pp.bm_approver_email
+                LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_pp1 ON u_pp1.email_sat = pp.pp1_approver_email
+                LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_bm2 ON u_bm2.email_sat = pp.bm2_approver_email
+                LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_reg ON u_reg.email_sat = pp.bm_regional_approver_email
+                LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_pp2 ON u_pp2.email_sat = pp.pp2_approver_email
+                LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_ppm ON u_ppm.email_sat = pp.pp_manager_approver_email
                 LEFT JOIN (
                     SELECT 
                         projek_planning_id,
