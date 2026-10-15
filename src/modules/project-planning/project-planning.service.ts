@@ -18,12 +18,20 @@ async function uploadCompressedFile(file: Express.Multer.File, folderId: string)
 }
 
 async function uploadCompressedFiles(files: Express.Multer.File[], folderId: string): Promise<string | undefined> {
-    const links: string[] = [];
-    for (const file of files.slice(0, 2)) {
-        const link = await uploadCompressedFile(file, folderId);
-        if (link) links.push(link);
+    const validFiles = files.slice(0, 2);
+    const links = await Promise.all(validFiles.map(file => uploadCompressedFile(file, folderId)));
+    const filtered = links.filter(Boolean) as string[];
+    return filtered.length > 0 ? filtered.join("\n") : undefined;
+}
+
+async function uploadBatchConcurrent<T, R>(items: T[], concurrency: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+    const results: R[] = [];
+    for (let i = 0; i < items.length; i += concurrency) {
+        const chunk = items.slice(i, i + concurrency);
+        const chunkResults = await Promise.all(chunk.map(fn));
+        results.push(...chunkResults);
     }
-    return links.length > 0 ? links.join("\n") : undefined;
+    return results;
 }
 
 async function uploadPdfToDrive(buffer: Buffer, filename: string, nomorUlok?: string | null, namaToko?: string | null, kodeToko?: string | null, cabang?: string | null): Promise<string> {
@@ -294,45 +302,52 @@ export const projekPlanningService = {
             try {
                 const folderId = await GoogleProvider.instance.getOrCreateProcessFolder("RAB", payload.nomor_ulok, payload.nama_lokasi || payload.nama_toko || null, payload.kode_toko || null, payload.cabang || null);
 
-                if (fFpd.length > 0) {
-                    const link = await uploadCompressedFiles(fFpd, folderId);
-                    if (link) fpdLink = link;
-                }
-                if (fGambarKerjaMe.length > 0) {
-                    const link = await uploadCompressedFiles(fGambarKerjaMe, folderId);
-                    if (link) gambarKerjaMe = link;
-                }
+                // 1. Upload dokumen FPD, ME, Siteplan, BA secara paralel
+                const [upFpd, upMe, upSiteplan, upBa] = await Promise.all([
+                    fFpd.length > 0 ? uploadCompressedFiles(fFpd, folderId) : Promise.resolve(undefined),
+                    fGambarKerjaMe.length > 0 ? uploadCompressedFiles(fGambarKerjaMe, folderId) : Promise.resolve(undefined),
+                    fSiteplan.length > 0 ? uploadCompressedFiles(fSiteplan, folderId) : Promise.resolve(undefined),
+                    fBaTidakSesuaiStandar.length > 0 ? uploadCompressedFiles(fBaTidakSesuaiStandar, folderId) : Promise.resolve(undefined),
+                ]);
+                if (upFpd) fpdLink = upFpd;
+                if (upMe) gambarKerjaMe = upMe;
+                if (upSiteplan) siteplanLink = upSiteplan;
+                if (upBa) baTidakSesuaiStandarLink = upBa;
+
                 if (fKompetitor.length > 0) {
-                    const uploadedLinks: string[] = [];
-                    for (const [idx, file] of fKompetitor.slice(0, 2).entries()) {
-                        const link = await uploadCompressedFile(file, folderId);
-                        if (link) {
-                            uploadedLinks.push(link);
-                            fotoItemsLinks.push({ item_index: 39 + idx, link_foto: link });
-                        }
+                    const compResults = await Promise.all(
+                        fKompetitor.slice(0, 2).map(async (file, idx) => {
+                            const link = await uploadCompressedFile(file, folderId);
+                            return link ? { link, item_index: 39 + idx } : null;
+                        })
+                    );
+                    const validComp = compResults.filter(Boolean) as { link: string; item_index: number }[];
+                    if (validComp.length > 0) {
+                        gambarKompetitor = validComp.map(v => v.link).join("\n");
+                        validComp.forEach(v => fotoItemsLinks.push({ item_index: v.item_index, link_foto: v.link }));
                     }
-                    const link = uploadedLinks.length > 0 ? uploadedLinks.join("\n") : undefined;
-                    if (link) gambarKompetitor = link;
-                }
-                if (fSiteplan.length > 0) {
-                    const link = await uploadCompressedFiles(fSiteplan, folderId);
-                    if (link) siteplanLink = link;
-                }
-                if (fBaTidakSesuaiStandar.length > 0) {
-                    const link = await uploadCompressedFiles(fBaTidakSesuaiStandar, folderId);
-                    if (link) baTidakSesuaiStandarLink = link;
                 }
 
-                // Process foto_items_X
+                // 2. Process foto_items_X secara paralel (concurrency 5)
+                const photoTasks: { file: Express.Multer.File; index: number }[] = [];
                 for (const file of files) {
                     const match = itemRegex.exec(file.fieldname);
                     if (match) {
                         const index = parseInt(match[1], 10);
                         if (!isNaN(index)) {
-                            const link = await uploadCompressedFile(file, folderId);
-                            if (link) fotoItemsLinks.push({ item_index: index, link_foto: link });
+                            photoTasks.push({ file, index });
                         }
                     }
+                }
+
+                if (photoTasks.length > 0) {
+                    const uploadedPhotos = await uploadBatchConcurrent(photoTasks, 5, async (task) => {
+                        const link = await uploadCompressedFile(task.file, folderId);
+                        return link ? { item_index: task.index, link_foto: link } : null;
+                    });
+                    uploadedPhotos.forEach((item) => {
+                        if (item) fotoItemsLinks.push(item);
+                    });
                 }
             } catch (e) {
                 console.error("Gagal upload file FPD/RAB/Foto ke Drive:", e);
@@ -440,45 +455,52 @@ export const projekPlanningService = {
             try {
                 const folderId = await GoogleProvider.instance.getOrCreateProcessFolder("RAB", projek.nomor_ulok, payload.nama_lokasi || payload.nama_toko || projek.nama_toko || null, payload.kode_toko || projek.kode_toko || null, payload.cabang || projek.cabang || null);
 
-                if (fFpd.length > 0) {
-                    const link = await uploadCompressedFiles(fFpd, folderId);
-                    if (link) fpdLink = link;
-                }
-                if (fGambarKerjaMe.length > 0) {
-                    const link = await uploadCompressedFiles(fGambarKerjaMe, folderId);
-                    if (link) gambarKerjaMe = link;
-                }
+                // 1. Upload dokumen FPD, ME, Siteplan, BA secara paralel
+                const [upFpd, upMe, upSiteplan, upBa] = await Promise.all([
+                    fFpd.length > 0 ? uploadCompressedFiles(fFpd, folderId) : Promise.resolve(undefined),
+                    fGambarKerjaMe.length > 0 ? uploadCompressedFiles(fGambarKerjaMe, folderId) : Promise.resolve(undefined),
+                    fSiteplan.length > 0 ? uploadCompressedFiles(fSiteplan, folderId) : Promise.resolve(undefined),
+                    fBaTidakSesuaiStandar.length > 0 ? uploadCompressedFiles(fBaTidakSesuaiStandar, folderId) : Promise.resolve(undefined),
+                ]);
+                if (upFpd) fpdLink = upFpd;
+                if (upMe) gambarKerjaMe = upMe;
+                if (upSiteplan) siteplanLink = upSiteplan;
+                if (upBa) baTidakSesuaiStandarLink = upBa;
+
                 if (fKompetitor.length > 0) {
-                    const uploadedLinks: string[] = [];
-                    for (const [idx, file] of fKompetitor.slice(0, 2).entries()) {
-                        const link = await uploadCompressedFile(file, folderId);
-                        if (link) {
-                            uploadedLinks.push(link);
-                            fotoItemsLinks.push({ item_index: 39 + idx, link_foto: link });
-                        }
+                    const compResults = await Promise.all(
+                        fKompetitor.slice(0, 2).map(async (file, idx) => {
+                            const link = await uploadCompressedFile(file, folderId);
+                            return link ? { link, item_index: 39 + idx } : null;
+                        })
+                    );
+                    const validComp = compResults.filter(Boolean) as { link: string; item_index: number }[];
+                    if (validComp.length > 0) {
+                        gambarKompetitor = validComp.map(v => v.link).join("\n");
+                        validComp.forEach(v => fotoItemsLinks.push({ item_index: v.item_index, link_foto: v.link }));
                     }
-                    const link = uploadedLinks.length > 0 ? uploadedLinks.join("\n") : undefined;
-                    if (link) gambarKompetitor = link;
-                }
-                if (fSiteplan.length > 0) {
-                    const link = await uploadCompressedFiles(fSiteplan, folderId);
-                    if (link) siteplanLink = link;
-                }
-                if (fBaTidakSesuaiStandar.length > 0) {
-                    const link = await uploadCompressedFiles(fBaTidakSesuaiStandar, folderId);
-                    if (link) baTidakSesuaiStandarLink = link;
                 }
 
-                // Process foto_items_X
+                // 2. Process foto_items_X secara paralel (concurrency 5)
+                const photoTasks: { file: Express.Multer.File; index: number }[] = [];
                 for (const file of files) {
                     const match = itemRegex.exec(file.fieldname);
                     if (match) {
                         const index = parseInt(match[1], 10);
                         if (!isNaN(index)) {
-                            const link = await uploadCompressedFile(file, folderId);
-                            if (link) fotoItemsLinks.push({ item_index: index, link_foto: link });
+                            photoTasks.push({ file, index });
                         }
                     }
+                }
+
+                if (photoTasks.length > 0) {
+                    const uploadedPhotos = await uploadBatchConcurrent(photoTasks, 5, async (task) => {
+                        const link = await uploadCompressedFile(task.file, folderId);
+                        return link ? { item_index: task.index, link_foto: link } : null;
+                    });
+                    uploadedPhotos.forEach((item) => {
+                        if (item) fotoItemsLinks.push(item);
+                    });
                 }
             } catch (e) {
                 console.error("Gagal upload file FPD/RAB/Foto ke Drive:", e);

@@ -486,10 +486,11 @@ export class GoogleProvider {
                 });
 
                 if (options?.makePublic !== false) {
-                    await this.setPublicPermission(drive, uploaded.data.id ?? undefined);
+                    this.setPublicPermission(drive, uploaded.data.id ?? undefined).catch((err) => {
+                        console.warn(`[Drive] Non-blocking permission warning for ${uploaded.data.id}:`, err?.message || err);
+                    });
                 }
 
-                await sleep(250);
                 return {
                     id: uploaded.data.id ?? undefined,
                     webViewLink: uploaded.data.webViewLink ?? undefined,
