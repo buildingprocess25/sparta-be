@@ -47,6 +47,13 @@ const isUserOnlyExport = (dataTypes?: string, jobTypes?: string): boolean => {
 };
 
 const includesUserExport = (dataTypes?: string): boolean => parseExportSelection(dataTypes).has("USER");
+const includesProjectPlanningExport = (dataTypes?: string): boolean => parseExportSelection(dataTypes).has("PROJECT_PLANNING");
+
+const isProjectPlanningOnlyExport = (dataTypes?: string, jobTypes?: string): boolean => {
+    const selectedDataTypes = parseExportSelection(dataTypes);
+    const selectedJobTypes = parseExportSelection(jobTypes);
+    return selectedDataTypes.size === 1 && selectedDataTypes.has("PROJECT_PLANNING") && selectedJobTypes.size === 0;
+};
 
 export const dashboardService = {
     async getDashboard(query: DashboardQueryInput) {
@@ -154,6 +161,10 @@ export const dashboardService = {
             ? await dashboardRepository.findUserExportRows(query)
             : undefined;
 
+        const projectPlanningRows = includesProjectPlanningExport(query.data_types)
+            ? await dashboardRepository.findProjectPlanningExportRows(query)
+            : undefined;
+
         const cabangLabel = query.cabang && query.cabang !== "ALL"
             ? query.cabang
             : (query.actor_cabang.toUpperCase() === "HEAD OFFICE" ? "Semua Cabang" : query.actor_cabang);
@@ -163,6 +174,13 @@ export const dashboardService = {
                 cabang: cabangLabel,
                 generatedBy: query.actor_role
             }, query.data_types, query.job_types, [], userRows);
+        }
+
+        if (isProjectPlanningOnlyExport(query.data_types, query.job_types)) {
+            return buildDashboardExportFile(query.format, [], {
+                cabang: cabangLabel,
+                generatedBy: query.actor_role
+            }, query.data_types, query.job_types, [], undefined, projectPlanningRows);
         }
 
         if (isKtkOpnameFinalOnlyExport(query.data_types, query.job_types)) {
@@ -188,6 +206,6 @@ export const dashboardService = {
         return buildDashboardExportFile(query.format, rows, {
             cabang: cabangLabel,
             generatedBy: query.actor_role
-        }, query.data_types, query.job_types, scopedProjects, userRows);
+        }, query.data_types, query.job_types, scopedProjects, userRows, projectPlanningRows);
     }
 };

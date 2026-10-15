@@ -998,15 +998,27 @@ export const buildKtkOpnameFinalRows = (projects: DashboardData[]): Array<Record
     return rows;
 };
 
-const buildProjectPlanningRows = (projects: DashboardData[]): Array<Record<string, unknown>> => {
-    const rows: Array<Record<string, unknown>> = [];
-    for (const project of projects) {
-        for (const pp of project.project_planning) {
-            rows.push({
-                cabang: normalize(pp.cabang ?? project.toko.cabang),
-                nomor_ulok: normalize(pp.nomor_ulok ?? project.toko.nomor_ulok),
-                nama_toko: normalize(pp.nama_toko ?? project.toko.nama_toko),
-                kode_toko: normalize(pp.kode_toko ?? project.toko.kode_toko),
+export const buildProjectPlanningRows = (
+    input: DashboardProjectPlanningRow[] | DashboardData[]
+): Array<Record<string, unknown>> => {
+    const rawRows: DashboardProjectPlanningRow[] = (input.length > 0 && "toko" in input[0])
+        ? (input as DashboardData[]).flatMap((p) => p.project_planning)
+        : (input as DashboardProjectPlanningRow[]);
+
+    const unifiedMap = new Map<string, Record<string, unknown>>();
+
+    for (const pp of rawRows) {
+        const rawUlok = String(pp.nomor_ulok ?? "").trim();
+        const key = rawUlok ? rawUlok.toUpperCase() : `ID_${pp.id}`;
+
+        if (!unifiedMap.has(key)) {
+            unifiedMap.set(key, {
+                _id: pp.id,
+                _created_time: toDate(pp.created_at)?.getTime() ?? 0,
+                cabang: normalize(pp.cabang),
+                nomor_ulok: normalize(pp.nomor_ulok),
+                nama_toko: normalize(pp.nama_toko),
+                kode_toko: normalize(pp.kode_toko),
                 proyek: normalize(pp.proyek),
                 lingkup_pekerjaan: normalize(pp.lingkup_pekerjaan),
                 nama_pengaju: normalize(pp.nama_pengaju),
@@ -1040,9 +1052,52 @@ const buildProjectPlanningRows = (projects: DashboardData[]): Array<Record<strin
                 approver_pp_manager: normalize(pp.pp_manager_approver_email),
                 revisi_pp_manager: Number(pp.revisi_pp_manager) || 0
             });
+        } else {
+            const existing = unifiedMap.get(key)!;
+
+            // Gabungkan lingkup pekerjaan
+            const existingScopes = String(existing.lingkup_pekerjaan || "")
+                .split(",")
+                .map((s) => s.trim().toUpperCase())
+                .filter(Boolean);
+            const newScopes = String(pp.lingkup_pekerjaan || "")
+                .split(",")
+                .map((s) => s.trim().toUpperCase())
+                .filter(Boolean);
+            const mergedScopes = Array.from(new Set([...existingScopes, ...newScopes]));
+            if (mergedScopes.length > 0) {
+                existing.lingkup_pekerjaan = mergedScopes.join(", ");
+            }
+
+            // Lengkapi field yang sebelumnya kosong
+            if (!existing.nama_toko && pp.nama_toko) existing.nama_toko = normalize(pp.nama_toko);
+            if ((!existing.kode_toko || existing.kode_toko === "Belum diisi") && pp.kode_toko && pp.kode_toko !== "Belum diisi") {
+                existing.kode_toko = normalize(pp.kode_toko);
+            }
+            if (!existing.cabang && pp.cabang) existing.cabang = normalize(pp.cabang);
+            if (!existing.proyek && pp.proyek) existing.proyek = normalize(pp.proyek);
+
+            // Update status & persetujuan jika record ini lebih baru
+            const rowTime = toDate(pp.created_at)?.getTime() ?? 0;
+            if (rowTime > Number(existing._created_time)) {
+                existing.status = humanizePpStatus(pp.status);
+                existing.tanggal_persetujuan_bm = formatIndonesianDate(pp.bm_waktu_persetujuan);
+                existing.approver_bm = normalize(pp.bm_approver_email);
+                existing.tanggal_persetujuan_pp1 = formatIndonesianDate(pp.pp1_waktu_persetujuan);
+                existing.approver_pp1 = normalize(pp.pp1_approver_email);
+                existing.tanggal_persetujuan_bm2 = formatIndonesianDate(pp.bm2_waktu_persetujuan);
+                existing.approver_bm2 = normalize(pp.bm2_approver_email);
+                existing.tanggal_persetujuan_bm_regional = formatIndonesianDate(pp.bm_regional_waktu_persetujuan);
+                existing.approver_bm_regional = normalize(pp.bm_regional_approver_email);
+                existing.tanggal_persetujuan_pp2 = formatIndonesianDate(pp.pp2_waktu_persetujuan);
+                existing.approver_pp2 = normalize(pp.pp2_approver_email);
+                existing.tanggal_persetujuan_pp_manager = formatIndonesianDate(pp.pp_manager_waktu_persetujuan);
+                existing.approver_pp_manager = normalize(pp.pp_manager_approver_email);
+            }
         }
     }
-    return rows;
+
+    return Array.from(unifiedMap.values()).map(({ _id, _created_time, ...rest }) => rest);
 };
 
 const monthName = (date: Date): string => new Intl.DateTimeFormat("id-ID", {
@@ -1089,7 +1144,8 @@ const buildDashboardExportSections = (
     dataTypes?: string,
     jobTypes?: string,
     projects?: DashboardData[],
-    userRows?: DashboardUserSourceRow[]
+    userRows?: DashboardUserSourceRow[],
+    projectPlanningRows?: DashboardProjectPlanningRow[]
 ): DashboardExportSection[] => {
     const selectedDataTypes = [...parseCsvSet(dataTypes)];
     const selectedJobTypes = [...parseCsvSet(jobTypes)];
@@ -1127,6 +1183,20 @@ const buildDashboardExportSections = (
             return;
         }
 
+        if (type === "PROJECT_PLANNING") {
+            const ppSource = projectPlanningRows ?? (projects ? buildProjectPlanningRows(projects) : []);
+            const sectionRows = Array.isArray(ppSource) && ppSource.length > 0 && !("proyek" in ppSource[0]) && "toko" in ppSource[0]
+                ? buildProjectPlanningRows(ppSource as DashboardData[])
+                : (projectPlanningRows ? buildProjectPlanningRows(projectPlanningRows) : (projects ? buildProjectPlanningRows(projects) : []));
+            sections.push({
+                title: dataTypeLabels.PROJECT_PLANNING,
+                filenamePart: `jenis_data_${normalizeFilePart(dataTypeLabels.PROJECT_PLANNING, "PROJECT_PLANNING")}`,
+                rows: sectionRows,
+                columns: projectPlanningExportColumns
+            });
+            return;
+        }
+
         // Jenis data baru — build dari projects
         if (!projects) return;
 
@@ -1148,9 +1218,6 @@ const buildDashboardExportSections = (
         } else if (type === "KTK_OPNAME_FINAL") {
             sectionRows = buildKtkOpnameFinalRows(projects);
             columns = ktkOpnameFinalExportColumns;
-        } else if (type === "PROJECT_PLANNING") {
-            sectionRows = buildProjectPlanningRows(projects);
-            columns = projectPlanningExportColumns;
         }
 
         if (columns.length > 0) {
@@ -1660,10 +1727,11 @@ export const buildDashboardExportFile = async (
     dataTypes?: string,
     jobTypes?: string,
     projects?: DashboardData[],
-    userRows?: DashboardUserSourceRow[]
+    userRows?: DashboardUserSourceRow[],
+    projectPlanningRows?: DashboardProjectPlanningRow[]
 ): Promise<{ buffer: Buffer; filename: string; contentType: string }> => {
     const columns = resolveDashboardExportColumns(dataTypes, jobTypes);
-    const sections = buildDashboardExportSections(rows, dataTypes, jobTypes, projects, userRows);
+    const sections = buildDashboardExportSections(rows, dataTypes, jobTypes, projects, userRows, projectPlanningRows);
     const hasSegmentedSelection = parseCsvSet(dataTypes).size > 0 || parseCsvSet(jobTypes).size > 0;
     const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     const cabang = normalizeUpper(meta.cabang || "ALL").replace(/[^A-Z0-9]+/g, "_") || "ALL";

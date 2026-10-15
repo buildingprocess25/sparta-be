@@ -1903,5 +1903,101 @@ export const dashboardRepository = {
         );
 
         return result.rows;
+    },
+
+    async findProjectPlanningExportRows(query: DashboardExportQueryInput): Promise<DashboardProjectPlanningRow[]> {
+        const filters: string[] = [];
+        const values: Array<string | number | string[]> = [];
+
+        if (query.cabang_array && query.cabang_array.length > 0) {
+            values.push(query.cabang_array.map((item) => item.toUpperCase()));
+            const idx = values.length;
+            filters.push(`UPPER(TRIM(COALESCE(pp.cabang, t.cabang))) = ANY($${idx}::text[])`);
+        } else if (!query._is_global_access && query.actor_cabang && query.actor_cabang.toUpperCase() !== "HEAD OFFICE") {
+            values.push(query.actor_cabang.toUpperCase());
+            const idx = values.length;
+            filters.push(`UPPER(TRIM(COALESCE(pp.cabang, t.cabang))) = $${idx}`);
+        }
+
+        if (query.cabang && query.cabang.toUpperCase() !== "ALL") {
+            values.push(query.cabang.toUpperCase());
+            const idx = values.length;
+            filters.push(`UPPER(TRIM(COALESCE(pp.cabang, t.cabang))) = $${idx}`);
+        }
+
+        if (query.search) {
+            values.push(`%${query.search.trim()}%`);
+            const idx = values.length;
+            filters.push(`(
+                pp.nomor_ulok ILIKE $${idx} OR
+                COALESCE(pp.nama_toko, t.nama_toko) ILIKE $${idx} OR
+                COALESCE(pp.kode_toko, t.kode_toko) ILIKE $${idx} OR
+                COALESCE(pp.cabang, t.cabang) ILIKE $${idx}
+            )`);
+        }
+
+        if (query.jenis_proyek === "reguler") {
+            filters.push(`UPPER(TRIM(COALESCE(pp.proyek, t.proyek))) = 'REGULER'`);
+        } else if (query.jenis_proyek === "renovasi") {
+            filters.push(`UPPER(TRIM(COALESCE(pp.proyek, t.proyek))) LIKE '%RENOVASI%'`);
+        }
+
+        const whereClause = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
+
+        const result = await pool.query<DashboardProjectPlanningRow>(
+            `
+            SELECT pp.id, pp.id_toko, pp.nomor_ulok, pp.email_pembuat,
+                   COALESCE(NULLIF(pp.nama_toko, ''), NULLIF(pp.nama_toko, 'Belum diisi'), t.nama_toko) AS nama_toko,
+                   COALESCE(NULLIF(pp.kode_toko, ''), NULLIF(pp.kode_toko, 'Belum diisi'), t.kode_toko) AS kode_toko,
+                   COALESCE(NULLIF(pp.cabang, ''), t.cabang) AS cabang,
+                   COALESCE(pp.proyek, t.proyek) AS proyek,
+                   pp.lingkup_pekerjaan, pp.jenis_proyek, pp.estimasi_biaya, pp.keterangan,
+                   pp.nama_pengaju, pp.nama_lokasi, pp.jenis_pengajuan, pp.jenis_pengajuan_lainnya,
+                   pp.status,
+                   pp.luas_bangunan, pp.luas_area_terbuka, pp.luas_area_terbangun, pp.luas_gudang,
+                   pp.luas_area_parkir, pp.luas_area_sales,
+                   pp.bm_waktu_persetujuan, pp.bm_approver_email, u_bm.nama_lengkap AS bm_approver_name,
+                   pp.pp1_waktu_persetujuan, pp.pp1_approver_email, u_pp1.nama_lengkap AS pp1_approver_name,
+                   pp.bm2_waktu_persetujuan, pp.bm2_approver_email, u_bm2.nama_lengkap AS bm2_approver_name, 
+                   pp.bm_regional_waktu_persetujuan, pp.bm_regional_approver_email, u_reg.nama_lengkap AS bm_regional_approver_name,
+                   pp.pp2_waktu_persetujuan, pp.pp2_approver_email, u_pp2.nama_lengkap AS pp2_approver_name,
+                   pp.pp_manager_waktu_persetujuan, pp.pp_manager_approver_email, u_ppm.nama_lengkap AS pp_manager_approver_name,
+                   pp.created_at,
+                   revisi_log.revisi_bm_tahap_1, revisi_log.revisi_pp_tahap_1, revisi_log.revisi_bm_tahap_2,
+                   revisi_log.revisi_bm_regional, revisi_log.revisi_pp_tahap_2, revisi_log.revisi_pp_manager
+            FROM projek_planning pp
+            LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_bm ON u_bm.email_sat = pp.bm_approver_email
+            LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_pp1 ON u_pp1.email_sat = pp.pp1_approver_email
+            LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_bm2 ON u_bm2.email_sat = pp.bm2_approver_email
+            LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_reg ON u_reg.email_sat = pp.bm_regional_approver_email
+            LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_pp2 ON u_pp2.email_sat = pp.pp2_approver_email
+            LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_ppm ON u_ppm.email_sat = pp.pp_manager_approver_email
+            LEFT JOIN (
+                SELECT 
+                    projek_planning_id,
+                    COUNT(CASE WHEN status_sebelum = 'WAITING_BM_APPROVAL' THEN 1 END) as revisi_bm_tahap_1,
+                    COUNT(CASE WHEN status_sebelum = 'WAITING_PP_APPROVAL_1' THEN 1 END) as revisi_pp_tahap_1,
+                    COUNT(CASE WHEN status_sebelum = 'WAITING_BM_APPROVAL_2' THEN 1 END) as revisi_bm_tahap_2,
+                    COUNT(CASE WHEN status_sebelum = 'WAITING_BM_REGIONAL_APPROVAL' THEN 1 END) as revisi_bm_regional,
+                    COUNT(CASE WHEN status_sebelum = 'WAITING_PP_APPROVAL_2' THEN 1 END) as revisi_pp_tahap_2,
+                    COUNT(CASE WHEN status_sebelum = 'WAITING_PP_MANAGER_APPROVAL' THEN 1 END) as revisi_pp_manager
+                FROM projek_planning_log
+                WHERE aksi = 'REJECT'
+                GROUP BY projek_planning_id
+            ) revisi_log ON revisi_log.projek_planning_id = pp.id
+            LEFT JOIN LATERAL (
+                SELECT nama_toko, kode_toko, cabang, proyek
+                FROM toko
+                WHERE UPPER(TRIM(nomor_ulok)) = UPPER(TRIM(pp.nomor_ulok))
+                ORDER BY id ASC
+                LIMIT 1
+            ) t ON true
+            ${whereClause}
+            ORDER BY pp.created_at DESC, pp.id DESC
+            `,
+            values
+        );
+
+        return result.rows;
     }
 };
