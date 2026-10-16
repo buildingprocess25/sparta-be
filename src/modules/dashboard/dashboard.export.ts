@@ -710,6 +710,9 @@ const projectPlanningExportColumns: DashboardExportColumn[] = [
     { key: "nama_pengaju", label: "Nama Pengaju" },
     { key: "nama_lokasi", label: "Nama Lokasi" },
     { key: "jenis_pengajuan", label: "Jenis Pengajuan Desain" },
+    { key: "status_desain_3d", label: "Desain 3D" },
+    { key: "waktu_send_3d", label: "Timestamp Kirim 3D" },
+    { key: "link_desain_3d", label: "Link Desain 3D" },
     { key: "estimasi_biaya", label: "Estimasi Biaya" },
     { key: "luas_bangunan", label: "Luas Bangunan" },
     { key: "luas_area_terbuka", label: "Luas Area Terbuka" },
@@ -1011,6 +1014,11 @@ export const buildProjectPlanningRows = (
         const rawUlok = String(pp.nomor_ulok ?? "").trim();
         const key = rawUlok ? rawUlok.toUpperCase() : `ID_${pp.id}`;
 
+        const uses3D = Boolean(pp.butuh_desain_3d || pp.link_desain_3d || pp.waktu_send_3d);
+        const statusDesain3D = uses3D ? "Pakai 3D" : "Tanpa 3D";
+        const waktuSend3D = pp.waktu_send_3d ? formatIndonesianDate(pp.waktu_send_3d) : "";
+        const linkDesain3D = normalize(pp.link_desain_3d);
+
         if (!unifiedMap.has(key)) {
             unifiedMap.set(key, {
                 _id: pp.id,
@@ -1024,6 +1032,9 @@ export const buildProjectPlanningRows = (
                 nama_pengaju: normalize(pp.nama_pengaju),
                 nama_lokasi: normalize(pp.nama_lokasi),
                 jenis_pengajuan: normalize(pp.jenis_pengajuan),
+                status_desain_3d: statusDesain3D,
+                waktu_send_3d: waktuSend3D,
+                link_desain_3d: linkDesain3D,
                 estimasi_biaya: normalize(pp.estimasi_biaya),
                 luas_bangunan: normalize(pp.luas_bangunan),
                 luas_area_terbuka: normalize(pp.luas_area_terbuka),
@@ -1069,6 +1080,11 @@ export const buildProjectPlanningRows = (
                 existing.lingkup_pekerjaan = mergedScopes.join(", ");
             }
 
+            // Status 3D: jika salah satu pakai 3D, jadikan "Pakai 3D"
+            if (uses3D) existing.status_desain_3d = "Pakai 3D";
+            if (!existing.waktu_send_3d && waktuSend3D) existing.waktu_send_3d = waktuSend3D;
+            if (!existing.link_desain_3d && linkDesain3D) existing.link_desain_3d = linkDesain3D;
+
             // Lengkapi field yang sebelumnya kosong
             if (!existing.nama_toko && pp.nama_toko) existing.nama_toko = normalize(pp.nama_toko);
             if ((!existing.kode_toko || existing.kode_toko === "Belum diisi") && pp.kode_toko && pp.kode_toko !== "Belum diisi") {
@@ -1080,6 +1096,8 @@ export const buildProjectPlanningRows = (
             // Update status & persetujuan jika record ini lebih baru
             const rowTime = toDate(pp.created_at)?.getTime() ?? 0;
             if (rowTime > Number(existing._created_time)) {
+                if (waktuSend3D) existing.waktu_send_3d = waktuSend3D;
+                if (linkDesain3D) existing.link_desain_3d = linkDesain3D;
                 existing.status = humanizePpStatus(pp.status);
                 existing.tanggal_persetujuan_bm = formatIndonesianDate(pp.bm_waktu_persetujuan);
                 existing.approver_bm = normalize(pp.bm_approver_email);

@@ -369,6 +369,9 @@ export type DashboardProjectPlanningRow = {
     link_gambar_kompetitor?: string | null;
     link_fpd_approved?: string | null;
     total_foto_dokumentasi?: number | null;
+    butuh_desain_3d?: boolean | null;
+    waktu_send_3d?: string | null;
+    uploader_3d?: string | null;
     bm_approver_email: string | null;
     bm_approver_name?: string | null;
     bm_waktu_persetujuan: string | null;
@@ -746,6 +749,8 @@ export const dashboardRepository = {
                    pp.link_ba_tidak_sesuai_standar, pp.link_desain_3d, pp.link_gambar_kompetitor,
                    pp.link_fpd_approved,
                    COALESCE(foto_count.total_foto, 0)::int AS total_foto_dokumentasi,
+                   pp.butuh_desain_3d,
+                   log_3d.waktu_send_3d, log_3d.uploader_3d,
                    pp.bm_waktu_persetujuan, pp.bm_approver_email, u_bm.nama_lengkap AS bm_approver_name,
                    pp.pp1_waktu_persetujuan, pp.pp1_approver_email, u_pp1.nama_lengkap AS pp1_approver_name,
                    pp.bm2_waktu_persetujuan, pp.bm2_approver_email, u_bm2.nama_lengkap AS bm2_approver_name, 
@@ -780,6 +785,13 @@ export const dashboardRepository = {
                 WHERE aksi = 'REJECT'
                 GROUP BY projek_planning_id
             ) revisi_log ON revisi_log.projek_planning_id = pp.id
+            LEFT JOIN LATERAL (
+                SELECT created_at AS waktu_send_3d, actor_email AS uploader_3d
+                FROM projek_planning_log
+                WHERE projek_planning_id = pp.id AND aksi = 'UPLOAD_3D'
+                ORDER BY created_at DESC
+                LIMIT 1
+            ) log_3d ON true
             WHERE pp.id_toko = $1 OR UPPER(pp.nomor_ulok) = (SELECT UPPER(nomor_ulok) FROM toko WHERE id = $1)
             ORDER BY pp.created_at DESC, pp.id DESC
             `,
@@ -1185,6 +1197,8 @@ export const dashboardRepository = {
                     pp.link_ba_tidak_sesuai_standar, pp.link_desain_3d, pp.link_gambar_kompetitor,
                     pp.link_fpd_approved,
                     COALESCE(foto_count.total_foto, 0)::int AS total_foto_dokumentasi,
+                    pp.butuh_desain_3d,
+                    log_3d.waktu_send_3d, log_3d.uploader_3d,
                        pp.bm_waktu_persetujuan, pp.bm_approver_email, u_bm.nama_lengkap AS bm_approver_name,
                        pp.pp1_waktu_persetujuan, pp.pp1_approver_email, u_pp1.nama_lengkap AS pp1_approver_name,
                        pp.bm2_waktu_persetujuan, pp.bm2_approver_email, u_bm2.nama_lengkap AS bm2_approver_name, 
@@ -1219,6 +1233,13 @@ export const dashboardRepository = {
                     WHERE aksi = 'REJECT'
                     GROUP BY projek_planning_id
                 ) revisi_log ON revisi_log.projek_planning_id = pp.id
+                LEFT JOIN LATERAL (
+                    SELECT created_at AS waktu_send_3d, actor_email AS uploader_3d
+                    FROM projek_planning_log
+                    WHERE projek_planning_id = pp.id AND aksi = 'UPLOAD_3D'
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                ) log_3d ON true
                 WHERE pp.id_toko = ANY($1::int[]) OR UPPER(pp.nomor_ulok) = ANY($2::text[])
                 ORDER BY pp.created_at DESC, pp.id DESC
                 `,
@@ -1956,6 +1977,8 @@ export const dashboardRepository = {
                    pp.status,
                    pp.luas_bangunan, pp.luas_area_terbuka, pp.luas_area_terbangun, pp.luas_gudang,
                    pp.luas_area_parkir, pp.luas_area_sales,
+                   pp.butuh_desain_3d, pp.link_desain_3d,
+                   log_3d.waktu_send_3d, log_3d.uploader_3d,
                    pp.bm_waktu_persetujuan, pp.bm_approver_email, u_bm.nama_lengkap AS bm_approver_name,
                    pp.pp1_waktu_persetujuan, pp.pp1_approver_email, u_pp1.nama_lengkap AS pp1_approver_name,
                    pp.bm2_waktu_persetujuan, pp.bm2_approver_email, u_bm2.nama_lengkap AS bm2_approver_name, 
@@ -1985,6 +2008,13 @@ export const dashboardRepository = {
                 WHERE aksi = 'REJECT'
                 GROUP BY projek_planning_id
             ) revisi_log ON revisi_log.projek_planning_id = pp.id
+            LEFT JOIN LATERAL (
+                SELECT created_at AS waktu_send_3d, actor_email AS uploader_3d
+                FROM projek_planning_log
+                WHERE projek_planning_id = pp.id AND aksi = 'UPLOAD_3D'
+                ORDER BY created_at DESC
+                LIMIT 1
+            ) log_3d ON true
             LEFT JOIN LATERAL (
                 SELECT nama_toko, kode_toko, cabang, proyek
                 FROM toko
