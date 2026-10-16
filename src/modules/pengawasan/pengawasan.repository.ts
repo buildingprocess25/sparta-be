@@ -170,7 +170,10 @@ export const pengawasanRepository = {
             const rows: PengawasanRow[] = [];
 
             for (const item of items) {
-                const existingResult = await client.query<Pick<PengawasanRow, "id">>(
+                const isAppendResolution = Boolean(item.append_resolution);
+                const existingResult = isAppendResolution
+                    ? { rows: [] }
+                    : await client.query<Pick<PengawasanRow, "id">>(
                     `
                     SELECT id
                     FROM pengawasan
@@ -193,7 +196,7 @@ export const pengawasanRepository = {
                     ]
                 );
 
-                const existingId = existingResult.rows[0]?.id;
+                const existingId = isAppendResolution ? undefined : existingResult.rows[0]?.id;
                 if (existingId) {
                     const setClauses: string[] = [];
                     const values: Array<number | string> = [];
