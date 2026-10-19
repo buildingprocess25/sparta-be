@@ -397,6 +397,9 @@ export type DashboardProjectPlanningRow = {
     revisi_bm_regional: string | null;
     revisi_pp_tahap_2: string | null;
     revisi_pp_manager: string | null;
+    waktu_input_tahap_2?: string | Date | null;
+    awal_spk?: string | Date | null;
+    akhir_spk?: string | Date | null;
 };
 
 export type DashboardDokumentasiBangunanRow = {
@@ -1961,6 +1964,8 @@ export const dashboardRepository = {
                    pp.luas_area_parkir, pp.luas_area_sales,
                    pp.butuh_desain_3d, pp.link_desain_3d,
                    log_3d.waktu_send_3d, log_3d.uploader_3d,
+                   log_tahap2.waktu_input_tahap_2,
+                   spk_info.awal_spk, spk_info.akhir_spk,
                    pp.bm_waktu_persetujuan, pp.bm_approver_email, u_bm.nama_lengkap AS bm_approver_name,
                    pp.pp1_waktu_persetujuan, pp.pp1_approver_email, u_pp1.nama_lengkap AS pp1_approver_name,
                    pp.bm2_waktu_persetujuan, pp.bm2_approver_email, u_bm2.nama_lengkap AS bm2_approver_name, 
@@ -1999,6 +2004,30 @@ export const dashboardRepository = {
                 WHERE aksi = 'UPLOAD_3D'
                 GROUP BY projek_planning_id
             ) log_3d ON log_3d.projek_planning_id = pp.id
+            LEFT JOIN (
+                SELECT 
+                    projek_planning_id,
+                    MAX(created_at) AS waktu_input_tahap_2
+                FROM projek_planning_log
+                WHERE aksi = 'UPLOAD_RAB'
+                GROUP BY projek_planning_id
+            ) log_tahap2 ON log_tahap2.projek_planning_id = pp.id
+            LEFT JOIN LATERAL (
+                SELECT 
+                    ps.waktu_mulai AS awal_spk,
+                    ps.waktu_selesai AS akhir_spk
+                FROM pengajuan_spk ps
+                WHERE UPPER(TRIM(ps.nomor_ulok)) = UPPER(TRIM(pp.nomor_ulok))
+                  AND ps.status != 'SPK_REJECTED'
+                ORDER BY 
+                    CASE 
+                        WHEN UPPER(TRIM(ps.lingkup_pekerjaan)) = 'SIPIL' THEN 1 
+                        WHEN UPPER(TRIM(ps.lingkup_pekerjaan)) = 'ME' THEN 2 
+                        ELSE 3 
+                    END ASC,
+                    ps.id DESC
+                LIMIT 1
+            ) spk_info ON true
             LEFT JOIN LATERAL (
                 SELECT nama_toko, kode_toko, cabang, proyek
                 FROM toko

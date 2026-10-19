@@ -707,11 +707,12 @@ const projectPlanningExportColumns: DashboardExportColumn[] = [
     { key: "kode_toko", label: "Kode Toko" },
     { key: "proyek", label: "Proyek" },
     { key: "lingkup_pekerjaan", label: "Lingkup Pekerjaan" },
+    { key: "awal_spk", label: "Awal SPK" },
+    { key: "akhir_spk", label: "Akhir SPK" },
     { key: "nama_pengaju", label: "Nama Pengaju" },
     { key: "nama_lokasi", label: "Nama Lokasi" },
     { key: "jenis_pengajuan", label: "Jenis Pengajuan Desain" },
     { key: "status_desain_3d", label: "Desain 3D" },
-    { key: "waktu_send_3d", label: "Timestamp Kirim 3D" },
     { key: "link_desain_3d", label: "Link Desain 3D" },
     { key: "estimasi_biaya", label: "Estimasi Biaya" },
     { key: "luas_bangunan", label: "Luas Bangunan" },
@@ -728,6 +729,8 @@ const projectPlanningExportColumns: DashboardExportColumn[] = [
     { key: "tanggal_persetujuan_pp1", label: "Tanggal Persetujuan PP Tahap 1" },
     { key: "approver_pp1", label: "Approver PP Tahap 1" },
     { key: "revisi_pp_tahap_1", label: "Jumlah Revisi PP Tahap 1" },
+    { key: "waktu_send_3d", label: "Timestamp Kirim 3D" },
+    { key: "input_branch_building_koordinator_tahap_2", label: "Input Branch Building Koordinator Tahap 2" },
     { key: "tanggal_persetujuan_bm2", label: "Tanggal Persetujuan B&M Tahap 2" },
     { key: "approver_bm2", label: "Approver B&M Tahap 2" },
     { key: "revisi_bm_tahap_2", label: "Jumlah Revisi B&M Tahap 2" },
@@ -1018,6 +1021,9 @@ export const buildProjectPlanningRows = (
         const statusDesain3D = uses3D ? "Pakai 3D" : "Tanpa 3D";
         const waktuSend3D = pp.waktu_send_3d ? formatIndonesianDate(pp.waktu_send_3d) : "";
         const linkDesain3D = normalize(pp.link_desain_3d);
+        const awalSpk = pp.awal_spk ? formatIndonesianDate(pp.awal_spk) : "";
+        const akhirSpk = pp.akhir_spk ? formatIndonesianDate(pp.akhir_spk) : "";
+        const inputBbkTahap2 = pp.waktu_input_tahap_2 ? formatIndonesianDate(pp.waktu_input_tahap_2) : "";
 
         if (!unifiedMap.has(key)) {
             unifiedMap.set(key, {
@@ -1029,11 +1035,12 @@ export const buildProjectPlanningRows = (
                 kode_toko: normalize(pp.kode_toko),
                 proyek: normalize(pp.proyek),
                 lingkup_pekerjaan: normalize(pp.lingkup_pekerjaan),
+                awal_spk: awalSpk,
+                akhir_spk: akhirSpk,
                 nama_pengaju: normalize(pp.nama_pengaju),
                 nama_lokasi: normalize(pp.nama_lokasi),
                 jenis_pengajuan: normalize(pp.jenis_pengajuan),
                 status_desain_3d: statusDesain3D,
-                waktu_send_3d: waktuSend3D,
                 link_desain_3d: linkDesain3D,
                 estimasi_biaya: normalize(pp.estimasi_biaya),
                 luas_bangunan: normalize(pp.luas_bangunan),
@@ -1050,6 +1057,8 @@ export const buildProjectPlanningRows = (
                 tanggal_persetujuan_pp1: formatIndonesianDate(pp.pp1_waktu_persetujuan),
                 approver_pp1: normalize(pp.pp1_approver_email),
                 revisi_pp_tahap_1: Number(pp.revisi_pp_tahap_1) || 0,
+                waktu_send_3d: waktuSend3D,
+                input_branch_building_koordinator_tahap_2: inputBbkTahap2,
                 tanggal_persetujuan_bm2: formatIndonesianDate(pp.bm2_waktu_persetujuan),
                 approver_bm2: normalize(pp.bm2_approver_email),
                 revisi_bm_tahap_2: Number(pp.revisi_bm_tahap_2) || 0,
@@ -1085,6 +1094,13 @@ export const buildProjectPlanningRows = (
             if (!existing.waktu_send_3d && waktuSend3D) existing.waktu_send_3d = waktuSend3D;
             if (!existing.link_desain_3d && linkDesain3D) existing.link_desain_3d = linkDesain3D;
 
+            // SPK & Input Tahap 2: jika sebelumnya kosong, lengkapi
+            if (!existing.awal_spk && awalSpk) existing.awal_spk = awalSpk;
+            if (!existing.akhir_spk && akhirSpk) existing.akhir_spk = akhirSpk;
+            if (!existing.input_branch_building_koordinator_tahap_2 && inputBbkTahap2) {
+                existing.input_branch_building_koordinator_tahap_2 = inputBbkTahap2;
+            }
+
             // Lengkapi field yang sebelumnya kosong
             if (!existing.nama_toko && pp.nama_toko) existing.nama_toko = normalize(pp.nama_toko);
             if ((!existing.kode_toko || existing.kode_toko === "Belum diisi") && pp.kode_toko && pp.kode_toko !== "Belum diisi") {
@@ -1098,6 +1114,9 @@ export const buildProjectPlanningRows = (
             if (rowTime > Number(existing._created_time)) {
                 if (waktuSend3D) existing.waktu_send_3d = waktuSend3D;
                 if (linkDesain3D) existing.link_desain_3d = linkDesain3D;
+                if (awalSpk) existing.awal_spk = awalSpk;
+                if (akhirSpk) existing.akhir_spk = akhirSpk;
+                if (inputBbkTahap2) existing.input_branch_building_koordinator_tahap_2 = inputBbkTahap2;
                 existing.status = humanizePpStatus(pp.status);
                 existing.tanggal_persetujuan_bm = formatIndonesianDate(pp.bm_waktu_persetujuan);
                 existing.approver_bm = normalize(pp.bm_approver_email);
