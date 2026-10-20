@@ -3,6 +3,7 @@ import { AppError } from "../../common/app-error";
 import { asyncHandler } from "../../common/async-handler";
 import { GoogleProvider } from "../../common/google";
 import {
+    bulkApproveOpnameSchema,
     bulkCreateOpnameSchema,
     createOpnameSchema,
     listOpnameQuerySchema,
@@ -161,5 +162,16 @@ export const deleteOpname = asyncHandler(async (req: Request, res: Response) => 
         status: "success",
         message: "Data opname berhasil dihapus",
         data
+    });
+});
+
+export const bulkApproveOpname = asyncHandler(async (req: Request, res: Response) => {
+    const { id_toko } = bulkApproveOpnameSchema.parse(req.body);
+    const result = await opnameService.bulkApprove(id_toko);
+
+    res.json({
+        status: "success",
+        message: `${result.updated_count} item opname berhasil disetujui`,
+        data: result
     });
 });
