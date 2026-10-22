@@ -14,7 +14,6 @@ export type PengawasanRow = {
     jenis_pekerjaan: string;
     catatan: string | null;
     dokumentasi: string | null;
-    dokumentasi_base64: string | null;
     status: string;
     created_at: string;
     tanggal_pengawasan?: string;
@@ -146,9 +145,9 @@ export const pengawasanRepository = {
     async create(input: CreatePengawasanData): Promise<PengawasanRow> {
         const result = await pool.query<PengawasanRow>(
             `
-            INSERT INTO pengawasan (id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, dokumentasi_base64, status)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE($8, 'progress'))
-            RETURNING id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, dokumentasi_base64, status, created_at
+            INSERT INTO pengawasan (id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, status)
+            VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, 'progress'))
+            RETURNING id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, status, created_at
             `,
             [
                 input.id_gantt,
@@ -157,7 +156,6 @@ export const pengawasanRepository = {
                 input.jenis_pekerjaan,
                 input.catatan ?? null,
                 input.dokumentasi ?? null,
-                null,
                 input.status ?? null
             ]
         );
@@ -219,7 +217,7 @@ export const pengawasanRepository = {
                     if (setClauses.length === 0) {
                         const unchanged = await client.query<PengawasanRow>(
                             `
-                            SELECT id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, dokumentasi_base64, status, created_at
+                            SELECT id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, status, created_at
                             FROM pengawasan
                             WHERE id = $1
                             `,
@@ -235,7 +233,7 @@ export const pengawasanRepository = {
                         UPDATE pengawasan
                         SET ${setClauses.join(", ")}
                         WHERE id = $${values.length}
-                        RETURNING id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, dokumentasi_base64, status, created_at
+                        RETURNING id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, status, created_at
                         `,
                         values
                     );
@@ -245,9 +243,9 @@ export const pengawasanRepository = {
 
                 const inserted = await client.query<PengawasanRow>(
                     `
-                    INSERT INTO pengawasan (id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, dokumentasi_base64, status)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE($8, 'progress'))
-                    RETURNING id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, dokumentasi_base64, status, created_at
+                    INSERT INTO pengawasan (id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, status)
+                    VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, 'progress'))
+                    RETURNING id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, status, created_at
                     `,
                     [
                         item.id_gantt,
@@ -256,7 +254,6 @@ export const pengawasanRepository = {
                         item.jenis_pekerjaan,
                         item.catatan ?? null,
                         item.dokumentasi ?? null,
-                        null,
                         item.status ?? null
                     ]
                 );
@@ -294,7 +291,6 @@ export const pengawasanRepository = {
                 jenis_pekerjaan,
                 catatan,
                 dokumentasi,
-                dokumentasi_base64,
                 status
             )
             SELECT
@@ -303,7 +299,6 @@ export const pengawasanRepository = {
                 $3::text,
                 $4::text,
                 $5::text,
-                NULL,
                 NULL,
                 'terlambat'
             FROM next_checkpoint
@@ -315,7 +310,7 @@ export const pengawasanRepository = {
                   AND UPPER(TRIM(COALESCE(p.kategori_pekerjaan, ''))) = UPPER(TRIM($3::text))
                   AND UPPER(TRIM(COALESCE(p.jenis_pekerjaan, ''))) = UPPER(TRIM($4::text))
             )
-            RETURNING id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, dokumentasi_base64, status, created_at
+            RETURNING id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, status, created_at
             `,
             [
                 input.id_gantt,
@@ -374,7 +369,7 @@ export const pengawasanRepository = {
             SELECT
                 p.id, p.id_gantt, p.id_pengawasan_gantt,
                 p.kategori_pekerjaan, p.jenis_pekerjaan,
-                p.catatan, p.dokumentasi, p.dokumentasi_base64, p.status, p.created_at,
+                p.catatan, p.dokumentasi, p.status, p.created_at,
                 bp.id AS bp_id,
                 bp.id_pengawasan_gantt AS bp_id_pengawasan_gantt,
                 bp.link_pdf_pengawasan AS bp_link_pdf_pengawasan,
@@ -480,8 +475,6 @@ export const pengawasanRepository = {
                 p.id, p.id_gantt, p.id_pengawasan_gantt,
                 p.kategori_pekerjaan, p.jenis_pekerjaan,
                 p.catatan, p.dokumentasi,
-                -- Base64 foto hanya dibutuhkan saat generate PDF, bukan untuk halaman daftar.
-                NULL::text AS dokumentasi_base64,
                 p.status, p.created_at,
                 bp.id AS bp_id,
                 bp.id_pengawasan_gantt AS bp_id_pengawasan_gantt,
@@ -723,7 +716,7 @@ export const pengawasanRepository = {
     async findAllPengawasanByGanttId(idPengawasanGantt: number): Promise<PengawasanRow[]> {
         const result = await pool.query<PengawasanRow>(
             `
-            SELECT id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, dokumentasi_base64, status, created_at
+            SELECT id, id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, status, created_at
             FROM pengawasan
             WHERE id_pengawasan_gantt = $1
             ORDER BY id ASC

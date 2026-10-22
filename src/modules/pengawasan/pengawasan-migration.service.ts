@@ -1055,12 +1055,12 @@ const insertPengawasanItems = async (client: PoolClient, item: WorkItem, idPenga
                 pekerjaan.catatan,
                 pekerjaan.status
             );
-            return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, NULL, NULL, $${base + 6})`;
+            return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, NULL, $${base + 6})`;
         });
         const result = await client.query(
             `
             INSERT INTO pengawasan (
-                id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, dokumentasi_base64, status
+                id_gantt, id_pengawasan_gantt, kategori_pekerjaan, jenis_pekerjaan, catatan, dokumentasi, status
             ) VALUES ${placeholders.join(", ")}
             `,
             values

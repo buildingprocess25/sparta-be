@@ -268,7 +268,7 @@ export const serahTerimaRepository = {
                 oi.desain,
                 oi.kualitas,
                 oi.spesifikasi,
-                COALESCE(NULLIF(oi.foto, ''), latest_pengawasan.dokumentasi, latest_pengawasan.dokumentasi_base64) AS foto,
+                COALESCE(NULLIF(oi.foto, ''), latest_pengawasan.dokumentasi) AS foto,
                 oi.catatan,
                 oi.created_at,
                 ri.kategori_pekerjaan,
@@ -281,8 +281,7 @@ export const serahTerimaRepository = {
             LEFT JOIN instruksi_lapangan_item ili ON ili.id = oi.id_instruksi_lapangan_item
             LEFT JOIN LATERAL (
                 SELECT
-                    p.dokumentasi,
-                    p.dokumentasi_base64
+                    p.dokumentasi
                 FROM pengawasan p
                 LEFT JOIN pengawasan_gantt pg ON pg.id = p.id_pengawasan_gantt
                 WHERE p.id_gantt = (
@@ -302,10 +301,7 @@ export const serahTerimaRepository = {
                         ili.jenis_pekerjaan,
                         ''
                   )))
-                  AND (
-                      NULLIF(TRIM(COALESCE(p.dokumentasi_base64, '')), '') IS NOT NULL
-                      OR NULLIF(TRIM(COALESCE(p.dokumentasi, '')), '') IS NOT NULL
-                  )
+                  AND NULLIF(TRIM(COALESCE(p.dokumentasi, '')), '') IS NOT NULL
                 ORDER BY
                     to_date(pg.tanggal_pengawasan, 'DD/MM/YYYY') DESC NULLS LAST,
                     p.id DESC

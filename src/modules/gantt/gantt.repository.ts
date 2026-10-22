@@ -415,7 +415,6 @@ export const ganttRepository = {
                     )::int AS filled_items,
                     COUNT(p.id) FILTER (
                         WHERE NULLIF(TRIM(COALESCE(p.dokumentasi, '')), '') IS NOT NULL
-                           OR NULLIF(TRIM(COALESCE(p.dokumentasi_base64, '')), '') IS NOT NULL
                     )::int AS documented_items,
                     COUNT(p.id) FILTER (
                         WHERE LOWER(TRIM(p.status)) = 'selesai'
