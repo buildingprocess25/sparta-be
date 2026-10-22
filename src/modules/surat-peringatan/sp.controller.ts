@@ -170,7 +170,8 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
     }
 
     const gp = GoogleProvider.instance;
-    if (!gp.spartaDrive) {
+    const drives = [gp.docDrive, gp.spartaDrive].filter((d): d is NonNullable<typeof d> => !!d);
+    if (drives.length === 0) {
         console.error("[proxyFile] Google Drive not configured");
         throw new AppError("Google Drive tidak terkonfigurasi", 500);
     }
@@ -178,18 +179,32 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
     try {
         console.log(`[proxyFile] Fetching file metadata: ${fileId}`);
         
-        // Get file metadata with supportsAllDrives untuk akses Shared Drive
-        const fileMeta = await gp.spartaDrive.files.get({ 
-            fileId, 
-            fields: "name, mimeType, size",
-            supportsAllDrives: true 
-        });
+        let activeDrive = drives[0];
+        let fileMeta: any = null;
+
+        for (const drive of drives) {
+            try {
+                fileMeta = await drive.files.get({ 
+                    fileId, 
+                    fields: "name, mimeType, size",
+                    supportsAllDrives: true 
+                });
+                activeDrive = drive;
+                break;
+            } catch {
+                // Lanjut coba drive berikutnya
+            }
+        }
+
+        if (!fileMeta) {
+            throw new AppError("File tidak ditemukan di Google Drive atau token tidak memiliki izin", 404);
+        }
 
         console.log(`[proxyFile] File found: ${fileMeta.data.name}, type: ${fileMeta.data.mimeType}, size: ${fileMeta.data.size}`);
 
         // Try to ensure file has public permission (best effort)
         try {
-            await gp.spartaDrive.permissions.create({
+            await activeDrive.permissions.create({
                 fileId,
                 requestBody: { type: "anyone", role: "reader" },
                 fields: "id",
@@ -203,8 +218,10 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
 
         // Set headers
         const filename = fileMeta.data.name || "document";
+        const safeAsciiName = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const encodedName = encodeURIComponent(filename);
         const disposition = req.query.download === "true" ? "attachment" : "inline";
-        res.setHeader("Content-Disposition", `${disposition}; filename="${filename}"`);
+        res.setHeader("Content-Disposition", `${disposition}; filename="${safeAsciiName}"; filename*=UTF-8''${encodedName}`);
         
         if (fileMeta.data.mimeType) {
             res.setHeader("Content-Type", fileMeta.data.mimeType);
@@ -222,7 +239,7 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
         console.log(`[proxyFile] Streaming file content: ${fileId}`);
         
         // Stream file content dengan supportsAllDrives
-        const stream = await gp.spartaDrive.files.get(
+        const stream = await activeDrive.files.get(
             { 
                 fileId, 
                 alt: "media",

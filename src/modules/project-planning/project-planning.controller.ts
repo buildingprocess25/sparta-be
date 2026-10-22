@@ -546,7 +546,9 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
         return;
     }
 
-    fileUrl = String(fileUrl).split(/\r?\n/).map((item) => item.trim()).filter(Boolean)[0];
+    const fileIndex = req.query.file_index ? parseInt(String(req.query.file_index), 10) : 0;
+    const fileLinks = String(fileUrl).split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
+    fileUrl = fileLinks[fileIndex] || fileLinks[0];
 
     // Ekstrak fileId dari URL GDrive
     const { extractGdriveFileId } = await import("./project-planning.pdf");
@@ -572,14 +574,14 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
     let fileSize = 0;
     try {
         if (!drive) throw new Error("docDrive unavailable");
-        const meta = await drive.files.get({ fileId, fields: "name, mimeType, size" });
+        const meta = await drive.files.get({ fileId, fields: "name, mimeType, size", supportsAllDrives: true });
         if (meta.data.name) fileName = meta.data.name;
         if (meta.data.mimeType) mimeType = meta.data.mimeType;
         if (meta.data.size) fileSize = parseInt(meta.data.size, 10);
     } catch {
         try {
             if (!spartaDrive) throw new Error("spartaDrive unavailable");
-            const meta = await spartaDrive.files.get({ fileId, fields: "name, mimeType, size" });
+            const meta = await spartaDrive.files.get({ fileId, fields: "name, mimeType, size", supportsAllDrives: true });
             if (meta.data.name) fileName = meta.data.name;
             if (meta.data.mimeType) mimeType = meta.data.mimeType;
             if (meta.data.size) fileSize = parseInt(meta.data.size, 10);
@@ -587,6 +589,9 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
             // ignore, gunakan default
         }
     }
+
+    const safeAsciiName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const encodedName = encodeURIComponent(fileName);
 
     // Stream file untuk menghindari Out Of Memory (OOM) dan render timeout
     let stream = drive ? await GoogleProvider.instance.getFileStreamById(drive, fileId) : null;
@@ -599,8 +604,8 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
         res.setHeader(
             "Content-Disposition",
             mode === "download"
-                ? `attachment; filename="${encodeURIComponent(fileName)}"`
-                : `inline; filename="${encodeURIComponent(fileName)}"`
+                ? `attachment; filename="${safeAsciiName}"; filename*=UTF-8''${encodedName}`
+                : `inline; filename="${safeAsciiName}"; filename*=UTF-8''${encodedName}`
         );
         if (fileSize) {
             res.setHeader("Content-Length", fileSize);
@@ -622,8 +627,8 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
     res.setHeader(
         "Content-Disposition",
         mode === "download"
-            ? `attachment; filename="${encodeURIComponent(fileName)}"`
-            : `inline; filename="${encodeURIComponent(fileName)}"`
+            ? `attachment; filename="${safeAsciiName}"; filename*=UTF-8''${encodedName}`
+            : `inline; filename="${safeAsciiName}"; filename*=UTF-8''${encodedName}`
     );
     if (publicData.contentLength) {
         res.setHeader("Content-Length", publicData.contentLength);
