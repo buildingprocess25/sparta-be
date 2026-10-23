@@ -62,7 +62,12 @@ const envSchema = z.object({
 
     // S2S Sync Config
     SPARTA_SSO_API_URL: z.string().default("http://localhost:10000"),
-    SPARTA_INTERNAL_API_KEY: z.string().default("sparta-internal-sync-key-2026"),
+    SPARTA_INTERNAL_API_KEY: z.string().min(16, "SPARTA_INTERNAL_API_KEY minimal 16 karakter").default(
+        process.env.SPARTA_INTERNAL_API_KEY || (process.env.NODE_ENV === "production" ? "" : "dev_internal_key_12345678")
+    ),
+    SSO_JWT_SECRET: z.string().min(16, "SSO_JWT_SECRET minimal 16 karakter").default(
+        process.env.SSO_JWT_SECRET || (process.env.NODE_ENV === "production" ? "" : "dev_sso_secret_key_12345678")
+    ),
 });
 
 const parsed = envSchema.safeParse(process.env);

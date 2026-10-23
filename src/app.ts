@@ -89,8 +89,8 @@ app.use(cors({
     },
     exposedHeaders: ["Content-Disposition", "X-SPARTA-PDF-Source"]
 }));
-app.use(express.json({ limit: "500mb" }));
-app.use(express.urlencoded({ extended: true, limit: "500mb" }));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 app.use((req, res, next) => {
     const redactKeys = new Set([
@@ -188,12 +188,12 @@ app.get("/api/auth/sso/callback", ssoCallback);
 app.post("/api/auth/sso/resolve", ssoResolve);
 app.post("/api/sso/webhook/email", ssoWebhookEmail);
 
-// Public file proxy endpoint (no auth required for external users like kontraktor)
+app.use(apiAuthMiddleware);
+
+// Authenticated file proxy endpoint
 import { proxyFile } from "./modules/surat-peringatan/sp.controller";
 app.get("/api/denda/actions/proxy-file", proxyFile); // Legacy path
 app.get("/api/proxy-file", proxyFile); // Generic path
-
-app.use(apiAuthMiddleware);
 
 app.use("/api/toko", tokoRouter);
 app.use("/api/maintenance-stores", maintenanceStoreRouter);
@@ -230,27 +230,12 @@ app.use("/api", priceRabRouter);
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     const requestId = res.locals.requestId as string | undefined;
     if (error instanceof ZodError) {
-        console.error("[ZOD_ERROR] req.body:", JSON.stringify(_req.body));
-        console.error("[ZOD_ERROR] Content-Type:", _req.get("content-type"));
-        
-        try {
-            const fs = require('fs');
-            const logData = {
-                timestamp: new Date().toISOString(),
-                body: _req.body,
-                issues: error.issues
-            };
-            fs.appendFileSync('C:\\alfamart\\KERJA\\scratch\\zod_error.log', JSON.stringify(logData, null, 2) + "\n");
-        } catch (err) {
-            console.error("Gagal menulis zod_error.log", err);
-        }
+        console.error(`[ZOD_ERROR][${requestId ?? "-"}] Validasi request gagal:`, error.issues);
 
         return res.status(422).json({
             status: "error",
             message: "Validasi request gagal",
-            issues: error.issues,
-            debug_body: _req.body,
-            debug_content_type: _req.get("content-type"),
+            issues: error.issues
         });
     }
 

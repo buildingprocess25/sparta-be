@@ -202,20 +202,6 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
 
         console.log(`[proxyFile] File found: ${fileMeta.data.name}, type: ${fileMeta.data.mimeType}, size: ${fileMeta.data.size}`);
 
-        // Try to ensure file has public permission (best effort)
-        try {
-            await activeDrive.permissions.create({
-                fileId,
-                requestBody: { type: "anyone", role: "reader" },
-                fields: "id",
-                supportsAllDrives: true,
-            });
-            console.log(`[proxyFile] Public permission verified/granted for: ${fileId}`);
-        } catch (permErr: any) {
-            // Permission might already exist or might fail - log but continue
-            console.warn(`[proxyFile] Permission grant warning for ${fileId}:`, permErr?.message);
-        }
-
         // Set headers
         const filename = fileMeta.data.name || "document";
         const safeAsciiName = filename.replace(/[^a-zA-Z0-9._-]/g, "_");

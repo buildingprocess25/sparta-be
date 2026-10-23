@@ -8,11 +8,12 @@ import { userCabangRepository } from "../user-cabang/user-cabang.repository";
 import { userBranchCoverageRepository } from "../user-branch-coverage/user-branch-coverage.repository";
 import { pool } from "../../db/pool";
 
+import { env } from "../../config/env";
 import jwt from "jsonwebtoken";
 
 const SSO_EXCHANGE_URL = process.env.SSO_EXCHANGE_URL || "http://localhost:10000/v1/sso/exchange";
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3001";
-const SSO_JWT_SECRET = process.env.SSO_JWT_SECRET || "building_sso_secret_key_12345";
+const SSO_JWT_SECRET = env.SSO_JWT_SECRET;
 
 export const ssoCallback = asyncHandler(async (req: Request, res: Response) => {
     const token = req.query.token as string;
@@ -148,7 +149,7 @@ const buildLoginResponse = async (input: { matchedUser: any }) => {
 
 export const ssoWebhookEmail = asyncHandler(async (req: Request, res: Response) => {
     const internalKey = req.headers["x-sparta-internal-key"];
-    const expectedKey = process.env.SPARTA_INTERNAL_API_KEY || "sparta-internal-sync-key-2026";
+    const expectedKey = env.SPARTA_INTERNAL_API_KEY;
 
     if (internalKey !== expectedKey) {
         throw new AppError("Akses ditolak", 401);
