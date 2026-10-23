@@ -155,7 +155,7 @@ export const rejectDendaAction = asyncHandler(async (req: Request, res: Response
 });
 
 export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
-    const rawUrl = req.query.url as string;
+    const rawUrl = (req.query.url as string)?.trim();
     if (!rawUrl) throw new AppError("Missing url parameter", 400);
 
     // Extract file ID dari berbagai format Google Drive URL
@@ -165,6 +165,9 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
     const fileId = driveFileMatch?.[1] ?? driveOpenMatch?.[1] ?? viewMatch?.[1];
 
     if (!fileId) {
+        if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://")) {
+            return res.redirect(302, rawUrl);
+        }
         console.error("[proxyFile] Invalid URL format:", rawUrl);
         throw new AppError("Invalid Google Drive URL format", 400);
     }
@@ -172,7 +175,10 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
     const gp = GoogleProvider.instance;
     const drives = [gp.docDrive, gp.spartaDrive].filter((d): d is NonNullable<typeof d> => !!d);
     if (drives.length === 0) {
-        console.error("[proxyFile] Google Drive not configured");
+        console.warn("[proxyFile] Google Drive not configured, redirecting to raw URL");
+        if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://")) {
+            return res.redirect(302, rawUrl);
+        }
         throw new AppError("Google Drive tidak terkonfigurasi", 500);
     }
 
@@ -197,6 +203,9 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
         }
 
         if (!fileMeta) {
+            if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://")) {
+                return res.redirect(302, rawUrl);
+            }
             throw new AppError("File tidak ditemukan di Google Drive atau token tidak memiliki izin", 404);
         }
 
@@ -238,6 +247,9 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
         stream.data.on("error", (error: any) => {
             console.error(`[proxyFile] Stream error for ${fileId}:`, error);
             if (!res.headersSent) {
+                if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://")) {
+                    return res.redirect(302, rawUrl);
+                }
                 res.status(500).json({ 
                     status: "error", 
                     message: "Error streaming file from Drive" 
@@ -252,6 +264,10 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
         stream.data.pipe(res);
 
     } catch (e: any) {
+        if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://")) {
+            console.warn(`[proxyFile] Streaming failed, redirecting to raw URL: ${rawUrl}`);
+            return res.redirect(302, rawUrl);
+        }
         const status = e?.code ?? e?.response?.status ?? 500;
         const message = e?.message ?? "Unknown error";
         

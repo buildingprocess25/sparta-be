@@ -203,18 +203,19 @@ app.get("/health", (_req, res) => {
 
 app.use(globalApiRateLimiter);
 
+import { proxyFile } from "./modules/surat-peringatan/sp.controller";
+
 app.post("/api/auth/login", authRateLimiter, loginUserCabang);
 app.post("/api/auth/verify-otp", authRateLimiter, verifyLoginOtp);
 app.get("/api/auth/sso/callback", authRateLimiter, ssoCallback);
 app.post("/api/auth/sso/resolve", authRateLimiter, ssoResolve);
 app.post("/api/sso/webhook/email", ssoWebhookEmail);
 
-app.use(apiAuthMiddleware);
-
-// Authenticated file proxy endpoint
-import { proxyFile } from "./modules/surat-peringatan/sp.controller";
+// Direct file redirect to Google Drive (unauthenticated to allow browser open in new tab)
 app.get("/api/denda/actions/proxy-file", proxyFile); // Legacy path
 app.get("/api/proxy-file", proxyFile); // Generic path
+
+app.use(apiAuthMiddleware);
 
 app.use("/api/toko", tokoRouter);
 app.use("/api/maintenance-stores", maintenanceStoreRouter);
