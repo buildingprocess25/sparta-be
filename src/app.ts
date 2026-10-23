@@ -8,6 +8,7 @@ import { env } from "./config/env";
 import { AppError } from "./common/app-error";
 import { pool } from "./db/pool";
 import { apiAuthMiddleware } from "./modules/auth/auth.middleware";
+import { authRateLimiter, globalApiRateLimiter } from "./middlewares/rate-limit.middleware";
 import { tokoRouter } from "./modules/toko/toko.routes";
 import { maintenanceStoreRouter } from "./modules/maintenance-store/maintenance-store.routes";
 import { rabRouter } from "./modules/rab/rab.routes";
@@ -69,8 +70,26 @@ const configuredCorsOrigins = env.CORS_ORIGINS === "*"
 
 const isAllowedCorsOrigin = (origin?: string): boolean => {
     if (!origin) return true;
-    if (configuredCorsOrigins === "*") return true;
-    if (configuredCorsOrigins.includes(origin)) return true;
+
+    // In production, prohibit open wildcard reflection to arbitrary external origins
+    if (configuredCorsOrigins === "*") {
+        if (process.env.NODE_ENV === "production") {
+            try {
+                const hostname = new URL(origin).hostname.toLowerCase();
+                return hostname === "sparta-alfamart.web.id" 
+                    || hostname.endsWith(".sparta-alfamart.web.id")
+                    || hostname === "localhost"
+                    || hostname === "127.0.0.1";
+            } catch {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    if (Array.isArray(configuredCorsOrigins) && configuredCorsOrigins.includes(origin)) {
+        return true;
+    }
 
     try {
         const hostname = new URL(origin).hostname.toLowerCase();
@@ -182,10 +201,12 @@ app.get("/health", (_req, res) => {
     res.json({ ok: true, service: "sparta-api" });
 });
 
-app.post("/api/auth/login", loginUserCabang);
-app.post("/api/auth/verify-otp", verifyLoginOtp);
-app.get("/api/auth/sso/callback", ssoCallback);
-app.post("/api/auth/sso/resolve", ssoResolve);
+app.use(globalApiRateLimiter);
+
+app.post("/api/auth/login", authRateLimiter, loginUserCabang);
+app.post("/api/auth/verify-otp", authRateLimiter, verifyLoginOtp);
+app.get("/api/auth/sso/callback", authRateLimiter, ssoCallback);
+app.post("/api/auth/sso/resolve", authRateLimiter, ssoResolve);
 app.post("/api/sso/webhook/email", ssoWebhookEmail);
 
 app.use(apiAuthMiddleware);
