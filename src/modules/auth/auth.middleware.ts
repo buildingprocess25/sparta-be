@@ -123,6 +123,7 @@ function isProtectedPath(path: string): boolean {
     if (PUBLIC_API_PATHS.has(path)) return false;
     if (path === "/health") return false;
     if (path === "/get-data" || path === "/get-data-price-rab") return true;
+    if (/^\/api\/dc-development\/documents\/\d+\/(view|download)$/.test(path)) return false;
     return path.startsWith("/api/");
 }
 

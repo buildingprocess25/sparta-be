@@ -352,6 +352,7 @@ export const listProjekPlanningQuerySchema = z.object({
     id_toko: z.coerce.number().int().positive().optional(),
     cabang_array: z.array(z.string()).optional(),
     _is_global_access: z.boolean().optional(),
+    jenis: z.union([z.string(), z.array(z.string())]).optional(),
 });
 
 export type ListProjekPlanningQuery = z.infer<typeof listProjekPlanningQuerySchema>;
