@@ -402,12 +402,35 @@ export type DashboardProjectPlanningRow = {
     akhir_spk?: string | Date | null;
 };
 
+export type DashboardDokumentasiBangunanItemRow = {
+    id: number;
+    id_dokumentasi_bangunan: number;
+    link_foto: string | null;
+    sudut_foto: string | null;
+    item_index: number | null;
+    created_at?: string | null;
+};
+
 export type DashboardDokumentasiBangunanRow = {
+    id?: number;
     nomor_ulok: string | null;
     nama_toko: string | null;
     kode_toko: string | null;
     cabang: string | null;
     tanggal_go: string | null;
+    tanggal_serah_terima?: string | null;
+    tanggal_ambil_foto?: string | null;
+    spk_awal?: string | null;
+    spk_akhir?: string | null;
+    kontraktor_sipil?: string | null;
+    kontraktor_me?: string | null;
+    link_pdf?: string | null;
+    email_pengirim?: string | null;
+    status_validasi?: string | null;
+    alasan_revisi?: string | null;
+    pic_dokumentasi?: string | null;
+    jenis_toko?: string | null;
+    jenis_dokumentasi?: string | null;
     created_at: string | null;
 };
 
@@ -432,6 +455,7 @@ export type DashboardData = {
     opname_final: Array<DashboardOpnameFinalRow & { items: DashboardOpnameItemRow[] }>;
     berkas_serah_terima: DashboardBerkasSerahTerimaRow[];
     project_planning: DashboardProjectPlanningRow[];
+    dokumentasi_bangunan: Array<DashboardDokumentasiBangunanRow & { items: DashboardDokumentasiBangunanItemRow[] }>;
 };
 
 const toArrayParam = (values: number[]) => values.length > 0 ? values : [0];
@@ -701,9 +725,7 @@ export const dashboardRepository = {
             SELECT id, id_toko, tipe_opname, aksi, status_opname_final, link_pdf_opname, email_pembuat,
                    pemberi_persetujuan_direktur, waktu_persetujuan_direktur, pemberi_persetujuan_koordinator,
                    waktu_persetujuan_koordinator, pemberi_persetujuan_manager, waktu_persetujuan_manager,
-                   pemberi_persetujuan_kontraktor, waktu_persetujuan_kontraktor,
-                   alasan_penolakan, catatan_opname_final, grand_total_opname, grand_total_opname_non_sbo,
-                   grand_total_rab, hari_denda, nilai_denda,
+                   alasan_penolakan, grand_total_opname, grand_total_rab, hari_denda, nilai_denda,
                    tanggal_akhir_spk_denda, tanggal_serah_terima_denda, created_at, grand_total_final
             FROM opname_final
             WHERE id_toko = $1
@@ -830,6 +852,40 @@ export const dashboardRepository = {
             `,
             [toko?.nomor_ulok ?? ""]
         );
+
+        const dokumentasiResult = await pool.query<DashboardDokumentasiBangunanRow>(
+            `
+            SELECT id, nomor_ulok, nama_toko, kode_toko, cabang, tanggal_go,
+                   tanggal_serah_terima, tanggal_ambil_foto, spk_awal, spk_akhir,
+                   kontraktor_sipil, kontraktor_me, link_pdf, email_pengirim,
+                   status_validasi, alasan_revisi, pic_dokumentasi, jenis_toko, jenis_dokumentasi, created_at
+            FROM dokumentasi_bangunan
+            WHERE UPPER(TRIM(nomor_ulok)) = UPPER(TRIM($1))
+            ORDER BY created_at DESC, id DESC
+            `,
+            [toko?.nomor_ulok ?? ""]
+        );
+
+        const dokIds = dokumentasiResult.rows.map((r) => r.id).filter((id): id is number => typeof id === "number");
+        const dokItemsResult = await pool.query<DashboardDokumentasiBangunanItemRow>(
+            `
+            SELECT id, id_dokumentasi_bangunan, link_foto, sudut_foto, item_index, created_at
+            FROM dokumentasi_bangunan_item
+            WHERE id_dokumentasi_bangunan = ANY($1::int[])
+            ORDER BY item_index ASC NULLS LAST, id ASC
+            `,
+            [toArrayParam(dokIds)]
+        );
+
+        const dokItemsMap = new Map<number, DashboardDokumentasiBangunanItemRow[]>();
+        for (const item of dokItemsResult.rows) {
+            pushMapArray(dokItemsMap, item.id_dokumentasi_bangunan, item);
+        }
+
+        const dokumentasi_bangunan = dokumentasiResult.rows.map((row) => ({
+            ...row,
+            items: row.id ? (dokItemsMap.get(row.id) ?? []) : []
+        }));
 
         const rabSummaryMap = new Map<number, { cost_terbuka: string; cost_beanspot: string; cost_bangunan: string }>();
         for (const row of rabSummaryResult.rows) {
@@ -969,7 +1025,8 @@ export const dashboardRepository = {
             instruksi_lapangan,
             opname_final,
             berkas_serah_terima: berkasSerahTerimaResult.rows,
-            project_planning: projectPlanningResult.rows
+            project_planning: projectPlanningResult.rows,
+            dokumentasi_bangunan
         };
     },
 
@@ -1052,7 +1109,8 @@ export const dashboardRepository = {
             opnameFinalResult,
             berkasSerahTerimaResult,
             projectPlanningResult,
-            pengawasanPdfPendingResult
+            pengawasanPdfPendingResult,
+            dokumentasiBangunanResult
         ] = await Promise.all([
             pool.query<DashboardRabRow>(
                 `
@@ -1240,13 +1298,26 @@ export const dashboardRepository = {
                 ORDER BY created_at DESC, id DESC
                 `,
                 [ulokKeys]
+            ),
+            pool.query<DashboardDokumentasiBangunanRow>(
+                `
+                SELECT id, nomor_ulok, nama_toko, kode_toko, cabang, tanggal_go,
+                       tanggal_serah_terima, tanggal_ambil_foto, spk_awal, spk_akhir,
+                       kontraktor_sipil, kontraktor_me, link_pdf, email_pengirim,
+                       status_validasi, alasan_revisi, pic_dokumentasi, jenis_toko, jenis_dokumentasi, created_at
+                FROM dokumentasi_bangunan
+                WHERE UPPER(TRIM(nomor_ulok)) = ANY($1::text[])
+                ORDER BY created_at DESC, id DESC
+                `,
+                [toStringArrayParam(ulokKeys)]
             )
         ]);
 
         const rabIds = rabResult.rows.map((row) => row.id);
         const ganttIds = ganttResult.rows.map((row) => row.id);
+        const dokIds = dokumentasiBangunanResult.rows.map((row) => row.id).filter((id): id is number => typeof id === "number");
 
-        // --- Batch 2: queries depending on ganttIds + rabIds, run in parallel ---
+        // --- Batch 2: queries depending on ganttIds + rabIds + dokIds, run in parallel ---
         const [
             kategoriResult,
             dayResult,
@@ -1254,7 +1325,8 @@ export const dashboardRepository = {
             pengawasanResult,
             dependencyResult,
             spkLogResult,
-            pertambahanResult
+            pertambahanResult,
+            dokItemsResult
         ] = await Promise.all([
             pool.query<DashboardKategoriGanttRow>(
                 `
@@ -1321,6 +1393,15 @@ export const dashboardRepository = {
                 ORDER BY created_at DESC, id DESC
                 `,
                 [toArrayParam(spkResult.rows.map((r) => r.id))]
+            ),
+            pool.query<DashboardDokumentasiBangunanItemRow>(
+                `
+                SELECT id, id_dokumentasi_bangunan, link_foto, sudut_foto, item_index, created_at
+                FROM dokumentasi_bangunan_item
+                WHERE id_dokumentasi_bangunan = ANY($1::int[])
+                ORDER BY item_index ASC NULLS LAST, id ASC
+                `,
+                [toArrayParam(dokIds)]
             )
         ]);
 
@@ -1529,6 +1610,24 @@ export const dashboardRepository = {
             pendingPdfByUlok.set(key, items);
         }
 
+        const dokItemsMap = new Map<number, DashboardDokumentasiBangunanItemRow[]>();
+        for (const row of dokItemsResult.rows) {
+            pushMapArray(dokItemsMap, row.id_dokumentasi_bangunan, row);
+        }
+
+        const dokByUlok = new Map<string, Array<DashboardDokumentasiBangunanRow & { items: DashboardDokumentasiBangunanItemRow[] }>>();
+        for (const row of dokumentasiBangunanResult.rows) {
+            const key = normalizeDashboardUlok(row.nomor_ulok);
+            if (key) {
+                const items = dokByUlok.get(key) ?? [];
+                items.push({
+                    ...row,
+                    items: row.id ? (dokItemsMap.get(row.id) ?? []) : []
+                });
+                dokByUlok.set(key, items);
+            }
+        }
+
         return tokoResult.rows.map((toko) => ({
             toko,
             rab: rabByTokoId.get(toko.id) ?? [],
@@ -1539,7 +1638,8 @@ export const dashboardRepository = {
             instruksi_lapangan: instruksiByTokoId.get(toko.id) ?? [],
             opname_final: opnameFinalByTokoId.get(toko.id) ?? [],
             berkas_serah_terima: berkasSerahByTokoId.get(toko.id) ?? [],
-            project_planning: [...(ppByTokoId.get(toko.id) ?? []), ...(ppByUlok.get(normalizeDashboardUlok(toko.nomor_ulok)) ?? [])].filter((v, i, a) => a.findIndex(t => t.id === v.id) === i)
+            project_planning: [...(ppByTokoId.get(toko.id) ?? []), ...(ppByUlok.get(normalizeDashboardUlok(toko.nomor_ulok)) ?? [])].filter((v, i, a) => a.findIndex(t => t.id === v.id) === i),
+            dokumentasi_bangunan: dokByUlok.get(normalizeDashboardUlok(toko.nomor_ulok)) ?? []
         }));
 
     },
@@ -1841,7 +1941,8 @@ export const dashboardRepository = {
             instruksi_lapangan: [],
             opname_final: opnameFinalByTokoId.get(toko.id) ?? [],
             berkas_serah_terima: berkasSerahByTokoId.get(toko.id) ?? [],
-            project_planning: []
+            project_planning: [],
+            dokumentasi_bangunan: []
         }));
     },
 
