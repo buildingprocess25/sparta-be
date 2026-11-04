@@ -1,11 +1,7 @@
 const { Client } = require('pg');
-const c = new Client('postgresql://aku-sparta:0hhUTvTHKtgkN8TfLadC@103.127.99.241:5432/building?sslmode=disable');
-c.connect().then(() => {
-    return c.query("SELECT DISTINCT proyek FROM projek_planning");
-}).then(res => {
-    console.log(res.rows);
-    c.end();
-}).catch(e => {
-    console.error(e);
-    c.end();
-});
+const client = new Client({ connectionString: 'postgresql://aku-sparta:0hhUTvTHKtgkN8TfLadC@103.127.99.241:5432/building?sslmode=disable' });
+client.connect().then(() => 
+    client.query("SELECT column_name, data_type FROM information_schema.columns WHERE table_name IN ('pengawasan', 'pengawasan_gantt', 'kategori_pekerjaan_gantt', 'day_gantt_chart', 'opname_item')")
+).then(res => {
+    console.log(JSON.stringify(res.rows, null, 2));
+}).catch(console.error).finally(() => client.end());

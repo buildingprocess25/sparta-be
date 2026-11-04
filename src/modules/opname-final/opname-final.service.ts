@@ -634,8 +634,8 @@ export const opnameFinalService = {
 
             await refreshDendaAllocation(id, payload.id_toko);
             await opnameFinalRepository.updateTotals(id);
-            const linkPdf = await regeneratePdfAndUpload(id);
-            await opnameFinalRepository.updatePdfLink(id, linkPdf);
+            
+            regeneratePdfInBackground(id);
 
             return {
                 id: Number(id),
@@ -643,7 +643,7 @@ export const opnameFinalService = {
                 aksi: payload.aksi ?? "terkunci",
                 status_opname_final: OPNAME_FINAL_STATUS.WAITING_FOR_COORDINATOR,
                 item_count: result.item_count,
-                link_pdf_opname: linkPdf
+                link_pdf_opname: "Generate ulang PDF KTK sedang diproses di background"
             };
         } catch (error) {
             if (error instanceof AppError) {

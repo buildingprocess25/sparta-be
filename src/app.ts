@@ -23,6 +23,7 @@ import { opnameFinalRouter } from "./modules/opname-final/opname-final.routes";
 import { userCabangRouter } from "./modules/user-cabang/user-cabang.routes";
 import { instruksiLapanganRouter } from "./modules/instruksi-lapangan/instruksi-lapangan.routes";
 import { serahTerimaRouter } from "./modules/serah-terima/serah-terima.routes";
+import { serahTerimaGabunganRouter } from "./modules/serah-terima-gabungan/serah-terima-gabungan.routes";
 import { getKontraktor, loginUserCabang, verifyLoginOtp } from "./modules/toko/toko.controller";
 import { dashboardRouter } from "./modules/dashboard/dashboard.routes";
 import { dendaRouter } from "./modules/denda/denda.routes";
@@ -218,6 +219,7 @@ app.use("/api/spk-backdate-policy", spkBackdatePolicyRouter);
 app.use("/api", emailNotificationRouter);
 app.use("/api", emailResendRouter);
 app.use("/api", serahTerimaRouter);
+app.use("/api/serah-terima-gabungan", serahTerimaGabunganRouter);
 app.use("/", priceRabRouter);
 app.use("/api", priceRabRouter);
 

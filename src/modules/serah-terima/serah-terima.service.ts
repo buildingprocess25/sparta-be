@@ -16,6 +16,10 @@ import {
 import { serahTerimaRepository } from "./serah-terima.repository";
 import { ganttRepository } from "../gantt/gantt.repository";
 import { tokoRepository } from "../toko/toko.repository";
+import { dokumentasiBangunanRepository } from "../dokumentasi/dokumentasi.repository";
+import { buildDokumentasiBangunanPdfBuffer } from "../dokumentasi/dokumentasi.pdf";
+import { SerahTerimaGabunganRepository } from "../serah-terima-gabungan/serah-terima-gabungan.repository";
+import { buildSerahTerimaGabunganPdfBuffer } from "../serah-terima-gabungan/serah-terima-gabungan.pdf";
 import { PDFDocument } from "pdf-lib";
 
 const sanitizeFilenamePart = (value: string | undefined, fallback: string): string => {
@@ -180,14 +184,6 @@ const getSerahTerimaReadiness = async (idToko: number) => {
             };
         }
 
-        const contractorFirstBlockers = await opnameRepository.findContractorFirstApprovalBlockersByToko(Number(scope.id_toko));
-        if (contractorFirstBlockers.length > 0) {
-            return {
-                ready: false,
-                reason: `Masih ada ${contractorFirstBlockers.length} item opname kontraktor yang belum disetujui pada lingkup ${scope.lingkup_pekerjaan}`,
-            };
-        }
-
         const opnameItems = (scope.checkpoints || []).reduce((sum: number, cp: any) => sum + Number(cp.opname_items || 0), 0);
         if (opnameItems === 0) {
             return {
@@ -239,16 +235,16 @@ const assertGrandOpeningReadyUnlessGenerated = async (idToko: number) => {
 
     const toko = await tokoRepository.findById(idToko);
     if (!toko?.nomor_ulok) {
-        throw new AppError("Nomor ULOK tidak ditemukan untuk validasi Dokumentasi Grand Opening", 409);
+        throw new AppError("Nomor ULOK tidak ditemukan untuk validasi Dokumentasi Bangunan", 409);
     }
 
-    await dokumentasiBangunanService.assertGrandOpeningCompleteForSerahTerima(toko.nomor_ulok);
+    await SerahTerimaGabunganRepository.assertSubmitted(toko.nomor_ulok);
 };
 
 const assertGrandOpeningReadyForUnifiedUnlessGenerated = async (nomorUlok: string, scopes: Array<{ id: number }>) => {
     const existingRows = await Promise.all(scopes.map((scope) => serahTerimaRepository.findBerkasSerahTerimaByIdToko(scope.id)));
     if (existingRows.length > 0 && existingRows.every((row) => Boolean(row?.link_pdf))) return;
-    await dokumentasiBangunanService.assertGrandOpeningCompleteForSerahTerima(nomorUlok);
+    await SerahTerimaGabunganRepository.assertSubmitted(nomorUlok);
 };
 const automaticSerahTerimaInProgress = new Set<number>();
 const automaticUnifiedSerahTerimaInProgress = new Set<string>();
@@ -714,7 +710,15 @@ export const serahTerimaService = {
             })),
         });
 
-        const mergedBuffer = await mergePdfBuffers([coverBuffer, ...pdfBuffers, assessmentBuffer]);
+        const buffersToMerge = [coverBuffer, ...pdfBuffers, assessmentBuffer];
+
+        const stGabungan = await SerahTerimaGabunganRepository.getFullDataForPdf(nomorUlok);
+        if (stGabungan && stGabungan.items.length > 0) {
+            const stgBuffer = await buildSerahTerimaGabunganPdfBuffer(stGabungan);
+            buffersToMerge.push(stgBuffer);
+        }
+
+        const mergedBuffer = await mergePdfBuffers(buffersToMerge);
 
         const proyek = sanitizeFilenamePart(masterScope.proyek ?? undefined, "PROYEK");
         const safeNomorUlok = sanitizeFilenamePart(nomorUlok, "ULOK");

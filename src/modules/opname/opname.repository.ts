@@ -1138,7 +1138,7 @@ export const opnameRepository = {
                 submitted_at = now(),
                 reviewed_by_email = NULL,
                 reviewed_at = NULL,
-                revision_no = revision_no + 1
+                revision_no = COALESCE(revision_no, 1) + 1
             WHERE id = $1
               AND workflow_version = 'contractor_first'
               AND locked_at IS NULL

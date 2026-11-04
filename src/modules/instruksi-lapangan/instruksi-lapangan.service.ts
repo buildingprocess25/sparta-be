@@ -87,9 +87,20 @@ const formatDateId = (value?: string | null): string => {
 
 const generateInstruksiLapanganPdfInBackground = (idIL: number | string): void => {
     setImmediate(() => {
-        instruksiLapanganService.generateAndStorePdf(idIL).catch((err) => {
+        instruksiLapanganService.regeneratePdfWithPair(idIL).catch((err) => {
             console.error("[IL][PDF_BACKGROUND] Gagal generate/upload PDF Instruksi Lapangan", {
                 idIL,
+                error: err instanceof Error ? err.message : String(err)
+            });
+        });
+    });
+};
+
+const generateInstruksiLapanganPdfUnifiedInBackground = (idILs: number[]): void => {
+    setImmediate(() => {
+        instruksiLapanganService.generateAndStorePdfUnified(idILs).catch((err) => {
+            console.error("[IL][PDF_BACKGROUND] Gagal generate/upload PDF Unified Instruksi Lapangan", {
+                idILs,
                 error: err instanceof Error ? err.message : String(err)
             });
         });
@@ -170,30 +181,9 @@ export const instruksiLapanganService = {
         payload: SubmitInstruksiLapanganInput,
         files: { lampiranFile?: { originalname: string; buffer: Buffer; mimetype: string } }
     ) {
-        // Validate Toko. Prefer id_toko because nomor_ulok can exist for multiple scopes (Sipil/ME).
-        const toko = payload.id_toko
-            ? await instruksiLapanganRepository.getTokoById(payload.id_toko)
-            : await instruksiLapanganRepository.getTokoByUlok(payload.nomor_ulok, payload.lingkup_pekerjaan);
-
-        if (!toko) {
+        const tokos = await instruksiLapanganRepository.getTokosByUlok(payload.nomor_ulok);
+        if (tokos.length === 0) {
             throw new AppError(`Toko dengan nomor ULOK ${payload.nomor_ulok} tidak ditemukan`, 404);
-        }
-
-        if (toko.nomor_ulok !== payload.nomor_ulok) {
-            throw new AppError("id_toko tidak sesuai dengan nomor ULOK yang dipilih", 409);
-        }
-
-        if (
-            payload.lingkup_pekerjaan &&
-            toko.lingkup_pekerjaan &&
-            toko.lingkup_pekerjaan.trim().toUpperCase() !== payload.lingkup_pekerjaan.trim().toUpperCase()
-        ) {
-            throw new AppError("id_toko tidak sesuai dengan lingkup pekerjaan yang dipilih", 409);
-        }
-
-        const dateBounds = await instruksiLapanganRepository.getDateBoundsByTokoId(toko.id);
-        if (!dateBounds?.spk_start_date || !dateBounds.max_allowed_date) {
-            throw new AppError("SPK approved untuk ULOK dan lingkup pekerjaan ini belum memiliki rentang tanggal yang valid", 409);
         }
 
         const tanggalMulai = toIsoDateOnly(payload.tanggal_mulai);
@@ -201,67 +191,196 @@ export const instruksiLapanganService = {
         if (!tanggalMulai || !tanggalSelesai) {
             throw new AppError("Tanggal mulai dan tanggal selesai Instruksi Lapangan wajib valid", 400);
         }
-        if (tanggalMulai < dateBounds.spk_start_date) {
-            throw new AppError(`Tanggal mulai Instruksi Lapangan tidak boleh sebelum tanggal mulai SPK (${formatDateId(dateBounds.spk_start_date)})`, 400);
-        }
         if (tanggalSelesai < tanggalMulai) {
             throw new AppError("Tanggal selesai Instruksi Lapangan tidak boleh sebelum tanggal mulai", 400);
         }
-        if (tanggalSelesai > dateBounds.max_allowed_date) {
-            throw new AppError(`Tanggal selesai Instruksi Lapangan tidak boleh melewati batas efektif SPK/ST (${formatDateId(dateBounds.max_allowed_date)})`, 400);
-        }
-
-        console.log("[IL][SUBMIT_SERVICE] Toko tervalidasi, mulai simpan", {
-            id_toko: toko.id,
-            nomor_ulok: toko.nomor_ulok,
-            lingkup_pekerjaan: toko.lingkup_pekerjaan,
-            item_count: payload.detail_items.length,
-            is_revisi: Boolean(payload.id_instruksi_lapangan_revisi)
-        });
 
         let lampiranPath: string | undefined;
-
         if (files.lampiranFile) {
             lampiranPath = await saveUploadToTemp(files.lampiranFile);
         }
 
-        let idInstruksiLapangan: number;
+        // Pisahkan item berdasarkan lingkup pekerjaan
+        const itemsByScope = new Map<string, any[]>();
+        for (const item of payload.detail_items) {
+            const scope = (item.lingkup_pekerjaan || payload.lingkup_pekerjaan || tokos[0].lingkup_pekerjaan).trim().toUpperCase();
+            if (!itemsByScope.has(scope)) {
+                itemsByScope.set(scope, []);
+            }
+            itemsByScope.get(scope)!.push(item);
+        }
 
+        const results: any[] = [];
+
+        // Handle revisi (biasanya hanya satu scope yang direvisi, tapi kita support fallback)
         if (payload.id_instruksi_lapangan_revisi) {
             const existing = await instruksiLapanganRepository.getHeaderAndToko(payload.id_instruksi_lapangan_revisi);
-            if (!existing) {
-                throw new AppError("Instruksi Lapangan revisi tidak ditemukan", 404);
-            }
-            if (existing.instruksiLapangan.id_toko !== toko.id) {
-                throw new AppError("Instruksi Lapangan revisi tidak sesuai dengan ULOK yang dipilih", 409);
-            }
+            if (!existing) throw new AppError("Instruksi Lapangan revisi tidak ditemukan", 404);
             if (existing.instruksiLapangan.status.toUpperCase() !== "DITOLAK") {
                 throw new AppError("Hanya Instruksi Lapangan berstatus Ditolak yang dapat direvisi", 409);
             }
+            
+            const scopeToko = tokos.find(t => t.id === existing.instruksiLapangan.id_toko) || tokos[0];
+            const scopeItems = itemsByScope.get((scopeToko.lingkup_pekerjaan || "").trim().toUpperCase()) || payload.detail_items;
+            
+            const scopePayload = {
+                ...payload,
+                detail_items: scopeItems,
+                lingkup_pekerjaan: scopeToko.lingkup_pekerjaan
+            };
 
-            idInstruksiLapangan = await instruksiLapanganRepository.replaceRejectedWithDetails(
+            const idInstruksiLapangan = await instruksiLapanganRepository.replaceRejectedWithDetails(
                 existing.instruksiLapangan.id,
-                payload,
+                scopePayload,
                 lampiranPath
             );
-        } else {
-            idInstruksiLapangan = await instruksiLapanganRepository.insertWithItems(
-                payload,
-                toko.id,
-                lampiranPath
-            );
+            generateInstruksiLapanganPdfUnifiedInBackground([idInstruksiLapangan]);
+            const resData = await instruksiLapanganRepository.getById(idInstruksiLapangan);
+            return resData;
         }
 
-        console.log("[IL][SUBMIT_SERVICE] Data IL berhasil tersimpan", {
-            id_instruksi_lapangan: idInstruksiLapangan,
-            id_toko: toko.id
+        const idsToGenerate: number[] = [];
+
+        // Pengajuan baru: iterasi untuk setiap lingkup yang ada itemnya
+        for (const [scope, items] of itemsByScope.entries()) {
+            let scopeToko = tokos.find(t => (t.lingkup_pekerjaan || "").trim().toUpperCase() === scope);
+            if (!scopeToko) scopeToko = tokos[0]; // Fallback jika tidak match
+
+            const dateBounds = await instruksiLapanganRepository.getDateBoundsByTokoId(scopeToko.id);
+            if (!dateBounds?.spk_start_date || !dateBounds.max_allowed_date) {
+                throw new AppError(`SPK approved untuk lingkup ${scopeToko.lingkup_pekerjaan} belum memiliki rentang tanggal yang valid`, 409);
+            }
+            if (tanggalMulai < dateBounds.spk_start_date) {
+                throw new AppError(`Tanggal mulai Instruksi Lapangan tidak boleh sebelum tanggal mulai SPK (${formatDateId(dateBounds.spk_start_date)})`, 400);
+            }
+            if (tanggalSelesai > dateBounds.max_allowed_date) {
+                throw new AppError(`Tanggal selesai Instruksi Lapangan tidak boleh melewati batas efektif SPK/ST (${formatDateId(dateBounds.max_allowed_date)})`, 400);
+            }
+
+            const scopePayload = {
+                ...payload,
+                detail_items: items,
+                lingkup_pekerjaan: scopeToko.lingkup_pekerjaan
+            };
+
+            const idInstruksiLapangan = await instruksiLapanganRepository.insertWithItems(
+                scopePayload,
+                scopeToko.id,
+                lampiranPath
+            );
+
+            console.log("[IL][SUBMIT_SERVICE] Data IL berhasil tersimpan", {
+                id_instruksi_lapangan: idInstruksiLapangan,
+                id_toko: scopeToko.id,
+                lingkup: scopeToko.lingkup_pekerjaan
+            });
+
+            idsToGenerate.push(idInstruksiLapangan);
+            const resData = await instruksiLapanganRepository.getById(idInstruksiLapangan);
+            if (resData) results.push(resData);
+        }
+
+        if (idsToGenerate.length > 0) {
+            generateInstruksiLapanganPdfUnifiedInBackground(idsToGenerate);
+        }
+
+        return results[0] || null;
+    },
+
+    async generateAndStorePdfUnified(idILs: number[]) {
+        if (!idILs || idILs.length === 0) return;
+        
+        let primaryData = null;
+        let allItems: any[] = [];
+        let scopes: Set<string> = new Set();
+        
+        for (const id of idILs) {
+            const data = await instruksiLapanganRepository.getHeaderAndToko(id);
+            if (!data) continue;
+            
+            if (!primaryData) primaryData = data;
+            
+            const lingkup = data.toko.lingkup_pekerjaan?.trim().toUpperCase() || "";
+            scopes.add(lingkup);
+            
+            const items = await instruksiLapanganRepository.getItems(id);
+            const itemsWithScope = items.map(it => ({ ...it, lingkup_pekerjaan: lingkup }));
+            allItems.push(...itemsWithScope);
+        }
+        
+        console.log(`[IL][DEBUG] generateAndStorePdfUnified: allItems count = ${allItems.length}, items:`, allItems.map(i => i.id));
+        
+        if (!primaryData) return;
+        
+        const mergedToko = {
+            ...primaryData.toko,
+            lingkup_pekerjaan: scopes.size > 1 ? Array.from(scopes).join(" & ") : primaryData.toko.lingkup_pekerjaan
+        };
+        
+        const noPpn = isNoPpnArea(mergedToko);
+        
+        const reportBuffer = await buildInstruksiLapanganPdfBuffer({
+            instruksiLapangan: primaryData.instruksiLapangan,
+            items: allItems,
+            toko: mergedToko
         });
 
-        // Jangan tahan response user pada proses render/upload PDF ke Drive.
-        // PDF tetap dibuat background dan link akan terisi ketika proses selesai.
-        generateInstruksiLapanganPdfInBackground(idInstruksiLapangan);
+        const recapBuffer = await buildInstruksiLapanganRecapPdfBuffer({
+            instruksiLapangan: primaryData.instruksiLapangan,
+            items: allItems,
+            toko: mergedToko
+        });
 
-        return await instruksiLapanganRepository.getById(idInstruksiLapangan);
+        const buffersToMerge: Buffer[] = [recapBuffer, reportBuffer];
+
+        if (primaryData.instruksiLapangan.link_lampiran) {
+            try {
+                const lampiranBuffer = await fs.readFile(primaryData.instruksiLapangan.link_lampiran);
+                if (lampiranBuffer.subarray(0, 4).toString('hex') === '25504446') {
+                    buffersToMerge.push(lampiranBuffer);
+                }
+            } catch (err) {
+                console.warn("Could not read lampiran for merging", err);
+            }
+        }
+
+        const mergedBuffer = await mergePdfBuffers(buffersToMerge);
+        const pdfFilename = `Instruksi_Lapangan_${mergedToko.nomor_ulok}_${Date.now()}`;
+
+        const [linkGabungan, linkNonSbo, linkRekap] = await Promise.all([
+            uploadPdfToDrive(mergedBuffer, `${pdfFilename}_Gabungan.pdf`, mergedToko.nomor_ulok, mergedToko.proyek),
+            uploadPdfToDrive(reportBuffer, `${pdfFilename}_NonSBO.pdf`, mergedToko.nomor_ulok, mergedToko.proyek),
+            uploadPdfToDrive(recapBuffer, `${pdfFilename}_Rekapitulasi.pdf`, mergedToko.nomor_ulok, mergedToko.proyek)
+        ]);
+
+        const total = allItems.reduce((acc, item) => acc + Number(item.total_harga || 0), 0);
+        const roundedDown = Math.floor(total / 10000) * 10000;
+        const ppn = noPpn ? 0 : roundedDown * 0.11;
+        const finalTotal = roundedDown + ppn;
+
+        for (const id of idILs) {
+            await instruksiLapanganRepository.updatePdfLinks(id, {
+                pdfGabungan: linkGabungan || "",
+                pdfNonSbo: linkNonSbo || "",
+                pdfRekapitulasi: linkRekap || "",
+                grandTotalNonSbo: total.toString(),
+                grandTotalFinal: finalTotal.toString()
+            });
+        }
+    },
+
+    async regeneratePdfWithPair(idIL: number | string) {
+        const id = Number(idIL);
+        const data = await instruksiLapanganRepository.getHeaderAndToko(id);
+        if (!data) return;
+
+        const idILs = await instruksiLapanganRepository.getPairIds(data.toko.nomor_ulok, data.instruksiLapangan.status, data.instruksiLapangan.email_pembuat);
+        
+        console.log(`[IL][DEBUG] Regenerate for ID ${idIL}, found pairs:`, idILs);
+
+        if (idILs.length > 0) {
+            await this.generateAndStorePdfUnified(idILs);
+        }
     },
 
     async generateAndStorePdf(idIL: number | string) {
@@ -339,24 +458,50 @@ export const instruksiLapanganService = {
         const data = await instruksiLapanganRepository.getHeaderAndToko(id);
         if (!data) throw new AppError("Instruksi Lapangan tidak ditemukan", 404);
 
-        const items = await instruksiLapanganRepository.getItems(id);
-        
+        const idILs = await instruksiLapanganRepository.getPairIds(data.toko.nomor_ulok, data.instruksiLapangan.status, data.instruksiLapangan.email_pembuat);
+        const targetIds = idILs.length > 0 ? idILs : [Number(id)];
+
+        let primaryData: any = null;
+        const allItems: any[] = [];
+        const scopes = new Set<string>();
+
+        for (const tid of targetIds) {
+            const tData = await instruksiLapanganRepository.getHeaderAndToko(tid);
+            if (!tData) continue;
+            
+            if (!primaryData) primaryData = tData;
+            
+            const lingkup = tData.toko.lingkup_pekerjaan?.trim().toUpperCase() || "";
+            if (lingkup) scopes.add(lingkup);
+            
+            const items = await instruksiLapanganRepository.getItems(tid);
+            const itemsWithScope = items.map(it => ({ ...it, lingkup_pekerjaan: lingkup }));
+            allItems.push(...itemsWithScope);
+        }
+
+        if (!primaryData) primaryData = data;
+
+        const mergedToko = {
+            ...primaryData.toko,
+            lingkup_pekerjaan: scopes.size > 1 ? Array.from(scopes).join(" & ") : primaryData.toko.lingkup_pekerjaan
+        };
+
         const reportBuffer = await buildInstruksiLapanganPdfBuffer({
-            instruksiLapangan: data.instruksiLapangan,
-            items,
-            toko: data.toko
+            instruksiLapangan: primaryData.instruksiLapangan,
+            items: allItems,
+            toko: mergedToko
         });
 
         const recapBuffer = await buildInstruksiLapanganRecapPdfBuffer({
-            instruksiLapangan: data.instruksiLapangan,
-            items,
-            toko: data.toko
+            instruksiLapangan: primaryData.instruksiLapangan,
+            items: allItems,
+            toko: mergedToko
         });
 
         const buffersToMerge: Buffer[] = [recapBuffer, reportBuffer];
-        if (data.instruksiLapangan.link_lampiran) {
+        if (primaryData.instruksiLapangan.link_lampiran) {
             try {
-                const lampiranBuffer = await fs.readFile(data.instruksiLapangan.link_lampiran);
+                const lampiranBuffer = await fs.readFile(primaryData.instruksiLapangan.link_lampiran);
                 if (lampiranBuffer.subarray(0, 4).toString('hex') === '25504446') {
                     buffersToMerge.push(lampiranBuffer);
                 }
@@ -368,7 +513,7 @@ export const instruksiLapanganService = {
         const mergedBuffer = await mergePdfBuffers(buffersToMerge);
 
         return {
-            filename: `Instruksi_Lapangan_${data.toko.nomor_ulok}.pdf`,
+            filename: `Instruksi_Lapangan_${mergedToko.nomor_ulok}.pdf`,
             pdfBuffer: mergedBuffer
         };
     },
@@ -405,6 +550,13 @@ export const instruksiLapanganService = {
         if (!data) throw new AppError("Instruksi Lapangan tidak ditemukan", 404);
 
         const currentStatus = data.instruksiLapangan.status;
+        
+        const idsToProcess = await instruksiLapanganRepository.getPairIds(
+            data.toko.nomor_ulok,
+            currentStatus,
+            data.instruksiLapangan.email_pembuat
+        );
+        const targetIds = idsToProcess.length > 0 ? idsToProcess : [Number(id)];
 
         if (action.tindakan === "APPROVE") {
             if (currentStatus === "Menunggu Persetujuan Koordinator") {
@@ -412,27 +564,31 @@ export const instruksiLapanganService = {
                     throw new AppError("Instruksi Lapangan saat ini menunggu approval Koordinator", 403);
                 }
 
-                await instruksiLapanganRepository.updateApproval(
-                    id,
-                    "Menunggu Persetujuan Manager",
-                    "koordinator",
-                    action.approver_email,
-                    undefined,
-                    action.catatan_approval ?? null
-                );
+                for (const targetId of targetIds) {
+                    await instruksiLapanganRepository.updateApproval(
+                        targetId,
+                        "Menunggu Persetujuan Manager",
+                        "koordinator",
+                        action.approver_email,
+                        undefined,
+                        action.catatan_approval ?? null
+                    );
+                }
             } else if (currentStatus === "Menunggu Persetujuan Manager") {
                 if (action.jabatan !== "MANAGER") {
                     throw new AppError("Instruksi Lapangan saat ini menunggu approval Manager", 403);
                 }
 
-                await instruksiLapanganRepository.updateApproval(
-                    id,
-                    "Disetujui",
-                    "manager",
-                    action.approver_email,
-                    undefined,
-                    action.catatan_approval ?? null
-                );
+                for (const targetId of targetIds) {
+                    await instruksiLapanganRepository.updateApproval(
+                        targetId,
+                        "Disetujui",
+                        "manager",
+                        action.approver_email,
+                        undefined,
+                        action.catatan_approval ?? null
+                    );
+                }
             } else {
                 throw new AppError(`Status tidak dapat di-approve dari state saat ini: ${currentStatus}`, 400);
             }
@@ -452,20 +608,22 @@ export const instruksiLapanganService = {
                 throw new AppError(`Instruksi Lapangan saat ini menunggu approval ${role === "koordinator" ? "Koordinator" : "Manager"}`, 403);
             }
             
-            await instruksiLapanganRepository.updateApproval(
-                id,
-                "Ditolak",
-                role,
-                action.approver_email,
-                action.alasan_penolakan ?? undefined,
-                action.catatan_approval ?? null
-            );
+            for (const targetId of targetIds) {
+                await instruksiLapanganRepository.updateApproval(
+                    targetId,
+                    "Ditolak",
+                    role,
+                    action.approver_email,
+                    action.alasan_penolakan ?? undefined,
+                    action.catatan_approval ?? null
+                );
+            }
         } else {
             throw new AppError("Action tidak valid", 400);
         }
 
         // Regenerate PDF after status change
-        await this.generateAndStorePdf(id);
+        await this.regeneratePdfWithPair(id);
 
         if (action.tindakan === "APPROVE" && currentStatus === "Menunggu Persetujuan Manager") {
             // Injeksi otomatis kategori IL ke Gantt Chart (background, non-blocking)

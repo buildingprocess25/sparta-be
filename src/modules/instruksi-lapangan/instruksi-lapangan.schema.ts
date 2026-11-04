@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const instruksiLapanganItemSchema = z.object({
+    lingkup_pekerjaan: z.string().optional(),
     kategori_pekerjaan: z.string().min(1),
     jenis_pekerjaan: z.string().min(1),
     satuan: z.string().min(1),

@@ -170,6 +170,15 @@ export const instruksiLapanganRepository = {
         return res.rows[0] || null;
     },
 
+    async getPairIds(nomorUlok: string, status: string, emailPembuat: string): Promise<number[]> {
+        const res = await pool.query(`
+            SELECT il.id FROM instruksi_lapangan il
+            JOIN toko t ON il.id_toko = t.id
+            WHERE t.nomor_ulok = $1 AND il.status = $2 AND il.email_pembuat = $3
+        `, [nomorUlok, status, emailPembuat]);
+        return res.rows.map(row => row.id);
+    },
+
     async getLatestByTokoId(idToko: number): Promise<InstruksiLapanganRow | null> {
         const res = await pool.query(
             "SELECT * FROM instruksi_lapangan WHERE id_toko = $1 ORDER BY id DESC LIMIT 1",
@@ -329,6 +338,16 @@ export const instruksiLapanganRepository = {
         return res.rows[0] || null;
     },
 
+    async getTokosByUlok(nomorUlok: string): Promise<TokoRow[]> {
+        const res = await pool.query(`
+            SELECT *
+            FROM toko
+            WHERE nomor_ulok = $1
+            ORDER BY id ASC
+        `, [nomorUlok]);
+        return res.rows;
+    },
+
     async getDateBoundsByTokoId(idToko: number): Promise<InstruksiLapanganDateBoundsRow | null> {
         const res = await pool.query<{
             spk_start_date: string | null;
@@ -474,7 +493,7 @@ export const instruksiLapanganRepository = {
         let index = 1;
 
         let sql = `
-            SELECT il.*, t.nomor_ulok, t.nama_toko, t.cabang, t.nama_kontraktor
+            SELECT il.*, t.nomor_ulok, t.nama_toko, t.cabang, t.nama_kontraktor, t.lingkup_pekerjaan
             FROM instruksi_lapangan il
             JOIN toko t ON il.id_toko = t.id
             WHERE 1=1
@@ -533,22 +552,26 @@ export const instruksiLapanganRepository = {
         try {
             await client.query("BEGIN");
 
-            // 1. Ambil data IL (header) + toko + gantt_chart + SPK
+            // 1. Ambil data IL (header) + toko + gantt_chart + SPK + Serah Terima
             const dataRes = await client.query<{
                 il_id: number;
                 id_toko: number;
                 tanggal_mulai: Date | null;
                 tanggal_selesai: Date | null;
+                link_lampiran: string | null;
                 gantt_id: number | null;
                 spk_mulai: Date | null;
+                has_serah_terima: boolean;
             }>(`
                 SELECT
                     il.id          AS il_id,
                     il.id_toko,
                     il.tanggal_mulai,
                     il.tanggal_selesai,
+                    il.link_lampiran,
                     g.id           AS gantt_id,
-                    spk.waktu_mulai AS spk_mulai
+                    spk.waktu_mulai AS spk_mulai,
+                    CASE WHEN st.id IS NOT NULL THEN true ELSE false END AS has_serah_terima
                 FROM instruksi_lapangan il
                 JOIN toko t ON t.id = il.id_toko
                 LEFT JOIN LATERAL (
@@ -561,6 +584,11 @@ export const instruksiLapanganRepository = {
                     WHERE id_toko = t.id
                     ORDER BY id DESC LIMIT 1
                 ) spk ON true
+                LEFT JOIN LATERAL (
+                    SELECT id FROM berkas_serah_terima
+                    WHERE id_toko = t.id
+                    ORDER BY id DESC LIMIT 1
+                ) st ON true
                 WHERE il.id = $1
             `, [idIL]);
 
@@ -570,7 +598,7 @@ export const instruksiLapanganRepository = {
                 return { injected: 0, skipped: 0 };
             }
 
-            const { id_toko, tanggal_mulai, tanggal_selesai, gantt_id, spk_mulai } = dataRes.rows[0];
+            const { id_toko, tanggal_mulai, tanggal_selesai, link_lampiran, gantt_id, spk_mulai, has_serah_terima } = dataRes.rows[0];
 
             if (!gantt_id) {
                 console.warn(`[IL][GANTT_INJECT] Tidak ada Gantt Chart untuk id_toko=${id_toko}, skip inject.`);
@@ -601,6 +629,66 @@ export const instruksiLapanganRepository = {
             const hAwal  = Math.max(1, diffStart + 1);
             const hAkhir = Math.max(hAwal, diffEnd + 1);
 
+            let idOpnameFinal: number | null = null;
+            let opnameWorkflowVersion = 'contractor_first';
+            let idPengawasanGanttTarget: number | null = null;
+
+            if (has_serah_terima) {
+                const ofRes = await client.query(`
+                    SELECT id, workflow_version 
+                    FROM opname_final 
+                    WHERE id_toko = $1 
+                      AND tipe_opname IN ('OPNAME', 'OPNAME_FINAL') 
+                    ORDER BY id DESC LIMIT 1
+                `, [id_toko]);
+                if (ofRes.rows.length > 0) {
+                    idOpnameFinal = ofRes.rows[0].id;
+                    opnameWorkflowVersion = ofRes.rows[0].workflow_version || 'contractor_first';
+                }
+
+                const pgRes = await client.query(`
+                    SELECT id, tanggal_pengawasan
+                    FROM pengawasan_gantt
+                    WHERE id_gantt = $1
+                `, [gantt_id]);
+                
+                let bestPg = null;
+                let minDateVal = Infinity;
+                
+                const startVal = new Date(tanggal_mulai).setHours(0,0,0,0);
+                const endVal = new Date(tanggal_selesai).setHours(0,0,0,0);
+
+                for (const pg of pgRes.rows) {
+                    if (!pg.tanggal_pengawasan) continue;
+                    const parts = pg.tanggal_pengawasan.split('/');
+                    let dVal;
+                    if (parts.length === 3) {
+                        dVal = new Date(Number(parts[2]), Number(parts[1])-1, Number(parts[0])).setHours(0,0,0,0);
+                    } else {
+                        dVal = new Date(pg.tanggal_pengawasan).setHours(0,0,0,0);
+                    }
+                    
+                    if (dVal >= startVal && dVal <= endVal) {
+                        if (dVal < minDateVal) {
+                            minDateVal = dVal;
+                            bestPg = pg;
+                        }
+                    }
+                }
+                
+                if (bestPg) {
+                    idPengawasanGanttTarget = bestPg.id;
+                } else {
+                    const d = new Date(tanggal_mulai);
+                    const startStr = `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`;
+                    const newPg = await client.query(`
+                        INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan)
+                        VALUES ($1, $2) RETURNING id
+                    `, [gantt_id, startStr]);
+                    idPengawasanGanttTarget = newPg.rows[0].id;
+                }
+            }
+
             // 3. Ambil semua kategori unik dari item IL ini
             const itemsRes = await client.query<{ kategori_pekerjaan: string }>(`
                 SELECT DISTINCT UPPER(TRIM(kategori_pekerjaan)) AS kategori_pekerjaan
@@ -624,30 +712,68 @@ export const instruksiLapanganRepository = {
                     LIMIT 1
                 `, [gantt_id, kategori_pekerjaan]);
 
+                let kpgId: number;
+
                 if (existCheck.rows.length > 0) {
-                    // Kategori sudah ada — skip (tidak overwrite data yang sudah di-edit user)
                     console.log(`[IL][GANTT_INJECT] SKIP Gantt ${gantt_id} | "${kategori_pekerjaan}" sudah ada`);
+                    kpgId = existCheck.rows[0].id;
                     skipped++;
-                    continue;
+                } else {
+                    // 5. Insert kategori baru dengan prefix [IL]
+                    const ilName = `[IL] ${kategori_pekerjaan}`;
+                    const kpgRes = await client.query<{ id: number }>(`
+                        INSERT INTO kategori_pekerjaan_gantt (id_gantt, kategori_pekerjaan)
+                        VALUES ($1, $2) RETURNING id
+                    `, [gantt_id, ilName]);
+
+                    kpgId = kpgRes.rows[0].id;
+
+                    // 6. Insert balok hari
+                    await client.query(`
+                        INSERT INTO day_gantt_chart (id_gantt, id_kategori_pekerjaan_gantt, h_awal, h_akhir, keterlambatan, kecepatan)
+                        VALUES ($1, $2, $3, $4, NULL, NULL)
+                    `, [gantt_id, kpgId, String(hAwal), String(hAkhir)]);
+
+                    console.log(`[IL][GANTT_INJECT] INSERT Gantt ${gantt_id} | "${ilName}" | h_awal=${hAwal}, h_akhir=${hAkhir}`);
+                    injected++;
                 }
 
-                // 5. Insert kategori baru dengan prefix [IL]
-                const ilName = `[IL] ${kategori_pekerjaan}`;
-                const kpgRes = await client.query<{ id: number }>(`
-                    INSERT INTO kategori_pekerjaan_gantt (id_gantt, kategori_pekerjaan)
-                    VALUES ($1, $2) RETURNING id
-                `, [gantt_id, ilName]);
+                if (has_serah_terima && idPengawasanGanttTarget) {
+                    const cekPengawasan = await client.query(`SELECT id FROM pengawasan WHERE kategori_pekerjaan = $1 AND id_pengawasan_gantt = $2`, [`[IL] ${kategori_pekerjaan}`, idPengawasanGanttTarget]);
+                    if (cekPengawasan.rows.length === 0) {
+                        await client.query(`
+                            INSERT INTO pengawasan (
+                                id_gantt, id_pengawasan_gantt, kategori_pekerjaan, status, catatan, dokumentasi
+                            ) VALUES ($1, $2, $3, $4, $5, $6)
+                        `, [
+                            gantt_id, idPengawasanGanttTarget, `[IL] ${kategori_pekerjaan}`, 'selesai',
+                            'Auto-complete dari IL setelah Serah Terima',
+                            link_lampiran
+                        ]);
+                    }
+                }
+            }
 
-                const kpgId = kpgRes.rows[0].id;
-
-                // 6. Insert balok hari
-                await client.query(`
-                    INSERT INTO day_gantt_chart (id_gantt, id_kategori_pekerjaan_gantt, h_awal, h_akhir, keterlambatan, kecepatan)
-                    VALUES ($1, $2, $3, $4, NULL, NULL)
-                `, [gantt_id, kpgId, String(hAwal), String(hAkhir)]);
-
-                console.log(`[IL][GANTT_INJECT] INSERT Gantt ${gantt_id} | "${ilName}" | h_awal=${hAwal}, h_akhir=${hAkhir}`);
-                injected++;
+            if (has_serah_terima && idOpnameFinal && idPengawasanGanttTarget) {
+                const allItems = await client.query(`
+                    SELECT id, volume, harga_material, harga_upah
+                    FROM instruksi_lapangan_item
+                    WHERE id_instruksi_lapangan = $1
+                `, [idIL]);
+                
+                for (const it of allItems.rows) {
+                    const totalHarga = (Number(it.harga_material) + Number(it.harga_upah)) * Number(it.volume);
+                    const checkOpname = await client.query(`SELECT id FROM opname_item WHERE id_instruksi_lapangan_item = $1 AND id_opname_final = $2`, [it.id, idOpnameFinal]);
+                    if (checkOpname.rows.length === 0) {
+                        await client.query(`
+                            INSERT INTO opname_item (
+                                id_toko, id_opname_final, id_instruksi_lapangan_item, status, volume_akhir, total_harga_opname, workflow_version, id_pengawasan_gantt_target
+                            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                        `, [
+                            id_toko, idOpnameFinal, it.id, 'pending', it.volume, totalHarga, opnameWorkflowVersion, idPengawasanGanttTarget
+                        ]);
+                    }
+                }
             }
 
             await client.query("COMMIT");

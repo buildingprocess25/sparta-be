@@ -60,13 +60,13 @@ export const resolveDriveImageDataUrl = async (rawLink?: string | null): Promise
 
         // Coba download via spartaDrive (OAuth)
         if (fileId && gp.spartaDrive) {
-            buffer = await gp.getFileBufferById(gp.spartaDrive, fileId, 2500);
+            buffer = await gp.getFileBufferById(gp.spartaDrive, fileId, 30000);
 
             if (buffer) {
                 try {
                     const meta = await gp.spartaDrive.files.get(
                         { fileId, fields: "name,mimeType" },
-                        { timeout: 3000 }
+                        { timeout: 10000 }
                     );
                     filename = meta.data.name ?? null;
                     mimeType = meta.data.mimeType ?? null;
@@ -78,12 +78,12 @@ export const resolveDriveImageDataUrl = async (rawLink?: string | null): Promise
 
         // Fallback: coba docDrive jika spartaDrive gagal
         if (!buffer && fileId && gp.docDrive) {
-            buffer = await gp.getFileBufferById(gp.docDrive, fileId, 2500);
+            buffer = await gp.getFileBufferById(gp.docDrive, fileId, 30000);
             if (buffer) {
                 try {
                     const meta = await gp.docDrive.files.get(
                         { fileId, fields: "name,mimeType" },
-                        { timeout: 3000 }
+                        { timeout: 10000 }
                     );
                     filename = meta.data.name ?? null;
                     mimeType = meta.data.mimeType ?? null;

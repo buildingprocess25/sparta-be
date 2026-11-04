@@ -592,17 +592,27 @@ export class GoogleProvider {
 
     /** Stream file via Drive API; return null jika gagal */
     async getFileBufferById(drive: drive_v3.Drive, fileId: string, timeoutMs = 15000): Promise<Buffer | null> {
-        try {
-            const resp = await drive.files.get(
-                { fileId, alt: "media", supportsAllDrives: true },
-                { responseType: "arraybuffer", timeout: timeoutMs },
-            );
-            return Buffer.from(resp.data as ArrayBuffer);
-        } catch (error: any) {
-            const status = error?.code ?? error?.response?.status;
-            console.error("[google] Gagal membaca file Drive via API", { fileId, status, message: error?.message });
-            return null;
+        let attempt = 0;
+        while (attempt < 3) {
+            try {
+                const resp = await drive.files.get(
+                    { fileId, alt: "media", supportsAllDrives: true },
+                    { responseType: "arraybuffer", timeout: timeoutMs },
+                );
+                return Buffer.from(resp.data as ArrayBuffer);
+            } catch (error: any) {
+                const status = error?.code ?? error?.response?.status;
+                if (status === 429 || status === 403) {
+                    attempt++;
+                    console.warn(`[google] Rate limit/403 membaca file Drive. Retry ${attempt}/3 setelah delay...`, { fileId });
+                    await new Promise(r => setTimeout(r, 2000 * attempt));
+                    continue;
+                }
+                console.error("[google] Gagal membaca file Drive via API", { fileId, status, message: error?.message });
+                return null;
+            }
         }
+        return null;
     }
 
     /** Sama persis dg Python get_kontraktor_by_cabang(), dengan normalisasi nama wilayah. */

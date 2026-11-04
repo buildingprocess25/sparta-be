@@ -143,13 +143,34 @@ export const buildSerahTerimaPdfBuffer = async (
 
     const grandTotalOpname = toNumber(detail.opname_final.grand_total_opname);
     const grandTotalRab = toNumber(detail.opname_final.grand_total_rab);
-    const itemsWithPhotos = await Promise.all(detail.items.map(async (item) => ({
-        ...item,
-        foto_data_url: await resolveDriveImageDataUrl(item.foto),
-        total_selisih_formatted: rupiah(item.total_selisih),
-        total_harga_rab_formatted: rupiah(toNumber(item.total_harga_rab)),
-        total_harga_opname_formatted: rupiah(item.total_harga_opname),
-    })));
+    
+    // Add delay helper to avoid Google Drive 429 Rate Limit
+    const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+    const itemsWithPhotos = [];
+    console.log(`[PDF] Generating for ${detail.toko.nomor_ulok}, items count: ${detail.items.length}`);
+    for (const item of detail.items) {
+        let foto_data_url = null;
+        if (item.foto) {
+            console.log(`[PDF] Fetching image for item ID ${item.id}: ${item.foto}`);
+            foto_data_url = await resolveDriveImageDataUrl(item.foto);
+            if (!foto_data_url) {
+                console.log(`[PDF] resolveDriveImageDataUrl returned NULL for item ID ${item.id}`);
+            } else {
+                console.log(`[PDF] SUCCESS image for item ID ${item.id}, length: ${foto_data_url.length}`);
+            }
+            await delay(600); // 600ms delay to prevent rate limiting (Google allows ~2 req/s per user)
+        } else {
+            console.log(`[PDF] No foto available in DB for item ID ${item.id}`);
+        }
+
+        itemsWithPhotos.push({
+            ...item,
+            foto_data_url,
+            total_selisih_formatted: rupiah(item.total_selisih),
+            total_harga_rab_formatted: rupiah(toNumber(item.total_harga_rab)),
+            total_harga_opname_formatted: rupiah(item.total_harga_opname),
+        });
+    }
 
     const html = await renderHtmlTemplate(templatePath, {
         generated_at: formatDateIndonesia(createdAt),

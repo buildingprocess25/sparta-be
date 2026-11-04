@@ -926,22 +926,27 @@ export const opnameFinalRepository = {
                 throw new Error(`Workflow opname_final tidak sesuai. Data ${existingWorkflow} tidak dapat dikunci sebagai ${requestedWorkflow}.`);
             }
 
-            const existingPhotos = await client.query<{ source_key: string; foto: string | null }>(
+            const rabItemIds = payload.opname_item.map(i => i.id_rab_item).filter(id => id != null);
+            const ilItemIds = payload.opname_item.map(i => i.id_instruksi_lapangan_item).filter(id => id != null);
+
+            const existingData = await client.query<{ source_key: string; foto: string | null; id_pengawasan_gantt_target: number | null; tanggal_slot_opname: string | null }>(
                 `
                 SELECT
                     CASE
                         WHEN id_rab_item IS NOT NULL THEN 'rab:' || id_rab_item::text
                         ELSE 'il:' || id_instruksi_lapangan_item::text
                     END AS source_key,
-                    foto
+                    foto,
+                    id_pengawasan_gantt_target,
+                    tanggal_slot_opname
                 FROM opname_item
-                WHERE id_opname_final = $1
+                WHERE id_rab_item = ANY($1::int[]) OR id_instruksi_lapangan_item = ANY($2::int[])
                 `,
-                [opnameFinalId]
+                [rabItemIds, ilItemIds]
             );
-            const photoBySource = new Map<string, string | null>();
-            for (const row of existingPhotos.rows) {
-                photoBySource.set(row.source_key, row.foto);
+            const dataBySource = new Map<string, { foto: string | null; target: number | null; tanggal: string | null }>();
+            for (const row of existingData.rows) {
+                dataBySource.set(row.source_key, { foto: row.foto, target: row.id_pengawasan_gantt_target, tanggal: row.tanggal_slot_opname });
             }
 
             await client.query(
@@ -951,10 +956,19 @@ export const opnameFinalRepository = {
 
             const values: Array<number | string | null> = [];
             const placeholders = payload.opname_item.map((item, index) => {
-                const base = index * 15;
+                const base = index * 17;
                 const sourceKey = item.id_rab_item
                     ? `rab:${item.id_rab_item}`
                     : `il:${item.id_instruksi_lapangan_item}`;
+                const existing = dataBySource.get(sourceKey) || { foto: null, target: null, tanggal: null };
+                if (requestedWorkflow === 'contractor_first' && (existing.target == null || existing.tanggal == null)) {
+                    require('fs').appendFileSync('lock_error.log', JSON.stringify({
+                        sourceKey,
+                        item,
+                        existing,
+                        dataBySourceKeys: Array.from(dataBySource.keys())
+                    }, null, 2) + '\\n');
+                }
                 values.push(
                     payload.id_toko,
                     Number(opnameFinalId),
@@ -968,12 +982,14 @@ export const opnameFinalRepository = {
                     item.desain ?? null,
                     item.kualitas ?? null,
                     item.spesifikasi ?? null,
-                    item.foto ?? photoBySource.get(sourceKey) ?? null,
+                    item.foto ?? existing.foto ?? null,
                     item.catatan ?? null,
-                    requestedWorkflow
+                    requestedWorkflow,
+                    existing.target ?? null,
+                    existing.tanggal ?? null
                 );
 
-                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14}, $${base + 15})`;
+                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14}, $${base + 15}, $${base + 16}, $${base + 17})`;
             });
 
             await client.query(
@@ -993,7 +1009,9 @@ export const opnameFinalRepository = {
                     spesifikasi,
                     foto,
                     catatan,
-                    workflow_version
+                    workflow_version,
+                    id_pengawasan_gantt_target,
+                    tanggal_slot_opname
                 )
                 VALUES ${placeholders.join(", ")}
                 `,

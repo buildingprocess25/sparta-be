@@ -1,0 +1,62 @@
+[
+  {
+    "id": 1615,
+    "id_instruksi_lapangan": 500,
+    "kategori_pekerjaan": "PEKERJAAN PERSIAPAN",
+    "jenis_pekerjaan": "Pembersihan lokasi",
+    "satuan": "Ls",
+    "volume": 1,
+    "harga_material": 0,
+    "harga_upah": 2,
+    "total_material": "0.00",
+    "total_upah": "2.00",
+    "total_harga": "2.00",
+    "catatan": "2",
+    "lingkup_pekerjaan": "SIPIL"
+  },
+  {
+    "id": 1616,
+    "id_instruksi_lapangan": 500,
+    "kategori_pekerjaan": "PEKERJAAN BOBOKAN / BONGKARAN",
+    "jenis_pekerjaan": "Bongkaran & buang puing bekas pekerjaan renovasi",
+    "satuan": "Ls",
+    "volume": 1,
+    "harga_material": 0,
+    "harga_upah": 2,
+    "total_material": "0.00",
+    "total_upah": "2.00",
+    "total_harga": "2.00",
+    "catatan": "2",
+    "lingkup_pekerjaan": "SIPIL"
+  },
+  {
+    "id": 1617,
+    "id_instruksi_lapangan": 501,
+    "kategori_pekerjaan": "INSTALASI",
+    "jenis_pekerjaan": "Instalasi induk stop kontak biasa ( kabel NYM merk Eterna 3 x 2,5 mm2 )",
+    "satuan": "Ttk",
+    "volume": 2,
+    "harga_material": 339900,
+    "harga_upah": 53000,
+    "total_material": "679800.00",
+    "total_upah": "106000.00",
+    "total_harga": "785800.00",
+    "catatan": null,
+    "lingkup_pekerjaan": "ME"
+  },
+  {
+    "id": 1618,
+    "id_instruksi_lapangan": 501,
+    "kategori_pekerjaan": "FIXTURE",
+    "jenis_pekerjaan": "Lampu LED 18 W (ongkos pasang + mobilisasi) SBO",
+    "satuan": "Bh",
+    "volume": 2,
+    "harga_material": 0,
+    "harga_upah": 22900,
+    "total_material": "0.00",
+    "total_upah": "45800.00",
+    "total_harga": "45800.00",
+    "catatan": null,
+    "lingkup_pekerjaan": "ME"
+  }
+]
