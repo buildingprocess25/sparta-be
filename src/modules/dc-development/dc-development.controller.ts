@@ -368,35 +368,82 @@ export const deleteDcDocument = asyncHandler(async (req: Request, res: Response)
 });
 
 export const viewDcDocument = asyncHandler(async (req: Request, res: Response) => {
-    const actor = withSessionActor(req, dcDocumentActorQuerySchema.parse(req.query));
-    const file = await dcDevelopmentService.getDocumentFile(req.params.id, actor);
-    if (!file.buffer && file.link) {
-        res.redirect(file.link);
+    const sessionActor = getSessionActor(req);
+    const actor = {
+        actor_email: (req.query.actor_email as string) || sessionActor?.actor_email || "",
+        actor_role: (req.query.actor_role as string) || sessionActor?.actor_role || ""
+    };
+    const file = await dcDevelopmentService.streamDocumentFile(req.params.id, actor);
+    if (!file.stream && file.link) {
+        res.redirect(302, file.link);
         return;
     }
-    if (!file.buffer) {
+    if (!file.stream) {
         res.status(404).json({ status: "error", message: "File dokumen DC tidak ditemukan" });
         return;
     }
+
+    const fileName = file.document.file_name || "dokumen-dc";
+    const safeAsciiName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const encodedName = encodeURIComponent(fileName);
+
     res.setHeader("Content-Type", file.document.mime_type || "application/octet-stream");
-    res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(file.document.file_name || "dokumen-dc")}"`);
-    res.send(file.buffer);
+    res.setHeader("Content-Disposition", `inline; filename="${safeAsciiName}"; filename*=UTF-8''${encodedName}`);
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET");
+    res.setHeader("Cache-Control", "public, max-age=3600");
+
+    file.stream.on("error", (error: any) => {
+        console.error(`[viewDcDocument] Stream error for document ${req.params.id}:`, error);
+        if (!res.headersSent) {
+            if (file.link) {
+                res.redirect(302, file.link);
+                return;
+            }
+            res.status(500).json({ status: "error", message: "Gagal mengalirkan dokumen dari Drive" });
+        }
+    });
+
+    file.stream.pipe(res);
 });
 
 export const downloadDcDocument = asyncHandler(async (req: Request, res: Response) => {
-    const actor = withSessionActor(req, dcDocumentActorQuerySchema.parse(req.query));
-    const file = await dcDevelopmentService.getDocumentFile(req.params.id, actor);
-    if (!file.buffer && file.link) {
-        res.redirect(file.link);
+    const sessionActor = getSessionActor(req);
+    const actor = {
+        actor_email: (req.query.actor_email as string) || sessionActor?.actor_email || "",
+        actor_role: (req.query.actor_role as string) || sessionActor?.actor_role || ""
+    };
+    const file = await dcDevelopmentService.streamDocumentFile(req.params.id, actor);
+    if (!file.stream && file.link) {
+        res.redirect(302, file.link);
         return;
     }
-    if (!file.buffer) {
+    if (!file.stream) {
         res.status(404).json({ status: "error", message: "File dokumen DC tidak ditemukan" });
         return;
     }
+
+    const fileName = file.document.file_name || "dokumen-dc";
+    const safeAsciiName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const encodedName = encodeURIComponent(fileName);
+
     res.setHeader("Content-Type", file.document.mime_type || "application/octet-stream");
-    res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(file.document.file_name || "dokumen-dc")}"`);
-    res.send(file.buffer);
+    res.setHeader("Content-Disposition", `attachment; filename="${safeAsciiName}"; filename*=UTF-8''${encodedName}`);
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET");
+
+    file.stream.on("error", (error: any) => {
+        console.error(`[downloadDcDocument] Stream error for document ${req.params.id}:`, error);
+        if (!res.headersSent) {
+            if (file.link) {
+                res.redirect(302, file.link);
+                return;
+            }
+            res.status(500).json({ status: "error", message: "Gagal mengalirkan dokumen dari Drive" });
+        }
+    });
+
+    file.stream.pipe(res);
 });
 
 export const exportDcDocumentsCsv = asyncHandler(async (req: Request, res: Response) => {

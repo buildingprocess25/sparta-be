@@ -381,6 +381,17 @@ export const projekPlanningRepository = {
             values.push(filter.id_toko);
             conditions.push(`id_toko = $${values.length}`);
         }
+        if (filter.jenis) {
+            const rawList = Array.isArray(filter.jenis)
+                ? filter.jenis
+                : filter.jenis.split(",").map((j) => j.trim());
+            const cleanList = rawList.map((j) => j.trim().toUpperCase()).filter(Boolean);
+            if (cleanList.length > 0) {
+                values.push(cleanList);
+                // AND logic: array formed by comma-split tokens must contain ALL requested items
+                conditions.push(`regexp_split_to_array(TRIM(UPPER(COALESCE(jenis_pengajuan, ''))), '\\s*,\\s*') @> $${values.length}::text[]`);
+            }
+        }
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 

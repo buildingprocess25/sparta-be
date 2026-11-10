@@ -8,6 +8,7 @@ export const branchGroupSql = (colName: string) => `
       WHEN UPPER(TRIM(COALESCE(${colName}, ''))) IN ('KOTABUMI', 'LAMPUNG') THEN 'LAMPUNG'
       WHEN UPPER(TRIM(COALESCE(${colName}, ''))) IN ('BENGKULU', 'BANGKA', 'BELITUNG', 'PALEMBANG') THEN 'PALEMBANG'
       WHEN UPPER(TRIM(COALESCE(${colName}, ''))) IN ('SIDOARJO BPN SMD', 'MANOKWARI', 'NTT', 'SORONG', 'SIDOARJO') THEN 'SIDOARJO'
+      WHEN UPPER(TRIM(COALESCE(${colName}, ''))) IN ('BANJARMASIN', 'PALANGKARAYA') THEN 'BANJARMASIN'
       ELSE UPPER(TRIM(COALESCE(${colName}, '')))
     END
 `;
@@ -106,7 +107,7 @@ export type DendaActionTargetRow = {
 };
 
 const ACTION_SELECT = `
-    id, id_toko, id_opname_final, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, cabang, nama_kontraktor, nomor_spk,
+    id, id_toko, id_opname_final, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, ${branchGroupSql('cabang')} AS cabang, nama_kontraktor, nomor_spk,
     action_type, status, sp_level, hari_denda, nilai_denda, alasan_sp, alasan_lainnya, catatan,
     instruksi_tindak_lanjut, deadline_tindak_lanjut, lampiran_1_url, lampiran_2_url,
     nomor_surat, link_pdf, submitted_by_email, submitted_by_name, submitted_by_role, submitted_at,
@@ -286,7 +287,7 @@ export const spRepository = {
                 t.lingkup_pekerjaan,
                 t.nama_toko,
                 t.kode_toko,
-                t.cabang,
+                ${branchGroupSql('t.cabang')} AS cabang,
                 COALESCE(NULLIF(TRIM(spk.nama_kontraktor), ''), NULLIF(TRIM(t.nama_kontraktor), '')) AS nama_kontraktor,
                 spk.nomor_spk,
                 GREATEST(COALESCE(ofn.hari_denda, 0), COALESCE(delay.hari_terlambat, 0))::int AS hari_denda,
@@ -463,13 +464,14 @@ export const spRepository = {
         if (query.cabang_array && query.cabang_array.length > 0) {
             const normalizedBranches = query.cabang_array.map(b => b.trim().toUpperCase());
             values.push(normalizedBranches as any);
-            filters.push(`UPPER(cabang) = ANY($${values.length})`);
+            filters.push(`(${branchGroupSql('cabang')} = ANY($${values.length}) OR UPPER(cabang) = ANY($${values.length}))`);
         }
 
         const whereClause = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
         const result = await pool.query<DendaActionRow>(
             `
             SELECT dka.*, 
+                   ${branchGroupSql('dka.cabang')} AS cabang,
                    (dka.expires_at IS NOT NULL AND dka.expires_at < timezone('Asia/Jakarta', now())) AS is_expired,
                    (
                        dka.action_type = 'SP'
@@ -523,7 +525,7 @@ export const spRepository = {
                 t.lingkup_pekerjaan,
                 t.nama_toko,
                 t.kode_toko,
-                t.cabang,
+                ${branchGroupSql('t.cabang')} AS cabang,
                 t.nama_kontraktor,
                 spk.nomor_spk,
                 COALESCE(ofn.hari_denda, 0)::int AS hari_denda,
@@ -557,7 +559,7 @@ export const spRepository = {
                 t.lingkup_pekerjaan,
                 t.nama_toko,
                 t.kode_toko,
-                t.cabang,
+                ${branchGroupSql('t.cabang')} AS cabang,
                 COALESCE(NULLIF(TRIM(spk.nama_kontraktor), ''), NULLIF(TRIM(t.nama_kontraktor), '')) AS nama_kontraktor,
                 spk.nomor_spk,
                 GREATEST(COALESCE(ofn.hari_denda, 0), COALESCE(delay.hari_terlambat, 0))::int AS hari_denda,

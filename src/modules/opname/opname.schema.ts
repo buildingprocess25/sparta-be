@@ -139,3 +139,8 @@ export type CreateBulkOpnameItemData = CreateBulkOpnameItemInput & { foto?: stri
 export type BulkCreateOpnameInput = z.infer<typeof bulkCreateOpnameSchema>;
 export type UpdateOpnameInput = z.infer<typeof updateOpnameSchema>;
 export type ListOpnameQueryInput = z.infer<typeof listOpnameQuerySchema>;
+
+export const bulkApproveOpnameSchema = z.object({
+    id_toko: z.coerce.number().int().positive()
+});
+export type BulkApproveOpnameInput = z.infer<typeof bulkApproveOpnameSchema>;

@@ -8,7 +8,9 @@ import { env } from "./config/env";
 import { AppError } from "./common/app-error";
 import { pool } from "./db/pool";
 import { apiAuthMiddleware } from "./modules/auth/auth.middleware";
+import { authRateLimiter, globalApiRateLimiter } from "./middlewares/rate-limit.middleware";
 import { tokoRouter } from "./modules/toko/toko.routes";
+import { maintenanceStoreRouter } from "./modules/maintenance-store/maintenance-store.routes";
 import { rabRouter } from "./modules/rab/rab.routes";
 import { spkRouter } from "./modules/spk/spk.routes";
 import { documentRouter } from "./modules/document/document.routes";
@@ -68,8 +70,26 @@ const configuredCorsOrigins = env.CORS_ORIGINS === "*"
 
 const isAllowedCorsOrigin = (origin?: string): boolean => {
     if (!origin) return true;
-    if (configuredCorsOrigins === "*") return true;
-    if (configuredCorsOrigins.includes(origin)) return true;
+
+    // In production, prohibit open wildcard reflection to arbitrary external origins
+    if (configuredCorsOrigins === "*") {
+        if (process.env.NODE_ENV === "production") {
+            try {
+                const hostname = new URL(origin).hostname.toLowerCase();
+                return hostname === "sparta-alfamart.web.id" 
+                    || hostname.endsWith(".sparta-alfamart.web.id")
+                    || hostname === "localhost"
+                    || hostname === "127.0.0.1";
+            } catch {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    if (Array.isArray(configuredCorsOrigins) && configuredCorsOrigins.includes(origin)) {
+        return true;
+    }
 
     try {
         const hostname = new URL(origin).hostname.toLowerCase();
@@ -88,8 +108,8 @@ app.use(cors({
     },
     exposedHeaders: ["Content-Disposition", "X-SPARTA-PDF-Source"]
 }));
-app.use(express.json({ limit: "500mb" }));
-app.use(express.urlencoded({ extended: true, limit: "500mb" }));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 app.use((req, res, next) => {
     const redactKeys = new Set([
@@ -181,20 +201,24 @@ app.get("/health", (_req, res) => {
     res.json({ ok: true, service: "sparta-api" });
 });
 
-app.post("/api/auth/login", loginUserCabang);
-app.post("/api/auth/verify-otp", verifyLoginOtp);
-app.get("/api/auth/sso/callback", ssoCallback);
-app.post("/api/auth/sso/resolve", ssoResolve);
+app.use(globalApiRateLimiter);
+
+import { proxyFile } from "./modules/surat-peringatan/sp.controller";
+
+app.post("/api/auth/login", authRateLimiter, loginUserCabang);
+app.post("/api/auth/verify-otp", authRateLimiter, verifyLoginOtp);
+app.get("/api/auth/sso/callback", authRateLimiter, ssoCallback);
+app.post("/api/auth/sso/resolve", authRateLimiter, ssoResolve);
 app.post("/api/sso/webhook/email", ssoWebhookEmail);
 
-// Public file proxy endpoint (no auth required for external users like kontraktor)
-import { proxyFile } from "./modules/surat-peringatan/sp.controller";
+// Direct file redirect to Google Drive (unauthenticated to allow browser open in new tab)
 app.get("/api/denda/actions/proxy-file", proxyFile); // Legacy path
 app.get("/api/proxy-file", proxyFile); // Generic path
 
 app.use(apiAuthMiddleware);
 
 app.use("/api/toko", tokoRouter);
+app.use("/api/maintenance-stores", maintenanceStoreRouter);
 app.get("/api/get_kontraktor", getKontraktor);
 app.use("/api/rab", rabRouter);
 app.use("/api/spk", spkRouter);
@@ -228,14 +252,12 @@ app.use("/api", priceRabRouter);
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     const requestId = res.locals.requestId as string | undefined;
     if (error instanceof ZodError) {
-        console.error("[ZOD_ERROR] req.body:", JSON.stringify(_req.body));
-        console.error("[ZOD_ERROR] Content-Type:", _req.get("content-type"));
+        console.error(`[ZOD_ERROR][${requestId ?? "-"}] Validasi request gagal:`, error.issues);
+
         return res.status(422).json({
             status: "error",
             message: "Validasi request gagal",
-            issues: error.issues,
-            debug_body: _req.body,
-            debug_content_type: _req.get("content-type"),
+            issues: error.issues
         });
     }
 

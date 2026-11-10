@@ -511,5 +511,28 @@ export const opnameService = {
         }
 
         return { id: parsedId, deleted: true };
+    },
+
+    async bulkApprove(idToko: number): Promise<{ updated_count: number }> {
+        const client = await pool.connect();
+        try {
+            await client.query("BEGIN");
+
+            const { updatedCount, idOpnameFinal } = await opnameRepository.bulkApproveByTokoId(idToko, client);
+
+            if (updatedCount > 0 && idOpnameFinal) {
+                await refreshOpnameFinalDenda(idOpnameFinal, idToko, client);
+                await opnameFinalRepository.updateTotals(String(idOpnameFinal), client);
+            }
+
+            await client.query("COMMIT");
+            return { updated_count: updatedCount };
+        } catch (error) {
+            await client.query("ROLLBACK");
+            if (error instanceof AppError) throw error;
+            return mapPgError(error);
+        } finally {
+            client.release();
+        }
     }
 };

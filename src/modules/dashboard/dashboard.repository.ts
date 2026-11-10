@@ -333,6 +333,7 @@ export type DashboardProjectPlanningRow = {
     nama_pengaju: string | null;
     nama_lokasi: string | null;
     jenis_pengajuan: string | null;
+    jenis_pengajuan_lainnya?: string | null;
     status: string | null;
     luas_bangunan: string | null;
     luas_area_terbuka: string | null;
@@ -340,16 +341,96 @@ export type DashboardProjectPlanningRow = {
     luas_gudang: string | null;
     luas_area_parkir: string | null;
     luas_area_sales: string | null;
+    p_bangunan?: string | null;
+    l_bangunan?: string | null;
+    p_area_parkir?: string | null;
+    l_area_parkir?: string | null;
+    is_ruko?: boolean | null;
+    jumlah_lantai?: number | null;
+    beanspot_tipe?: string | null;
+    is_head_to_head?: boolean | null;
+    jarak_head_to_head?: string | null;
+    is_seating_area?: boolean | null;
+    is_dark_store?: boolean | null;
+    akhir_masa_sewa?: string | null;
+    spd?: string | null;
+    keterangan?: string | null;
+    link_pdf?: string | null;
+    link_fpd?: string | null;
+    link_gambar_kerja?: string | null;
+    link_siteplan?: string | null;
+    link_google_maps?: string | null;
+    link_rab_sipil?: string | null;
+    link_rab_me?: string | null;
+    link_gambar_kerja_final_sipil?: string | null;
+    link_gambar_kerja_final_me?: string | null;
+    link_ba_tidak_sesuai_standar?: string | null;
+    link_desain_3d?: string | null;
+    link_gambar_kompetitor?: string | null;
+    link_fpd_approved?: string | null;
+    total_foto_dokumentasi?: number | null;
+    butuh_desain_3d?: boolean | null;
+    waktu_send_3d?: string | null;
+    uploader_3d?: string | null;
+    bm_approver_email: string | null;
+    bm_approver_name?: string | null;
     bm_waktu_persetujuan: string | null;
+    pp1_approver_email: string | null;
+    pp1_approver_name?: string | null;
+    pp1_waktu_persetujuan: string | null;
+    bm2_approver_email: string | null;
+    bm2_approver_name?: string | null;
+    bm2_waktu_persetujuan: string | null;
+    bm_regional_approver_email: string | null;
+    bm_regional_approver_name?: string | null;
+    bm_regional_waktu_persetujuan: string | null;
+    pp2_approver_email: string | null;
+    pp2_approver_name?: string | null;
+    pp2_waktu_persetujuan: string | null;
+    pp_manager_approver_email: string | null;
+    pp_manager_approver_name?: string | null;
+    pp_manager_waktu_persetujuan: string | null;
     created_at: string | null;
+    revisi_bm_tahap_1: string | null;
+    revisi_pp_tahap_1: string | null;
+    revisi_bm_tahap_2: string | null;
+    revisi_bm_regional: string | null;
+    revisi_pp_tahap_2: string | null;
+    revisi_pp_manager: string | null;
+    waktu_input_tahap_2?: string | Date | null;
+    awal_spk?: string | Date | null;
+    akhir_spk?: string | Date | null;
+};
+
+export type DashboardDokumentasiBangunanItemRow = {
+    id: number;
+    id_dokumentasi_bangunan: number;
+    link_foto: string | null;
+    sudut_foto: string | null;
+    item_index: number | null;
+    created_at?: string | null;
 };
 
 export type DashboardDokumentasiBangunanRow = {
+    id?: number;
     nomor_ulok: string | null;
     nama_toko: string | null;
     kode_toko: string | null;
     cabang: string | null;
     tanggal_go: string | null;
+    tanggal_serah_terima?: string | null;
+    tanggal_ambil_foto?: string | null;
+    spk_awal?: string | null;
+    spk_akhir?: string | null;
+    kontraktor_sipil?: string | null;
+    kontraktor_me?: string | null;
+    link_pdf?: string | null;
+    email_pengirim?: string | null;
+    status_validasi?: string | null;
+    alasan_revisi?: string | null;
+    pic_dokumentasi?: string | null;
+    jenis_toko?: string | null;
+    jenis_dokumentasi?: string | null;
     created_at: string | null;
 };
 
@@ -374,6 +455,7 @@ export type DashboardData = {
     opname_final: Array<DashboardOpnameFinalRow & { items: DashboardOpnameItemRow[] }>;
     berkas_serah_terima: DashboardBerkasSerahTerimaRow[];
     project_planning: DashboardProjectPlanningRow[];
+    dokumentasi_bangunan: Array<DashboardDokumentasiBangunanRow & { items: DashboardDokumentasiBangunanItemRow[] }>;
 };
 
 const toArrayParam = (values: number[]) => values.length > 0 ? values : [0];
@@ -643,9 +725,7 @@ export const dashboardRepository = {
             SELECT id, id_toko, tipe_opname, aksi, status_opname_final, link_pdf_opname, email_pembuat,
                    pemberi_persetujuan_direktur, waktu_persetujuan_direktur, pemberi_persetujuan_koordinator,
                    waktu_persetujuan_koordinator, pemberi_persetujuan_manager, waktu_persetujuan_manager,
-                   pemberi_persetujuan_kontraktor, waktu_persetujuan_kontraktor,
-                   alasan_penolakan, catatan_opname_final, grand_total_opname, grand_total_opname_non_sbo,
-                   grand_total_rab, hari_denda, nilai_denda,
+                   alasan_penolakan, grand_total_opname, grand_total_rab, hari_denda, nilai_denda,
                    tanggal_akhir_spk_denda, tanggal_serah_terima_denda, created_at, grand_total_final
             FROM opname_final
             WHERE id_toko = $1
@@ -682,13 +762,54 @@ export const dashboardRepository = {
 
         const projectPlanningResult = await pool.query<DashboardProjectPlanningRow>(
             `
-            SELECT id, id_toko, nomor_ulok, nama_toko, kode_toko, cabang, proyek, lingkup_pekerjaan,
-                   jenis_proyek, estimasi_biaya, nama_pengaju, nama_lokasi, jenis_pengajuan,
-                   status, luas_bangunan, luas_area_terbuka, luas_area_terbangun, luas_gudang,
-                   luas_area_parkir, luas_area_sales, bm_waktu_persetujuan, created_at
-            FROM projek_planning
-            WHERE id_toko = $1
-            ORDER BY created_at DESC, id DESC
+            SELECT pp.id, pp.id_toko, pp.nomor_ulok, pp.nama_toko, pp.kode_toko, pp.cabang, pp.proyek, pp.lingkup_pekerjaan,
+                   pp.jenis_proyek, pp.estimasi_biaya, pp.nama_pengaju, pp.nama_lokasi, pp.jenis_pengajuan, pp.jenis_pengajuan_lainnya,
+                   pp.status, pp.luas_bangunan, pp.luas_area_terbuka, pp.luas_area_terbangun, pp.luas_gudang,
+                   pp.luas_area_parkir, pp.luas_area_sales, pp.p_bangunan, pp.l_bangunan, pp.p_area_parkir, pp.l_area_parkir,
+                   pp.is_ruko, pp.jumlah_lantai, pp.beanspot_tipe, pp.is_head_to_head, pp.jarak_head_to_head,
+                   pp.is_seating_area, pp.is_dark_store, pp.akhir_masa_sewa, pp.spd, pp.keterangan,
+                   pp.link_pdf, pp.link_fpd, pp.link_gambar_kerja, pp.link_siteplan, pp.link_google_maps,
+                   pp.link_rab_sipil, pp.link_rab_me,
+                   pp.link_gambar_kerja_final_sipil, pp.link_gambar_kerja_final_me,
+                   pp.link_ba_tidak_sesuai_standar, pp.link_desain_3d, pp.link_gambar_kompetitor,
+                   pp.link_fpd_approved,
+                   COALESCE(foto_count.total_foto, 0)::int AS total_foto_dokumentasi,
+                   pp.bm_waktu_persetujuan, pp.bm_approver_email, u_bm.nama_lengkap AS bm_approver_name,
+                   pp.pp1_waktu_persetujuan, pp.pp1_approver_email, u_pp1.nama_lengkap AS pp1_approver_name,
+                   pp.bm2_waktu_persetujuan, pp.bm2_approver_email, u_bm2.nama_lengkap AS bm2_approver_name, 
+                   pp.bm_regional_waktu_persetujuan, pp.bm_regional_approver_email, u_reg.nama_lengkap AS bm_regional_approver_name,
+                   pp.pp2_waktu_persetujuan, pp.pp2_approver_email, u_pp2.nama_lengkap AS pp2_approver_name,
+                   pp.pp_manager_waktu_persetujuan, pp.pp_manager_approver_email, u_ppm.nama_lengkap AS pp_manager_approver_name,
+                   pp.created_at,
+                   revisi_log.revisi_bm_tahap_1, revisi_log.revisi_pp_tahap_1, revisi_log.revisi_bm_tahap_2,
+                   revisi_log.revisi_bm_regional, revisi_log.revisi_pp_tahap_2, revisi_log.revisi_pp_manager
+            FROM projek_planning pp
+            LEFT JOIN (
+                SELECT id_projek_planning, COUNT(id) AS total_foto
+                FROM projek_planning_foto_item
+                GROUP BY id_projek_planning
+            ) foto_count ON foto_count.id_projek_planning = pp.id
+            LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_bm ON u_bm.email_sat = pp.bm_approver_email
+            LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_pp1 ON u_pp1.email_sat = pp.pp1_approver_email
+            LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_bm2 ON u_bm2.email_sat = pp.bm2_approver_email
+            LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_reg ON u_reg.email_sat = pp.bm_regional_approver_email
+            LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_pp2 ON u_pp2.email_sat = pp.pp2_approver_email
+            LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_ppm ON u_ppm.email_sat = pp.pp_manager_approver_email
+            LEFT JOIN (
+                SELECT 
+                    projek_planning_id,
+                    COUNT(CASE WHEN status_sebelum = 'WAITING_BM_APPROVAL' THEN 1 END) as revisi_bm_tahap_1,
+                    COUNT(CASE WHEN status_sebelum = 'WAITING_PP_APPROVAL_1' THEN 1 END) as revisi_pp_tahap_1,
+                    COUNT(CASE WHEN status_sebelum = 'WAITING_BM_APPROVAL_2' THEN 1 END) as revisi_bm_tahap_2,
+                    COUNT(CASE WHEN status_sebelum = 'WAITING_BM_REGIONAL_APPROVAL' THEN 1 END) as revisi_bm_regional,
+                    COUNT(CASE WHEN status_sebelum = 'WAITING_PP_APPROVAL_2' THEN 1 END) as revisi_pp_tahap_2,
+                    COUNT(CASE WHEN status_sebelum = 'WAITING_PP_MANAGER_APPROVAL' THEN 1 END) as revisi_pp_manager
+                FROM projek_planning_log
+                WHERE aksi = 'REJECT'
+                GROUP BY projek_planning_id
+            ) revisi_log ON revisi_log.projek_planning_id = pp.id
+            WHERE pp.id_toko = $1 OR UPPER(pp.nomor_ulok) = (SELECT UPPER(nomor_ulok) FROM toko WHERE id = $1)
+            ORDER BY pp.created_at DESC, pp.id DESC
             `,
             [tokoId]
         );
@@ -731,6 +852,40 @@ export const dashboardRepository = {
             `,
             [toko?.nomor_ulok ?? ""]
         );
+
+        const dokumentasiResult = await pool.query<DashboardDokumentasiBangunanRow>(
+            `
+            SELECT id, nomor_ulok, nama_toko, kode_toko, cabang, tanggal_go,
+                   tanggal_serah_terima, tanggal_ambil_foto, spk_awal, spk_akhir,
+                   kontraktor_sipil, kontraktor_me, link_pdf, email_pengirim,
+                   status_validasi, alasan_revisi, pic_dokumentasi, jenis_toko, jenis_dokumentasi, created_at
+            FROM dokumentasi_bangunan
+            WHERE UPPER(TRIM(nomor_ulok)) = UPPER(TRIM($1))
+            ORDER BY created_at DESC, id DESC
+            `,
+            [toko?.nomor_ulok ?? ""]
+        );
+
+        const dokIds = dokumentasiResult.rows.map((r) => r.id).filter((id): id is number => typeof id === "number");
+        const dokItemsResult = await pool.query<DashboardDokumentasiBangunanItemRow>(
+            `
+            SELECT id, id_dokumentasi_bangunan, link_foto, sudut_foto, item_index, created_at
+            FROM dokumentasi_bangunan_item
+            WHERE id_dokumentasi_bangunan = ANY($1::int[])
+            ORDER BY item_index ASC NULLS LAST, id ASC
+            `,
+            [toArrayParam(dokIds)]
+        );
+
+        const dokItemsMap = new Map<number, DashboardDokumentasiBangunanItemRow[]>();
+        for (const item of dokItemsResult.rows) {
+            pushMapArray(dokItemsMap, item.id_dokumentasi_bangunan, item);
+        }
+
+        const dokumentasi_bangunan = dokumentasiResult.rows.map((row) => ({
+            ...row,
+            items: row.id ? (dokItemsMap.get(row.id) ?? []) : []
+        }));
 
         const rabSummaryMap = new Map<number, { cost_terbuka: string; cost_beanspot: string; cost_bangunan: string }>();
         for (const row of rabSummaryResult.rows) {
@@ -870,7 +1025,8 @@ export const dashboardRepository = {
             instruksi_lapangan,
             opname_final,
             berkas_serah_terima: berkasSerahTerimaResult.rows,
-            project_planning: projectPlanningResult.rows
+            project_planning: projectPlanningResult.rows,
+            dokumentasi_bangunan
         };
     },
 
@@ -953,7 +1109,8 @@ export const dashboardRepository = {
             opnameFinalResult,
             berkasSerahTerimaResult,
             projectPlanningResult,
-            pengawasanPdfPendingResult
+            pengawasanPdfPendingResult,
+            dokumentasiBangunanResult
         ] = await Promise.all([
             pool.query<DashboardRabRow>(
                 `
@@ -1080,13 +1237,54 @@ export const dashboardRepository = {
             ),
             pool.query<DashboardProjectPlanningRow>(
                 `
-                SELECT id, id_toko, nomor_ulok, nama_toko, kode_toko, cabang, proyek, lingkup_pekerjaan,
-                       jenis_proyek, estimasi_biaya, nama_pengaju, nama_lokasi, jenis_pengajuan,
-                       status, luas_bangunan, luas_area_terbuka, luas_area_terbangun, luas_gudang,
-                       luas_area_parkir, luas_area_sales, bm_waktu_persetujuan, created_at
-                FROM projek_planning
-                WHERE id_toko = ANY($1::int[]) OR UPPER(nomor_ulok) = ANY($2::text[])
-                ORDER BY created_at DESC, id DESC
+                SELECT pp.id, pp.id_toko, pp.nomor_ulok, pp.nama_toko, pp.kode_toko, pp.cabang, pp.proyek, pp.lingkup_pekerjaan,
+                       pp.jenis_proyek, pp.estimasi_biaya, pp.nama_pengaju, pp.nama_lokasi, pp.jenis_pengajuan, pp.jenis_pengajuan_lainnya,
+                       pp.status, pp.luas_bangunan, pp.luas_area_terbuka, pp.luas_area_terbangun, pp.luas_gudang,
+                       pp.luas_area_parkir, pp.luas_area_sales, pp.p_bangunan, pp.l_bangunan, pp.p_area_parkir, pp.l_area_parkir,
+                       pp.is_ruko, pp.jumlah_lantai, pp.beanspot_tipe, pp.is_head_to_head, pp.jarak_head_to_head,
+                       pp.is_seating_area, pp.is_dark_store, pp.akhir_masa_sewa, pp.spd, pp.keterangan,
+                       pp.link_pdf, pp.link_fpd, pp.link_gambar_kerja, pp.link_siteplan, pp.link_google_maps,
+                       pp.link_rab_sipil, pp.link_rab_me,
+                    pp.link_gambar_kerja_final_sipil, pp.link_gambar_kerja_final_me,
+                    pp.link_ba_tidak_sesuai_standar, pp.link_desain_3d, pp.link_gambar_kompetitor,
+                    pp.link_fpd_approved,
+                    COALESCE(foto_count.total_foto, 0)::int AS total_foto_dokumentasi,
+                       pp.bm_waktu_persetujuan, pp.bm_approver_email, u_bm.nama_lengkap AS bm_approver_name,
+                       pp.pp1_waktu_persetujuan, pp.pp1_approver_email, u_pp1.nama_lengkap AS pp1_approver_name,
+                       pp.bm2_waktu_persetujuan, pp.bm2_approver_email, u_bm2.nama_lengkap AS bm2_approver_name, 
+                       pp.bm_regional_waktu_persetujuan, pp.bm_regional_approver_email, u_reg.nama_lengkap AS bm_regional_approver_name,
+                       pp.pp2_waktu_persetujuan, pp.pp2_approver_email, u_pp2.nama_lengkap AS pp2_approver_name,
+                       pp.pp_manager_waktu_persetujuan, pp.pp_manager_approver_email, u_ppm.nama_lengkap AS pp_manager_approver_name,
+                       pp.created_at,
+                       revisi_log.revisi_bm_tahap_1, revisi_log.revisi_pp_tahap_1, revisi_log.revisi_bm_tahap_2,
+                       revisi_log.revisi_bm_regional, revisi_log.revisi_pp_tahap_2, revisi_log.revisi_pp_manager
+                FROM projek_planning pp
+                LEFT JOIN (
+                    SELECT id_projek_planning, COUNT(id) AS total_foto
+                    FROM projek_planning_foto_item
+                    GROUP BY id_projek_planning
+                ) foto_count ON foto_count.id_projek_planning = pp.id
+                LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_bm ON u_bm.email_sat = pp.bm_approver_email
+                LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_pp1 ON u_pp1.email_sat = pp.pp1_approver_email
+                LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_bm2 ON u_bm2.email_sat = pp.bm2_approver_email
+                LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_reg ON u_reg.email_sat = pp.bm_regional_approver_email
+                LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_pp2 ON u_pp2.email_sat = pp.pp2_approver_email
+                LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_ppm ON u_ppm.email_sat = pp.pp_manager_approver_email
+                LEFT JOIN (
+                    SELECT 
+                        projek_planning_id,
+                        COUNT(CASE WHEN status_sebelum = 'WAITING_BM_APPROVAL' THEN 1 END) as revisi_bm_tahap_1,
+                        COUNT(CASE WHEN status_sebelum = 'WAITING_PP_APPROVAL_1' THEN 1 END) as revisi_pp_tahap_1,
+                        COUNT(CASE WHEN status_sebelum = 'WAITING_BM_APPROVAL_2' THEN 1 END) as revisi_bm_tahap_2,
+                        COUNT(CASE WHEN status_sebelum = 'WAITING_BM_REGIONAL_APPROVAL' THEN 1 END) as revisi_bm_regional,
+                        COUNT(CASE WHEN status_sebelum = 'WAITING_PP_APPROVAL_2' THEN 1 END) as revisi_pp_tahap_2,
+                        COUNT(CASE WHEN status_sebelum = 'WAITING_PP_MANAGER_APPROVAL' THEN 1 END) as revisi_pp_manager
+                    FROM projek_planning_log
+                    WHERE aksi = 'REJECT'
+                    GROUP BY projek_planning_id
+                ) revisi_log ON revisi_log.projek_planning_id = pp.id
+                WHERE pp.id_toko = ANY($1::int[]) OR UPPER(pp.nomor_ulok) = ANY($2::text[])
+                ORDER BY pp.created_at DESC, pp.id DESC
                 `,
                 [toArrayParam(tokoIds), toStringArrayParam(ulokKeys)]
             ),
@@ -1100,13 +1298,26 @@ export const dashboardRepository = {
                 ORDER BY created_at DESC, id DESC
                 `,
                 [ulokKeys]
+            ),
+            pool.query<DashboardDokumentasiBangunanRow>(
+                `
+                SELECT id, nomor_ulok, nama_toko, kode_toko, cabang, tanggal_go,
+                       tanggal_serah_terima, tanggal_ambil_foto, spk_awal, spk_akhir,
+                       kontraktor_sipil, kontraktor_me, link_pdf, email_pengirim,
+                       status_validasi, alasan_revisi, pic_dokumentasi, jenis_toko, jenis_dokumentasi, created_at
+                FROM dokumentasi_bangunan
+                WHERE UPPER(TRIM(nomor_ulok)) = ANY($1::text[])
+                ORDER BY created_at DESC, id DESC
+                `,
+                [toStringArrayParam(ulokKeys)]
             )
         ]);
 
         const rabIds = rabResult.rows.map((row) => row.id);
         const ganttIds = ganttResult.rows.map((row) => row.id);
+        const dokIds = dokumentasiBangunanResult.rows.map((row) => row.id).filter((id): id is number => typeof id === "number");
 
-        // --- Batch 2: queries depending on ganttIds + rabIds, run in parallel ---
+        // --- Batch 2: queries depending on ganttIds + rabIds + dokIds, run in parallel ---
         const [
             kategoriResult,
             dayResult,
@@ -1114,7 +1325,8 @@ export const dashboardRepository = {
             pengawasanResult,
             dependencyResult,
             spkLogResult,
-            pertambahanResult
+            pertambahanResult,
+            dokItemsResult
         ] = await Promise.all([
             pool.query<DashboardKategoriGanttRow>(
                 `
@@ -1181,6 +1393,15 @@ export const dashboardRepository = {
                 ORDER BY created_at DESC, id DESC
                 `,
                 [toArrayParam(spkResult.rows.map((r) => r.id))]
+            ),
+            pool.query<DashboardDokumentasiBangunanItemRow>(
+                `
+                SELECT id, id_dokumentasi_bangunan, link_foto, sudut_foto, item_index, created_at
+                FROM dokumentasi_bangunan_item
+                WHERE id_dokumentasi_bangunan = ANY($1::int[])
+                ORDER BY item_index ASC NULLS LAST, id ASC
+                `,
+                [toArrayParam(dokIds)]
             )
         ]);
 
@@ -1389,6 +1610,24 @@ export const dashboardRepository = {
             pendingPdfByUlok.set(key, items);
         }
 
+        const dokItemsMap = new Map<number, DashboardDokumentasiBangunanItemRow[]>();
+        for (const row of dokItemsResult.rows) {
+            pushMapArray(dokItemsMap, row.id_dokumentasi_bangunan, row);
+        }
+
+        const dokByUlok = new Map<string, Array<DashboardDokumentasiBangunanRow & { items: DashboardDokumentasiBangunanItemRow[] }>>();
+        for (const row of dokumentasiBangunanResult.rows) {
+            const key = normalizeDashboardUlok(row.nomor_ulok);
+            if (key) {
+                const items = dokByUlok.get(key) ?? [];
+                items.push({
+                    ...row,
+                    items: row.id ? (dokItemsMap.get(row.id) ?? []) : []
+                });
+                dokByUlok.set(key, items);
+            }
+        }
+
         return tokoResult.rows.map((toko) => ({
             toko,
             rab: rabByTokoId.get(toko.id) ?? [],
@@ -1399,7 +1638,8 @@ export const dashboardRepository = {
             instruksi_lapangan: instruksiByTokoId.get(toko.id) ?? [],
             opname_final: opnameFinalByTokoId.get(toko.id) ?? [],
             berkas_serah_terima: berkasSerahByTokoId.get(toko.id) ?? [],
-            project_planning: [...(ppByTokoId.get(toko.id) ?? []), ...(ppByUlok.get(normalizeDashboardUlok(toko.nomor_ulok)) ?? [])].filter((v, i, a) => a.findIndex(t => t.id === v.id) === i)
+            project_planning: [...(ppByTokoId.get(toko.id) ?? []), ...(ppByUlok.get(normalizeDashboardUlok(toko.nomor_ulok)) ?? [])].filter((v, i, a) => a.findIndex(t => t.id === v.id) === i),
+            dokumentasi_bangunan: dokByUlok.get(normalizeDashboardUlok(toko.nomor_ulok)) ?? []
         }));
 
     },
@@ -1701,7 +1941,8 @@ export const dashboardRepository = {
             instruksi_lapangan: [],
             opname_final: opnameFinalByTokoId.get(toko.id) ?? [],
             berkas_serah_terima: berkasSerahByTokoId.get(toko.id) ?? [],
-            project_planning: []
+            project_planning: [],
+            dokumentasi_bangunan: []
         }));
     },
 
@@ -1766,6 +2007,139 @@ export const dashboardRepository = {
               AND TRIM(COALESCE(tanggal_go, '')) <> ''
             ORDER BY created_at DESC, id DESC
             `
+        );
+
+        return result.rows;
+    },
+
+    async findProjectPlanningExportRows(query: DashboardExportQueryInput): Promise<DashboardProjectPlanningRow[]> {
+        const filters: string[] = [];
+        const values: Array<string | number | string[]> = [];
+
+        if (query.cabang_array && query.cabang_array.length > 0) {
+            values.push(query.cabang_array.map((item) => item.toUpperCase()));
+            const idx = values.length;
+            filters.push(`UPPER(TRIM(COALESCE(pp.cabang, t.cabang))) = ANY($${idx}::text[])`);
+        } else if (!query._is_global_access && query.actor_cabang && query.actor_cabang.toUpperCase() !== "HEAD OFFICE") {
+            values.push(query.actor_cabang.toUpperCase());
+            const idx = values.length;
+            filters.push(`UPPER(TRIM(COALESCE(pp.cabang, t.cabang))) = $${idx}`);
+        }
+
+        if (query.cabang && query.cabang.toUpperCase() !== "ALL") {
+            values.push(query.cabang.toUpperCase());
+            const idx = values.length;
+            filters.push(`UPPER(TRIM(COALESCE(pp.cabang, t.cabang))) = $${idx}`);
+        }
+
+        if (query.search) {
+            values.push(`%${query.search.trim()}%`);
+            const idx = values.length;
+            filters.push(`(
+                pp.nomor_ulok ILIKE $${idx} OR
+                COALESCE(pp.nama_toko, t.nama_toko) ILIKE $${idx} OR
+                COALESCE(pp.kode_toko, t.kode_toko) ILIKE $${idx} OR
+                COALESCE(pp.cabang, t.cabang) ILIKE $${idx}
+            )`);
+        }
+
+        if (query.jenis_proyek === "reguler") {
+            filters.push(`UPPER(TRIM(COALESCE(pp.proyek, t.proyek))) = 'REGULER'`);
+        } else if (query.jenis_proyek === "renovasi") {
+            filters.push(`UPPER(TRIM(COALESCE(pp.proyek, t.proyek))) LIKE '%RENOVASI%'`);
+        }
+
+        const whereClause = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
+
+        const result = await pool.query<DashboardProjectPlanningRow>(
+            `
+            SELECT pp.id, pp.id_toko, pp.nomor_ulok, pp.email_pembuat,
+                   COALESCE(NULLIF(pp.nama_toko, ''), NULLIF(pp.nama_toko, 'Belum diisi'), t.nama_toko) AS nama_toko,
+                   COALESCE(NULLIF(pp.kode_toko, ''), NULLIF(pp.kode_toko, 'Belum diisi'), t.kode_toko) AS kode_toko,
+                   COALESCE(NULLIF(pp.cabang, ''), t.cabang) AS cabang,
+                   COALESCE(pp.proyek, t.proyek) AS proyek,
+                   pp.lingkup_pekerjaan, pp.jenis_proyek, pp.estimasi_biaya, pp.keterangan,
+                   pp.nama_pengaju, pp.nama_lokasi, pp.jenis_pengajuan, pp.jenis_pengajuan_lainnya,
+                   pp.status,
+                   pp.luas_bangunan, pp.luas_area_terbuka, pp.luas_area_terbangun, pp.luas_gudang,
+                   pp.luas_area_parkir, pp.luas_area_sales,
+                   pp.butuh_desain_3d, pp.link_desain_3d,
+                   log_3d.waktu_send_3d, log_3d.uploader_3d,
+                   log_tahap2.waktu_input_tahap_2,
+                   spk_info.awal_spk, spk_info.akhir_spk,
+                   pp.bm_waktu_persetujuan, pp.bm_approver_email, u_bm.nama_lengkap AS bm_approver_name,
+                   pp.pp1_waktu_persetujuan, pp.pp1_approver_email, u_pp1.nama_lengkap AS pp1_approver_name,
+                   pp.bm2_waktu_persetujuan, pp.bm2_approver_email, u_bm2.nama_lengkap AS bm2_approver_name, 
+                   pp.bm_regional_waktu_persetujuan, pp.bm_regional_approver_email, u_reg.nama_lengkap AS bm_regional_approver_name,
+                   pp.pp2_waktu_persetujuan, pp.pp2_approver_email, u_pp2.nama_lengkap AS pp2_approver_name,
+                   pp.pp_manager_waktu_persetujuan, pp.pp_manager_approver_email, u_ppm.nama_lengkap AS pp_manager_approver_name,
+                   pp.created_at,
+                   revisi_log.revisi_bm_tahap_1, revisi_log.revisi_pp_tahap_1, revisi_log.revisi_bm_tahap_2,
+                   revisi_log.revisi_bm_regional, revisi_log.revisi_pp_tahap_2, revisi_log.revisi_pp_manager
+            FROM projek_planning pp
+            LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_bm ON u_bm.email_sat = pp.bm_approver_email
+            LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_pp1 ON u_pp1.email_sat = pp.pp1_approver_email
+            LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_bm2 ON u_bm2.email_sat = pp.bm2_approver_email
+            LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_reg ON u_reg.email_sat = pp.bm_regional_approver_email
+            LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_pp2 ON u_pp2.email_sat = pp.pp2_approver_email
+            LEFT JOIN (SELECT email_sat, MAX(nama_lengkap) as nama_lengkap FROM user_cabang GROUP BY email_sat) u_ppm ON u_ppm.email_sat = pp.pp_manager_approver_email
+            LEFT JOIN (
+                SELECT 
+                    projek_planning_id,
+                    COUNT(CASE WHEN status_sebelum = 'WAITING_BM_APPROVAL' THEN 1 END) as revisi_bm_tahap_1,
+                    COUNT(CASE WHEN status_sebelum = 'WAITING_PP_APPROVAL_1' THEN 1 END) as revisi_pp_tahap_1,
+                    COUNT(CASE WHEN status_sebelum = 'WAITING_BM_APPROVAL_2' THEN 1 END) as revisi_bm_tahap_2,
+                    COUNT(CASE WHEN status_sebelum = 'WAITING_BM_REGIONAL_APPROVAL' THEN 1 END) as revisi_bm_regional,
+                    COUNT(CASE WHEN status_sebelum = 'WAITING_PP_APPROVAL_2' THEN 1 END) as revisi_pp_tahap_2,
+                    COUNT(CASE WHEN status_sebelum = 'WAITING_PP_MANAGER_APPROVAL' THEN 1 END) as revisi_pp_manager
+                FROM projek_planning_log
+                WHERE aksi = 'REJECT'
+                GROUP BY projek_planning_id
+            ) revisi_log ON revisi_log.projek_planning_id = pp.id
+            LEFT JOIN (
+                SELECT 
+                    projek_planning_id,
+                    MAX(created_at) AS waktu_send_3d,
+                    (ARRAY_AGG(actor_email ORDER BY created_at DESC))[1] AS uploader_3d
+                FROM projek_planning_log
+                WHERE aksi = 'UPLOAD_3D'
+                GROUP BY projek_planning_id
+            ) log_3d ON log_3d.projek_planning_id = pp.id
+            LEFT JOIN (
+                SELECT 
+                    projek_planning_id,
+                    MAX(created_at) AS waktu_input_tahap_2
+                FROM projek_planning_log
+                WHERE aksi = 'UPLOAD_RAB'
+                GROUP BY projek_planning_id
+            ) log_tahap2 ON log_tahap2.projek_planning_id = pp.id
+            LEFT JOIN LATERAL (
+                SELECT 
+                    ps.waktu_mulai AS awal_spk,
+                    ps.waktu_selesai AS akhir_spk
+                FROM pengajuan_spk ps
+                WHERE UPPER(TRIM(ps.nomor_ulok)) = UPPER(TRIM(pp.nomor_ulok))
+                  AND ps.status != 'SPK_REJECTED'
+                ORDER BY 
+                    CASE 
+                        WHEN UPPER(TRIM(ps.lingkup_pekerjaan)) = 'SIPIL' THEN 1 
+                        WHEN UPPER(TRIM(ps.lingkup_pekerjaan)) = 'ME' THEN 2 
+                        ELSE 3 
+                    END ASC,
+                    ps.id DESC
+                LIMIT 1
+            ) spk_info ON true
+            LEFT JOIN LATERAL (
+                SELECT nama_toko, kode_toko, cabang, proyek
+                FROM toko
+                WHERE UPPER(TRIM(nomor_ulok)) = UPPER(TRIM(pp.nomor_ulok))
+                ORDER BY id ASC
+                LIMIT 1
+            ) t ON true
+            ${whereClause}
+            ORDER BY pp.created_at DESC, pp.id DESC
+            `,
+            values
         );
 
         return result.rows;

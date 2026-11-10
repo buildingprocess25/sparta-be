@@ -10,7 +10,6 @@ CREATE TABLE public.pengawasan (
     created_at timestamp without time zone DEFAULT timezone('Asia/Jakarta'::text, now()) NOT NULL,
     catatan text,
     dokumentasi text,
-    id_pengawasan_gantt integer,
-    dokumentasi_base64 text
+    id_pengawasan_gantt integer
 );
 

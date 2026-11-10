@@ -244,10 +244,9 @@ const main = async () => {
                         jenis_pekerjaan,
                         catatan,
                         dokumentasi,
-                        dokumentasi_base64,
                         status
                     )
-                    SELECT $1::int, $2::int, $3::text, $4::text, $5::text, NULL, NULL, 'terlambat'
+                    SELECT $1::int, $2::int, $3::text, $4::text, $5::text, NULL, 'terlambat'
                     WHERE NOT EXISTS (
                         SELECT 1
                         FROM pengawasan existing

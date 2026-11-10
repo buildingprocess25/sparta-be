@@ -415,7 +415,6 @@ export const ganttRepository = {
                     )::int AS filled_items,
                     COUNT(p.id) FILTER (
                         WHERE NULLIF(TRIM(COALESCE(p.dokumentasi, '')), '') IS NOT NULL
-                           OR NULLIF(TRIM(COALESCE(p.dokumentasi_base64, '')), '') IS NOT NULL
                     )::int AS documented_items,
                     COUNT(p.id) FILTER (
                         WHERE LOWER(TRIM(p.status)) = 'selesai'
@@ -1223,7 +1222,7 @@ export const ganttRepository = {
              WHERE d.id_kategori_pekerjaan_gantt = k.id
                AND d.id_gantt = $2
                AND k.id_gantt = $2
-               AND k.kategori_pekerjaan = $3
+               AND k.kategori_pekerjaan ILIKE $3
              RETURNING d.id`,
             [keterlambatan, ganttId, kategoriPekerjaan]
         );
@@ -1246,7 +1245,7 @@ export const ganttRepository = {
              FROM kategori_pekerjaan_gantt k
              WHERE d.id_kategori_pekerjaan_gantt = k.id
                AND d.id_gantt = $2
-               AND k.kategori_pekerjaan = $3
+               AND k.kategori_pekerjaan ILIKE $3
                AND d.h_awal = $4
                AND d.h_akhir = $5
              RETURNING d.id`,

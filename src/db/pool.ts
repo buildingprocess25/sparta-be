@@ -27,7 +27,12 @@ const buildSslConfig = (rawUrl: string): PgSslConfig => {
     const parsed = parseDatabaseUrl(rawUrl);
     const sslMode = (process.env.PGSSLMODE || parsed.searchParams.get("sslmode") || "require").trim().toLowerCase();
 
-    if (sslMode === "disable") return false;
+    if (sslMode === "disable") {
+        if (process.env.NODE_ENV === "production") {
+            console.warn("[SECURITY_ALERT] PostgreSQL terhubung tanpa SSL di mode production! Lalu lintas database rentan disadap. Wajib aktifkan sslmode=require.");
+        }
+        return false;
+    }
     if (sslMode === "verify-full" || sslMode === "verify-ca") return { rejectUnauthorized: true };
     return { rejectUnauthorized: false };
 };
