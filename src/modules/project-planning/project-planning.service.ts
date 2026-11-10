@@ -981,13 +981,10 @@ export const projekPlanningService = {
         const ulokToUse = payload.nomor_ulok || projek.nomor_ulok;
         const approvedRabs = await projekPlanningRepository.findApprovedRabsByNomorUlok(ulokToUse);
         
-        const fRabSipil = files ? (files["file_rab_sipil_final"] ?? []) : [];
-        const fRabMe = files ? (files["file_rab_me_final"] ?? []) : [];
-        
-        const hasManualRabSipil = payload.link_rab_sipil || fRabSipil.length > 0;
-        const hasManualRabMe = payload.link_rab_me || fRabMe.length > 0;
+        const hasManualSipil = Boolean(linkRabSipil || (files && (files["file_rab_sipil"]?.length ?? 0) > 0));
+        const hasManualMe = Boolean(linkRabMe || (files && (files["file_rab_me"]?.length ?? 0) > 0));
 
-        if (approvedRabs.length === 0 && (!hasManualRabSipil || !hasManualRabMe)) {
+        if (approvedRabs.length === 0 && !hasManualSipil && !hasManualMe) {
             throw new AppError(
                 "RAB untuk ULOK ini belum diinput kontraktor atau belum selesai approval. Input dan approve RAB terlebih dahulu sebelum melanjutkan FPD, atau upload dokumen RAB manual.",
                 422
@@ -1007,9 +1004,15 @@ export const projekPlanningService = {
         if (payload.id_rab_me && !selectedRabMe) {
             throw new AppError("RAB ME yang dipilih tidak ditemukan atau belum approved untuk ULOK ini.", 422);
         }
-        if (!selectedRabSipil && !selectedRabMe && (!hasManualRabSipil || !hasManualRabMe)) {
+        if (!selectedRabSipil && !hasManualSipil) {
             throw new AppError(
-                "RAB approved tersedia, tetapi belum ada RAB dengan lingkup Sipil atau ME untuk ULOK ini. Silakan upload secara manual jika diperlukan.",
+                "RAB Sipil belum disetujui atau belum diupload secara manual.",
+                422
+            );
+        }
+        if (!selectedRabMe && !hasManualMe) {
+            throw new AppError(
+                "RAB ME belum disetujui atau belum diupload secara manual.",
                 422
             );
         }
@@ -1019,6 +1022,8 @@ export const projekPlanningService = {
         if (files) {
             const fGambarSipil = files["file_gambar_kerja_final_sipil"] ?? [];
             const fGambarMe = files["file_gambar_kerja_final_me"] ?? [];
+            const fRabSipil = files["file_rab_sipil"] ?? [];
+            const fRabMe = files["file_rab_me"] ?? [];
             
             try {
                 const folderId = await GoogleProvider.instance.getOrCreateProcessFolder("Project planning", projek.nomor_ulok, projek.nama_toko, projek.kode_toko, projek.cabang);

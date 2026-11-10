@@ -728,7 +728,8 @@ export const opnameFinalService = {
         const excelData = items.map((item, index) => {
             const sumber = item.id_instruksi_lapangan_item ? "Instruksi Lapangan" : "RAB";
             const originalItem = item.id_instruksi_lapangan_item ? item.instruksi_lapangan_item : item.rab_item;
-            const hargaSatuan = originalItem ? (Number(originalItem.harga_material || 0) + Number(originalItem.harga_upah || 0)) : 0;
+            const hargaMaterial = originalItem ? Number(originalItem.harga_material || 0) : 0;
+            const hargaUpah = originalItem ? Number(originalItem.harga_upah || 0) : 0;
             
             return {
                 "No": index + 1,
@@ -739,7 +740,8 @@ export const opnameFinalService = {
                 "Volume Awal": Number(item.volume_rab) || 0,
                 "Volume Akhir": Number(item.volume_akhir) || 0,
                 "Selisih Volume": Number(item.selisih_volume) || 0,
-                "Harga Satuan": hargaSatuan,
+                "Harga Material": hargaMaterial,
+                "Harga Upah": hargaUpah,
                 "Total Selisih": Number(item.total_selisih) || 0,
                 "Total Harga Opname": Number(item.total_harga_opname) || 0,
                 "Status": item.status || "",
@@ -759,7 +761,8 @@ export const opnameFinalService = {
             { wch: 15 }, // Vol Awal
             { wch: 15 }, // Vol Akhir
             { wch: 15 }, // Selisih Vol
-            { wch: 15 }, // Harga Satuan
+            { wch: 15 }, // Harga Material
+            { wch: 15 }, // Harga Upah
             { wch: 15 }, // Tot Selisih
             { wch: 15 }, // Tot Harga Opname
             { wch: 15 }, // Status
