@@ -959,7 +959,10 @@ export const projekPlanningService = {
         const ulokToUse = payload.nomor_ulok || projek.nomor_ulok;
         const approvedRabs = await projekPlanningRepository.findApprovedRabsByNomorUlok(ulokToUse);
         
-        if (approvedRabs.length === 0) {
+        const hasManualSipil = Boolean(linkRabSipil || (files && (files["file_rab_sipil"]?.length ?? 0) > 0));
+        const hasManualMe = Boolean(linkRabMe || (files && (files["file_rab_me"]?.length ?? 0) > 0));
+
+        if (approvedRabs.length === 0 && !hasManualSipil && !hasManualMe) {
             throw new AppError(
                 "RAB untuk ULOK ini belum diinput kontraktor atau belum selesai approval. Input dan approve RAB terlebih dahulu sebelum melanjutkan FPD.",
                 422
@@ -979,9 +982,15 @@ export const projekPlanningService = {
         if (payload.id_rab_me && !selectedRabMe) {
             throw new AppError("RAB ME yang dipilih tidak ditemukan atau belum approved untuk ULOK ini.", 422);
         }
-        if (!selectedRabSipil && !selectedRabMe) {
+        if (!selectedRabSipil && !hasManualSipil) {
             throw new AppError(
-                "RAB approved tersedia, tetapi belum ada RAB dengan lingkup Sipil atau ME untuk ULOK ini.",
+                "RAB Sipil belum disetujui atau belum diupload secara manual.",
+                422
+            );
+        }
+        if (!selectedRabMe && !hasManualMe) {
+            throw new AppError(
+                "RAB ME belum disetujui atau belum diupload secara manual.",
                 422
             );
         }
@@ -991,6 +1000,8 @@ export const projekPlanningService = {
         if (files) {
             const fGambarSipil = files["file_gambar_kerja_final_sipil"] ?? [];
             const fGambarMe = files["file_gambar_kerja_final_me"] ?? [];
+            const fRabSipil = files["file_rab_sipil"] ?? [];
+            const fRabMe = files["file_rab_me"] ?? [];
             
             try {
                 const folderId = await GoogleProvider.instance.getOrCreateProcessFolder("Project planning", projek.nomor_ulok, projek.nama_toko, projek.kode_toko, projek.cabang);
@@ -1001,6 +1012,14 @@ export const projekPlanningService = {
                 if (fGambarMe.length > 0) {
                     const link = await uploadCompressedFiles(fGambarMe, folderId);
                     if (link) linkGambarMe = link;
+                }
+                if (fRabSipil.length > 0) {
+                    const link = await uploadCompressedFiles(fRabSipil, folderId);
+                    if (link) linkRabSipil = link;
+                }
+                if (fRabMe.length > 0) {
+                    const link = await uploadCompressedFiles(fRabMe, folderId);
+                    if (link) linkRabMe = link;
                 }
             } catch (e) {
                 console.error("Gagal upload RAB/Gambar ke Drive:", e);
