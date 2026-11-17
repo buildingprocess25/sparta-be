@@ -49,10 +49,29 @@ const extractDriveFileId = (value?: string | null): string | null => {
     return driveFileMatch?.[1] ?? driveOpenMatch?.[1] ?? idMatch?.[1] ?? null;
 };
 
+const normalizeCompanyKey = (value?: string | null): string => {
+    const cleaned = String(value ?? "")
+        .toUpperCase()
+        .replace(/[.,]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    if (!cleaned) return "";
+    const tokens = cleaned.split(" ").filter(Boolean);
+    const entityTypes = new Set(["PT", "CV", "UD", "PD", "FA"]);
+    if (tokens.length > 1 && entityTypes.has(tokens[tokens.length - 1])) {
+        const entity = tokens.pop()!;
+        return `${entity} ${tokens.join(" ")}`;
+    }
+    return tokens.join(" ");
+};
+
 const companyMatches = (left?: string | null, right?: string | null): boolean => {
     const a = String(left ?? "").trim();
     const b = String(right ?? "").trim();
     if (!a || !b) return false;
+    const keyA = normalizeCompanyKey(a);
+    const keyB = normalizeCompanyKey(b);
+    if (keyA && keyB && keyA === keyB) return true;
     const normalA = normalizeText(a);
     const normalB = normalizeText(b);
     const compactA = normalA.replace(/[^A-Z0-9]/g, "");
@@ -528,7 +547,7 @@ export const spService = {
         let tokoId = (input as any).id_toko;
         
         if (tokoId) {
-            target = await spRepository.findTargetByTokoId(tokoId);
+            target = await spRepository.findTargetByTokoId(tokoId, { actionType: input.action_type });
             if (!target) {
                 throw new AppError("Data target SP tidak ditemukan, sudah selesai, atau belum memiliki kontraktor.", 404);
             }

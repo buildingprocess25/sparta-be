@@ -123,9 +123,56 @@ const ACTION_SELECT = `
     ) AS is_active
 `;
 
+const canonicalCompanySql = (colExpression: string) => `
+    regexp_replace(
+        TRIM(regexp_replace(UPPER(COALESCE(${colExpression}, '')), '[\\s.,]+', ' ', 'g')),
+        '^(.+?)\\s+(PT|CV|UD|PD|FA)$',
+        '\\2 \\1'
+    )
+`;
+
+const normalizeCompanyNameKey = (value: string | null | undefined): string => {
+    const cleaned = String(value ?? "")
+        .toUpperCase()
+        .replace(/[.,]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    if (!cleaned) return "";
+    const tokens = cleaned.split(" ").filter(Boolean);
+    const entityTypes = new Set(["PT", "CV", "UD", "PD", "FA"]);
+    if (tokens.length > 1 && entityTypes.has(tokens[tokens.length - 1])) {
+        const entity = tokens.pop()!;
+        return `${entity} ${tokens.join(" ")}`;
+    }
+    return tokens.join(" ");
+};
+
+const deduplicateCompanyNames = (names: string[]): string[] => {
+    const picked = new Map<string, string>();
+    for (const raw of names) {
+        const trimmed = raw.trim();
+        if (!trimmed) continue;
+        const key = normalizeCompanyNameKey(trimmed);
+        if (!key) continue;
+        const existing = picked.get(key);
+        if (!existing) {
+            picked.set(key, trimmed);
+            continue;
+        }
+        // Prefer standard prefix format ("PT X" / "CV X") over trailing comma format ("X, PT")
+        const existingIsCanonical = existing.toUpperCase().replace(/[.,]+/g, " ").replace(/\s+/g, " ").trim() === key;
+        const candidateIsCanonical = trimmed.toUpperCase().replace(/[.,]+/g, " ").replace(/\s+/g, " ").trim() === key;
+        if (!existingIsCanonical && candidateIsCanonical) {
+            picked.set(key, trimmed);
+        }
+    }
+    return Array.from(picked.values()).sort((a, b) => a.localeCompare(b));
+};
+
 const contractorMatchSql = (param: string) => `
     (
         LOWER(TRIM(COALESCE(nama_kontraktor, ''))) = LOWER(TRIM(${param}))
+        OR ${canonicalCompanySql("nama_kontraktor")} = ${canonicalCompanySql(param)}
         OR LOWER(TRIM(COALESCE(nama_kontraktor, ''))) LIKE '%' || LOWER(TRIM(${param})) || '%'
         OR LOWER(TRIM(${param})) LIKE '%' || LOWER(TRIM(COALESCE(nama_kontraktor, ''))) || '%'
         OR regexp_replace(UPPER(COALESCE(nama_kontraktor, '')), '[^A-Z0-9]', '', 'g') = regexp_replace(UPPER(${param}), '[^A-Z0-9]', '', 'g')
@@ -251,7 +298,11 @@ export const spRepository = {
 
     async listCandidates(cabang_array?: string[]): Promise<DendaActionCandidateRow[]> {
         const conditions = [
-            `st.id IS NULL`,
+            `(
+                st.id IS NULL
+                OR UPPER(TRIM(COALESCE(ofn.status_opname_final, ''))) <> 'DISETUJUI'
+                OR COALESCE(ofn.hari_denda, 0) > 0
+            )`,
             `spk.nomor_spk IS NOT NULL`,
             `NULLIF(TRIM(COALESCE(spk.nama_kontraktor, t.nama_kontraktor, '')), '') IS NOT NULL`
         ];
@@ -270,6 +321,7 @@ export const spRepository = {
                 SELECT DISTINCT ON (ofn.id_toko)
                     ofn.id,
                     ofn.id_toko,
+                    ofn.status_opname_final,
                     ofn.hari_denda,
                     ofn.nilai_denda,
                     ofn.tanggal_akhir_spk_denda,
@@ -289,8 +341,14 @@ export const spRepository = {
                 t.cabang,
                 COALESCE(NULLIF(TRIM(spk.nama_kontraktor), ''), NULLIF(TRIM(t.nama_kontraktor), '')) AS nama_kontraktor,
                 spk.nomor_spk,
-                GREATEST(COALESCE(ofn.hari_denda, 0), COALESCE(delay.hari_terlambat, 0))::int AS hari_denda,
-                GREATEST(COALESCE(ofn.nilai_denda, 0), COALESCE(delay.nilai_terlambat, 0))::text AS nilai_denda,
+                CASE
+                    WHEN st.id IS NULL THEN GREATEST(COALESCE(ofn.hari_denda, 0), COALESCE(delay.hari_terlambat, 0))
+                    ELSE COALESCE(ofn.hari_denda, 0)
+                END::int AS hari_denda,
+                CASE
+                    WHEN st.id IS NULL THEN GREATEST(COALESCE(ofn.nilai_denda, 0), COALESCE(delay.nilai_terlambat, 0))
+                    ELSE COALESCE(ofn.nilai_denda, 0)
+                END::text AS nilai_denda,
                 COALESCE(ofn.tanggal_akhir_spk_denda, spk.effective_waktu_selesai) AS tanggal_akhir_spk_denda,
                 ofn.tanggal_serah_terima_denda,
                 COALESCE(sp_stats.active_sp_count, 0)::int AS active_sp_count,
@@ -306,7 +364,7 @@ export const spRepository = {
                 latest_action.expires_at AS latest_action_expires_at,
                 COALESCE(latest_action.expires_at < timezone('Asia/Jakarta', now()), false) AS latest_action_is_expired,
                 ofn.created_at AS ofn_created_at,
-                delay.hari_terlambat
+                CASE WHEN st.id IS NULL THEN COALESCE(delay.hari_terlambat, 0) ELSE 0 END AS hari_terlambat
             FROM toko t
             LEFT JOIN latest_opname ofn ON ofn.id_toko = t.id
             LEFT JOIN LATERAL (
@@ -393,13 +451,13 @@ export const spRepository = {
                           AND (expires_at IS NULL OR expires_at >= timezone('Asia/Jakarta', now()))
                     ) AS highest_active_sp_level
                 FROM denda_keterlambatan_action action
-                WHERE LOWER(TRIM(COALESCE(action.nama_kontraktor, ''))) = LOWER(TRIM(COALESCE(spk.nama_kontraktor, t.nama_kontraktor, '')))
+                WHERE ${canonicalCompanySql("action.nama_kontraktor")} = ${canonicalCompanySql("COALESCE(NULLIF(TRIM(spk.nama_kontraktor), ''), NULLIF(TRIM(t.nama_kontraktor), ''))")}
                   AND ${branchGroupSql('action.cabang')} = ${branchGroupSql('t.cabang')}
             ) sp_stats ON TRUE
             LEFT JOIN LATERAL (
                 SELECT action_type, status, created_at, expires_at
                 FROM denda_keterlambatan_action action
-                WHERE LOWER(TRIM(COALESCE(action.nama_kontraktor, ''))) = LOWER(TRIM(COALESCE(spk.nama_kontraktor, t.nama_kontraktor, '')))
+                WHERE ${canonicalCompanySql("action.nama_kontraktor")} = ${canonicalCompanySql("COALESCE(NULLIF(TRIM(spk.nama_kontraktor), ''), NULLIF(TRIM(t.nama_kontraktor), ''))")}
                   AND ${branchGroupSql('action.cabang')} = ${branchGroupSql('t.cabang')}
                 ORDER BY action.created_at DESC, action.id DESC
                 LIMIT 1
@@ -430,7 +488,7 @@ export const spRepository = {
                 BOOL_OR(latest_action_is_expired) AS latest_action_is_expired
             FROM raw_candidates
             GROUP BY nomor_ulok
-            ORDER BY GREATEST(MAX(hari_denda), MAX(hari_terlambat)) DESC, MAX(ofn_created_at) DESC NULLS LAST, MAX(id_toko) DESC
+            ORDER BY MAX(hari_denda) DESC, MAX(ofn_created_at) DESC NULLS LAST, MAX(id_toko) DESC
         `, values);
 
         return result.rows;
@@ -547,7 +605,15 @@ export const spRepository = {
         return result.rows[0] ?? null;
     },
 
-    async findTargetByTokoId(idToko: number): Promise<DendaActionTargetRow | null> {
+    async findTargetByTokoId(idToko: number, options?: { actionType?: DendaActionType }): Promise<DendaActionTargetRow | null> {
+        const handoverFilter = options?.actionType === "SP"
+            ? `(
+                st.id IS NULL
+                OR UPPER(TRIM(COALESCE(ofn.status_opname_final, ''))) <> 'DISETUJUI'
+                OR COALESCE(ofn.hari_denda, 0) > 0
+            )`
+            : `st.id IS NULL`;
+
         const result = await pool.query<DendaActionTargetRow>(
             `
             SELECT
@@ -560,11 +626,17 @@ export const spRepository = {
                 t.cabang,
                 COALESCE(NULLIF(TRIM(spk.nama_kontraktor), ''), NULLIF(TRIM(t.nama_kontraktor), '')) AS nama_kontraktor,
                 spk.nomor_spk,
-                GREATEST(COALESCE(ofn.hari_denda, 0), COALESCE(delay.hari_terlambat, 0))::int AS hari_denda,
-                GREATEST(COALESCE(ofn.nilai_denda, 0), COALESCE(delay.nilai_terlambat, 0))::text AS nilai_denda
+                CASE
+                    WHEN st.id IS NULL THEN GREATEST(COALESCE(ofn.hari_denda, 0), COALESCE(delay.hari_terlambat, 0))
+                    ELSE COALESCE(ofn.hari_denda, 0)
+                END::int AS hari_denda,
+                CASE
+                    WHEN st.id IS NULL THEN GREATEST(COALESCE(ofn.nilai_denda, 0), COALESCE(delay.nilai_terlambat, 0))
+                    ELSE COALESCE(ofn.nilai_denda, 0)
+                END::text AS nilai_denda
             FROM toko t
             LEFT JOIN LATERAL (
-                SELECT id, hari_denda, nilai_denda
+                SELECT id, status_opname_final, hari_denda, nilai_denda
                 FROM opname_final latest
                 WHERE latest.id_toko = t.id
                 ORDER BY latest.created_at DESC NULLS LAST, latest.id DESC
@@ -641,7 +713,7 @@ export const spRepository = {
                 LIMIT 1
             ) st ON TRUE
             WHERE t.id = $1
-              AND st.id IS NULL
+              AND ${handoverFilter}
               AND spk.nomor_spk IS NOT NULL
               AND NULLIF(TRIM(COALESCE(spk.nama_kontraktor, t.nama_kontraktor, '')), '') IS NOT NULL
             LIMIT 1
@@ -745,7 +817,10 @@ export const spRepository = {
                       AND (expires_at IS NULL OR expires_at >= timezone('Asia/Jakarta', now()))
                 ) AS highest_active_sp_level
             FROM denda_keterlambatan_action
-            WHERE LOWER(TRIM(COALESCE(nama_kontraktor, ''))) = LOWER(TRIM($1))
+            WHERE (
+                LOWER(TRIM(COALESCE(nama_kontraktor, ''))) = LOWER(TRIM($1))
+                OR ${canonicalCompanySql("nama_kontraktor")} = ${canonicalCompanySql("$1")}
+            )
             ${cabangFilter}
             `,
             queryArgs
@@ -1113,10 +1188,8 @@ export const spRepository = {
             // Get contractors from user_cabang (registered users)
             const fromUsers = await this.listKontraktorFromUserCabang(user);
 
-            // Merge and deduplicate
-            const allKontraktor = Array.from(new Set([...fromProjects, ...fromUsers])).sort();
-
-            return allKontraktor;
+            // Merge and deduplicate canonical company names ("CV X" / "X, CV")
+            return deduplicateCompanyNames([...fromProjects, ...fromUsers]);
         } catch (error) {
             console.error('[listKontraktor] Error:', error);
             // Fallback to project-only list on error
@@ -1158,7 +1231,7 @@ export const spRepository = {
                 ORDER BY nama_kontraktor ASC
             `, values);
             
-            return result.rows.map(row => row.nama_kontraktor);
+            return deduplicateCompanyNames(result.rows.map(row => row.nama_kontraktor));
         }
     },
 
