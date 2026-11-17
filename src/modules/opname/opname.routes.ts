@@ -2,6 +2,7 @@ import { Router } from "express";
 import type { NextFunction, Request, Response } from "express";
 import multer from "multer";
 import {
+    bulkApproveOpname,
     createBulkOpname,
     createOpname,
     downloadOpnameFoto,
@@ -69,6 +70,7 @@ opnameRouter.post(
     ]),
     createBulkOpname
 );
+opnameRouter.post("/bulk-approve", bulkApproveOpname);
 opnameRouter.get("/", listOpname);
 opnameRouter.get("/:id", getOpnameById);
 opnameRouter.get("/:id/foto", downloadOpnameFoto);

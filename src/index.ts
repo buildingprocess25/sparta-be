@@ -10,6 +10,7 @@ import { serahTerimaService } from "./modules/serah-terima/serah-terima.service"
 import { spCronService } from "./modules/surat-peringatan/sp.cron.service";
 import { spkBackdatePolicyService } from "./modules/spk-backdate-policy/spk-backdate-policy.service";
 // import { requestIntervensiService } from "./modules/request-intervensi/request-intervensi.service";
+import { sendDailyWebPush } from "./modules/task-notification/web-push.service";
 
 const cleanupAuthSessions = async () => {
     const deletedCount = await authSessionRepository.deleteExpiredOlderThan(env.AUTH_SESSION_RETENTION_DAYS);
@@ -112,6 +113,15 @@ const bootstrap = async () => {
         console.log("[SP Cron] Auto: generateWeeklySummary");
         await spCronService.generateWeeklySummary();
     }, "SP weeklySummary");
+
+    // ── Web Push: pengingat tugas — 08:00, 10:00, 13:00, 16:00 WIB ──
+    const pushHours = [8, 10, 13, 16];
+    for (const h of pushHours) {
+        scheduleDailyWib(h, 0, async () => {
+            console.log(`[Web Push Cron] Auto: sendDailyWebPush (Jam ${h}:00)`);
+            await sendDailyWebPush();
+        }, `WebPush dailyReminder ${h}:00`);
+    }
 };
 
 app.listen(env.PORT, () => {

@@ -806,5 +806,26 @@ export const opnameRepository = {
                 'Sesuai'
             ]);
         }
+    },
+
+    async bulkApproveByTokoId(
+        idToko: number,
+        existingClient?: PoolClient
+    ): Promise<{ updatedCount: number; idOpnameFinal?: number }> {
+        const db = existingClient ?? pool;
+        const result = await db.query<{ id: number; id_opname_final: number }>(
+            `
+            UPDATE opname_item
+            SET status = 'disetujui'
+            WHERE id_toko = $1 AND status = 'pending'
+            RETURNING id, id_opname_final
+            `,
+            [idToko]
+        );
+
+        const updatedCount = result.rowCount ?? 0;
+        const idOpnameFinal = result.rows[0]?.id_opname_final;
+
+        return { updatedCount, idOpnameFinal };
     }
 };

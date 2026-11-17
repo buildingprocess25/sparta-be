@@ -751,7 +751,7 @@ export const opnameFinalRepository = {
             await client.query(
                 `
                 UPDATE opname_final
-                SET status_opname_final = $1,
+                SET status_opname_final = $1::text,
                     alasan_penolakan = CASE
                         WHEN $1::text LIKE 'Ditolak%' THEN $2::text
                         ELSE NULL

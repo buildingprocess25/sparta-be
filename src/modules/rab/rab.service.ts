@@ -1337,7 +1337,7 @@ async function resolveMateraiCoverPageForMerge(input: {
     return null;
 }
 
-async function regenerateRabPdfs(
+export async function regenerateRabPdfs(
     rabId: string,
     filenameParts: { proyek?: string | null; nomorUlok?: string | null },
     approvalNameOverrides?: {

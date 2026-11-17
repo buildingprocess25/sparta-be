@@ -35,6 +35,10 @@ RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 COPY --from=builder /app/dist ./dist
 
+RUN mkdir -p /tmp/puppeteer && chown -R node:node /app /tmp/puppeteer
+
+USER node
+
 EXPOSE 8081
 
 CMD ["npm", "start"]

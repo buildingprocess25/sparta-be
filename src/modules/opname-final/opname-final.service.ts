@@ -1,4 +1,5 @@
 import { AppError } from "../../common/app-error";
+import { generateStandardFilename } from "../../common/filename-helper";
 import { pool } from "../../db/pool";
 import { GoogleProvider } from "../../common/google";
 import * as XLSX from "xlsx";
@@ -434,10 +435,14 @@ const regeneratePdfAndUpload = async (opnameFinalId: string): Promise<string> =>
     const rabData = await loadRabData(detail.opname_final.id, detail.toko.id);
     await applyRukoConversionIfNeeded(detail, instruksiLapanganItems, rabData);
     const pdfBuffer = await buildOpnameFinalPdfBuffer(detail, instruksiLapanganItems, rabData);
-    const proyek = sanitizeFilenamePart(detail.toko.proyek ?? undefined, "PROYEK");
-    const nomorUlok = sanitizeFilenamePart(detail.toko.nomor_ulok ?? undefined, "ULOK");
-    const filenamePrefix = "OPNAME";
-    const filename = `${filenamePrefix}_${proyek}_${nomorUlok}_${detail.opname_final.id}.pdf`;
+    const prefix = detail.opname_final.tipe_opname === "OPNAME" ? "OPNAME" : "KTK";
+    const filename = generateStandardFilename(
+        prefix,
+        detail.toko.nomor_ulok,
+        detail.toko.nama_toko,
+        detail.toko.lingkup_pekerjaan,
+        ".pdf"
+    );
 
     return uploadPdfToDrive(pdfBuffer, filename, detail.toko.nomor_ulok, detail.toko.proyek);
 };
@@ -571,10 +576,14 @@ export const opnameFinalService = {
             throw new AppError("Data opname_final tidak ditemukan", 404);
         }
 
-        const proyek = sanitizeFilenamePart(detail.toko.proyek ?? undefined, "PROYEK");
-        const nomorUlok = sanitizeFilenamePart(detail.toko.nomor_ulok ?? undefined, "ULOK");
-        const filenamePrefix = "OPNAME";
-        const filename = `${filenamePrefix}_${proyek}_${nomorUlok}_${id}.pdf`;
+        const prefix = detail.opname_final.tipe_opname === "OPNAME" ? "OPNAME" : "KTK";
+        const filename = generateStandardFilename(
+            prefix,
+            detail.toko.nomor_ulok,
+            detail.toko.nama_toko,
+            detail.toko.lingkup_pekerjaan,
+            ".pdf"
+        );
 
         const storedBuffer = await downloadStoredPdfBuffer(detail.opname_final.link_pdf_opname);
         if (storedBuffer) {
@@ -708,7 +717,7 @@ export const opnameFinalService = {
         };
     },
 
-    async exportOpnameFinalExcel(id: string): Promise<Buffer> {
+    async exportOpnameFinalExcel(id: string): Promise<{ filename: string; excelBuffer: Buffer }> {
         const detail = await opnameFinalRepository.findById(id);
         if (!detail) {
             throw new AppError("Data opname_final tidak ditemukan", 404);
@@ -761,8 +770,22 @@ export const opnameFinalService = {
         ];
         worksheet["!cols"] = wscols;
 
-        XLSX.utils.book_append_sheet(workbook, worksheet, "KTK Items");
+        const prefix = detail.opname_final.tipe_opname === "OPNAME" ? "OPNAME" : "KTK";
+        const sheetTitle = prefix === "OPNAME" ? "Opname Items" : "KTK Items";
+        XLSX.utils.book_append_sheet(workbook, worksheet, sheetTitle);
         
-        return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
+        const filename = generateStandardFilename(
+            prefix,
+            detail.toko.nomor_ulok,
+            detail.toko.nama_toko,
+            detail.toko.lingkup_pekerjaan,
+            ".xlsx"
+        );
+        const excelBuffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
+
+        return {
+            filename,
+            excelBuffer
+        };
     }
 };

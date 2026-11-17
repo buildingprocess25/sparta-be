@@ -192,9 +192,7 @@ export type DashboardUserExportRow = {
     email_user: string;
     role: string;
     cabang: string;
-    tanggal_login_terakhir: number | string;
-    bulan_login_terakhir: string;
-    tahun_login_terakhir: number | string;
+    tanggal_login_terakhir: string;
 };
 
 export const dashboardExportColumns: DashboardExportColumn[] = [
@@ -709,9 +707,13 @@ const projectPlanningExportColumns: DashboardExportColumn[] = [
     { key: "kode_toko", label: "Kode Toko" },
     { key: "proyek", label: "Proyek" },
     { key: "lingkup_pekerjaan", label: "Lingkup Pekerjaan" },
+    { key: "awal_spk", label: "Awal SPK" },
+    { key: "akhir_spk", label: "Akhir SPK" },
     { key: "nama_pengaju", label: "Nama Pengaju" },
     { key: "nama_lokasi", label: "Nama Lokasi" },
     { key: "jenis_pengajuan", label: "Jenis Pengajuan Desain" },
+    { key: "status_desain_3d", label: "Desain 3D" },
+    { key: "link_desain_3d", label: "Link Desain 3D" },
     { key: "estimasi_biaya", label: "Estimasi Biaya" },
     { key: "luas_bangunan", label: "Luas Bangunan" },
     { key: "luas_area_terbuka", label: "Luas Area Terbuka" },
@@ -721,7 +723,26 @@ const projectPlanningExportColumns: DashboardExportColumn[] = [
     { key: "luas_area_sales", label: "Luas Area Sales" },
     { key: "status", label: "Status" },
     { key: "tanggal_pengajuan", label: "Tanggal Pengajuan" },
-    { key: "tanggal_persetujuan_bm", label: "Tanggal Persetujuan BM" }
+    { key: "tanggal_persetujuan_bm", label: "Tanggal Persetujuan BM Manager 1" },
+    { key: "approver_bm", label: "Approver BM Manager 1" },
+    { key: "revisi_bm_tahap_1", label: "Jumlah Revisi BM Manager 1" },
+    { key: "tanggal_persetujuan_pp1", label: "Tanggal Persetujuan PP Tahap 1" },
+    { key: "approver_pp1", label: "Approver PP Tahap 1" },
+    { key: "revisi_pp_tahap_1", label: "Jumlah Revisi PP Tahap 1" },
+    { key: "waktu_send_3d", label: "Timestamp Kirim 3D" },
+    { key: "input_branch_building_koordinator_tahap_2", label: "Input Branch Building Koordinator Tahap 2" },
+    { key: "tanggal_persetujuan_bm2", label: "Tanggal Persetujuan B&M Tahap 2" },
+    { key: "approver_bm2", label: "Approver B&M Tahap 2" },
+    { key: "revisi_bm_tahap_2", label: "Jumlah Revisi B&M Tahap 2" },
+    { key: "tanggal_persetujuan_bm_regional", label: "Tanggal Persetujuan B&M Regional" },
+    { key: "approver_bm_regional", label: "Approver B&M Regional" },
+    { key: "revisi_bm_regional", label: "Jumlah Revisi B&M Regional" },
+    { key: "tanggal_persetujuan_pp2", label: "Tanggal Persetujuan PP Tahap 2" },
+    { key: "approver_pp2", label: "Approver PP Tahap 2" },
+    { key: "revisi_pp_tahap_2", label: "Jumlah Revisi PP Tahap 2" },
+    { key: "tanggal_persetujuan_pp_manager", label: "Tanggal Persetujuan PP Manager" },
+    { key: "approver_pp_manager", label: "Approver PP Manager" },
+    { key: "revisi_pp_manager", label: "Jumlah Revisi PP Manager" }
 ];
 
 const userExportColumns: DashboardExportColumn[] = [
@@ -729,9 +750,7 @@ const userExportColumns: DashboardExportColumn[] = [
     { key: "email_user", label: "Email User" },
     { key: "role", label: "Role" },
     { key: "cabang", label: "Cabang" },
-    { key: "tanggal_login_terakhir", label: "Tanggal Login Terakhir" },
-    { key: "bulan_login_terakhir", label: "Bulan Login Terakhir" },
-    { key: "tahun_login_terakhir", label: "Tahun Login Terakhir" }
+    { key: "tanggal_login_terakhir", label: "Tanggal Login Terakhir" }
 ];
 
 const dataTypeLabels: Record<string, string> = {
@@ -985,20 +1004,44 @@ export const buildKtkOpnameFinalRows = (projects: DashboardData[]): Array<Record
     return rows;
 };
 
-const buildProjectPlanningRows = (projects: DashboardData[]): Array<Record<string, unknown>> => {
-    const rows: Array<Record<string, unknown>> = [];
-    for (const project of projects) {
-        for (const pp of project.project_planning) {
-            rows.push({
-                cabang: normalize(pp.cabang ?? project.toko.cabang),
-                nomor_ulok: normalize(pp.nomor_ulok ?? project.toko.nomor_ulok),
-                nama_toko: normalize(pp.nama_toko ?? project.toko.nama_toko),
-                kode_toko: normalize(pp.kode_toko ?? project.toko.kode_toko),
+export const buildProjectPlanningRows = (
+    input: DashboardProjectPlanningRow[] | DashboardData[]
+): Array<Record<string, unknown>> => {
+    const rawRows: DashboardProjectPlanningRow[] = (input.length > 0 && "toko" in input[0])
+        ? (input as DashboardData[]).flatMap((p) => p.project_planning)
+        : (input as DashboardProjectPlanningRow[]);
+
+    const unifiedMap = new Map<string, Record<string, unknown>>();
+
+    for (const pp of rawRows) {
+        const rawUlok = String(pp.nomor_ulok ?? "").trim();
+        const key = rawUlok ? rawUlok.toUpperCase() : `ID_${pp.id}`;
+
+        const uses3D = Boolean(pp.butuh_desain_3d || pp.link_desain_3d || pp.waktu_send_3d);
+        const statusDesain3D = uses3D ? "Pakai 3D" : "Tanpa 3D";
+        const waktuSend3D = pp.waktu_send_3d ? formatIndonesianDate(pp.waktu_send_3d) : "";
+        const linkDesain3D = normalize(pp.link_desain_3d);
+        const awalSpk = pp.awal_spk ? formatIndonesianDate(pp.awal_spk) : "";
+        const akhirSpk = pp.akhir_spk ? formatIndonesianDate(pp.akhir_spk) : "";
+        const inputBbkTahap2 = pp.waktu_input_tahap_2 ? formatIndonesianDate(pp.waktu_input_tahap_2) : "";
+
+        if (!unifiedMap.has(key)) {
+            unifiedMap.set(key, {
+                _id: pp.id,
+                _created_time: toDate(pp.created_at)?.getTime() ?? 0,
+                cabang: normalize(pp.cabang),
+                nomor_ulok: normalize(pp.nomor_ulok),
+                nama_toko: normalize(pp.nama_toko),
+                kode_toko: normalize(pp.kode_toko),
                 proyek: normalize(pp.proyek),
                 lingkup_pekerjaan: normalize(pp.lingkup_pekerjaan),
+                awal_spk: awalSpk,
+                akhir_spk: akhirSpk,
                 nama_pengaju: normalize(pp.nama_pengaju),
                 nama_lokasi: normalize(pp.nama_lokasi),
                 jenis_pengajuan: normalize(pp.jenis_pengajuan),
+                status_desain_3d: statusDesain3D,
+                link_desain_3d: linkDesain3D,
                 estimasi_biaya: normalize(pp.estimasi_biaya),
                 luas_bangunan: normalize(pp.luas_bangunan),
                 luas_area_terbuka: normalize(pp.luas_area_terbuka),
@@ -1007,12 +1050,91 @@ const buildProjectPlanningRows = (projects: DashboardData[]): Array<Record<strin
                 luas_area_parkir: normalize(pp.luas_area_parkir),
                 luas_area_sales: normalize(pp.luas_area_sales),
                 status: humanizePpStatus(pp.status),
-                tanggal_pengajuan: toIsoDate(pp.created_at),
-                tanggal_persetujuan_bm: toIsoDate(pp.bm_waktu_persetujuan)
+                tanggal_pengajuan: formatIndonesianDate(pp.created_at),
+                tanggal_persetujuan_bm: formatIndonesianDate(pp.bm_waktu_persetujuan),
+                approver_bm: normalize(pp.bm_approver_email),
+                revisi_bm_tahap_1: Number(pp.revisi_bm_tahap_1) || 0,
+                tanggal_persetujuan_pp1: formatIndonesianDate(pp.pp1_waktu_persetujuan),
+                approver_pp1: normalize(pp.pp1_approver_email),
+                revisi_pp_tahap_1: Number(pp.revisi_pp_tahap_1) || 0,
+                waktu_send_3d: waktuSend3D,
+                input_branch_building_koordinator_tahap_2: inputBbkTahap2,
+                tanggal_persetujuan_bm2: formatIndonesianDate(pp.bm2_waktu_persetujuan),
+                approver_bm2: normalize(pp.bm2_approver_email),
+                revisi_bm_tahap_2: Number(pp.revisi_bm_tahap_2) || 0,
+                tanggal_persetujuan_bm_regional: formatIndonesianDate(pp.bm_regional_waktu_persetujuan),
+                approver_bm_regional: normalize(pp.bm_regional_approver_email),
+                revisi_bm_regional: Number(pp.revisi_bm_regional) || 0,
+                tanggal_persetujuan_pp2: formatIndonesianDate(pp.pp2_waktu_persetujuan),
+                approver_pp2: normalize(pp.pp2_approver_email),
+                revisi_pp_tahap_2: Number(pp.revisi_pp_tahap_2) || 0,
+                tanggal_persetujuan_pp_manager: formatIndonesianDate(pp.pp_manager_waktu_persetujuan),
+                approver_pp_manager: normalize(pp.pp_manager_approver_email),
+                revisi_pp_manager: Number(pp.revisi_pp_manager) || 0
             });
+        } else {
+            const existing = unifiedMap.get(key)!;
+
+            // Gabungkan lingkup pekerjaan
+            const existingScopes = String(existing.lingkup_pekerjaan || "")
+                .split(",")
+                .map((s) => s.trim().toUpperCase())
+                .filter(Boolean);
+            const newScopes = String(pp.lingkup_pekerjaan || "")
+                .split(",")
+                .map((s) => s.trim().toUpperCase())
+                .filter(Boolean);
+            const mergedScopes = Array.from(new Set([...existingScopes, ...newScopes]));
+            if (mergedScopes.length > 0) {
+                existing.lingkup_pekerjaan = mergedScopes.join(", ");
+            }
+
+            // Status 3D: jika salah satu pakai 3D, jadikan "Pakai 3D"
+            if (uses3D) existing.status_desain_3d = "Pakai 3D";
+            if (!existing.waktu_send_3d && waktuSend3D) existing.waktu_send_3d = waktuSend3D;
+            if (!existing.link_desain_3d && linkDesain3D) existing.link_desain_3d = linkDesain3D;
+
+            // SPK & Input Tahap 2: jika sebelumnya kosong, lengkapi
+            if (!existing.awal_spk && awalSpk) existing.awal_spk = awalSpk;
+            if (!existing.akhir_spk && akhirSpk) existing.akhir_spk = akhirSpk;
+            if (!existing.input_branch_building_koordinator_tahap_2 && inputBbkTahap2) {
+                existing.input_branch_building_koordinator_tahap_2 = inputBbkTahap2;
+            }
+
+            // Lengkapi field yang sebelumnya kosong
+            if (!existing.nama_toko && pp.nama_toko) existing.nama_toko = normalize(pp.nama_toko);
+            if ((!existing.kode_toko || existing.kode_toko === "Belum diisi") && pp.kode_toko && pp.kode_toko !== "Belum diisi") {
+                existing.kode_toko = normalize(pp.kode_toko);
+            }
+            if (!existing.cabang && pp.cabang) existing.cabang = normalize(pp.cabang);
+            if (!existing.proyek && pp.proyek) existing.proyek = normalize(pp.proyek);
+
+            // Update status & persetujuan jika record ini lebih baru
+            const rowTime = toDate(pp.created_at)?.getTime() ?? 0;
+            if (rowTime > Number(existing._created_time)) {
+                if (waktuSend3D) existing.waktu_send_3d = waktuSend3D;
+                if (linkDesain3D) existing.link_desain_3d = linkDesain3D;
+                if (awalSpk) existing.awal_spk = awalSpk;
+                if (akhirSpk) existing.akhir_spk = akhirSpk;
+                if (inputBbkTahap2) existing.input_branch_building_koordinator_tahap_2 = inputBbkTahap2;
+                existing.status = humanizePpStatus(pp.status);
+                existing.tanggal_persetujuan_bm = formatIndonesianDate(pp.bm_waktu_persetujuan);
+                existing.approver_bm = normalize(pp.bm_approver_email);
+                existing.tanggal_persetujuan_pp1 = formatIndonesianDate(pp.pp1_waktu_persetujuan);
+                existing.approver_pp1 = normalize(pp.pp1_approver_email);
+                existing.tanggal_persetujuan_bm2 = formatIndonesianDate(pp.bm2_waktu_persetujuan);
+                existing.approver_bm2 = normalize(pp.bm2_approver_email);
+                existing.tanggal_persetujuan_bm_regional = formatIndonesianDate(pp.bm_regional_waktu_persetujuan);
+                existing.approver_bm_regional = normalize(pp.bm_regional_approver_email);
+                existing.tanggal_persetujuan_pp2 = formatIndonesianDate(pp.pp2_waktu_persetujuan);
+                existing.approver_pp2 = normalize(pp.pp2_approver_email);
+                existing.tanggal_persetujuan_pp_manager = formatIndonesianDate(pp.pp_manager_waktu_persetujuan);
+                existing.approver_pp_manager = normalize(pp.pp_manager_approver_email);
+            }
         }
     }
-    return rows;
+
+    return Array.from(unifiedMap.values()).map(({ _id, _created_time, ...rest }) => rest);
 };
 
 const monthName = (date: Date): string => new Intl.DateTimeFormat("id-ID", {
@@ -1020,20 +1142,18 @@ const monthName = (date: Date): string => new Intl.DateTimeFormat("id-ID", {
     timeZone: "Asia/Jakarta"
 }).format(date);
 
-const splitLoginDate = (value: unknown): Pick<DashboardUserExportRow, "tanggal_login_terakhir" | "bulan_login_terakhir" | "tahun_login_terakhir"> => {
+const formatIndonesianDate = (value: unknown): string => {
     const date = toDate(value);
-    if (!date) {
-        return {
-            tanggal_login_terakhir: "",
-            bulan_login_terakhir: "",
-            tahun_login_terakhir: ""
-        };
-    }
+    if (!date) return "";
+    const day = new Intl.DateTimeFormat("id-ID", { day: "numeric", timeZone: "Asia/Jakarta" }).format(date);
+    const month = monthName(date);
+    const year = new Intl.DateTimeFormat("id-ID", { year: "numeric", timeZone: "Asia/Jakarta" }).format(date);
+    return `${day} ${month} ${year}`;
+};
 
+const formatFullLoginDate = (value: unknown): { tanggal_login_terakhir: string } => {
     return {
-        tanggal_login_terakhir: Number(new Intl.DateTimeFormat("id-ID", { day: "numeric", timeZone: "Asia/Jakarta" }).format(date)),
-        bulan_login_terakhir: monthName(date),
-        tahun_login_terakhir: Number(new Intl.DateTimeFormat("id-ID", { year: "numeric", timeZone: "Asia/Jakarta" }).format(date))
+        tanggal_login_terakhir: formatIndonesianDate(value)
     };
 };
 
@@ -1042,7 +1162,7 @@ const buildUserRows = (users: DashboardUserSourceRow[]): DashboardUserExportRow[
     email_user: normalize(user.email_user),
     role: normalize(user.role),
     cabang: normalize(user.cabang),
-    ...splitLoginDate(user.last_login_at)
+    ...formatFullLoginDate(user.last_login_at)
 }));
 
 export const ktkOpnameFinalExportSection = (projects: DashboardData[]): DashboardExportSection => ({
@@ -1061,7 +1181,8 @@ const buildDashboardExportSections = (
     dataTypes?: string,
     jobTypes?: string,
     projects?: DashboardData[],
-    userRows?: DashboardUserSourceRow[]
+    userRows?: DashboardUserSourceRow[],
+    projectPlanningRows?: DashboardProjectPlanningRow[]
 ): DashboardExportSection[] => {
     const selectedDataTypes = [...parseCsvSet(dataTypes)];
     const selectedJobTypes = [...parseCsvSet(jobTypes)];
@@ -1099,6 +1220,20 @@ const buildDashboardExportSections = (
             return;
         }
 
+        if (type === "PROJECT_PLANNING") {
+            const ppSource = projectPlanningRows ?? (projects ? buildProjectPlanningRows(projects) : []);
+            const sectionRows = Array.isArray(ppSource) && ppSource.length > 0 && !("proyek" in ppSource[0]) && "toko" in ppSource[0]
+                ? buildProjectPlanningRows(ppSource as DashboardData[])
+                : (projectPlanningRows ? buildProjectPlanningRows(projectPlanningRows) : (projects ? buildProjectPlanningRows(projects) : []));
+            sections.push({
+                title: dataTypeLabels.PROJECT_PLANNING,
+                filenamePart: `jenis_data_${normalizeFilePart(dataTypeLabels.PROJECT_PLANNING, "PROJECT_PLANNING")}`,
+                rows: sectionRows,
+                columns: projectPlanningExportColumns
+            });
+            return;
+        }
+
         // Jenis data baru — build dari projects
         if (!projects) return;
 
@@ -1120,9 +1255,6 @@ const buildDashboardExportSections = (
         } else if (type === "KTK_OPNAME_FINAL") {
             sectionRows = buildKtkOpnameFinalRows(projects);
             columns = ktkOpnameFinalExportColumns;
-        } else if (type === "PROJECT_PLANNING") {
-            sectionRows = buildProjectPlanningRows(projects);
-            columns = projectPlanningExportColumns;
         }
 
         if (columns.length > 0) {
@@ -1632,10 +1764,11 @@ export const buildDashboardExportFile = async (
     dataTypes?: string,
     jobTypes?: string,
     projects?: DashboardData[],
-    userRows?: DashboardUserSourceRow[]
+    userRows?: DashboardUserSourceRow[],
+    projectPlanningRows?: DashboardProjectPlanningRow[]
 ): Promise<{ buffer: Buffer; filename: string; contentType: string }> => {
     const columns = resolveDashboardExportColumns(dataTypes, jobTypes);
-    const sections = buildDashboardExportSections(rows, dataTypes, jobTypes, projects, userRows);
+    const sections = buildDashboardExportSections(rows, dataTypes, jobTypes, projects, userRows, projectPlanningRows);
     const hasSegmentedSelection = parseCsvSet(dataTypes).size > 0 || parseCsvSet(jobTypes).size > 0;
     const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     const cabang = normalizeUpper(meta.cabang || "ALL").replace(/[^A-Z0-9]+/g, "_") || "ALL";

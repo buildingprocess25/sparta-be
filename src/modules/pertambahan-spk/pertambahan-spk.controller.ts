@@ -10,16 +10,18 @@ import {
     updatePertambahanSpkSchema
 } from "./pertambahan-spk.schema";
 import { pertambahanSpkService } from "./pertambahan-spk.service";
-
+import { compressImage } from "../../common/image-compressor";
 export const createPertambahanSpk = asyncHandler(async (req: Request, res: Response) => {
     const payload = createPertambahanSpkSchema.parse(req.body);
-    const uploadedLampiranPendukung = req.file
-        ? {
-            originalname: req.file.originalname,
-            mimetype: req.file.mimetype,
-            buffer: req.file.buffer
-        }
-        : undefined;
+    let uploadedLampiranPendukung;
+    if (req.file) {
+        const compressed = await compressImage(req.file);
+        uploadedLampiranPendukung = {
+            originalname: compressed.originalname,
+            mimetype: compressed.mimetype,
+            buffer: compressed.buffer
+        };
+    }
 
     const data = await pertambahanSpkService.create(payload, uploadedLampiranPendukung);
 
@@ -79,13 +81,15 @@ export const downloadPertambahanSpkLampiranPendukung = asyncHandler(async (req: 
 
 export const updatePertambahanSpkById = asyncHandler(async (req: Request, res: Response) => {
     const payload = updatePertambahanSpkSchema.parse(req.body);
-    const uploadedLampiranPendukung = req.file
-        ? {
-            originalname: req.file.originalname,
-            mimetype: req.file.mimetype,
-            buffer: req.file.buffer
-        }
-        : undefined;
+    let uploadedLampiranPendukung;
+    if (req.file) {
+        const compressed = await compressImage(req.file);
+        uploadedLampiranPendukung = {
+            originalname: compressed.originalname,
+            mimetype: compressed.mimetype,
+            buffer: compressed.buffer
+        };
+    }
 
     const data = await pertambahanSpkService.updateById(req.params.id, payload, uploadedLampiranPendukung);
 

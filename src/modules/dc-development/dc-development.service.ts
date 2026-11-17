@@ -1005,6 +1005,62 @@ export const dcDevelopmentService = {
         };
     },
 
+    async streamDocumentFile(id: string, actor: Partial<DcDocumentActorQuery> = {}) {
+        const documentId = Number(id);
+        if (!Number.isInteger(documentId) || documentId <= 0) {
+            throw new AppError("ID dokumen DC tidak valid", 400);
+        }
+
+        const document = await dcDevelopmentRepository.findDocumentById(documentId);
+        if (!document) throw new AppError("Dokumen DC tidak ditemukan", 404);
+
+        if (actor.actor_email && actor.actor_role && document.project_id) {
+            await ensureAccess(document.project_id, { email: actor.actor_email, role: actor.actor_role }, DC_MEMBER_ACCESS_LEVEL.VIEW);
+        }
+
+        if (!document.drive_file_id) {
+            return {
+                document,
+                stream: null,
+                link: document.link_dokumen
+            };
+        }
+
+        const gp = GoogleProvider.instance;
+        const drive = gp.docDrive || gp.spartaDrive;
+        if (!drive) {
+            return {
+                document,
+                stream: null,
+                link: document.link_dokumen
+            };
+        }
+
+        try {
+            const streamRes = await drive.files.get(
+                {
+                    fileId: document.drive_file_id,
+                    alt: "media",
+                    supportsAllDrives: true,
+                },
+                { responseType: "stream" }
+            );
+
+            return {
+                document,
+                stream: streamRes.data as any,
+                link: document.link_dokumen
+            };
+        } catch (error) {
+            console.error(`[streamDocumentFile] Error getting stream from Drive for file ${document.drive_file_id}:`, error);
+            return {
+                document,
+                stream: null,
+                link: document.link_dokumen
+            };
+        }
+    },
+
     async logCategoryEdit(archiveId: string, input: z.infer<typeof logDcCategoryEditSchema>) {
         const id = Number(archiveId);
         const project = await dcDevelopmentRepository.findArchiveProjectById(id);

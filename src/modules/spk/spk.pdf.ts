@@ -88,8 +88,10 @@ export const buildSpkPdfBuffer = async (input: BuildSpkPdfInput): Promise<Buffer
     const p = input.pengajuan;
     const startFormatted = formatTanggal(p.waktu_mulai);
     const endFormatted = formatTanggal(p.waktu_selesai);
-    const today = formatTanggal(p.created_at || new Date().toISOString());    const displayGrandTotal = Number(p.grand_total);    const totalFormatted = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(displayGrandTotal);
-    const isBatam = input.tokoCabang.toUpperCase() === "BATAM";
+    const today = formatTanggal(p.created_at || new Date().toISOString());
+    const displayGrandTotal = Number(p.grand_total);
+    const totalFormatted = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(displayGrandTotal);
+    const isBatam = isNoPpnArea(input.tokoCabang);
     const initiatorRole = isBatam ? "Branch Building Coordinator" : "Branch Building & Maintenance Manager";
 
     const approvalBlock = (identity?: string | null, approvedAt?: string | null): string => {
@@ -113,7 +115,7 @@ export const buildSpkPdfBuffer = async (input: BuildSpkPdfInput): Promise<Buffer
         spk_location: input.tokoCabang,
         spk_date: today,
         spk_number: p.nomor_spk || "____/PROPNDEV-____/____/____",
-        par_number: p.par || "____/PROPNDEV-____-____-____",
+        par_number: p.par || "____/PROPNDEV-____/____/____",
         contractor_name: p.nama_kontraktor,
         lingkup_pekerjaan: p.lingkup_pekerjaan,
         proyek: p.proyek,

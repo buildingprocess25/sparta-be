@@ -633,6 +633,31 @@ export const rabRepository = {
         return withTransaction(async (client) => {
             // Normalize lingkup_pekerjaan ke uppercase (SIPIL/ME) di awal transaksi
             const normalizedLingkup = payload.lingkup_pekerjaan?.trim().toUpperCase() || null;
+
+            // 0. Validasi Kepemilikan ULOK (1 ULOK HANYA untuk 1 Kontraktor)
+            if (!payload.is_takeover) {
+                const ulokOwnerRes = await client.query<{ nama_kontraktor: string }>(
+                    `SELECT nama_kontraktor 
+                     FROM toko 
+                     WHERE UPPER(TRIM(nomor_ulok)) = UPPER(TRIM($1))
+                       AND nama_kontraktor IS NOT NULL
+                       AND TRIM(nama_kontraktor) != ''
+                     ORDER BY takeover_sequence DESC, id DESC
+                     LIMIT 1`,
+                    [payload.nomor_ulok]
+                );
+
+                if ((ulokOwnerRes.rowCount ?? 0) > 0) {
+                    const existingOwner = ulokOwnerRes.rows[0].nama_kontraktor;
+                    const currentContractor = payload.nama_kontraktor || payload.nama_pt;
+                    
+                    if (existingOwner && currentContractor && existingOwner.trim().toUpperCase() !== currentContractor.trim().toUpperCase()) {
+                         const err = new Error(`Gagal menyimpan RAB: ULOK ${payload.nomor_ulok} sudah dikerjakan oleh kontraktor lain (${existingOwner}). Anda tidak dapat menambahkan RAB untuk ULOK ini.`);
+                         (err as any).code = "ULOK_ALREADY_OWNED";
+                         throw err;
+                    }
+                }
+            }
             
             // 1. Ambil toko by nomor_ulok+lingkup. Jika tidak ada, insert baru.
             const existingTokoRes = await client.query<{ id: number; cabang: string | null; nama_toko: string | null; takeover_sequence: number }>(
