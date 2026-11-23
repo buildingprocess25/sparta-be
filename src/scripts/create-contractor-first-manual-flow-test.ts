@@ -156,6 +156,7 @@ async function createScope(scope: ScopePlan): Promise<void> {
         email_pembuat: CONTRACTOR_EMAIL,
         nama_pt: CONTRACTOR_NAME,
         durasi_pekerjaan: String(DURASI),
+        is_takeover: false,
         kategori_lokasi: KATEGORI_LOKASI,
         luas_bangunan: "120",
         luas_terbangun: "100",
