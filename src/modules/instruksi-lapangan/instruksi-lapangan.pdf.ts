@@ -88,12 +88,12 @@ const staticAssetPath = (filename: string): string => {
 
 const buildGroupedItems = (items: InstruksiLapanganItemRow[]) => {
     const grouped = new Map<string, any>();
-    for (const item of items) {
+    for (const item of items as any) {
         const safeCategory = String(item.kategori_pekerjaan ?? "").trim() || "LAIN-LAIN";
         const safeJenisPekerjaan = String(item.jenis_pekerjaan ?? "").trim() || "-";
         const key = safeCategory;
         if (!grouped.has(key)) {
-            grouped.set(key, { category: safeCategory, items: [], subTotalMaterial: 0, subTotalUpah: 0, subTotalHarga: 0 });
+            grouped.set(key, { category: key, items: [], subTotalMaterial: 0, subTotalUpah: 0, subTotalHarga: 0 });
         }
         const group = grouped.get(key)!;
         group.items.push({
@@ -138,10 +138,41 @@ const computeRecapTotals = (total: number, noPpn = false) => {
     return { roundedDown, ppn, finalTotal };
 };
 
+export const buildIlScopeSections = (items: InstruksiLapanganItemRow[], noPpn: boolean) => {
+    const scopesMap = new Map<string, InstruksiLapanganItemRow[]>();
+    for (const item of items as any[]) {
+        const lingkup = (item.lingkup_pekerjaan || "SIPIL").trim().toUpperCase();
+        if (!scopesMap.has(lingkup)) scopesMap.set(lingkup, []);
+        scopesMap.get(lingkup)!.push(item);
+    }
+    
+    const scopeKeys = Array.from(scopesMap.keys()).sort((a, b) => {
+        if (a === "SIPIL" && b !== "SIPIL") return -1;
+        if (b === "SIPIL" && a !== "SIPIL") return 1;
+        return a.localeCompare(b);
+    });
+
+    return scopeKeys.map((scope, index) => {
+        const scopeItems = scopesMap.get(scope)!;
+        const total = scopeItems.reduce((acc, item) => acc + Number(item.total_harga || 0), 0);
+        const recap = computeRecapTotals(total, noPpn);
+        return {
+            scope,
+            letter: String.fromCharCode(65 + index),
+            groups: buildGroupedItems(scopeItems),
+            total: rupiah(total),
+            pembulatan: rupiah(recap.roundedDown),
+            ppn: rupiah(recap.ppn),
+            grand_total: rupiah(recap.finalTotal),
+            finalTotal: recap.finalTotal
+        };
+    });
+};
+
 export const buildInstruksiLapanganPdfBuffer = async (input: BuildInstruksiLapanganPdfInput): Promise<Buffer> => {
-    const total = input.items.reduce((acc, item) => acc + Number(item.total_harga || 0), 0);
     const noPpn = isNoPpnArea(input.toko);
-    const recap = computeRecapTotals(total, noPpn);
+    const scopeTotals = buildIlScopeSections(input.items, noPpn);
+    const finalGrandTotal = scopeTotals.reduce((sum, s) => sum + s.finalTotal, 0);
     const templatePath = await resolveTemplatePath("instruksi_lapangan_report.njk");
 
     const isRejected = isRejectedStatus(input.instruksiLapangan.status);
@@ -152,13 +183,12 @@ export const buildInstruksiLapanganPdfBuffer = async (input: BuildInstruksiLapan
             Proyek: input.toko.proyek ?? "",
             Cabang: input.toko.cabang ?? "",
             Alamat: input.toko.alamat ?? "",
-            LingkupPekerjaan: input.toko.lingkup_pekerjaan ?? "",
+            LingkupPekerjaan: scopeTotals.map(s => s.scope).join(" + "),
         },
-        grouped_items_list: buildGroupedItems(input.items),
-        grand_total: rupiah(total),
-        pembulatan: rupiah(recap.roundedDown),
-        ppn: rupiah(recap.ppn),
-        final_grand_total: rupiah(recap.finalTotal),
+        scope_sections: scopeTotals,
+        scopeTotals,
+        is_gabungan: scopeTotals.length > 1,
+        final_grand_total: rupiah(finalGrandTotal),
         watermark_logo_path: staticAssetPath("Building-Logo.png"),
         tanggal_pengajuan: formatDateIndonesia(input.instruksiLapangan.created_at),
         nama_pt: input.toko.nama_kontraktor || "NAMA PT. KONTRAKTOR TIDAK ADA",
@@ -185,29 +215,8 @@ export const buildInstruksiLapanganPdfBuffer = async (input: BuildInstruksiLapan
 
 export const buildInstruksiLapanganRecapPdfBuffer = async (input: BuildInstruksiLapanganPdfInput): Promise<Buffer> => {
     const templatePath = await resolveTemplatePath("instruksi_lapangan_recap_report.njk");
-    const grouped = new Map<string, { material: number; upah: number; total: number }>();
-
-    for (const item of input.items) {
-        const key = item.kategori_pekerjaan;
-        if (!grouped.has(key)) {
-            grouped.set(key, { material: 0, upah: 0, total: 0 });
-        }
-        const row = grouped.get(key)!;
-        row.material += Number(item.total_material || 0);
-        row.upah += Number(item.total_upah || 0);
-        row.total += Number(item.total_harga || 0);
-    }
-
-    const category_totals_list = Array.from(grouped.entries()).map(([name, value]) => ({
-        name,
-        materialFormatted: rupiah(value.material),
-        upahFormatted: rupiah(value.upah),
-        totalFormatted: rupiah(value.total),
-        totalRaw: value.total,
-    }));
-
-    const grandTotal = category_totals_list.reduce((acc, row) => acc + row.totalRaw, 0);
-    const recap = computeRecapTotals(grandTotal, isNoPpnArea(input.toko));
+    const noPpn = isNoPpnArea(input.toko);
+    const scopeTotals = buildIlScopeSections(input.items, noPpn);
 
     const html = await renderHtmlTemplate(templatePath, {
         data: {
@@ -216,13 +225,9 @@ export const buildInstruksiLapanganRecapPdfBuffer = async (input: BuildInstruksi
             Proyek: input.toko.proyek ?? "",
             Cabang: input.toko.cabang ?? "",
             Alamat: input.toko.alamat ?? "",
-            LingkupPekerjaan: input.toko.lingkup_pekerjaan ?? "",
+            LingkupPekerjaan: scopeTotals.map(s => s.scope).join(" + "),
         },
-        category_totals_list,
-        grand_total_formatted: rupiah(grandTotal),
-        pembulatan_formatted: rupiah(recap.roundedDown),
-        ppn_formatted: rupiah(recap.ppn),
-        final_total_formatted: rupiah(recap.finalTotal),
+        scope_sections: scopeTotals,
         watermark_logo_path: staticAssetPath("Building-Logo.png"),
         tanggal_pengajuan: formatDateIndonesia(input.instruksiLapangan.created_at),
         nama_pt: input.toko.nama_kontraktor || "NAMA PT. KONTRAKTOR TIDAK ADA",

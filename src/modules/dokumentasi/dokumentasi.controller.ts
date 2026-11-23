@@ -30,6 +30,34 @@ export const createDokumentasiBangunan = asyncHandler(async (req: Request, res: 
     });
 });
 
+
+export const createDokumentasiGrandOpening = asyncHandler(async (req: Request, res: Response) => {
+    const payload = dokumentasiBangunanCreateSchema.parse({
+        ...req.body,
+        jenis_dokumentasi: "GRAND_OPENING"
+    });
+    const files = getUploadedFiles(req);
+    const result = await dokumentasiBangunanService.createGrandOpening(payload, files);
+
+    res.json({
+        status: "success",
+        message: "Dokumentasi Grand Opening berhasil dibuat",
+        data: result
+    });
+});
+
+export const getDokumentasiGrandOpeningStatus = asyncHandler(async (req: Request, res: Response) => {
+    const nomorUlok = String(req.params.nomor_ulok || "").trim();
+    if (!nomorUlok) {
+        throw new AppError("Nomor ULOK wajib diisi", 400);
+    }
+    const data = await dokumentasiBangunanService.getGrandOpeningStatus(nomorUlok);
+
+    res.json({
+        status: "success",
+        data
+    });
+});
 export const listDokumentasiBangunan = asyncHandler(async (req: Request, res: Response) => {
     console.log('[DOKUMENTASI LIST] Original request query:', JSON.stringify(req.query));
     console.log('[DOKUMENTASI LIST] User info:', {

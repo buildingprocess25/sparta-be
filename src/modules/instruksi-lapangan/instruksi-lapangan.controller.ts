@@ -106,7 +106,7 @@ export const downloadInstruksiLapanganPdf = asyncHandler(async (req: Request, re
 });
 
 export const regenerateInstruksiLapanganPdf = asyncHandler(async (req: Request, res: Response) => {
-    await instruksiLapanganService.generateAndStorePdf(req.params.id);
+    await instruksiLapanganService.regeneratePdfWithPair(req.params.id);
     const data = await instruksiLapanganService.getById(req.params.id);
 
     res.json({

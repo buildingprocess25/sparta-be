@@ -6,6 +6,7 @@ import type { SpkApprovalInput, SpkInterventionInput } from "./spk.schema";
 import { calculateEffectiveStDate, toIsoDateString } from "../../common/national-holidays";
 
 export type PengajuanSpkRow = {
+    spk_group_id?: string | null;
     id: string;
     id_toko: number;
     nomor_ulok: string;
@@ -118,7 +119,7 @@ const buildStTargetInfo = (effectiveEnd?: string | null) => {
 };
 
 const SPK_COLUMNS = `
-    id, id_toko, nomor_ulok, email_pembuat, lingkup_pekerjaan, nama_kontraktor, proyek,
+    id, spk_group_id, id_toko, nomor_ulok, email_pembuat, lingkup_pekerjaan, nama_kontraktor, proyek,
   waktu_mulai, durasi, waktu_selesai, grand_total, terbilang, nomor_spk,
   par, spk_manual_1, spk_manual_2, status, link_pdf, approver_email,
   waktu_persetujuan, alasan_penolakan, created_at
@@ -424,7 +425,7 @@ export const spkRepository = {
 
         const result = await pool.query<SpkListJoinRow>(
             `
-          SELECT p.id, p.id_toko, p.nomor_ulok, p.email_pembuat, p.lingkup_pekerjaan, p.nama_kontraktor, p.proyek,
+          SELECT p.id, p.spk_group_id, p.id_toko, p.nomor_ulok, p.email_pembuat, p.lingkup_pekerjaan, p.nama_kontraktor, p.proyek,
                 p.waktu_mulai, p.durasi, p.waktu_selesai, p.grand_total, p.terbilang, p.nomor_spk,
                 p.par, p.spk_manual_1, p.spk_manual_2, p.status, p.link_pdf, p.approver_email,
                 p.waktu_persetujuan, p.alasan_penolakan, p.created_at,

@@ -1,0 +1,877 @@
+[
+  {
+    "kategori": "A",
+    "nama_kategori": "Bagian Depan Bangunan",
+    "id_item": "A1",
+    "nama_item": "Bahu Jalan",
+    "no_urut": 1
+  },
+  {
+    "kategori": "A",
+    "nama_kategori": "Bagian Depan Bangunan",
+    "id_item": "A2",
+    "nama_item": "Dekker/Grill Drainase",
+    "no_urut": 2
+  },
+  {
+    "kategori": "A",
+    "nama_kategori": "Bagian Depan Bangunan",
+    "id_item": "A3",
+    "nama_item": "Pagar/Rantai Besi",
+    "no_urut": 3
+  },
+  {
+    "kategori": "A",
+    "nama_kategori": "Bagian Depan Bangunan",
+    "id_item": "A4",
+    "nama_item": "Lampu Pole Sign",
+    "no_urut": 4
+  },
+  {
+    "kategori": "A",
+    "nama_kategori": "Bagian Depan Bangunan",
+    "id_item": "A5",
+    "nama_item": "Lampu Shop Sign",
+    "no_urut": 5
+  },
+  {
+    "kategori": "A",
+    "nama_kategori": "Bagian Depan Bangunan",
+    "id_item": "A6",
+    "nama_item": "Lampu Listplank",
+    "no_urut": 6
+  },
+  {
+    "kategori": "A",
+    "nama_kategori": "Bagian Depan Bangunan",
+    "id_item": "A7",
+    "nama_item": "Halaman Parkir",
+    "no_urut": 7
+  },
+  {
+    "kategori": "A",
+    "nama_kategori": "Bagian Depan Bangunan",
+    "id_item": "A8",
+    "nama_item": "Pompa air + Instalasi",
+    "no_urut": 8
+  },
+  {
+    "kategori": "A",
+    "nama_kategori": "Bagian Depan Bangunan",
+    "id_item": "A9",
+    "nama_item": "PDAM + Instalasi",
+    "no_urut": 9
+  },
+  {
+    "kategori": "A",
+    "nama_kategori": "Bagian Depan Bangunan",
+    "id_item": "A10",
+    "nama_item": "Dinding Pembatas Halaman",
+    "no_urut": 10
+  },
+  {
+    "kategori": "A",
+    "nama_kategori": "Bagian Depan Bangunan",
+    "id_item": "A11",
+    "nama_item": "Tiang Lampu Parkir",
+    "no_urut": 11
+  },
+  {
+    "kategori": "A",
+    "nama_kategori": "Bagian Depan Bangunan",
+    "id_item": "A12",
+    "nama_item": "Lampu Parkir (LED Tube/LED Sorot)*",
+    "no_urut": 12
+  },
+  {
+    "kategori": "A",
+    "nama_kategori": "Bagian Depan Bangunan",
+    "id_item": "A13",
+    "nama_item": "Awning/kanopi + talang",
+    "no_urut": 13
+  },
+  {
+    "kategori": "A",
+    "nama_kategori": "Bagian Depan Bangunan",
+    "id_item": "A14",
+    "nama_item": "Lampu Awning/kanopi & lampu tutup toko",
+    "no_urut": 14
+  },
+  {
+    "kategori": "A",
+    "nama_kategori": "Bagian Depan Bangunan",
+    "id_item": "A15",
+    "nama_item": "Folding Gate/Pintu Besi Lipat/Rolling Door",
+    "no_urut": 15
+  },
+  {
+    "kategori": "A",
+    "nama_kategori": "Bagian Depan Bangunan",
+    "id_item": "A16",
+    "nama_item": "Lantai Keramik Teras",
+    "no_urut": 16
+  },
+  {
+    "kategori": "A",
+    "nama_kategori": "Bagian Depan Bangunan",
+    "id_item": "A17",
+    "nama_item": "Dinding Teras",
+    "no_urut": 17
+  },
+  {
+    "kategori": "A",
+    "nama_kategori": "Bagian Depan Bangunan",
+    "id_item": "A18",
+    "nama_item": "Panel Listrik",
+    "no_urut": 18
+  },
+  {
+    "kategori": "A",
+    "nama_kategori": "Bagian Depan Bangunan",
+    "id_item": "A19",
+    "nama_item": "Ohm Saklar/COS",
+    "no_urut": 19
+  },
+  {
+    "kategori": "A",
+    "nama_kategori": "Bagian Depan Bangunan",
+    "id_item": "A20",
+    "nama_item": "Stabilizer",
+    "no_urut": 20
+  },
+  {
+    "kategori": "A",
+    "nama_kategori": "Bagian Depan Bangunan",
+    "id_item": "A21",
+    "nama_item": "Saklar",
+    "no_urut": 21
+  },
+  {
+    "kategori": "A",
+    "nama_kategori": "Bagian Depan Bangunan",
+    "id_item": "A22",
+    "nama_item": "Segel Kwh meter listrik / MCB PLN",
+    "no_urut": 22
+  },
+  {
+    "kategori": "A",
+    "nama_kategori": "Bagian Depan Bangunan",
+    "id_item": "A23",
+    "nama_item": "Angkur Genset",
+    "no_urut": 23
+  },
+  {
+    "kategori": "A",
+    "nama_kategori": "Bagian Depan Bangunan",
+    "id_item": "A24",
+    "nama_item": "Stop Kontak Genset + Kabel",
+    "no_urut": 24
+  },
+  {
+    "kategori": "A",
+    "nama_kategori": "Bagian Depan Bangunan",
+    "id_item": "A25",
+    "nama_item": "Stop kontak Tenan",
+    "no_urut": 25
+  },
+  {
+    "kategori": "A",
+    "nama_kategori": "Bagian Depan Bangunan",
+    "id_item": "A26",
+    "nama_item": "Plafon Teras",
+    "no_urut": 26
+  },
+  {
+    "kategori": "A",
+    "nama_kategori": "Bagian Depan Bangunan",
+    "id_item": "A27",
+    "nama_item": "Manhole dalam (plafon teras)",
+    "no_urut": 27
+  },
+  {
+    "kategori": "A",
+    "nama_kategori": "Bagian Depan Bangunan",
+    "id_item": "A28",
+    "nama_item": "Lampu Teras",
+    "no_urut": 28
+  },
+  {
+    "kategori": "A",
+    "nama_kategori": "Bagian Depan Bangunan",
+    "id_item": "A29",
+    "nama_item": "Rangka/Dudukan sarana promo",
+    "no_urut": 29
+  },
+  {
+    "kategori": "A",
+    "nama_kategori": "Bagian Depan Bangunan",
+    "id_item": "A30",
+    "nama_item": "Pintu Alumunium + Kaca Single/Double Swing",
+    "no_urut": 30
+  },
+  {
+    "kategori": "A",
+    "nama_kategori": "Bagian Depan Bangunan",
+    "id_item": "A31",
+    "nama_item": "Floor Hinge",
+    "no_urut": 31
+  },
+  {
+    "kategori": "A",
+    "nama_kategori": "Bagian Depan Bangunan",
+    "id_item": "A32",
+    "nama_item": "Kusen Alumunium & Kaca",
+    "no_urut": 32
+  },
+  {
+    "kategori": "B",
+    "nama_kategori": "Ruangan Area Sales",
+    "id_item": "B1",
+    "nama_item": "Lampu Sales",
+    "no_urut": 33
+  },
+  {
+    "kategori": "B",
+    "nama_kategori": "Ruangan Area Sales",
+    "id_item": "B2",
+    "nama_item": "Plafon Sales",
+    "no_urut": 34
+  },
+  {
+    "kategori": "B",
+    "nama_kategori": "Ruangan Area Sales",
+    "id_item": "B3",
+    "nama_item": "Dinding Sales",
+    "no_urut": 35
+  },
+  {
+    "kategori": "B",
+    "nama_kategori": "Ruangan Area Sales",
+    "id_item": "B4",
+    "nama_item": "Lantai Keramik Sales",
+    "no_urut": 36
+  },
+  {
+    "kategori": "B",
+    "nama_kategori": "Ruangan Area Sales",
+    "id_item": "B5",
+    "nama_item": "Tiang/Kolom",
+    "no_urut": 37
+  },
+  {
+    "kategori": "B",
+    "nama_kategori": "Ruangan Area Sales",
+    "id_item": "B6",
+    "nama_item": "Instalasi Listrik Area Kasir",
+    "no_urut": 38
+  },
+  {
+    "kategori": "B",
+    "nama_kategori": "Ruangan Area Sales",
+    "id_item": "B7",
+    "nama_item": "Stop Kontak Area Kasir",
+    "no_urut": 39
+  },
+  {
+    "kategori": "B",
+    "nama_kategori": "Ruangan Area Sales",
+    "id_item": "B8",
+    "nama_item": "Meja Kasir + Aksesoris",
+    "no_urut": 40
+  },
+  {
+    "kategori": "B",
+    "nama_kategori": "Ruangan Area Sales",
+    "id_item": "B9",
+    "nama_item": "Stop Kontak Chiller",
+    "no_urut": 41
+  },
+  {
+    "kategori": "B",
+    "nama_kategori": "Ruangan Area Sales",
+    "id_item": "B10",
+    "nama_item": "Exhaust Fan Ruang Chiller",
+    "no_urut": 42
+  },
+  {
+    "kategori": "B",
+    "nama_kategori": "Ruangan Area Sales",
+    "id_item": "B11",
+    "nama_item": "Stop Kontak Freezer",
+    "no_urut": 43
+  },
+  {
+    "kategori": "B",
+    "nama_kategori": "Ruangan Area Sales",
+    "id_item": "B12",
+    "nama_item": "Kusen + Daun Pintu P1",
+    "no_urut": 44
+  },
+  {
+    "kategori": "C",
+    "nama_kategori": "Selasar",
+    "id_item": "C1",
+    "nama_item": "Lampu selasar",
+    "no_urut": 45
+  },
+  {
+    "kategori": "C",
+    "nama_kategori": "Selasar",
+    "id_item": "C2",
+    "nama_item": "Plafon Selasar",
+    "no_urut": 46
+  },
+  {
+    "kategori": "C",
+    "nama_kategori": "Selasar",
+    "id_item": "C3",
+    "nama_item": "Manhole dalam (plafon selasar)",
+    "no_urut": 47
+  },
+  {
+    "kategori": "C",
+    "nama_kategori": "Selasar",
+    "id_item": "C4",
+    "nama_item": "Manhole luar (dak toren air)",
+    "no_urut": 48
+  },
+  {
+    "kategori": "C",
+    "nama_kategori": "Selasar",
+    "id_item": "C5",
+    "nama_item": "Dinding Selasar",
+    "no_urut": 49
+  },
+  {
+    "kategori": "C",
+    "nama_kategori": "Selasar",
+    "id_item": "C6",
+    "nama_item": "Panel Listrik",
+    "no_urut": 50
+  },
+  {
+    "kategori": "C",
+    "nama_kategori": "Selasar",
+    "id_item": "C7",
+    "nama_item": "Ohm Saklar/COS",
+    "no_urut": 51
+  },
+  {
+    "kategori": "C",
+    "nama_kategori": "Selasar",
+    "id_item": "C8",
+    "nama_item": "Stabilizer",
+    "no_urut": 52
+  },
+  {
+    "kategori": "C",
+    "nama_kategori": "Selasar",
+    "id_item": "C9",
+    "nama_item": "Saklar",
+    "no_urut": 53
+  },
+  {
+    "kategori": "C",
+    "nama_kategori": "Selasar",
+    "id_item": "C10",
+    "nama_item": "Lantai Keramik Selasar",
+    "no_urut": 54
+  },
+  {
+    "kategori": "C",
+    "nama_kategori": "Selasar",
+    "id_item": "C11",
+    "nama_item": "Janitor",
+    "no_urut": 55
+  },
+  {
+    "kategori": "C",
+    "nama_kategori": "Selasar",
+    "id_item": "C12",
+    "nama_item": "Kran Janitor",
+    "no_urut": 56
+  },
+  {
+    "kategori": "C",
+    "nama_kategori": "Selasar",
+    "id_item": "C13",
+    "nama_item": "Floor Drain Janitor",
+    "no_urut": 57
+  },
+  {
+    "kategori": "C",
+    "nama_kategori": "Selasar",
+    "id_item": "C14",
+    "nama_item": "Kitchen Sink",
+    "no_urut": 58
+  },
+  {
+    "kategori": "C",
+    "nama_kategori": "Selasar",
+    "id_item": "C15",
+    "nama_item": "Kran Kitchen Sink",
+    "no_urut": 59
+  },
+  {
+    "kategori": "C",
+    "nama_kategori": "Selasar",
+    "id_item": "C16",
+    "nama_item": "Saluran Air Bersih",
+    "no_urut": 60
+  },
+  {
+    "kategori": "C",
+    "nama_kategori": "Selasar",
+    "id_item": "C17",
+    "nama_item": "Saluran Air Kotor",
+    "no_urut": 61
+  },
+  {
+    "kategori": "C",
+    "nama_kategori": "Selasar",
+    "id_item": "C18",
+    "nama_item": "Pompa air + Instalasi",
+    "no_urut": 62
+  },
+  {
+    "kategori": "D",
+    "nama_kategori": "Kamar Mandi",
+    "id_item": "D1",
+    "nama_item": "Pintu Kamar Mandi",
+    "no_urut": 63
+  },
+  {
+    "kategori": "D",
+    "nama_kategori": "Kamar Mandi",
+    "id_item": "D2",
+    "nama_item": "Lampu Kamar Mandi",
+    "no_urut": 64
+  },
+  {
+    "kategori": "D",
+    "nama_kategori": "Kamar Mandi",
+    "id_item": "D3",
+    "nama_item": "Exhaust Fan",
+    "no_urut": 65
+  },
+  {
+    "kategori": "D",
+    "nama_kategori": "Kamar Mandi",
+    "id_item": "D4",
+    "nama_item": "Plafon Kamar Mandi",
+    "no_urut": 66
+  },
+  {
+    "kategori": "D",
+    "nama_kategori": "Kamar Mandi",
+    "id_item": "D5",
+    "nama_item": "Dinding Kamar Mandi",
+    "no_urut": 67
+  },
+  {
+    "kategori": "D",
+    "nama_kategori": "Kamar Mandi",
+    "id_item": "D6",
+    "nama_item": "Lantai Kamar Mandi",
+    "no_urut": 68
+  },
+  {
+    "kategori": "D",
+    "nama_kategori": "Kamar Mandi",
+    "id_item": "D7",
+    "nama_item": "Floor Drain Kamar Mandi",
+    "no_urut": 69
+  },
+  {
+    "kategori": "D",
+    "nama_kategori": "Kamar Mandi",
+    "id_item": "D8",
+    "nama_item": "Kran Air",
+    "no_urut": 70
+  },
+  {
+    "kategori": "D",
+    "nama_kategori": "Kamar Mandi",
+    "id_item": "D9",
+    "nama_item": "Kloset",
+    "no_urut": 71
+  },
+  {
+    "kategori": "D",
+    "nama_kategori": "Kamar Mandi",
+    "id_item": "D10",
+    "nama_item": "Septictank",
+    "no_urut": 72
+  },
+  {
+    "kategori": "D",
+    "nama_kategori": "Kamar Mandi",
+    "id_item": "D11",
+    "nama_item": "Saluran Air Bersih",
+    "no_urut": 73
+  },
+  {
+    "kategori": "D",
+    "nama_kategori": "Kamar Mandi",
+    "id_item": "D12",
+    "nama_item": "Saluran Air Kotor",
+    "no_urut": 74
+  },
+  {
+    "kategori": "E",
+    "nama_kategori": "Gudang + Kantor",
+    "id_item": "E1",
+    "nama_item": "Kusen + daun pintu P2",
+    "no_urut": 75
+  },
+  {
+    "kategori": "E",
+    "nama_kategori": "Gudang + Kantor",
+    "id_item": "E2",
+    "nama_item": "Lampu Gudang",
+    "no_urut": 76
+  },
+  {
+    "kategori": "E",
+    "nama_kategori": "Gudang + Kantor",
+    "id_item": "E3",
+    "nama_item": "Plafon Gudang",
+    "no_urut": 77
+  },
+  {
+    "kategori": "E",
+    "nama_kategori": "Gudang + Kantor",
+    "id_item": "E4",
+    "nama_item": "Exhaust Fan",
+    "no_urut": 78
+  },
+  {
+    "kategori": "E",
+    "nama_kategori": "Gudang + Kantor",
+    "id_item": "E5",
+    "nama_item": "Dinding Gudang",
+    "no_urut": 79
+  },
+  {
+    "kategori": "E",
+    "nama_kategori": "Gudang + Kantor",
+    "id_item": "E6",
+    "nama_item": "Partisi ruang kepala toko (T120)",
+    "no_urut": 80
+  },
+  {
+    "kategori": "E",
+    "nama_kategori": "Gudang + Kantor",
+    "id_item": "E7",
+    "nama_item": "Panel Listrik",
+    "no_urut": 81
+  },
+  {
+    "kategori": "E",
+    "nama_kategori": "Gudang + Kantor",
+    "id_item": "E8",
+    "nama_item": "Ohm Saklar/COS",
+    "no_urut": 82
+  },
+  {
+    "kategori": "E",
+    "nama_kategori": "Gudang + Kantor",
+    "id_item": "E9",
+    "nama_item": "Stabilizer",
+    "no_urut": 83
+  },
+  {
+    "kategori": "E",
+    "nama_kategori": "Gudang + Kantor",
+    "id_item": "E10",
+    "nama_item": "Saklar",
+    "no_urut": 84
+  },
+  {
+    "kategori": "E",
+    "nama_kategori": "Gudang + Kantor",
+    "id_item": "E11",
+    "nama_item": "Stop kontak",
+    "no_urut": 85
+  },
+  {
+    "kategori": "E",
+    "nama_kategori": "Gudang + Kantor",
+    "id_item": "E12",
+    "nama_item": "Lantai keramik Gudang + kantor",
+    "no_urut": 86
+  },
+  {
+    "kategori": "E",
+    "nama_kategori": "Gudang + Kantor",
+    "id_item": "E13",
+    "nama_item": "Rooster",
+    "no_urut": 87
+  },
+  {
+    "kategori": "E",
+    "nama_kategori": "Gudang + Kantor",
+    "id_item": "E14",
+    "nama_item": "Glasblok",
+    "no_urut": 88
+  },
+  {
+    "kategori": "E",
+    "nama_kategori": "Gudang + Kantor",
+    "id_item": "E15",
+    "nama_item": "Teralis (jendela/pintu)",
+    "no_urut": 89
+  },
+  {
+    "kategori": "F",
+    "nama_kategori": "Mess / R. Kantor",
+    "id_item": "F1",
+    "nama_item": "Kusen + Daun Pintu + Jendela",
+    "no_urut": 90
+  },
+  {
+    "kategori": "F",
+    "nama_kategori": "Mess / R. Kantor",
+    "id_item": "F2",
+    "nama_item": "Lampu Mess/R. Kantor",
+    "no_urut": 91
+  },
+  {
+    "kategori": "F",
+    "nama_kategori": "Mess / R. Kantor",
+    "id_item": "F3",
+    "nama_item": "Exhaust Fan Mess/R. Kantor",
+    "no_urut": 92
+  },
+  {
+    "kategori": "F",
+    "nama_kategori": "Mess / R. Kantor",
+    "id_item": "F4",
+    "nama_item": "Plafon Mess/R. Kantor",
+    "no_urut": 93
+  },
+  {
+    "kategori": "F",
+    "nama_kategori": "Mess / R. Kantor",
+    "id_item": "F5",
+    "nama_item": "Dinding Mess/R. Kantor",
+    "no_urut": 94
+  },
+  {
+    "kategori": "F",
+    "nama_kategori": "Mess / R. Kantor",
+    "id_item": "F6",
+    "nama_item": "Saklar Lampu Mess/R. Kantor",
+    "no_urut": 95
+  },
+  {
+    "kategori": "F",
+    "nama_kategori": "Mess / R. Kantor",
+    "id_item": "F7",
+    "nama_item": "Stop Kontak Mess/R. Kantor",
+    "no_urut": 96
+  },
+  {
+    "kategori": "F",
+    "nama_kategori": "Mess / R. Kantor",
+    "id_item": "F8",
+    "nama_item": "Lantai Keramik Mess/R. Kantor",
+    "no_urut": 97
+  },
+  {
+    "kategori": "F",
+    "nama_kategori": "Mess / R. Kantor",
+    "id_item": "F9",
+    "nama_item": "Teralis (jendela/pintu)",
+    "no_urut": 98
+  },
+  {
+    "kategori": "G",
+    "nama_kategori": "Ruang Atas / Lt. 2",
+    "id_item": "G1",
+    "nama_item": "Trap Anak Tangga",
+    "no_urut": 99
+  },
+  {
+    "kategori": "G",
+    "nama_kategori": "Ruang Atas / Lt. 2",
+    "id_item": "G2",
+    "nama_item": "Railing Tangga",
+    "no_urut": 100
+  },
+  {
+    "kategori": "G",
+    "nama_kategori": "Ruang Atas / Lt. 2",
+    "id_item": "G3",
+    "nama_item": "Kusen + Daun Pintu + Jendela",
+    "no_urut": 101
+  },
+  {
+    "kategori": "G",
+    "nama_kategori": "Ruang Atas / Lt. 2",
+    "id_item": "G4",
+    "nama_item": "Lampu Ruang Atas/Lt. 2",
+    "no_urut": 102
+  },
+  {
+    "kategori": "G",
+    "nama_kategori": "Ruang Atas / Lt. 2",
+    "id_item": "G5",
+    "nama_item": "Exhaust Fan Ruang Atas/Lt. 2",
+    "no_urut": 103
+  },
+  {
+    "kategori": "G",
+    "nama_kategori": "Ruang Atas / Lt. 2",
+    "id_item": "G6",
+    "nama_item": "Plafon Ruang Atas/Lt. 2",
+    "no_urut": 104
+  },
+  {
+    "kategori": "G",
+    "nama_kategori": "Ruang Atas / Lt. 2",
+    "id_item": "G7",
+    "nama_item": "Dinding Ruang Atas/Lt. 2",
+    "no_urut": 105
+  },
+  {
+    "kategori": "G",
+    "nama_kategori": "Ruang Atas / Lt. 2",
+    "id_item": "G8",
+    "nama_item": "Saklar Lampu Ruang Atas/Lt. 2",
+    "no_urut": 106
+  },
+  {
+    "kategori": "G",
+    "nama_kategori": "Ruang Atas / Lt. 2",
+    "id_item": "G9",
+    "nama_item": "Stop Kontak Ruang Atas/Lt. 2",
+    "no_urut": 107
+  },
+  {
+    "kategori": "G",
+    "nama_kategori": "Ruang Atas / Lt. 2",
+    "id_item": "G10",
+    "nama_item": "Lantai Keramik Ruang Atas/Lt. 2",
+    "no_urut": 108
+  },
+  {
+    "kategori": "G",
+    "nama_kategori": "Ruang Atas / Lt. 2",
+    "id_item": "G11",
+    "nama_item": "Teralis (jendela/pintu)",
+    "no_urut": 109
+  },
+  {
+    "kategori": "H",
+    "nama_kategori": "Bagian Atap",
+    "id_item": "H1",
+    "nama_item": "Rangka Atap",
+    "no_urut": 110
+  },
+  {
+    "kategori": "H",
+    "nama_kategori": "Bagian Atap",
+    "id_item": "H2",
+    "nama_item": "Talang",
+    "no_urut": 111
+  },
+  {
+    "kategori": "H",
+    "nama_kategori": "Bagian Atap",
+    "id_item": "H3",
+    "nama_item": "Atap Asbes/Zingalum/Genteng",
+    "no_urut": 112
+  },
+  {
+    "kategori": "H",
+    "nama_kategori": "Bagian Atap",
+    "id_item": "H4",
+    "nama_item": "Listplank",
+    "no_urut": 113
+  },
+  {
+    "kategori": "H",
+    "nama_kategori": "Bagian Atap",
+    "id_item": "H5",
+    "nama_item": "Roof Drain",
+    "no_urut": 114
+  },
+  {
+    "kategori": "H",
+    "nama_kategori": "Bagian Atap",
+    "id_item": "H6",
+    "nama_item": "Pipa Instalasi Air Hujan",
+    "no_urut": 115
+  },
+  {
+    "kategori": "I",
+    "nama_kategori": "Preventif Equipment Toko",
+    "id_item": "I1",
+    "nama_item": "Folding gate",
+    "no_urut": 116
+  },
+  {
+    "kategori": "I",
+    "nama_kategori": "Preventif Equipment Toko",
+    "id_item": "I2",
+    "nama_item": "Genset",
+    "no_urut": 117
+  },
+  {
+    "kategori": "I",
+    "nama_kategori": "Preventif Equipment Toko",
+    "id_item": "I3",
+    "nama_item": "Panel Listrik",
+    "no_urut": 118
+  },
+  {
+    "kategori": "I",
+    "nama_kategori": "Preventif Equipment Toko",
+    "id_item": "I4",
+    "nama_item": "Emergency lamp UPS",
+    "no_urut": 119
+  },
+  {
+    "kategori": "I",
+    "nama_kategori": "Preventif Equipment Toko",
+    "id_item": "I5",
+    "nama_item": "Air Curtain",
+    "no_urut": 120
+  },
+  {
+    "kategori": "I",
+    "nama_kategori": "Preventif Equipment Toko",
+    "id_item": "I6",
+    "nama_item": "Air Conditioner",
+    "no_urut": 121
+  },
+  {
+    "kategori": "I",
+    "nama_kategori": "Preventif Equipment Toko",
+    "id_item": "I7",
+    "nama_item": "Chiller & Freezer (milik SAT)",
+    "no_urut": 122
+  },
+  {
+    "kategori": "I",
+    "nama_kategori": "Preventif Equipment Toko",
+    "id_item": "I8",
+    "nama_item": "Exhaust Fan",
+    "no_urut": 123
+  },
+  {
+    "kategori": "I",
+    "nama_kategori": "Preventif Equipment Toko",
+    "id_item": "I9",
+    "nama_item": "Talang & Dak",
+    "no_urut": 124
+  },
+  {
+    "kategori": "I",
+    "nama_kategori": "Preventif Equipment Toko",
+    "id_item": "I10",
+    "nama_item": "Lift Barang",
+    "no_urut": 125
+  }
+]

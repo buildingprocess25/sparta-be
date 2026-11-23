@@ -7,6 +7,7 @@ import { rabRepository } from "../rab/rab.repository";
 import { activityLogRepository } from "../activity-log/activity-log.repository";
 import { GANTT_STATUS } from "./gantt.constants";
 import { ganttRepository } from "./gantt.repository";
+import { dokumentasiBangunanService } from "../dokumentasi/dokumentasi.service";
 import { spkRepository } from "../spk/spk.repository";
 import { SPK_APPROVED_STATUSES } from "../spk/spk.constants";
 import { opnameService, uploadFotoOpnameToDrive } from "../opname/opname.service";
@@ -123,17 +124,29 @@ const isScopeReadyForSerahTerima = (scope: any) => {
     const hasGanttAndOpname = Boolean(scope.gantt_id) && Boolean(scope.opname_final_id);
     if (!hasGanttAndOpname) return false;
 
-    // Escape hatch untuk data migrasi V1: opname_final APPROVED dianggap sudah final.
+    // Data migrasi lama yang benar-benar sudah APPROVED tetap dianggap final.
     if (scope.status_opname_final === "APPROVED") {
         return true;
     }
 
     const checkpoints = Array.isArray(scope.checkpoints) ? scope.checkpoints : [];
-    const opnameItems = checkpoints.reduce((sum: number, checkpoint: any) => sum + Number(checkpoint?.opname_items || 0), 0);
+    const checkpointOpnameItems = checkpoints.reduce((sum: number, checkpoint: any) => sum + Number(checkpoint?.opname_items || 0), 0);
+    const opnameItems = Math.max(checkpointOpnameItems, Number(scope.opname_item_count || 0));
     const readyOpnameItems = checkpoints.reduce((sum: number, checkpoint: any) => sum + Number(checkpoint?.ready_opname_items || 0), 0);
+    const unresolvedContractorOpnameItems = checkpoints.reduce((sum: number, checkpoint: any) => {
+        if (checkpoint?.workflow_version !== 'contractor_first') return sum;
+        return sum + Math.max(0, Number(checkpoint?.contractor_submitted_opname_items || 0) - Number(checkpoint?.opname_items || 0));
+    }, 0);
     const missingPengawasan = Number(scope.missing_pengawasan_checkpoints || 0);
+    const totalExpected = Number(scope.total_expected_items || 0);
+    const totalSelesai = Number(scope.total_selesai_items || 0);
 
-    return opnameItems > 0 && readyOpnameItems === 0 && missingPengawasan === 0;
+    return opnameItems > 0
+        && readyOpnameItems === 0
+        && unresolvedContractorOpnameItems === 0
+        && missingPengawasan === 0
+        && totalExpected > 0
+        && totalSelesai >= totalExpected;
 };
 
 const normalizePengawasanDate = (value: any): string => {
@@ -242,6 +255,8 @@ const buildUnifiedSupervisionMetadata = (scopes: any[]) => {
             missing_documentation_items: scopeCheckpoints.reduce((sum, item) => sum + Number(item.checkpoint?.missing_documentation_items || 0), 0),
             ready_opname_items: scopeCheckpoints.reduce((sum, item) => sum + Number(item.checkpoint?.ready_opname_items || 0), 0),
             opname_items: scopeCheckpoints.reduce((sum, item) => sum + Number(item.checkpoint?.opname_items || 0), 0),
+            contractor_submitted_opname_items: scopeCheckpoints.reduce((sum, item) => sum + Number(item.checkpoint?.contractor_submitted_opname_items || 0), 0),
+            workflow_version: scopeCheckpoints.find((item) => item.checkpoint?.workflow_version)?.checkpoint?.workflow_version || 'legacy',
             scopes: scopeCheckpoints,
         };
     });
@@ -362,6 +377,41 @@ export const ganttService = {
             && masterScopeHasGeneratedPdf;
         const allActiveScopesHaveExistingPdf = activeScopes.length > 0
             && activeScopes.every((scope) => Boolean(scope.link_pdf_serah_terima));
+        
+        let grandOpeningDocumentation;
+        try {
+            grandOpeningDocumentation = await dokumentasiBangunanService.getGrandOpeningStatus(nomorUlok);
+        } catch {
+            grandOpeningDocumentation = {
+                nomor_ulok: nomorUlok,
+                dokumentasi_id: null,
+                required_count: 40,
+                uploaded_count: 0,
+                is_complete: false,
+                link_pdf: null,
+                submitted_at: null,
+            };
+        }
+
+        let stGabunganProgress = { filled: 0, total: 125, is_submitted: false };
+        try {
+            const { pool } = await import("../../db/pool");
+            const stgQuery = await pool.query(
+                `SELECT 
+                    h.is_contractor_submitted,
+                    (SELECT COUNT(id) FROM serah_terima_gabungan_item WHERE id_serah_terima_gabungan = h.id) AS filled 
+                 FROM serah_terima_gabungan h 
+                 WHERE h.nomor_ulok = $1 
+                 LIMIT 1`,
+                [nomorUlok]
+            );
+            if (stgQuery.rows.length > 0) {
+                stGabunganProgress.filled = Number(stgQuery.rows[0].filled || 0);
+                stGabunganProgress.is_submitted = Boolean(stgQuery.rows[0].is_contractor_submitted);
+            }
+        } catch (e) {
+            console.error("Failed to fetch serah_terima_gabungan progress:", e);
+        }
 
         return {
             nomor_ulok: nomorUlok,
@@ -379,6 +429,8 @@ export const ganttService = {
                 .some((scope) => Boolean(scope.link_pdf_serah_terima)),
             unified_serah_terima_ready: allActiveScopesReady,
             unified_serah_terima_generated: allReadyScopesGenerated || allActiveScopesHaveExistingPdf,
+            grand_opening_documentation: grandOpeningDocumentation,
+            st_gabungan_progress: stGabunganProgress,
             ...unifiedMetadata,
         };
     },
@@ -781,6 +833,79 @@ export const ganttService = {
         if (!data) {
             throw new AppError("Toko tidak ditemukan", 404);
         }
+
+        if (data.instruksi_lapangan_items && data.instruksi_lapangan_items.length > 0) {
+            const { pool } = await import("../../db/pool");
+            const spkRes = await pool.query<{ waktu_mulai: string }>(
+                `SELECT waktu_mulai FROM pengajuan_spk WHERE id_toko = $1 ORDER BY id DESC LIMIT 1`,
+                [idToko]
+            );
+            const spkMulaiStr = spkRes.rows[0]?.waktu_mulai;
+            
+            if (spkMulaiStr) {
+                const parseDateOnly = (val: string) => {
+                    if (!val) return null;
+                    const d = new Date(val);
+                    return isNaN(d.getTime()) ? null : d;
+                };
+
+                const spkMulai = parseDateOnly(spkMulaiStr);
+                const toUTC = (d: Date) => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+                const spkUTC = spkMulai ? toUTC(spkMulai) : null;
+                const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+                const uniqueIlCategories = new Map<string, { h_awal: string; h_akhir: string }>();
+
+                if (spkUTC) {
+                    data.instruksi_lapangan_items.forEach((item) => {
+                        const catName = `[IL] ${(item.kategori_pekerjaan || "").trim().toUpperCase()}`;
+                        if (!item.il_tanggal_mulai || !item.il_tanggal_selesai) return;
+                        
+                        const ilStart = parseDateOnly(item.il_tanggal_mulai);
+                        const ilEnd = parseDateOnly(item.il_tanggal_selesai);
+                        if (!ilStart || !ilEnd) return;
+
+                        const ilStartUTC = toUTC(ilStart);
+                        const ilEndUTC = toUTC(ilEnd);
+
+                        const diffStart = Math.round((ilStartUTC - spkUTC) / MS_PER_DAY);
+                        const diffEnd = Math.round((ilEndUTC - spkUTC) / MS_PER_DAY);
+                        const hAwal = Math.max(1, diffStart + 1);
+                        const hAkhir = Math.max(hAwal, diffEnd + 1);
+
+                        if (!uniqueIlCategories.has(catName)) {
+                            uniqueIlCategories.set(catName, { h_awal: String(hAwal), h_akhir: String(hAkhir) });
+                        }
+                    });
+
+                    uniqueIlCategories.forEach((computed, catName) => {
+                        let existingCat = data.kategori_pekerjaan.find((k) => (k.kategori_pekerjaan || "").trim().toUpperCase() === catName);
+                        let catId = existingCat?.id;
+
+                        if (!existingCat) {
+                            catId = -Math.floor(Math.random() * 1000000); // Fake ID
+                            existingCat = { id: catId, id_gantt: data.gantt?.id || 0, kategori_pekerjaan: catName };
+                            data.kategori_pekerjaan.push(existingCat);
+                        }
+
+                        const existingDay = data.day_items.find((d) => d.id_kategori_pekerjaan_gantt === catId);
+                        if (!existingDay && catId !== undefined) {
+                            data.day_items.push({
+                                id: -Math.floor(Math.random() * 1000000),
+                                id_gantt: data.gantt?.id || 0,
+                                id_kategori_pekerjaan_gantt: catId,
+                                kategori_pekerjaan: catName,
+                                h_awal: computed.h_awal,
+                                h_akhir: computed.h_akhir,
+                                keterlambatan: null,
+                                kecepatan: null
+                            });
+                        }
+                    });
+                }
+            }
+        }
+
         return data;
     },
 
@@ -1226,3 +1351,4 @@ export const ganttService = {
         }
     }
 };
+
