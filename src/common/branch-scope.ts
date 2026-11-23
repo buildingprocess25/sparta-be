@@ -9,14 +9,16 @@ export const BRANCH_GROUPS: Record<string, string[]> = {
     LAMPUNG: ["LAMPUNG", "KOTABUMI"],
     PALEMBANG: ["PALEMBANG", "BENGKULU", "BANGKA", "BELITUNG"],
     SIDOARJO: ["SIDOARJO", "SIDOARJO BPN SMD", "MANOKWARI", "NTT", "SORONG"], // FIX: Use space not underscore
+    BANJARMASIN: ["BANJARMASIN", "PALANGKARAYA"],
 };
 
 export const GLOBAL_ACCESS_ROLES = [
     "BUILDING & MAINTENANCE SUPER HUMAN",
-    "BUILDING & MAINTENANCE REGIONAL MANAGER",
     "BUILDING MAINTENANCE & ENERGY SYSTEM MANAGER",
     "BUILDING & MAINTENANCE GENERAL MANAGER",
     "STORE & BRANCH CONTROLLING SPECIALIST",
+    "PROJECT PLANNING & DEVELOPMENT SPECIALIST",
+    "PROJECT PLANNING & DEVELOPMENT MANAGER",
 ];
 
 const shouldLogDebug = process.env.NODE_ENV !== "production";
@@ -31,13 +33,13 @@ export const normalizeBranchScopeName = (value?: string | null): string =>
 const ALL_BRANCHES = Array.from(
     new Set([
         ...Object.values(BRANCH_GROUPS).flat(),
-        "LUWU", "REMBANG", "BANJARMASIN", "TEGAL", "GORONTALO", "PONTIANAK",
+        "LUWU", "REMBANG", "TEGAL", "GORONTALO", "PONTIANAK",
         "CIANJUR", "JEMBER", "BALI", "KLATEN", "MAKASSAR", "PLUMBON",
         "PEKANBARU", "JAMBI", "HEAD OFFICE", "BANDUNG RAYA", "CILACAP",
         "SEMARANG", "MALANG", "MANADO", "BATAM", "MADIUN", "PALEMBANG",
         "BENGKULU", "BANGKA", "BELITUNG", "KOTABUMI", "ACEH", "SUMBAWA",
         "BOGOR", "BEKASI", "KARAWANG", "PARUNG", "BALARAJA", "SERANG", "BINTAN",
-        "SIDOARJO BPN SMD", "MANOKWARI", "NTT", "SORONG"
+        "SIDOARJO BPN SMD", "MANOKWARI", "NTT", "SORONG", "PALANGKARAYA"
     ])
 ).map(normalizeBranchScopeName).filter(Boolean).sort();
 
@@ -95,6 +97,13 @@ export const isSameBranchScope = (left?: string | null, right?: string | null): 
  * Check if user has global access (can see all branches)
  */
 export const hasGlobalAccess = (cabang?: string | null, roles?: string[]): boolean => {
+    const isRegionalManager = (roles ?? []).some(role => 
+        normalizeBranchScopeName(role).includes("REGIONAL MANAGER")
+    );
+    
+    // Regional Manager TIDAK mendapat akses global, harus mematuhi coverage 2 wilayah
+    if (isRegionalManager) return false;
+
     const normalizedCabang = normalizeBranchScopeName(cabang);
     if (normalizedCabang === "HEAD OFFICE") return true;
     
@@ -193,24 +202,24 @@ export const getEffectiveBranchesForUser = async (input: {
         return { branches: branchGroup.sort(), source: "support" };
     }
 
-    // 3. Check if this branch has specific coverage rules (CIKOKOL/CILEUNGSI only)
+    // 3. Kontraktor & Direktur Kontraktor → Full branch group access (no subdivision)
+    // Always override coverage for Kontraktor
+    if (isKontraktorRole(roles)) {
+        const branchGroup = getBranchScopeCandidates(normalizedCabang);
+        return { branches: branchGroup.sort(), source: "branch_group" };
+    }
+
+    // PRIORITAS: Cek Coverage Database (Untuk Regional Manager atau Manager subdivisi)
+    const coverage = await getUserCoverageBranches(emailSat, cabang);
+    if (coverage.length > 0) {
+        return { branches: coverage.sort(), source: "coverage" };
+    }
+
+    // 4. Check if this branch has specific coverage rules (CIKOKOL/CILEUNGSI only)
     const hasSpecificRules = hasSpecificCoverageRules(normalizedCabang);
 
     if (hasSpecificRules) {
-        // Kontraktor & Direktur Kontraktor → full branch group access, no subdivision
-        // They can work on any project in the entire CIKOKOL/CILEUNGSI group
-        if (isKontraktorRole(roles)) {
-            const branchGroup = getBranchScopeCandidates(normalizedCabang);
-            return { branches: branchGroup.sort(), source: "branch_group" };
-        }
-
-        // Manager/Coordinator → use coverage subdivisions from user_branch_coverage
-        const coverage = await getUserCoverageBranches(emailSat, cabang);
-
-        if (coverage.length > 0) {
-            return { branches: coverage.sort(), source: "coverage" };
-        }
-
+        // Manager/Coordinator tanpa coverage di atas
         // Fallback: login branch only
         return { 
             branches: normalizedCabang ? [normalizedCabang] : [], 
@@ -246,13 +255,17 @@ export const getApprovalBranchesForUser = async (input: {
         return { branches: ALL_BRANCHES, source: "global" };
     }
 
+    if (isBranchSupportRole(roles)) {
+        return { branches: getBranchGroupOrFallback(normalizedCabang), source: "support" };
+    }
+
+    if (isKontraktorRole(roles)) {
+        return { branches: getBranchGroupOrFallback(normalizedCabang), source: "branch_group" };
+    }
+
     const coverage = await getUserCoverageBranches(emailSat, cabang);
     if (coverage.length > 0) {
         return { branches: coverage.sort(), source: "coverage" };
-    }
-
-    if (isBranchSupportRole(roles)) {
-        return { branches: getBranchGroupOrFallback(normalizedCabang), source: "support" };
     }
 
     if (hasSpecificCoverageRules(normalizedCabang)) {
@@ -278,28 +291,32 @@ export const getDashboardBranchesForUser = async (input: {
     const { emailSat, cabang, roles } = input;
     const normalizedCabang = normalizeBranchScopeName(cabang);
 
-    // 1. PRIORITAS UTAMA: Cek Coverage Database
-    const coverage = await getUserCoverageBranches(emailSat, cabang);
-    if (coverage.length > 0) {
-        return { branches: coverage.sort(), source: "coverage" };
-    }
-
-    // 2. Jika tidak ada coverage, jalankan logic standar
+    // 0. Global access
     if (hasGlobalAccess(cabang, roles)) {
         return { branches: ALL_BRANCHES, source: "global" };
     }
 
+    // 1. PRIORITAS UTAMA: Branch Support
     if (isBranchSupportRole(roles)) {
         const branchGroup = getBranchScopeCandidates(normalizedCabang);
         return { branches: branchGroup.sort(), source: "support" };
     }
 
+    // 2. Kontraktor → Selalu mendapat full branch group
+    if (isKontraktorRole(roles)) {
+        const branchGroup = getBranchScopeCandidates(normalizedCabang);
+        return { branches: branchGroup.sort(), source: "branch_group" };
+    }
+
+    // 3. Cek Coverage Database
+    const coverage = await getUserCoverageBranches(emailSat, cabang);
+    if (coverage.length > 0) {
+        return { branches: coverage.sort(), source: "coverage" };
+    }
+
+    // 4. Jika tidak ada coverage, jalankan logic standar
     const hasSpecificRules = hasSpecificCoverageRules(normalizedCabang);
     if (hasSpecificRules) {
-        if (isKontraktorRole(roles)) {
-            const branchGroup = getBranchScopeCandidates(normalizedCabang);
-            return { branches: branchGroup.sort(), source: "branch_group" };
-        }
         return { 
             branches: normalizedCabang ? [normalizedCabang] : [], 
             source: "fallback" 

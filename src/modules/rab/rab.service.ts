@@ -13,6 +13,7 @@ import { userCabangRepository } from "../user-cabang/user-cabang.repository";
 import type { ApprovalActionInput } from "../approval/approval.schema";
 import { activityLogRepository } from "../activity-log/activity-log.repository";
 import { pool } from "../../db/pool";
+import { generateStandardFilename } from "../../common/filename-helper";
 import { SUPPORTED_PRICE_BRANCHES } from "../price-rab/price-rab.constants";
 import { priceRabService, type PriceResult } from "../price-rab/price-rab.service";
 import { projekPlanningRepository } from "../project-planning/project-planning.repository";
@@ -1338,7 +1339,7 @@ async function resolveMateraiCoverPageForMerge(input: {
     return null;
 }
 
-async function regenerateRabPdfs(
+export async function regenerateRabPdfs(
     rabId: string,
     filenameParts: { proyek?: string | null; nomorUlok?: string | null },
     approvalNameOverrides?: {
@@ -1588,6 +1589,7 @@ export const rabService = {
         let rejectedRabExistingInsurance: string | null = null;
         let rejectedRabExistingCabang: string | null = null;
         const isRevisionSubmit = payload.is_revisi === true;
+        const isTakeover = payload.is_takeover === true;
         const existingTokoByCombination = await tokoRepository.findByNomorUlokAndLingkup(
             payload.nomor_ulok,
             normalizedLingkupPekerjaan
@@ -1615,7 +1617,7 @@ export const rabService = {
             rejectedRabExistingLogo = targetRab.logo;
             rejectedRabExistingInsurance = targetRab.file_asuransi;
             rejectedRabExistingCabang = targetRab.cabang;
-        } else if (existingTokoByCombination) {
+        } else if (existingTokoByCombination && !isTakeover) {
             const latestRab = await rabRepository.findLatestByTokoId(existingTokoByCombination.id);
             const sameSubmitter = latestRab
                 && REJECTED_RAB_STATUSES.includes(latestRab.status)
@@ -1694,15 +1696,46 @@ export const rabService = {
         const fileAsuransiInput = (payload.file_asuransi ?? "").trim();
         const revFileAsuransiInput = (payload.rev_file_asuransi ?? "").trim();
 
-        const hasLogoInput = logoInput.length > 0 && !isRabAssetProxyPath(logoInput);
-        const hasRevLogoInput = revLogoInput.length > 0 && !isRabAssetProxyPath(revLogoInput);
-        const hasFileAsuransiInput = fileAsuransiInput.length > 0 && !isRabAssetProxyPath(fileAsuransiInput);
-        const hasRevFileAsuransiInput = revFileAsuransiInput.length > 0 && !isRabAssetProxyPath(revFileAsuransiInput);
         const isRejectedResubmit = rejectedRabToReplaceId !== null;
 
         let logoLink = rejectedRabToReplaceId !== null
             ? normalizeIncomingAssetLink(rejectedRabExistingLogo)
             : undefined;
+
+        // Resolve Proxy URLs for logo auto-fill
+        const resolveProxyUrl = async (input: string): Promise<string | undefined> => {
+            const match = input.match(/^\/api\/rab\/(\d+)\/(logo|file-asuransi)$/i);
+            if (match) {
+                const id = parseInt(match[1], 10);
+                const column = match[2].replace('-', '_'); // "logo" or "file_asuransi"
+                try {
+                    const result = await pool.query(`SELECT ${column} FROM rab WHERE id = $1`, [id]);
+                    if (result.rows.length > 0 && result.rows[0][column]) {
+                        return result.rows[0][column];
+                    }
+                } catch (err) {
+                    console.error(`Failed to resolve proxy URL ${input}:`, err);
+                }
+            }
+            return undefined;
+        };
+
+        if (!isRejectedResubmit && isRabAssetProxyPath(logoInput)) {
+            const resolved = await resolveProxyUrl(logoInput);
+            if (resolved) logoLink = resolved;
+        } else if (isRejectedResubmit && isRabAssetProxyPath(revLogoInput)) {
+            const resolved = await resolveProxyUrl(revLogoInput);
+            if (resolved) logoLink = resolved;
+        } else if (isRejectedResubmit && isRabAssetProxyPath(logoInput) && !revLogoInput) {
+            // Jika resubmit tanpa revisi logo, logoLink sudah terisi rejectedRabExistingLogo
+            // Tapi jika kita perlu mengambil dari proxy input, kita cek apakah perlu ditimpa.
+            // Biasanya ditangani oleh `rejectedRabToReplaceId`
+        }
+
+        const hasLogoInput = logoInput.length > 0 && !isRabAssetProxyPath(logoInput);
+        const hasRevLogoInput = revLogoInput.length > 0 && !isRabAssetProxyPath(revLogoInput);
+        const hasFileAsuransiInput = fileAsuransiInput.length > 0 && !isRabAssetProxyPath(fileAsuransiInput);
+        const hasRevFileAsuransiInput = revFileAsuransiInput.length > 0 && !isRabAssetProxyPath(revFileAsuransiInput);
 
         if (!isRejectedResubmit && hasLogoInput) {
             const logoValue = logoInput;
@@ -1757,6 +1790,14 @@ export const rabService = {
         let insuranceLink = rejectedRabToReplaceId !== null
             ? normalizeIncomingAssetLink(rejectedRabExistingInsurance)
             : undefined;
+
+        if (!isRejectedResubmit && isRabAssetProxyPath(fileAsuransiInput)) {
+            const resolved = await resolveProxyUrl(fileAsuransiInput);
+            if (resolved) insuranceLink = resolved;
+        } else if (isRejectedResubmit && isRabAssetProxyPath(revFileAsuransiInput)) {
+            const resolved = await resolveProxyUrl(revFileAsuransiInput);
+            if (resolved) insuranceLink = resolved;
+        }
 
         if (!isRejectedResubmit && hasFileAsuransiInput) {
             insuranceLink = normalizeIncomingAssetLink(fileAsuransiInput);
@@ -1822,6 +1863,7 @@ export const rabService = {
             alamat: payload.alamat,
             nama_kontraktor: submittedNamaPt,
             projek_planning_id: payload.projek_planning_id,
+            is_takeover: isTakeover,
             // rab fields
             email_pembuat: payload.email_pembuat,
             nama_pt: submittedNamaPt,
@@ -2016,9 +2058,7 @@ export const rabService = {
             throw new AppError("PDF hasil generate tidak bisa diambil dari Drive", 502);
         }
 
-        const filename = links.has_materai_pdf
-            ? `RAB_GABUNGAN_MATERAI_${data.toko.nomor_ulok}_${data.rab.id}.pdf`
-            : `RAB_GABUNGAN_${data.toko.nomor_ulok}_${data.rab.id}.pdf`;
+        const filename = generateStandardFilename("RAB", data.toko.nomor_ulok, data.toko.nama_toko, data.toko.lingkup_pekerjaan, ".pdf");
 
         return {
             filename,
@@ -2252,7 +2292,7 @@ export const rabService = {
             throw new AppError("Link PDF gabungan belum tersedia", 404);
         }
 
-        const filename = `RAB_GABUNGAN_${data.toko.nomor_ulok}_${data.rab.id}.pdf`;
+        const filename = generateStandardFilename("RAB", data.toko.nomor_ulok, data.toko.nama_toko, data.toko.lingkup_pekerjaan, ".pdf");
 
         const fileId = extractDriveFileId(rawLink);
         const gp = GoogleProvider.instance;
@@ -2718,8 +2758,50 @@ export const rabService = {
         };
     },
 
-    async exportRabExcel(id: string): Promise<Buffer> {
-        const data = await this.getById(id);
-        return buildRabDocumentExcel(data.document_scopes);
+    async exportRabExcel(id: string): Promise<{ filename: string; excelBuffer: Buffer }> {
+        const rabData = await rabRepository.findById(id);
+        if (!rabData) throw new AppError("RAB tidak ditemukan", 404);
+
+        const items = await rabRepository.listItemsByRabId(id);
+        
+        const excelData = items.map((item, index) => ({
+            "No": index + 1,
+            "Kategori Pekerjaan": item.kategori_pekerjaan,
+            "Jenis Pekerjaan": item.jenis_pekerjaan,
+            "Volume": Number(item.volume) || 0,
+            "Satuan": item.satuan,
+            "Harga Material": Number(item.harga_material) || 0,
+            "Harga Upah": Number(item.harga_upah) || 0,
+            "Total Material": Number(item.total_material) || 0,
+            "Total Upah": Number(item.total_upah) || 0,
+            "Total Harga": Number(item.total_harga) || 0,
+            "Catatan": item.catatan || ""
+        }));
+
+        const workbook = XLSX.utils.book_new();
+        const worksheet = XLSX.utils.json_to_sheet(excelData);
+        
+        const wscols = [
+            { wch: 5 },  // No
+            { wch: 30 }, // Kategori
+            { wch: 40 }, // Pekerjaan
+            { wch: 10 }, // Volume
+            { wch: 10 }, // Satuan
+            { wch: 15 }, // Hrg Mat
+            { wch: 15 }, // Hrg Upah
+            { wch: 15 }, // Tot Mat
+            { wch: 15 }, // Tot Upah
+            { wch: 15 }, // Tot Harga
+            { wch: 30 }  // Catatan
+        ];
+        worksheet["!cols"] = wscols;
+
+        XLSX.utils.book_append_sheet(workbook, worksheet, "RAB Items");
+        
+        const excelBuffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+
+        const filename = generateStandardFilename("RAB", rabData.toko.nomor_ulok, rabData.toko.nama_toko, rabData.toko.lingkup_pekerjaan, ".xlsx");
+        return { filename, excelBuffer };
+        return { filename, excelBuffer };
     }
 };

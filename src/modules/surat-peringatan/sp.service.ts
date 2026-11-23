@@ -49,10 +49,29 @@ const extractDriveFileId = (value?: string | null): string | null => {
     return driveFileMatch?.[1] ?? driveOpenMatch?.[1] ?? idMatch?.[1] ?? null;
 };
 
+const normalizeCompanyKey = (value?: string | null): string => {
+    const cleaned = String(value ?? "")
+        .toUpperCase()
+        .replace(/[.,]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    if (!cleaned) return "";
+    const tokens = cleaned.split(" ").filter(Boolean);
+    const entityTypes = new Set(["PT", "CV", "UD", "PD", "FA"]);
+    if (tokens.length > 1 && entityTypes.has(tokens[tokens.length - 1])) {
+        const entity = tokens.pop()!;
+        return `${entity} ${tokens.join(" ")}`;
+    }
+    return tokens.join(" ");
+};
+
 const companyMatches = (left?: string | null, right?: string | null): boolean => {
     const a = String(left ?? "").trim();
     const b = String(right ?? "").trim();
     if (!a || !b) return false;
+    const keyA = normalizeCompanyKey(a);
+    const keyB = normalizeCompanyKey(b);
+    if (keyA && keyB && keyA === keyB) return true;
     const normalA = normalizeText(a);
     const normalB = normalizeText(b);
     const compactA = normalA.replace(/[^A-Z0-9]/g, "");
@@ -457,9 +476,16 @@ export const spService = {
         return spRepository.listCandidates(cabang_array);
     },
 
-    async listActions(query: ListDendaActionsQuery) {
+    async listActions(query: ListDendaActionsQuery, actor?: AuthenticatedUser | null) {
         await spRepository.ensureSchema();
-        const actions = await spRepository.listActions(query);
+        let actions = await spRepository.listActions(query);
+        const isSuperHuman = actor?.roles?.some(r => r.toUpperCase().includes('BUILDING & MAINTENANCE SUPER HUMAN'));
+        if (!isSuperHuman) {
+            actions = actions.filter(sp => {
+            const cab = sp.cabang?.toUpperCase();
+            return cab !== 'Z001' && cab !== 'HEAD OFFICE';
+        });
+        }
 
         if (actions.length > 0) {
             const tokoIds = [...new Set(actions.map(a => a.id_toko).filter(id => id != null))];
@@ -493,9 +519,17 @@ export const spService = {
         return actions;
     },
 
-    async listActionsForKontraktor(namaKontraktor: string) {
+    async listActionsForKontraktor(namaKontraktor: string, actor?: AuthenticatedUser | null) {
         await spRepository.ensureSchema();
-        return spRepository.listKontraktorActions(namaKontraktor);
+        let actions = await spRepository.listKontraktorActions(namaKontraktor);
+        const isSuperHuman = actor?.roles?.some(r => r.toUpperCase().includes('BUILDING & MAINTENANCE SUPER HUMAN'));
+        if (!isSuperHuman) {
+            actions = actions.filter(sp => {
+            const cab = sp.cabang?.toUpperCase();
+            return cab !== 'Z001' && cab !== 'HEAD OFFICE';
+        });
+        }
+        return actions;
     },
 
     async createAction(input: CreateDendaActionInput & {
@@ -513,7 +547,7 @@ export const spService = {
         let tokoId = (input as any).id_toko;
         
         if (tokoId) {
-            target = await spRepository.findTargetByTokoId(tokoId);
+            target = await spRepository.findTargetByTokoId(tokoId, { actionType: input.action_type });
             if (!target) {
                 throw new AppError("Data target SP tidak ditemukan, sudah selesai, atau belum memiliki kontraktor.", 404);
             }

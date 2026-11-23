@@ -7,11 +7,14 @@ import { GoogleProvider } from "../../common/google";
 import type { ApprovalActionInput } from "../approval/approval.schema";
 import type { ListInstruksiLapanganQuery, SubmitInstruksiLapanganInput } from "./instruksi-lapangan.schema";
 import { instruksiLapanganRepository } from "./instruksi-lapangan.repository";
+import { userCabangRepository } from "../user-cabang/user-cabang.repository";
 import {
     buildInstruksiLapanganPdfBuffer,
     buildInstruksiLapanganRecapPdfBuffer,
     mergePdfBuffers
 } from "./instruksi-lapangan.pdf";
+import { opnameRepository } from "../opname/opname.repository";
+import { generateStandardFilename } from "../../common/filename-helper";
 
 const MailComposer = require("nodemailer/lib/mail-composer");
 
@@ -144,9 +147,41 @@ Hormat kami,
 <span style="font-size: 12px; color: #666;">(Email ini dibuat secara otomatis oleh sistem, mohon untuk tidak membalas ke alamat email ini)</span>
     `;
 
+    const branch = data.toko.cabang;
+    let ccEmailList: string[] = [];
+    let toEmailList: string[] = [recipient];
+
+    try {
+        const usersFound = await userCabangRepository.findAll({ email_sat: recipient });
+        const creatorUser = usersFound.length > 0 ? usersFound[0] : null;
+        if (creatorUser && creatorUser.nama_pt) {
+            const direkturUsers = (await userCabangRepository.findAll({ cabang: branch }))
+                .filter(u => u.nama_pt?.toUpperCase() === creatorUser.nama_pt?.toUpperCase() && u.jabatan?.toUpperCase() === "DIREKTUR KONTRAKTOR");
+            toEmailList.push(...direkturUsers.map(u => u.email_sat));
+        }
+
+        const ccRoles = [
+            "BRANCH BUILDING & MAINTENANCE MANAGER",
+            "BRANCH BUILDING COORDINATOR",
+            "BRANCH BUILDING SUPPORT"
+        ];
+        
+        for (const role of ccRoles) {
+            const users = await userCabangRepository.findAll({ cabang: branch, jabatan: role });
+            ccEmailList.push(...users.map(u => u.email_sat));
+        }
+    } catch (e) {
+        console.warn("[IL][EMAIL] Gagal mengambil list email cc/direktur:", e);
+    }
+
+    // Filter duplicates and valid emails
+    toEmailList = Array.from(new Set(toEmailList.filter(e => e && e.trim() !== "")));
+    ccEmailList = Array.from(new Set(ccEmailList.filter(e => e && e.trim() !== "" && !toEmailList.includes(e))));
+
     const options = {
         from: `"Tim SPARTA Alfamart" <${env.EMAIL_USER}>`,
-        to: recipient,
+        to: toEmailList.join(", "),
+        cc: ccEmailList.join(", "),
         subject: `[DISETUJUI] Instruksi Lapangan (IL) Proyek ${data.toko.nama_toko} - ${data.toko.nomor_ulok}`,
         html: htmlBody,
         attachments: [
@@ -513,7 +548,7 @@ export const instruksiLapanganService = {
         const mergedBuffer = await mergePdfBuffers(buffersToMerge);
 
         return {
-            filename: `Instruksi_Lapangan_${mergedToko.nomor_ulok}.pdf`,
+            filename: generateStandardFilename("IL", data.toko.nomor_ulok, data.toko.nama_toko, data.toko.lingkup_pekerjaan, ".pdf"),
             pdfBuffer: mergedBuffer
         };
     },
@@ -564,18 +599,29 @@ export const instruksiLapanganService = {
                     throw new AppError("Instruksi Lapangan saat ini menunggu approval Koordinator", 403);
                 }
 
+                const isBatam = data.toko.cabang?.toUpperCase() === "BATAM";
                 for (const targetId of targetIds) {
                     await instruksiLapanganRepository.updateApproval(
                         targetId,
-                        "Menunggu Persetujuan Manager",
+                        isBatam ? "Disetujui" : "Menunggu Persetujuan Manager",
                         "koordinator",
                         action.approver_email,
                         undefined,
                         action.catatan_approval ?? null
                     );
                 }
+
+                if (isBatam) {
+                    // Sync to Opname Final if exists, since we bypass manager
+                    await opnameRepository.syncApprovedInstruksiLapangan(data.toko.id, Number(id)).catch(err => {
+                        console.error("Failed to sync approved Instruksi Lapangan to Opname:", err);
+                    });
+                }
             } else if (currentStatus === "Menunggu Persetujuan Manager") {
-                if (action.jabatan !== "MANAGER") {
+                const isBatam = data.toko.cabang?.toUpperCase() === "BATAM";
+                const isKoordinatorBatam = isBatam && action.jabatan === "KOORDINATOR";
+
+                if (action.jabatan !== "MANAGER" && !isKoordinatorBatam) {
                     throw new AppError("Instruksi Lapangan saat ini menunggu approval Manager", 403);
                 }
 
@@ -583,12 +629,17 @@ export const instruksiLapanganService = {
                     await instruksiLapanganRepository.updateApproval(
                         targetId,
                         "Disetujui",
-                        "manager",
+                        isKoordinatorBatam ? "koordinator" : "manager",
                         action.approver_email,
                         undefined,
                         action.catatan_approval ?? null
                     );
                 }
+
+                // Sync to Opname Final if exists
+                await opnameRepository.syncApprovedInstruksiLapangan(data.toko.id, Number(id)).catch(err => {
+                    console.error("Failed to sync approved Instruksi Lapangan to Opname:", err);
+                });
             } else {
                 throw new AppError(`Status tidak dapat di-approve dari state saat ini: ${currentStatus}`, 400);
             }

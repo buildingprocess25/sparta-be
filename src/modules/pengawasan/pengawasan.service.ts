@@ -103,7 +103,7 @@ const resolveFileExtension = (file: UploadedDokumentasiFile): string => {
     return ".bin";
 };
 
-const uploadDokumentasiToDrive = async (
+export const uploadDokumentasiToDrive = async (
     idGantt: number,
     file: UploadedDokumentasiFile
 ): Promise<string> => {
@@ -229,11 +229,7 @@ const gdriveImageToBase64 = async (url: string | null | undefined): Promise<stri
 };
 
 const resolvePengawasanPhotoBase64 = async (item: PengawasanRow): Promise<string | null> => {
-    const fromDrive = await gdriveImageToBase64(item.dokumentasi);
-    if (fromDrive) return fromDrive;
-
-    // Legacy fallback for old rows. New writes keep images in Drive only.
-    return item.dokumentasi_base64;
+    return await gdriveImageToBase64(item.dokumentasi);
 };
 
 const normalizeTanggalPengawasan = (value: string): string => {

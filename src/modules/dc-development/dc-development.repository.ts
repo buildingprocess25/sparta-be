@@ -165,6 +165,15 @@ export type DcIssueRow = {
     updated_at: string;
 };
 
+export type DcCategoryActivityLogRow = {
+    id: number;
+    project_id: number;
+    actor_email: string;
+    actor_role: string;
+    created_at: string;
+    metadata: any;
+};
+
 export type DcArchiveProjectRow = {
     id: number;
     project_id: number;
@@ -188,6 +197,9 @@ export type DcArchiveProjectRow = {
     docs_pembangunan: number;
     docs_renovasi: number;
     docs_perluasan: number;
+    custom_items_pembangunan: number;
+    custom_items_renovasi: number;
+    custom_items_perluasan: number;
     total_notes?: number;
     kategori_counts: Record<string, number>;
 };
@@ -317,6 +329,36 @@ const insertActivityLog = async (
 };
 
 export const dcDevelopmentRepository = {
+    async insertActivityLog(input: {
+        project_id?: number | null;
+        entity_type: string;
+        entity_id?: number | null;
+        actor_email?: string | null;
+        actor_role?: string | null;
+        action: string;
+        status_before?: string | null;
+        status_after?: string | null;
+        reason?: string | null;
+        metadata?: Record<string, unknown> | null;
+    }) {
+        return withTransaction(async (client) => {
+            await insertActivityLog(client, input);
+        });
+    },
+
+    async listCategoryActivityLogs(projectId: number, categoryId: string): Promise<DcCategoryActivityLogRow[]> {
+        const result = await pool.query(
+            `SELECT id, project_id, actor_email, actor_role, created_at, metadata
+             FROM dc_activity_log
+             WHERE project_id = $1 
+               AND action = 'EDIT_CATEGORY_DOCUMENTS' 
+               AND metadata->>'category_id' = $2
+             ORDER BY created_at DESC`,
+            [projectId, categoryId]
+        );
+        return result.rows;
+    },
+
     async listArchiveProjects(filter: DcArchiveProjectListQuery, bypassAccess = false): Promise<DcArchiveProjectRow[]> {
         const conditions: string[] = [];
         const values: unknown[] = [];
@@ -387,12 +429,28 @@ export const dcDevelopmentRepository = {
                 COUNT(DISTINCT split_part(d.document_type, '__', 1)) FILTER (WHERE UPPER(COALESCE(d.stage, '')) = 'RENOVASI' AND v.drive_file_id IS NOT NULL)::int AS docs_renovasi,
                 COUNT(DISTINCT split_part(d.document_type, '__', 1)) FILTER (WHERE UPPER(COALESCE(d.stage, '')) = 'PERLUASAN' AND v.drive_file_id IS NOT NULL)::int AS docs_perluasan,
                 (
+                    SELECT COUNT(*)::int
+                    FROM dc_document_custom_item
+                    WHERE archive_project_id = a.id AND stage = 'PEMBANGUNAN' AND deleted_at IS NULL
+                ) AS custom_items_pembangunan,
+                (
+                    SELECT COUNT(*)::int
+                    FROM dc_document_custom_item
+                    WHERE archive_project_id = a.id AND stage = 'RENOVASI' AND deleted_at IS NULL
+                ) AS custom_items_renovasi,
+                (
+                    SELECT COUNT(*)::int
+                    FROM dc_document_custom_item
+                    WHERE archive_project_id = a.id AND stage = 'PERLUASAN' AND deleted_at IS NULL
+                ) AS custom_items_perluasan,
+                (
                     SELECT COUNT(DISTINCT d_notes.id)::int
                     FROM dc_document d_notes
                     LEFT JOIN dc_document_version v_notes ON v_notes.document_id = d_notes.id AND v_notes.is_current = true
                     WHERE d_notes.entity_type = 'DC_ARCHIVE_PROJECT'
                       AND d_notes.project_id = a.project_id
                       AND d_notes.status <> 'DELETED'
+                      AND (d_notes.document_type IS NULL OR d_notes.document_type NOT LIKE 'CAT_NOTE_%')
                       AND v_notes.notes IS NOT NULL
                       AND v_notes.notes <> ''
                 ) AS total_notes,
@@ -1620,7 +1678,7 @@ export const dcDevelopmentRepository = {
         await withTransaction(async (client) => {
             const updated = await client.query(
                 `UPDATE dc_document_version
-                 SET notes = $2, updated_at = timezone('Asia/Jakarta', now())
+                 SET notes = $2
                  WHERE document_id = $1 AND is_current = true`,
                 [documentId, notes]
             );

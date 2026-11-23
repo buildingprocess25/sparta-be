@@ -13,6 +13,7 @@ import {
     lockGanttSchema,
     managePengawasanSchema,
     submitGanttSchema,
+    submitTakeoverInspectionSchema,
     updateGanttSchema,
     updateKecepatanSchema,
     updateKeterlambatanSchema
@@ -82,7 +83,8 @@ export const listGantt = asyncHandler(async (req: Request, res: Response) => {
 
 export const getSupervisionWorkspace = asyncHandler(async (req: Request, res: Response) => {
     const { nomor_ulok } = supervisionWorkspaceParamsSchema.parse(req.params);
-    const data = await ganttService.getSupervisionWorkspace(nomor_ulok);
+    const ts = req.query.ts ? Number(req.query.ts) : undefined;
+    const data = await ganttService.getSupervisionWorkspace(nomor_ulok, ts);
     res.json({ status: "success", data });
 });
 
@@ -98,6 +100,34 @@ export const listGanttNotes = asyncHandler(async (req: Request, res: Response) =
     const data = await ganttService.listNotes(req.params.id);
 
     res.json({ status: "success", data });
+});
+
+export const submitTakeoverInspection = asyncHandler(async (req: Request, res: Response) => {
+    let parsedItems = req.body.items;
+    if (typeof req.body.items === "string") {
+        try {
+            parsedItems = JSON.parse(req.body.items);
+        } catch {
+            throw new AppError("Format items tidak valid. Untuk multipart/form-data kirim items sebagai JSON string.", 400);
+        }
+    }
+
+    const payloadCandidate = {
+        ...req.body,
+        items: parsedItems
+    };
+
+    const payload = submitTakeoverInspectionSchema.parse(payloadCandidate);
+    const files = (req.files as Express.Multer.File[]) || [];
+    const userEmail = req.user?.email_sat || "system";
+    
+    const data = await ganttService.submitTakeoverInspection(payload, files, userEmail);
+
+    res.status(201).json({
+        status: "success",
+        message: "Inspeksi Takeover berhasil disimpan",
+        data
+    });
 });
 
 export const createGanttNote = asyncHandler(async (req: Request, res: Response) => {
@@ -215,6 +245,7 @@ export const getDetailByToko = asyncHandler(async (req: Request, res: Response) 
         day_gantt_data: data.day_items,
         dependency_data: data.dependencies,
         pengawasan_data: data.pengawasan,
+        pengawasan_items: data.pengawasan_items,
         kategori_pekerjaan: data.kategori_pekerjaan,
         instruksi_lapangan_items: data.instruksi_lapangan_items,
         toko: data.toko

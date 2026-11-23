@@ -206,7 +206,15 @@
             {% endif %}
           </td>
           <td>{{ item.notes or '-' }}</td>
-          <td style="word-break: break-all;">{{ item.linkDrive or '-' }}</td>
+          <td style="word-break: break-all;">
+            {% if item.linkDrive and item.linkDrive.length > 0 %}
+              {% for link in item.linkDrive %}
+                <a href="{{ link }}" style="color: blue; text-decoration: underline;" target="_blank">Buka Dokumen {{ loop.index }}</a>{% if not loop.last %}<br><br>{% endif %}
+              {% endfor %}
+            {% else %}
+              -
+            {% endif %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>

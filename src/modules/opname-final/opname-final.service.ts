@@ -1,4 +1,5 @@
 import { AppError } from "../../common/app-error";
+import { generateStandardFilename } from "../../common/filename-helper";
 import { pool } from "../../db/pool";
 import { GoogleProvider } from "../../common/google";
 import * as XLSX from "xlsx";
@@ -85,12 +86,16 @@ const parseAreaNumber = (value?: string | number | null): number => {
 
 const resolveStatusTransition = (
     currentStatus: OpnameFinalStatus,
-    action: ApprovalActionInput
+    action: ApprovalActionInput,
+    cabang?: string | null
 ): OpnameFinalStatus => {
     if (action.tindakan === "APPROVE") {
         if (action.jabatan === "KOORDINATOR") {
             if (currentStatus !== OPNAME_FINAL_STATUS.WAITING_FOR_COORDINATOR) {
                 throw new AppError(`Status saat ini "${currentStatus}" tidak valid untuk approval koordinator`, 409);
+            }
+            if (cabang?.toUpperCase() === "BATAM") {
+                return OPNAME_FINAL_STATUS.WAITING_FOR_DIREKTUR;
             }
             return OPNAME_FINAL_STATUS.WAITING_FOR_MANAGER;
         }
@@ -243,7 +248,7 @@ const sumEffectiveInstruksiLapanganTotal = (
     }, 0);
 };
 
-const loadRabData = async (opnameFinalId: number) => {
+const loadRabData = async (opnameFinalId: number, idToko: number) => {
     const items = await rabRepository.listItemsByOpnameFinalId(opnameFinalId);
     if (items.length === 0) {
         return { header: null, items: [] };
@@ -251,7 +256,38 @@ const loadRabData = async (opnameFinalId: number) => {
 
     const rabId = items[0]?.id_rab;
     const header = rabId ? (await rabRepository.findById(String(rabId)))?.rab ?? null : null;
-    return { header, items };
+    
+    // Filter out "Tidak Dikerjakan" items from the RAB items list
+    const { rows: pengawasanRows } = await pool.query(
+        `SELECT p.kategori_pekerjaan, p.jenis_pekerjaan, p.status 
+         FROM pengawasan p
+         JOIN gantt_chart g ON p.id_gantt = g.id
+         WHERE g.id_toko = $1
+         ORDER BY p.id DESC`,
+        [idToko]
+    );
+
+    const excludedKeys = new Set<string>();
+    pengawasanRows.forEach(row => {
+        const k = (row.kategori_pekerjaan || '').toUpperCase();
+        const j = (row.jenis_pekerjaan || row.kategori_pekerjaan || '').toUpperCase();
+        const key = `${k}|${j}`;
+        if (!excludedKeys.has(key) && !excludedKeys.has(`NOT_${key}`)) {
+            if (row.status?.toLowerCase().replace(/\s+/g, '_') === 'tidak_dikerjakan') {
+                excludedKeys.add(key);
+            } else {
+                excludedKeys.add(`NOT_${key}`);
+            }
+        }
+    });
+
+    const filteredItems = items.filter(item => {
+        const k = (item.kategori_pekerjaan || '').toUpperCase();
+        const j = (item.jenis_pekerjaan || item.kategori_pekerjaan || '').toUpperCase();
+        return !excludedKeys.has(`${k}|${j}`);
+    });
+
+    return { header, items: filteredItems };
 };
 
 const calculateOpnameKtkTotal = (
@@ -396,13 +432,17 @@ const regeneratePdfAndUpload = async (opnameFinalId: string): Promise<string> =>
     }
 
     const instruksiLapanganItems = await loadInstruksiLapanganItems(detail.toko.id);
-    const rabData = await loadRabData(detail.opname_final.id);
+    const rabData = await loadRabData(detail.opname_final.id, detail.toko.id);
     await applyRukoConversionIfNeeded(detail, instruksiLapanganItems, rabData);
     const pdfBuffer = await buildOpnameFinalPdfBuffer(detail, instruksiLapanganItems, rabData);
-    const proyek = sanitizeFilenamePart(detail.toko.proyek ?? undefined, "PROYEK");
-    const nomorUlok = sanitizeFilenamePart(detail.toko.nomor_ulok ?? undefined, "ULOK");
-    const filenamePrefix = "OPNAME";
-    const filename = `${filenamePrefix}_${proyek}_${nomorUlok}_${detail.opname_final.id}.pdf`;
+    const prefix = detail.opname_final.tipe_opname === "OPNAME" ? "OPNAME" : "KTK";
+    const filename = generateStandardFilename(
+        prefix,
+        detail.toko.nomor_ulok,
+        detail.toko.nama_toko,
+        detail.toko.lingkup_pekerjaan,
+        ".pdf"
+    );
 
     return uploadPdfToDrive(pdfBuffer, filename, detail.toko.nomor_ulok, detail.toko.proyek);
 };
@@ -465,7 +505,7 @@ export const opnameFinalService = {
         }
 
         const currentStatus = detail.opname_final.status_opname_final;
-        const newStatus = resolveStatusTransition(currentStatus, action);
+        const newStatus = resolveStatusTransition(currentStatus, action, detail.toko.cabang);
 
         await opnameFinalRepository.updateApproval(id, newStatus, action);
         await refreshDendaAllocation(id, detail.toko.id);
@@ -536,10 +576,14 @@ export const opnameFinalService = {
             throw new AppError("Data opname_final tidak ditemukan", 404);
         }
 
-        const proyek = sanitizeFilenamePart(detail.toko.proyek ?? undefined, "PROYEK");
-        const nomorUlok = sanitizeFilenamePart(detail.toko.nomor_ulok ?? undefined, "ULOK");
-        const filenamePrefix = "OPNAME";
-        const filename = `${filenamePrefix}_${proyek}_${nomorUlok}_${id}.pdf`;
+        const prefix = detail.opname_final.tipe_opname === "OPNAME" ? "OPNAME" : "KTK";
+        const filename = generateStandardFilename(
+            prefix,
+            detail.toko.nomor_ulok,
+            detail.toko.nama_toko,
+            detail.toko.lingkup_pekerjaan,
+            ".pdf"
+        );
 
         const storedBuffer = await downloadStoredPdfBuffer(detail.opname_final.link_pdf_opname);
         if (storedBuffer) {
@@ -567,7 +611,7 @@ export const opnameFinalService = {
         }
 
         const instruksiLapanganItems = await loadInstruksiLapanganItems(refreshedDetail.toko.id);
-        const rabData = await loadRabData(refreshedDetail.opname_final.id);
+        const rabData = await loadRabData(refreshedDetail.opname_final.id, refreshedDetail.toko.id);
         await applyRukoConversionIfNeeded(refreshedDetail, instruksiLapanganItems, rabData);
         const pdfBuffer = await buildOpnameFinalPdfBuffer(refreshedDetail, instruksiLapanganItems, rabData);
         uploadPdfToDrive(pdfBuffer, filename, refreshedDetail.toko.nomor_ulok, refreshedDetail.toko.proyek).then((linkPdf) =>
@@ -680,7 +724,7 @@ export const opnameFinalService = {
         };
     },
 
-    async exportOpnameFinalExcel(id: string): Promise<Buffer> {
+    async exportOpnameFinalExcel(id: string): Promise<{ filename: string; excelBuffer: Buffer }> {
         const detail = await opnameFinalRepository.findById(id);
         if (!detail) {
             throw new AppError("Data opname_final tidak ditemukan", 404);
@@ -691,7 +735,8 @@ export const opnameFinalService = {
         const excelData = items.map((item, index) => {
             const sumber = item.id_instruksi_lapangan_item ? "Instruksi Lapangan" : "RAB";
             const originalItem = item.id_instruksi_lapangan_item ? item.instruksi_lapangan_item : item.rab_item;
-            const hargaSatuan = originalItem ? (Number(originalItem.harga_material || 0) + Number(originalItem.harga_upah || 0)) : 0;
+            const hargaMaterial = originalItem ? Number(originalItem.harga_material || 0) : 0;
+            const hargaUpah = originalItem ? Number(originalItem.harga_upah || 0) : 0;
             
             return {
                 "No": index + 1,
@@ -702,7 +747,8 @@ export const opnameFinalService = {
                 "Volume Awal": Number(item.volume_rab) || 0,
                 "Volume Akhir": Number(item.volume_akhir) || 0,
                 "Selisih Volume": Number(item.selisih_volume) || 0,
-                "Harga Satuan": hargaSatuan,
+                "Harga Material": hargaMaterial,
+                "Harga Upah": hargaUpah,
                 "Total Selisih": Number(item.total_selisih) || 0,
                 "Total Harga Opname": Number(item.total_harga_opname) || 0,
                 "Status": item.status || "",
@@ -722,7 +768,8 @@ export const opnameFinalService = {
             { wch: 15 }, // Vol Awal
             { wch: 15 }, // Vol Akhir
             { wch: 15 }, // Selisih Vol
-            { wch: 15 }, // Harga Satuan
+            { wch: 15 }, // Harga Material
+            { wch: 15 }, // Harga Upah
             { wch: 15 }, // Tot Selisih
             { wch: 15 }, // Tot Harga Opname
             { wch: 15 }, // Status
@@ -730,8 +777,22 @@ export const opnameFinalService = {
         ];
         worksheet["!cols"] = wscols;
 
-        XLSX.utils.book_append_sheet(workbook, worksheet, "KTK Items");
+        const prefix = detail.opname_final.tipe_opname === "OPNAME" ? "OPNAME" : "KTK";
+        const sheetTitle = prefix === "OPNAME" ? "Opname Items" : "KTK Items";
+        XLSX.utils.book_append_sheet(workbook, worksheet, sheetTitle);
         
-        return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
+        const filename = generateStandardFilename(
+            prefix,
+            detail.toko.nomor_ulok,
+            detail.toko.nama_toko,
+            detail.toko.lingkup_pekerjaan,
+            ".xlsx"
+        );
+        const excelBuffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
+
+        return {
+            filename,
+            excelBuffer
+        };
     }
 };

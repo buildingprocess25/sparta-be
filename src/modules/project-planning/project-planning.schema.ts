@@ -1,9 +1,18 @@
 import { z } from "zod";
 
+const zBooleanString = z.preprocess((val) => {
+    if (typeof val === 'string') {
+        const lower = val.toLowerCase().trim();
+        if (lower === 'false' || lower === '0' || lower === '') return false;
+        if (lower === 'true' || lower === '1') return true;
+    }
+    return Boolean(val);
+}, z.boolean());
+
 const fasilitasItemSchema = z.object({
     jenis_fasilitas: z.string(),
     nama_fasilitas_lainnya: z.string().nullable().optional(),
-    is_tersedia: z.coerce.boolean().default(false),
+    is_tersedia: zBooleanString.default(false),
     keterangan: z.string().nullable().optional()
 });
 
@@ -105,19 +114,19 @@ export const submitProjekPlanningSchema = z.object({
     link_gambar_kerja: z.string().optional(),
 
     // ── Ruko / Non-Ruko ──────────────────────────────────────
-    is_ruko: z.coerce.boolean().optional().default(false),
+    is_ruko: zBooleanString.optional().default(false),
     jumlah_lantai: z.coerce.number().int().min(1).max(20).optional(),
 
     // ── Gambar Kompetitor ────────────────────────────────────
     link_gambar_kompetitor: z.string().optional(),
 
     // ── Head to Head & Seating Area ─────────────────────────
-    is_head_to_head: z.coerce.boolean().optional().default(false),
+    is_head_to_head: zBooleanString.optional().default(false),
     jarak_head_to_head: z.coerce.number().nonnegative().optional().nullable(),
-    is_seating_area: z.coerce.boolean().optional().default(false),
+    is_seating_area: zBooleanString.optional().default(false),
 
     // ── Kategori Toko ────────────────────────────────────────
-    is_dark_store: z.coerce.boolean().optional().default(false),
+    is_dark_store: zBooleanString.optional().default(false),
 
     // ── Tipe Bean Spot ───────────────────────────────────────
     beanspot_tipe: optionalText,
@@ -130,10 +139,13 @@ export type SubmitProjekPlanningInput = z.infer<typeof submitProjekPlanningSchem
 // ============================================================
 
 export const resubmitProjekPlanningSchema = z.object({
+    id_toko: z.coerce.number().int().min(0).optional().default(0),
+    nomor_ulok: z.string().optional(),
     cabang: optionalText,
     nama_toko: optionalText,
     kode_toko: optionalText,
     alamat_toko: optionalText,
+    proyek: optionalText,
     link_google_maps: optionalText,
     akhir_masa_sewa: optionalDate,
     spd: z.coerce.number().nonnegative().optional().nullable(),
@@ -185,19 +197,19 @@ export const resubmitProjekPlanningSchema = z.object({
     link_gambar_kerja: z.string().optional(),
 
     // ── Ruko / Non-Ruko ──────────────────────────────────────
-    is_ruko: z.coerce.boolean().optional().default(false),
+    is_ruko: zBooleanString.optional().default(false),
     jumlah_lantai: z.coerce.number().int().min(1).max(20).optional(),
 
     // ── Gambar Kompetitor ────────────────────────────────────
     link_gambar_kompetitor: z.string().optional(),
 
     // ── Head to Head & Seating Area ─────────────────────────
-    is_head_to_head: z.coerce.boolean().optional().default(false),
+    is_head_to_head: zBooleanString.optional().default(false),
     jarak_head_to_head: z.coerce.number().nonnegative().optional().nullable(),
-    is_seating_area: z.coerce.boolean().optional().default(false),
+    is_seating_area: zBooleanString.optional().default(false),
 
     // ── Kategori Toko ────────────────────────────────────────
-    is_dark_store: z.coerce.boolean().optional().default(false),
+    is_dark_store: zBooleanString.optional().default(false),
 
     // ── Tipe Bean Spot ───────────────────────────────────────
     beanspot_tipe: optionalText,
@@ -308,10 +320,18 @@ export type Upload3dInput = z.infer<typeof upload3dSchema>;
 
 export const uploadRabSchema = z.object({
     uploader_email: z.string().email(),
+    id_toko: z.coerce.number().int().min(0).optional().default(0),
+    nomor_ulok: z.string().optional(),
+    cabang: optionalText,
+    nama_toko: optionalText,
+    kode_toko: optionalText,
+    alamat_toko: optionalText,
+    proyek: optionalText,
+    jenis_proyek: optionalText,
     link_rab_sipil: z.string().optional(),
     link_rab_me: z.string().optional(),
-    id_rab_sipil: z.coerce.number().int().positive({ message: "RAB Sipil wajib dipilih" }),
-    id_rab_me: z.coerce.number().int().positive({ message: "RAB ME wajib dipilih" }),
+    id_rab_sipil: z.coerce.number().int().positive().optional().nullable(),
+    id_rab_me: z.coerce.number().int().positive().optional().nullable(),
     link_gambar_kerja_final_sipil: z.string().optional(),
     link_gambar_kerja_final_me: z.string().optional(),
     fasilitas: z.array(fasilitasItemSchema).optional().default([]),
@@ -332,6 +352,7 @@ export const listProjekPlanningQuerySchema = z.object({
     id_toko: z.coerce.number().int().positive().optional(),
     cabang_array: z.array(z.string()).optional(),
     _is_global_access: z.boolean().optional(),
+    jenis: z.union([z.string(), z.array(z.string())]).optional(),
 });
 
 export type ListProjekPlanningQuery = z.infer<typeof listProjekPlanningQuerySchema>;

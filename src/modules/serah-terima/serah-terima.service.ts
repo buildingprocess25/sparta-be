@@ -145,7 +145,7 @@ const getSerahTerimaReadiness = async (idToko: number) => {
         };
     }
 
-    const scopes = await ganttRepository.findSupervisionWorkspace(toko.nomor_ulok);
+    const scopes = await ganttRepository.findSupervisionWorkspace(toko.nomor_ulok, toko.takeover_sequence || 0);
     if (!scopes || scopes.length === 0) {
         return { ready: false, reason: "Gantt chart belum tersedia untuk toko ini" };
     }
@@ -492,7 +492,13 @@ export const serahTerimaService = {
         cabang?: string | null;
         actor?: AuthenticatedUser | null;
     }) {
-        if (!canManageSystemMaintenance(input.actor)) {
+        const actorRoles = input.actor?.roles ?? [];
+        const canView = actorRoles.some((role) => {
+            const r = String(role).trim().toUpperCase();
+            return r.includes("SUPER HUMAN")
+                || r.includes("STORE & BRANCH CONTROLLING");
+        });
+        if (!canView) {
             throw new AppError("Anda tidak memiliki akses untuk melihat riwayat koreksi tanggal serah terima.", 403);
         }
 
@@ -599,8 +605,8 @@ export const serahTerimaService = {
         };
     },
 
-    async createPdfSerahTerimaUnified(nomorUlok: string, options?: { createdAt?: string | null }) {
-        const scopes = await serahTerimaRepository.findTokoScopesByNomorUlok(nomorUlok);
+    async createPdfSerahTerimaUnified(nomorUlok: string, options?: { createdAt?: string | null, takeoverSequence?: number }) {
+        const scopes = await serahTerimaRepository.findTokoScopesByNomorUlok(nomorUlok, options?.takeoverSequence);
         if (scopes.length === 0) {
             throw new AppError("ULOK tidak ditemukan", 404);
         }

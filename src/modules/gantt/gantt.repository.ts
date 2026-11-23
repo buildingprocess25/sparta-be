@@ -71,6 +71,7 @@ export type TokoJoinRow = {
     cabang: string | null;
     alamat: string | null;
     nama_kontraktor: string | null;
+    takeover_sequence: number;
 };
 
 export type TokoStableFields = {
@@ -275,7 +276,14 @@ const effectiveSpkExpression = `
 // ---------------------------------------------------------------------------
 
 export const ganttRepository = {
-    async findSupervisionWorkspace(nomorUlok: string) {
+    async findSupervisionWorkspace(nomorUlok: string, takeoverSequence?: number) {
+        const values: unknown[] = [nomorUlok];
+        let tsFilter = "AND COALESCE(t.takeover_sequence, 0) = (SELECT COALESCE(MAX(takeover_sequence), 0) FROM toko WHERE nomor_ulok = $1)";
+        if (takeoverSequence !== undefined) {
+            values.push(takeoverSequence);
+            tsFilter = "AND COALESCE(t.takeover_sequence, 0) = $2";
+        }
+
         const result = await pool.query(
             `
             WITH scope AS (
@@ -351,7 +359,7 @@ export const ganttRepository = {
                     ORDER BY p.id DESC
                     LIMIT 1
                 ) spk ON true
-                WHERE t.nomor_ulok = $1
+                WHERE t.nomor_ulok = $1 ${tsFilter}
             ),
             target_pengawasan_gantt AS (
                 SELECT
@@ -403,13 +411,12 @@ export const ganttRepository = {
                     tpg.tanggal_pengawasan,
                     tpg.workflow_version,
                     COUNT(p.id)::int AS total_items,
-                    COUNT(p.id) FILTER (WHERE LOWER(TRIM(p.status)) = 'selesai')::int AS selesai_items,
+                    COUNT(p.id) FILTER (WHERE LOWER(TRIM(p.status)) IN ('selesai', 'tidak_dikerjakan'))::int AS selesai_items,
                     COUNT(p.id) FILTER (
-                        WHERE LOWER(TRIM(p.status)) IN ('selesai', 'progress', 'terlambat')
+                        WHERE LOWER(TRIM(p.status)) IN ('selesai', 'progress', 'terlambat', 'tidak_dikerjakan')
                     )::int AS filled_items,
                     COUNT(p.id) FILTER (
                         WHERE NULLIF(TRIM(COALESCE(p.dokumentasi, '')), '') IS NOT NULL
-                           OR NULLIF(TRIM(COALESCE(p.dokumentasi_base64, '')), '') IS NOT NULL
                     )::int AS documented_items,
                     COUNT(p.id) FILTER (
                         WHERE LOWER(TRIM(p.status)) = 'selesai'
@@ -488,7 +495,7 @@ export const ganttRepository = {
                     SELECT COUNT(*)::int
                     FROM latest_overall_status los
                     WHERE los.id_gantt = s.gantt_id
-                      AND LOWER(TRIM(COALESCE(los.status, ''))) != 'selesai'
+                      AND LOWER(TRIM(COALESCE(los.status, ''))) NOT IN ('selesai', 'tidak dikerjakan')
                 ) AS missing_pengawasan_checkpoints,
                 (
                     SELECT COUNT(*)::int
@@ -559,7 +566,7 @@ export const ganttRepository = {
                 END,
                 s.id_toko
             `,
-            [nomorUlok]
+            values
         );
 
         return result.rows.map((row: any) => {
@@ -705,6 +712,7 @@ export const ganttRepository = {
     async createWithDetails(payload: {
         // toko
         nomor_ulok: string;
+        takeover_sequence?: number;
         lingkup_pekerjaan?: string | null;
         nama_toko?: string | null;
         kode_toko?: string | null;
@@ -723,16 +731,25 @@ export const ganttRepository = {
         dependencies?: DependencyItemInput[];
     }): Promise<GanttRow & { toko_id: number }> {
         return withTransaction(async (client) => {
-            // 1. Upsert toko by kombinasi nomor_ulok + lingkup_pekerjaan
+            // 1. Upsert toko by kombinasi nomor_ulok + lingkup_pekerjaan + takeover_sequence
+            let tsFilter = "";
+            let values: unknown[] = [payload.nomor_ulok, payload.lingkup_pekerjaan ?? null];
+
+            if (payload.takeover_sequence !== undefined) {
+                values.push(payload.takeover_sequence);
+                tsFilter = `AND COALESCE(takeover_sequence, 0) = $3`;
+            }
+
             const existingTokoRes = await client.query<{ id: number }>(
                 `SELECT id
                  FROM toko
                  WHERE nomor_ulok = $1
                    AND LOWER(COALESCE(lingkup_pekerjaan, '')) = LOWER(COALESCE($2, ''))
+                   ${tsFilter}
                  ORDER BY id DESC
                  LIMIT 1
                  FOR UPDATE`,
-                [payload.nomor_ulok, payload.lingkup_pekerjaan ?? null]
+                values
             );
 
             let tokoId: number;
@@ -762,8 +779,8 @@ export const ganttRepository = {
                 const insertedTokoRes = await client.query<{ id: number }>(
                     `INSERT INTO toko (
                         nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko,
-                        proyek, cabang, alamat, nama_kontraktor
-                    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+                        proyek, cabang, alamat, nama_kontraktor, takeover_sequence
+                    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
                     RETURNING id`,
                     [
                         payload.nomor_ulok,
@@ -773,7 +790,8 @@ export const ganttRepository = {
                         payload.proyek ?? null,
                         payload.cabang ?? null,
                         payload.alamat ?? null,
-                        payload.nama_kontraktor ?? null
+                        payload.nama_kontraktor ?? null,
+                        payload.takeover_sequence ?? 0
                     ]
                 );
 
@@ -838,9 +856,9 @@ export const ganttRepository = {
 
         const header = await pool.query<GanttRow & TokoJoinRow>(
             `SELECT ${GANTT_COLUMNS},
-                t.id AS toko_id, t.nomor_ulok, t.lingkup_pekerjaan,
-                t.nama_toko, t.kode_toko, t.proyek, t.cabang, t.alamat, t.nama_kontraktor
-            FROM gantt_chart g
+                    t.id AS toko_id, t.nomor_ulok, t.lingkup_pekerjaan,
+                    t.nama_toko, t.kode_toko, t.proyek, t.cabang, t.alamat, t.nama_kontraktor, t.takeover_sequence
+             FROM gantt_chart g
             JOIN toko t ON t.id = g.id_toko
             WHERE ${headerConditions.join(" AND ")}`,
             headerValues
@@ -914,7 +932,8 @@ export const ganttRepository = {
             proyek: row.proyek,
             cabang: row.cabang,
             alamat: row.alamat,
-            nama_kontraktor: row.nama_kontraktor
+            nama_kontraktor: row.nama_kontraktor,
+            takeover_sequence: row.takeover_sequence
         };
         const instruksiLapanganItems = await instruksiLapanganRepository.getApprovedItemsByTokoId(gantt.id_toko);
 
@@ -991,7 +1010,7 @@ export const ganttRepository = {
 
         const result = await pool.query(
             `SELECT ${GANTT_COLUMNS},
-                t.nomor_ulok, t.lingkup_pekerjaan, t.nama_toko, t.cabang, t.proyek
+                t.nomor_ulok, t.lingkup_pekerjaan, t.nama_toko, t.cabang, t.proyek, t.takeover_sequence
              FROM gantt_chart g
              JOIN toko t ON t.id = g.id_toko
              ${whereClause}
@@ -1216,7 +1235,7 @@ export const ganttRepository = {
              WHERE d.id_kategori_pekerjaan_gantt = k.id
                AND d.id_gantt = $2
                AND k.id_gantt = $2
-               AND k.kategori_pekerjaan = $3
+               AND k.kategori_pekerjaan ILIKE $3
              RETURNING d.id`,
             [keterlambatan, ganttId, kategoriPekerjaan]
         );
@@ -1239,7 +1258,7 @@ export const ganttRepository = {
              FROM kategori_pekerjaan_gantt k
              WHERE d.id_kategori_pekerjaan_gantt = k.id
                AND d.id_gantt = $2
-               AND k.kategori_pekerjaan = $3
+               AND k.kategori_pekerjaan ILIKE $3
                AND d.h_awal = $4
                AND d.h_akhir = $5
              RETURNING d.id`,
@@ -1497,6 +1516,7 @@ export const ganttRepository = {
         kategori_pekerjaan: KategoriPekerjaanGanttRow[];
         day_items: (DayGanttRow & { kategori_pekerjaan: string })[];
         pengawasan: PengawasanGanttRow[];
+        pengawasan_items?: any[];
         dependencies: (DependencyGanttRow & {
             kategori_pekerjaan: string;
             kategori_pekerjaan_terikat: string;
@@ -1506,7 +1526,7 @@ export const ganttRepository = {
         // 1. Cek toko exists
         const tokoRes = await pool.query<TokoJoinRow>(
             `SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko,
-                    proyek, cabang, alamat, nama_kontraktor
+                    proyek, cabang, alamat, nama_kontraktor, takeover_sequence
              FROM toko WHERE id = $1`,
             [tokoId]
         );
@@ -1580,6 +1600,7 @@ export const ganttRepository = {
                 kategori_pekerjaan: [],
                 day_items: [],
                 pengawasan: [],
+                pengawasan_items: [],
                 dependencies: [],
                 instruksi_lapangan_items: instruksiLapanganItems
             };
@@ -1615,6 +1636,15 @@ export const ganttRepository = {
             [gantt.id]
         );
 
+        // 7.1 Pengawasan Items
+        const pengawasanItemsRes = await pool.query(
+            `SELECT id, id_gantt, kategori_pekerjaan, jenis_pekerjaan, status
+             FROM pengawasan
+             WHERE id_gantt = $1
+             ORDER BY id ASC`,
+            [gantt.id]
+        );
+
         // 8. Dependencies
         const depRes = await pool.query<
             DependencyGanttRow & {
@@ -1641,6 +1671,7 @@ export const ganttRepository = {
             kategori_pekerjaan: kategoriRes.rows,
             day_items: dayRes.rows,
             pengawasan: pengawasanRes.rows,
+            pengawasan_items: pengawasanItemsRes.rows,
             dependencies: depRes.rows,
             instruksi_lapangan_items: instruksiLapanganItems
         };

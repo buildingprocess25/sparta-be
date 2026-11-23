@@ -113,6 +113,7 @@ const addDependencyValidationIssues = (
 export const submitGanttSchema = z.object({
     // toko fields
     nomor_ulok: z.string().min(1),
+    takeover_sequence: z.number().optional(),
     lingkup_pekerjaan: nullableOptionalString,
     nama_toko: nullableOptionalString,
     kode_toko: nullableOptionalString,
@@ -265,6 +266,31 @@ export const ganttDetailByTokoSchema = z.object({
     id_toko: z.string().min(1).regex(/^\d+$/, "id_toko harus berupa angka")
 });
 
+// --- Takeover Inspection ---
+
+export const submitTakeoverInspectionSchema = z.object({
+    nomor_ulok: z.string().min(1),
+    tanggal_takeover: z.string().min(1),
+    items: z.array(z.object({
+        id_gantt: z.number(),
+        kategori_pekerjaan: z.string(),
+        jenis_pekerjaan: z.string().nullable().optional(),
+        status: z.enum(["Selesai", "Tidak Dikerjakan"]),
+        opname_data: z.object({
+            id_rab_item: z.number().optional(),
+            id_instruksi_lapangan_item: z.number().optional(),
+            volume_akhir: z.number(),
+            selisih_volume: z.number(),
+            total_selisih: z.number(),
+            total_harga_opname: z.number(),
+            desain: z.string(),
+            kualitas: z.string(),
+            spesifikasi: z.string(),
+            catatan: z.string().optional()
+        }).optional()
+    }))
+});
+
 // --- Types ---
 
 export type GanttDetailByTokoParams = z.infer<typeof ganttDetailByTokoSchema>;
@@ -282,3 +308,4 @@ export type UpdateKeterlambatanInput = z.infer<typeof updateKeterlambatanSchema>
 export type UpdateKecepatanInput = z.infer<typeof updateKecepatanSchema>;
 export type ManagePengawasanInput = z.infer<typeof managePengawasanSchema>;
 export type CreateGanttNoteInput = z.infer<typeof createGanttNoteSchema>;
+export type SubmitTakeoverInspectionInput = z.infer<typeof submitTakeoverInspectionSchema>;

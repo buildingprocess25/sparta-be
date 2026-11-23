@@ -14,7 +14,10 @@ declare global {
 
 const PUBLIC_API_PATHS = new Set([
     "/api/auth/login",
-    "/api/auth/verify-otp"
+    "/api/auth/verify-otp",
+    "/api/auth/sso/callback",
+    "/api/auth/sso/resolve",
+    "/api/sso/webhook/email"
 ]);
 
 const MAINTENANCE_STATUS_CACHE_MS = 5_000;
@@ -120,6 +123,7 @@ function isProtectedPath(path: string): boolean {
     if (PUBLIC_API_PATHS.has(path)) return false;
     if (path === "/health") return false;
     if (path === "/get-data" || path === "/get-data-price-rab") return true;
+    if (/^\/api\/dc-development\/documents\/\d+\/(view|download)$/.test(path)) return false;
     return path.startsWith("/api/");
 }
 

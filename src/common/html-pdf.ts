@@ -484,7 +484,7 @@ export const renderPdfFromHtml = async (html: string): Promise<Buffer> => {
         || localChromeCandidates.find((candidate) => fsSync.existsSync(candidate))
         || findPuppeteerChromePath()
         || undefined;
-    const navigationTimeoutMs = env.PUPPETEER_NAVIGATION_TIMEOUT_MS ?? 120000;
+    const navigationTimeoutMs = env.PUPPETEER_NAVIGATION_TIMEOUT_MS ?? 240000;
     const browser = await puppeteer.launch({
         headless: true,
         args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage", "--disable-gpu"],

@@ -80,9 +80,9 @@ export const buildFinancialSummary = (
 
 export const calculateOpnameFinalFinancials = (input: OpnameFinalFinancialInput) => {
     const rab = buildFinancialSummary(input.rab, "down", input.noPpn);
-    const instruksiLapangan = buildFinancialSummary(input.instruksiLapangan, "up", input.noPpn);
-    const kerjaTambah = buildFinancialSummary(input.kerjaTambah, "up", input.noPpn);
-    const kerjaKurang = buildFinancialSummary(input.kerjaKurang, "up", input.noPpn);
+    const instruksiLapangan = buildFinancialSummary(input.instruksiLapangan, "down", input.noPpn);
+    const kerjaTambah = buildFinancialSummary(input.kerjaTambah, "down", input.noPpn);
+    const kerjaKurang = buildFinancialSummary(input.kerjaKurang, "down", input.noPpn);
     const denda = finiteNumber(input.denda);
 
     return {

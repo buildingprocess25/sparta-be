@@ -12,6 +12,7 @@ export type TokoRow = {
     cabang: string;
     alamat: string;
     nama_kontraktor: string | null;
+    has_takeover_inspection?: boolean;
 };
 
 export type UserCabangRow = {
@@ -94,21 +95,32 @@ export const tokoRepository = {
         return result.rows;
     },
 
-    async findByNomorUlokAndLingkup(nomorUlok: string, lingkupPekerjaan?: string | null): Promise<TokoRow | null> {
+    async findByNomorUlokAndLingkup(nomorUlok: string, lingkupPekerjaan?: string | null, takeoverSequence?: number): Promise<TokoRow | null> {
         const normalizedLingkup = lingkupPekerjaan?.trim().toUpperCase() || null;
         console.log('[TOKO DEBUG] findByNomorUlokAndLingkup called:', {
             input_ulok: nomorUlok,
             input_lingkup: lingkupPekerjaan,
-            normalized_lingkup: normalizedLingkup
+            normalized_lingkup: normalizedLingkup,
+            takeover_sequence: takeoverSequence
         });
+
+        let tsFilter = "";
+        let values: any[] = [nomorUlok, normalizedLingkup];
+        
+        if (takeoverSequence !== undefined) {
+            values.push(takeoverSequence);
+            tsFilter = `AND COALESCE(takeover_sequence, 0) = $3`;
+        }
+
         const result = await pool.query<TokoRow>(
-            `SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor
+            `SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor, takeover_sequence
              FROM toko
              WHERE UPPER(TRIM(nomor_ulok)) = UPPER(TRIM($1))
                AND UPPER(TRIM(COALESCE(lingkup_pekerjaan, ''))) = UPPER(TRIM(COALESCE($2, '')))
+               ${tsFilter}
              ORDER BY id DESC
              LIMIT 1`,
-            [nomorUlok, normalizedLingkup]
+            values
         );
 
         console.log('[TOKO DEBUG] Query result:', {
@@ -121,9 +133,9 @@ export const tokoRepository = {
         return result.rows[0] ?? null;
     },
 
-    async findById(id: number): Promise<TokoRow | null> {
-        const result = await pool.query<TokoRow>(
-            `SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor FROM toko WHERE id = $1`,
+    async findById(id: number): Promise<TokoRow & { takeover_sequence?: number }> {
+        const result = await pool.query<TokoRow & { takeover_sequence?: number }>(
+            `SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor, takeover_sequence FROM toko WHERE id = $1`,
             [id]
         );
 
@@ -246,10 +258,12 @@ export const tokoRepository = {
         const whereClause = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
         const result = await pool.query<TokoRow>(
             `
-      SELECT id, nomor_ulok, lingkup_pekerjaan, nama_toko, kode_toko, proyek, cabang, alamat, nama_kontraktor
-      FROM toko
-      ${whereClause}
-      ORDER BY nama_toko ASC
+      SELECT t.id, t.nomor_ulok, t.lingkup_pekerjaan, t.nama_toko, t.kode_toko, t.proyek, t.cabang, t.alamat, t.nama_kontraktor,
+             (ti.id IS NOT NULL) AS has_takeover_inspection
+      FROM toko t
+      LEFT JOIN takeover_inspections ti ON ti.nomor_ulok = t.nomor_ulok
+      ${whereClause ? whereClause.replace(/nomor_ulok/g, 't.nomor_ulok').replace(/nama_toko/g, 't.nama_toko').replace(/kode_toko/g, 't.kode_toko').replace(/cabang/g, 't.cabang') : ""}
+      ORDER BY t.nama_toko ASC
       `,
             values
         );

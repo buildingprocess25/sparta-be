@@ -195,3 +195,8 @@ export type ContractorCheckpointOpnameItemInput = z.infer<typeof contractorCheck
 export type ContractorCheckpointOpnameSubmitInput = z.infer<typeof contractorCheckpointOpnameSubmitSchema>;
 export type SupportOpnameReviewDecisionInput = z.infer<typeof supportOpnameReviewDecisionSchema>;
 export type ContractorOpnameRevisionInput = z.infer<typeof contractorOpnameRevisionSchema>;
+
+export const bulkApproveOpnameSchema = z.object({
+    id_toko: z.coerce.number().int().positive()
+});
+export type BulkApproveOpnameInput = z.infer<typeof bulkApproveOpnameSchema>;

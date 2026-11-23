@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const pengawasanStatusSchema = z.enum(["progress", "selesai", "terlambat"]);
+export const pengawasanStatusSchema = z.enum(["progress", "selesai", "terlambat", "tidak_dikerjakan"]);
 
 export const createPengawasanSchema = z.object({
     id_gantt: z.coerce.number().int().positive(),
@@ -10,6 +10,7 @@ export const createPengawasanSchema = z.object({
     catatan: z.string().trim().min(1).optional(),
     dokumentasi: z.string().trim().min(1).optional(),
     status: pengawasanStatusSchema.optional(),
+    append_resolution: z.coerce.boolean().optional(),
     opname_data: z.object({
         id_toko: z.coerce.number().int().positive(),
         id_rab_item: z.coerce.number().int().positive().optional(),

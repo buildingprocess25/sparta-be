@@ -444,6 +444,26 @@ export const opnameRepository = {
             }
 
             const items: OpnameRow[] = [];
+            
+            // SECURITY FIX: Validate that all submitted rab items actually belong to the payload's id_toko
+            const rabItemIds = payload.items.map(i => i.id_rab_item).filter(id => id);
+            if (rabItemIds.length > 0) {
+                const rabItemCheck = await client.query(
+                    `
+                    SELECT ri.id, r.id_toko
+                    FROM rab_item ri
+                    JOIN rab r ON r.id = ri.id_rab
+                    WHERE ri.id = ANY($1::int[])
+                    `,
+                    [rabItemIds]
+                );
+                for (const row of rabItemCheck.rows) {
+                    if (Number(row.id_toko) !== Number(payload.id_toko)) {
+                        throw new Error(`Validasi gagal: Item pekerjaan (RAB ID: ${row.id}) tidak sesuai dengan proyek toko yang dipilih (Toko ID: ${payload.id_toko}). Kemungkinan ada ketidaksesuaian data pada sisi aplikasi.`);
+                    }
+                }
+            }
+
             for (const item of payload.items) {
                 const itemTokoId = item.id_toko ?? payload.id_toko;
                 const itemStatus = shouldResetItemsToPending ? "pending" : (item.status ?? "pending");
@@ -1456,5 +1476,99 @@ export const opnameRepository = {
         );
 
         return (result.rowCount ?? 0) > 0;
+    },
+
+    async syncApprovedInstruksiLapangan(idToko: number, idInstruksiLapangan: number): Promise<void> {
+        // 1. Get the opname configuration for this toko if it exists
+        const opfRes = await pool.query(`
+            SELECT id_opname_final, workflow_version, id_pengawasan_gantt_target, tanggal_slot_opname
+            FROM opname_item 
+            WHERE id_toko = $1 
+            LIMIT 1
+        `, [idToko]);
+
+        const opfRow = opfRes.rows[0] ?? null;
+        if (!opfRow) {
+            // Opname hasn't been generated yet (Pengawasan not finished).
+            // IL will be picked up naturally when opname is generated later.
+            return;
+        }
+
+        // 2. Find IL items that are missing in opname_item
+        const missingIlItemsRes = await pool.query(`
+            SELECT ili.id, ili.volume, ili.total_harga
+            FROM instruksi_lapangan_item ili
+            WHERE ili.id_instruksi_lapangan = $1
+            AND ili.id NOT IN (
+                SELECT id_instruksi_lapangan_item FROM opname_item 
+                WHERE id_toko = $2 AND id_instruksi_lapangan_item IS NOT NULL
+            )
+        `, [idInstruksiLapangan, idToko]);
+
+        if (missingIlItemsRes.rowCount === 0) {
+            return;
+        }
+
+        // 3. Insert missing IL items to opname_item
+        for (const item of missingIlItemsRes.rows) {
+            const workflowVersion = opfRow.workflow_version === 'legacy' ? 'legacy' : 1;
+            const targetGantt = opfRow.workflow_version === 'legacy' ? null : opfRow.id_pengawasan_gantt_target;
+            const targetDate = opfRow.workflow_version === 'legacy' ? null : opfRow.tanggal_slot_opname;
+
+            await pool.query(`
+                INSERT INTO opname_item (
+                    id_toko,
+                    id_opname_final,
+                    id_instruksi_lapangan_item,
+                    status,
+                    volume_akhir,
+                    selisih_volume,
+                    total_selisih,
+                    total_harga_opname,
+                    workflow_version,
+                    id_pengawasan_gantt_target,
+                    tanggal_slot_opname,
+                    desain,
+                    kualitas,
+                    spesifikasi
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+            `, [
+                idToko,
+                opfRow.id_opname_final,
+                item.id,
+                'pending',
+                item.volume,
+                0,
+                0,
+                Math.round(parseFloat(item.total_harga)),
+                workflowVersion,
+                targetGantt,
+                targetDate,
+                'Sesuai',
+                'Sesuai',
+                'Sesuai'
+            ]);
+        }
+    },
+
+    async bulkApproveByTokoId(
+        idToko: number,
+        existingClient?: PoolClient
+    ): Promise<{ updatedCount: number; idOpnameFinal?: number }> {
+        const db = existingClient ?? pool;
+        const result = await db.query<{ id: number; id_opname_final: number }>(
+            `
+            UPDATE opname_item
+            SET status = 'disetujui'
+            WHERE id_toko = $1 AND status = 'pending'
+            RETURNING id, id_opname_final
+            `,
+            [idToko]
+        );
+
+        const updatedCount = result.rowCount ?? 0;
+        const idOpnameFinal = result.rows[0]?.id_opname_final;
+
+        return { updatedCount, idOpnameFinal };
     }
 };

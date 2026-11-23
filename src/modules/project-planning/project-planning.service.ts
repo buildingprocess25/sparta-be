@@ -4,9 +4,10 @@ import { projekPlanningRepository } from "./project-planning.repository";
 import { GoogleProvider } from "../../common/google";
 import { env } from "../../config/env";
 import { emailNotificationService } from "../email-notification/email-notification.service";
-import { buildProjekPlanningPdfBuffer } from "./project-planning.pdf";
+import { buildProjekPlanningPdfBuffer, buildProjekPlanningPhotosPdfBuffer } from "./project-planning.pdf";
 import { compressImage } from "../../common/image-compressor";
 import { normalizeProjectByUlok } from "../../common/project-type";
+import { userCabangRepository } from "../user-cabang/user-cabang.repository";
 
 const PROJECT_PLANNING_DRIVE_FOLDER_ID = env.PROJECT_PLANNING_DRIVE_FOLDER_ID;
 
@@ -17,12 +18,20 @@ async function uploadCompressedFile(file: Express.Multer.File, folderId: string)
 }
 
 async function uploadCompressedFiles(files: Express.Multer.File[], folderId: string): Promise<string | undefined> {
-    const links: string[] = [];
-    for (const file of files.slice(0, 2)) {
-        const link = await uploadCompressedFile(file, folderId);
-        if (link) links.push(link);
+    const validFiles = files.slice(0, 2);
+    const links = await Promise.all(validFiles.map(file => uploadCompressedFile(file, folderId)));
+    const filtered = links.filter(Boolean) as string[];
+    return filtered.length > 0 ? filtered.join("\n") : undefined;
+}
+
+async function uploadBatchConcurrent<T, R>(items: T[], concurrency: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+    const results: R[] = [];
+    for (let i = 0; i < items.length; i += concurrency) {
+        const chunk = items.slice(i, i + concurrency);
+        const chunkResults = await Promise.all(chunk.map(fn));
+        results.push(...chunkResults);
     }
-    return links.length > 0 ? links.join("\n") : undefined;
+    return results;
 }
 
 async function uploadPdfToDrive(buffer: Buffer, filename: string, nomorUlok?: string | null, namaToko?: string | null, kodeToko?: string | null, cabang?: string | null): Promise<string> {
@@ -75,10 +84,10 @@ function isDarkStoreDesign(value: unknown): boolean {
 }
 
 function shouldSkipBmApproval(cabang: unknown): boolean {
-    return ["BOGOR"].includes(normalizeCabang(cabang));
+    return ["BATAM"].includes(normalizeCabang(cabang));
 }
 
-const BRANCHES_WITH_COORDINATOR_BM_APPROVAL = ["BATAM"];
+const BRANCHES_WITH_COORDINATOR_BM_APPROVAL: string[] = [];
 const canCoordinatorApproveBmForBranch = (branch?: string | null) =>
     BRANCHES_WITH_COORDINATOR_BM_APPROVAL.includes(normalizeCabang(branch));
 function getInitialSubmitMeta(cabang: unknown) {
@@ -197,6 +206,53 @@ import type {
     ProjekPlanningInterventionInput,
 } from "./project-planning.schema";
 
+async function sendPpNotificationEmail(
+    type: "ACTION_REQUIRED" | "REJECTED",
+    projek: { id: number; cabang?: string | null; nomor_ulok: string; nama_toko: string; email_pembuat: string },
+    targetRole: string | "COORDINATOR",
+    customPesanAtauAlasan: string,
+    ditolakOleh?: string
+) {
+    try {
+        let toEmails: string[] = [];
+        
+        if (targetRole === "COORDINATOR") {
+            if (projek.email_pembuat) toEmails.push(projek.email_pembuat);
+        } else if (targetRole === "BRANCH BUILDING & MAINTENANCE MANAGER") {
+            const users = await userCabangRepository.findAll({ cabang: projek.cabang ?? undefined, jabatan: targetRole });
+            toEmails = users.map(u => u.email_sat);
+        } else {
+            const users = await userCabangRepository.findAll({ jabatan: targetRole });
+            toEmails = users.map(u => u.email_sat);
+        }
+
+        if (toEmails.length === 0) {
+            console.warn(`[PP Email] Tidak ada penerima untuk role ${targetRole} pada projek ${projek.id}`);
+            return;
+        }
+
+        const template = type === "ACTION_REQUIRED" ? "send-notification-pp-action-required.njk" : "send-notification-pp-rejected.njk";
+        const subject = type === "ACTION_REQUIRED" ? "SPARTA Building - FPD Memerlukan Tindakan" : "SPARTA Building - FPD Ditolak";
+
+        await emailNotificationService.sendCustom({
+            to: toEmails,
+            subject,
+            template,
+            templateData: {
+                nama_lengkap: targetRole === "COORDINATOR" ? "Bapak/Ibu" : targetRole,
+                cabang: projek.cabang,
+                nomor_ulok: projek.nomor_ulok,
+                nama_toko: projek.nama_toko,
+                pesan: type === "ACTION_REQUIRED" ? customPesanAtauAlasan : undefined,
+                alasan_penolakan: type === "REJECTED" ? customPesanAtauAlasan : undefined,
+                ditolak_oleh: ditolakOleh
+            }
+        });
+    } catch (err) {
+        console.error(`[PP Email] Gagal mengirim email ${type} ke ${targetRole}:`, err);
+    }
+}
+
 export const projekPlanningService = {
 
     // ============================================================
@@ -246,45 +302,52 @@ export const projekPlanningService = {
             try {
                 const folderId = await GoogleProvider.instance.getOrCreateProcessFolder("RAB", payload.nomor_ulok, payload.nama_lokasi || payload.nama_toko || null, payload.kode_toko || null, payload.cabang || null);
 
-                if (fFpd.length > 0) {
-                    const link = await uploadCompressedFiles(fFpd, folderId);
-                    if (link) fpdLink = link;
-                }
-                if (fGambarKerjaMe.length > 0) {
-                    const link = await uploadCompressedFiles(fGambarKerjaMe, folderId);
-                    if (link) gambarKerjaMe = link;
-                }
+                // 1. Upload dokumen FPD, ME, Siteplan, BA secara paralel
+                const [upFpd, upMe, upSiteplan, upBa] = await Promise.all([
+                    fFpd.length > 0 ? uploadCompressedFiles(fFpd, folderId) : Promise.resolve(undefined),
+                    fGambarKerjaMe.length > 0 ? uploadCompressedFiles(fGambarKerjaMe, folderId) : Promise.resolve(undefined),
+                    fSiteplan.length > 0 ? uploadCompressedFiles(fSiteplan, folderId) : Promise.resolve(undefined),
+                    fBaTidakSesuaiStandar.length > 0 ? uploadCompressedFiles(fBaTidakSesuaiStandar, folderId) : Promise.resolve(undefined),
+                ]);
+                if (upFpd) fpdLink = upFpd;
+                if (upMe) gambarKerjaMe = upMe;
+                if (upSiteplan) siteplanLink = upSiteplan;
+                if (upBa) baTidakSesuaiStandarLink = upBa;
+
                 if (fKompetitor.length > 0) {
-                    const uploadedLinks: string[] = [];
-                    for (const [idx, file] of fKompetitor.slice(0, 2).entries()) {
-                        const link = await uploadCompressedFile(file, folderId);
-                        if (link) {
-                            uploadedLinks.push(link);
-                            fotoItemsLinks.push({ item_index: 39 + idx, link_foto: link });
-                        }
+                    const compResults = await Promise.all(
+                        fKompetitor.slice(0, 2).map(async (file, idx) => {
+                            const link = await uploadCompressedFile(file, folderId);
+                            return link ? { link, item_index: 39 + idx } : null;
+                        })
+                    );
+                    const validComp = compResults.filter(Boolean) as { link: string; item_index: number }[];
+                    if (validComp.length > 0) {
+                        gambarKompetitor = validComp.map(v => v.link).join("\n");
+                        validComp.forEach(v => fotoItemsLinks.push({ item_index: v.item_index, link_foto: v.link }));
                     }
-                    const link = uploadedLinks.length > 0 ? uploadedLinks.join("\n") : undefined;
-                    if (link) gambarKompetitor = link;
-                }
-                if (fSiteplan.length > 0) {
-                    const link = await uploadCompressedFiles(fSiteplan, folderId);
-                    if (link) siteplanLink = link;
-                }
-                if (fBaTidakSesuaiStandar.length > 0) {
-                    const link = await uploadCompressedFiles(fBaTidakSesuaiStandar, folderId);
-                    if (link) baTidakSesuaiStandarLink = link;
                 }
 
-                // Process foto_items_X
+                // 2. Process foto_items_X secara paralel (concurrency 5)
+                const photoTasks: { file: Express.Multer.File; index: number }[] = [];
                 for (const file of files) {
                     const match = itemRegex.exec(file.fieldname);
                     if (match) {
                         const index = parseInt(match[1], 10);
                         if (!isNaN(index)) {
-                            const link = await uploadCompressedFile(file, folderId);
-                            if (link) fotoItemsLinks.push({ item_index: index, link_foto: link });
+                            photoTasks.push({ file, index });
                         }
                     }
+                }
+
+                if (photoTasks.length > 0) {
+                    const uploadedPhotos = await uploadBatchConcurrent(photoTasks, 5, async (task) => {
+                        const link = await uploadCompressedFile(task.file, folderId);
+                        return link ? { item_index: task.index, link_foto: link } : null;
+                    });
+                    uploadedPhotos.forEach((item) => {
+                        if (item) fotoItemsLinks.push(item);
+                    });
                 }
             } catch (e) {
                 console.error("Gagal upload file FPD/RAB/Foto ke Drive:", e);
@@ -345,6 +408,14 @@ export const projekPlanningService = {
             await projekPlanningRepository.createFotoItemsBulk(created.id, fotoItemsLinks);
         }
 
+        const skipBm = shouldSkipBmApproval(payload.cabang);
+        const pInfo = { id: created.id, cabang: payload.cabang, nomor_ulok: payload.nomor_ulok, nama_toko: payload.nama_toko || payload.nama_lokasi || "", email_pembuat: payload.email_pembuat };
+        if (!skipBm) {
+            sendPpNotificationEmail("ACTION_REQUIRED", pInfo, "BRANCH BUILDING & MAINTENANCE MANAGER", "FPD baru telah diajukan oleh Coordinator, menunggu persetujuan Anda.");
+        } else {
+            sendPpNotificationEmail("ACTION_REQUIRED", pInfo, "PROJECT PLANNING & DEVELOPMENT SPECIALIST", "FPD baru telah diajukan (Bypass BM Manager), menunggu review tahap 1.");
+        }
+
         return created;
     },
 
@@ -384,45 +455,52 @@ export const projekPlanningService = {
             try {
                 const folderId = await GoogleProvider.instance.getOrCreateProcessFolder("RAB", projek.nomor_ulok, payload.nama_lokasi || payload.nama_toko || projek.nama_toko || null, payload.kode_toko || projek.kode_toko || null, payload.cabang || projek.cabang || null);
 
-                if (fFpd.length > 0) {
-                    const link = await uploadCompressedFiles(fFpd, folderId);
-                    if (link) fpdLink = link;
-                }
-                if (fGambarKerjaMe.length > 0) {
-                    const link = await uploadCompressedFiles(fGambarKerjaMe, folderId);
-                    if (link) gambarKerjaMe = link;
-                }
+                // 1. Upload dokumen FPD, ME, Siteplan, BA secara paralel
+                const [upFpd, upMe, upSiteplan, upBa] = await Promise.all([
+                    fFpd.length > 0 ? uploadCompressedFiles(fFpd, folderId) : Promise.resolve(undefined),
+                    fGambarKerjaMe.length > 0 ? uploadCompressedFiles(fGambarKerjaMe, folderId) : Promise.resolve(undefined),
+                    fSiteplan.length > 0 ? uploadCompressedFiles(fSiteplan, folderId) : Promise.resolve(undefined),
+                    fBaTidakSesuaiStandar.length > 0 ? uploadCompressedFiles(fBaTidakSesuaiStandar, folderId) : Promise.resolve(undefined),
+                ]);
+                if (upFpd) fpdLink = upFpd;
+                if (upMe) gambarKerjaMe = upMe;
+                if (upSiteplan) siteplanLink = upSiteplan;
+                if (upBa) baTidakSesuaiStandarLink = upBa;
+
                 if (fKompetitor.length > 0) {
-                    const uploadedLinks: string[] = [];
-                    for (const [idx, file] of fKompetitor.slice(0, 2).entries()) {
-                        const link = await uploadCompressedFile(file, folderId);
-                        if (link) {
-                            uploadedLinks.push(link);
-                            fotoItemsLinks.push({ item_index: 39 + idx, link_foto: link });
-                        }
+                    const compResults = await Promise.all(
+                        fKompetitor.slice(0, 2).map(async (file, idx) => {
+                            const link = await uploadCompressedFile(file, folderId);
+                            return link ? { link, item_index: 39 + idx } : null;
+                        })
+                    );
+                    const validComp = compResults.filter(Boolean) as { link: string; item_index: number }[];
+                    if (validComp.length > 0) {
+                        gambarKompetitor = validComp.map(v => v.link).join("\n");
+                        validComp.forEach(v => fotoItemsLinks.push({ item_index: v.item_index, link_foto: v.link }));
                     }
-                    const link = uploadedLinks.length > 0 ? uploadedLinks.join("\n") : undefined;
-                    if (link) gambarKompetitor = link;
-                }
-                if (fSiteplan.length > 0) {
-                    const link = await uploadCompressedFiles(fSiteplan, folderId);
-                    if (link) siteplanLink = link;
-                }
-                if (fBaTidakSesuaiStandar.length > 0) {
-                    const link = await uploadCompressedFiles(fBaTidakSesuaiStandar, folderId);
-                    if (link) baTidakSesuaiStandarLink = link;
                 }
 
-                // Process foto_items_X
+                // 2. Process foto_items_X secara paralel (concurrency 5)
+                const photoTasks: { file: Express.Multer.File; index: number }[] = [];
                 for (const file of files) {
                     const match = itemRegex.exec(file.fieldname);
                     if (match) {
                         const index = parseInt(match[1], 10);
                         if (!isNaN(index)) {
-                            const link = await uploadCompressedFile(file, folderId);
-                            if (link) fotoItemsLinks.push({ item_index: index, link_foto: link });
+                            photoTasks.push({ file, index });
                         }
                     }
+                }
+
+                if (photoTasks.length > 0) {
+                    const uploadedPhotos = await uploadBatchConcurrent(photoTasks, 5, async (task) => {
+                        const link = await uploadCompressedFile(task.file, folderId);
+                        return link ? { item_index: task.index, link_foto: link } : null;
+                    });
+                    uploadedPhotos.forEach((item) => {
+                        if (item) fotoItemsLinks.push(item);
+                    });
                 }
             } catch (e) {
                 console.error("Gagal upload file FPD/RAB/Foto ke Drive:", e);
@@ -449,7 +527,7 @@ export const projekPlanningService = {
             link_ba_tidak_sesuai_standar: baTidakSesuaiStandarLink ?? projek.link_ba_tidak_sesuai_standar ?? null,
         });
 
-        const normalizedProject = normalizeProjectByUlok(projek.nomor_ulok, payload.jenis_proyek || projek.proyek);
+        const normalizedProject = normalizeProjectByUlok(payload.nomor_ulok || projek.nomor_ulok, payload.jenis_proyek || projek.proyek);
 
         const updated = await projekPlanningRepository.resubmitDraft(id, {
             ...payload,
@@ -457,6 +535,8 @@ export const projekPlanningService = {
             jarak_head_to_head: darkStoreDesign ? null : payload.jarak_head_to_head,
             is_seating_area: darkStoreDesign ? false : payload.is_seating_area,
             is_dark_store: darkStoreDesign ? false : payload.is_dark_store,
+            id_toko: payload.id_toko ?? projek.id_toko ?? 0,
+            nomor_ulok: payload.nomor_ulok || projek.nomor_ulok || null,
             nama_toko: payload.nama_toko || payload.nama_lokasi || projek.nama_toko || null,
             kode_toko: payload.kode_toko || projek.kode_toko || null,
             cabang: payload.cabang || projek.cabang || null,
@@ -488,6 +568,14 @@ export const projekPlanningService = {
             for (const item of fotoItemsLinks) {
                 await projekPlanningRepository.upsertFotoItem(id, item.item_index, item.link_foto);
             }
+        }
+
+        const pInfo = { id, cabang: projek.cabang, nomor_ulok: projek.nomor_ulok, nama_toko: projek.nama_toko || projek.nama_lokasi || "", email_pembuat: projek.email_pembuat };
+        const skipBm = shouldSkipBmApproval(projek.cabang);
+        if (!skipBm) {
+            sendPpNotificationEmail("ACTION_REQUIRED", pInfo, "BRANCH BUILDING & MAINTENANCE MANAGER", "FPD telah diajukan ulang oleh Coordinator, menunggu persetujuan Anda.");
+        } else {
+            sendPpNotificationEmail("ACTION_REQUIRED", pInfo, "PROJECT PLANNING & DEVELOPMENT SPECIALIST", "FPD telah diajukan ulang (Bypass BM Manager), menunggu review tahap 1.");
         }
 
         return updated;
@@ -558,6 +646,15 @@ export const projekPlanningService = {
         }
 
         return buildProjekPlanningPdfBuffer(item.projek);
+    },
+
+    async generatePhotosPdf(projekPlanningId: number): Promise<Buffer> {
+        const item = await projekPlanningRepository.findById(projekPlanningId);
+        if (!item) {
+            throw new AppError("Data Project Planning tidak ditemukan", 404);
+        }
+
+        return buildProjekPlanningPhotosPdfBuffer(item.projek);
     },
 
     async generatePdfAndStoreLink(projekPlanningId: number): Promise<{ buffer: Buffer; link_pdf: string }> {
@@ -635,6 +732,17 @@ export const projekPlanningService = {
                     : (client) => projekPlanningRepository.updateStatusAndRejectToDraft(id, PP_ROLE.BM, action, client)
         );
 
+        const pInfo = { id, cabang: projek.cabang, nomor_ulok: projek.nomor_ulok, nama_toko: projek.nama_toko || projek.nama_lokasi || "", email_pembuat: projek.email_pembuat };
+        if (isApprove) {
+            if (isStage2) {
+                sendPpNotificationEmail("ACTION_REQUIRED", pInfo, "BUILDING & MAINTENANCE REGIONAL MANAGER", "FPD telah disetujui oleh B&M Manager tahap 2, menunggu persetujuan B&M Regional Manager.");
+            } else {
+                sendPpNotificationEmail("ACTION_REQUIRED", pInfo, "PROJECT PLANNING & DEVELOPMENT SPECIALIST", "FPD telah disetujui oleh BM Manager, menunggu review tahap 1.");
+            }
+        } else {
+            sendPpNotificationEmail("REJECTED", pInfo, "COORDINATOR", action.alasan_penolakan || "Ditolak oleh BM Manager", "BM Manager");
+        }
+
         return {
             id,
             old_status: projek.status,
@@ -711,6 +819,13 @@ export const projekPlanningService = {
             }
         );
 
+        const pInfo = { id, cabang: projek.cabang, nomor_ulok: projek.nomor_ulok, nama_toko: projek.nama_toko || projek.nama_lokasi || "", email_pembuat: projek.email_pembuat };
+        if (action.rab_tindakan === "APPROVE" && action.gambar_tindakan === "APPROVE") {
+            sendPpNotificationEmail("ACTION_REQUIRED", pInfo, "PROJECT PLANNING & DEVELOPMENT SPECIALIST", "FPD telah disetujui oleh B&M Regional Manager, menunggu review tahap final.");
+        } else {
+            sendPpNotificationEmail("REJECTED", pInfo, "COORDINATOR", getFinalReviewRejectReason(action, buildFinalReviewSummary(action)), "B&M Regional Manager");
+        }
+
         return {
             id,
             old_status: projek.status,
@@ -767,6 +882,13 @@ export const projekPlanningService = {
                 ? (client) => projekPlanningRepository.updateStatusAndPp1Approval(id, newStatus, action, client)
                 : (client) => projekPlanningRepository.updateStatusAndRejectToDraft(id, PP_ROLE.PP_SPECIALIST, action, client)
         );
+
+        const pInfo = { id, cabang: projek.cabang, nomor_ulok: projek.nomor_ulok, nama_toko: projek.nama_toko || projek.nama_lokasi || "", email_pembuat: projek.email_pembuat };
+        if (isApprove) {
+            sendPpNotificationEmail("ACTION_REQUIRED", pInfo, "COORDINATOR", keterangan);
+        } else {
+            sendPpNotificationEmail("REJECTED", pInfo, "COORDINATOR", action.alasan_penolakan || "Ditolak", "PP Specialist");
+        }
 
         return {
             id,
@@ -855,10 +977,16 @@ export const projekPlanningService = {
         let linkRabMe = payload.link_rab_me;
         let linkGambarSipil = payload.link_gambar_kerja_final_sipil;
         let linkGambarMe = payload.link_gambar_kerja_final_me;
-        const approvedRabs = await projekPlanningRepository.findApprovedRabsByNomorUlok(projek.nomor_ulok);
-        if (approvedRabs.length === 0) {
+        
+        const ulokToUse = payload.nomor_ulok || projek.nomor_ulok;
+        const approvedRabs = await projekPlanningRepository.findApprovedRabsByNomorUlok(ulokToUse);
+        
+        const hasManualSipil = Boolean(linkRabSipil || (files && (files["file_rab_sipil"]?.length ?? 0) > 0));
+        const hasManualMe = Boolean(linkRabMe || (files && (files["file_rab_me"]?.length ?? 0) > 0));
+
+        if (approvedRabs.length === 0 && !hasManualSipil && !hasManualMe) {
             throw new AppError(
-                "RAB untuk ULOK ini belum diinput kontraktor atau belum selesai approval. Input dan approve RAB terlebih dahulu sebelum melanjutkan FPD.",
+                "RAB untuk ULOK ini belum diinput kontraktor atau belum selesai approval. Input dan approve RAB terlebih dahulu sebelum melanjutkan FPD, atau upload dokumen RAB manual.",
                 422
             );
         }
@@ -876,9 +1004,15 @@ export const projekPlanningService = {
         if (payload.id_rab_me && !selectedRabMe) {
             throw new AppError("RAB ME yang dipilih tidak ditemukan atau belum approved untuk ULOK ini.", 422);
         }
-        if (!selectedRabSipil && !selectedRabMe) {
+        if (!selectedRabSipil && !hasManualSipil) {
             throw new AppError(
-                "RAB approved tersedia, tetapi belum ada RAB dengan lingkup Sipil atau ME untuk ULOK ini.",
+                "RAB Sipil belum disetujui atau belum diupload secara manual.",
+                422
+            );
+        }
+        if (!selectedRabMe && !hasManualMe) {
+            throw new AppError(
+                "RAB ME belum disetujui atau belum diupload secara manual.",
                 422
             );
         }
@@ -888,6 +1022,8 @@ export const projekPlanningService = {
         if (files) {
             const fGambarSipil = files["file_gambar_kerja_final_sipil"] ?? [];
             const fGambarMe = files["file_gambar_kerja_final_me"] ?? [];
+            const fRabSipil = files["file_rab_sipil"] ?? [];
+            const fRabMe = files["file_rab_me"] ?? [];
             
             try {
                 const folderId = await GoogleProvider.instance.getOrCreateProcessFolder("Project planning", projek.nomor_ulok, projek.nama_toko, projek.kode_toko, projek.cabang);
@@ -898,6 +1034,14 @@ export const projekPlanningService = {
                 if (fGambarMe.length > 0) {
                     const link = await uploadCompressedFiles(fGambarMe, folderId);
                     if (link) linkGambarMe = link;
+                }
+                if (fRabSipil.length > 0) {
+                    const link = await uploadCompressedFiles(fRabSipil, folderId);
+                    if (link) linkRabSipil = link;
+                }
+                if (fRabMe.length > 0) {
+                    const link = await uploadCompressedFiles(fRabMe, folderId);
+                    if (link) linkRabMe = link;
                 }
             } catch (e) {
                 console.error("Gagal upload RAB/Gambar ke Drive:", e);
@@ -915,7 +1059,9 @@ export const projekPlanningService = {
             normalizeLink(linkGambarSipil) !== normalizeLink(projek.link_gambar_kerja_final_sipil) ||
             normalizeLink(linkGambarMe) !== normalizeLink(projek.link_gambar_kerja_final_me);
 
-        const newStatus = PP_STATUS.WAITING_BM_APPROVAL_2;
+        const isSkipBm = shouldSkipBmApproval(payload.cabang || projek.cabang);
+        const newStatus = isSkipBm ? PP_STATUS.WAITING_BM_REGIONAL_APPROVAL : PP_STATUS.WAITING_BM_APPROVAL_2;
+        const normalizedProject = normalizeProjectByUlok(payload.nomor_ulok || projek.nomor_ulok, payload.jenis_proyek || projek.proyek);
 
         const { projek: updated } = await projekPlanningRepository.updateStatusWithLog(
             id,
@@ -925,10 +1071,20 @@ export const projekPlanningService = {
                 aksi: PP_AKSI.UPLOAD_RAB,
                 status_sebelum: projek.status,
                 status_sesudah: newStatus,
-                keterangan: payload.keterangan ?? "Input tahap kedua berhasil dikirim, menunggu approval B&M Manager tahap 2",
+                keterangan: payload.keterangan ?? (isSkipBm 
+                    ? "Input tahap kedua berhasil dikirim, bypass approval B&M Manager tahap 2, menunggu approval B&M Regional Manager"
+                    : "Input tahap kedua berhasil dikirim, menunggu approval B&M Manager tahap 2"),
             },
             (client) => projekPlanningRepository.updateRabUpload(id, newStatus, {
                 ...payload,
+                nomor_ulok: payload.nomor_ulok || projek.nomor_ulok || null,
+                nama_toko: payload.nama_toko || projek.nama_toko || null,
+                kode_toko: payload.kode_toko || projek.kode_toko || null,
+                cabang: payload.cabang || projek.cabang || null,
+                alamat_toko: payload.alamat_toko || projek.alamat_toko || null,
+                id_toko: payload.id_toko ?? projek.id_toko ?? 0,
+                proyek: normalizedProject,
+                jenis_proyek: normalizedProject,
                 link_rab_sipil: linkRabSipil,
                 link_rab_me: linkRabMe,
                 id_rab_sipil: selectedRabSipil?.id,
@@ -939,6 +1095,13 @@ export const projekPlanningService = {
                 gambar_changed: gambarChanged,
             }, client)
         );
+
+        const pInfo = { id, cabang: projek.cabang, nomor_ulok: projek.nomor_ulok, nama_toko: projek.nama_toko || projek.nama_lokasi || "", email_pembuat: projek.email_pembuat };
+        if (newStatus === PP_STATUS.WAITING_BM_APPROVAL_2) {
+            sendPpNotificationEmail("ACTION_REQUIRED", pInfo, "BRANCH BUILDING & MAINTENANCE MANAGER", "RAB dan Gambar Kerja Final telah diupload, menunggu persetujuan B&M Manager Tahap 2.");
+        } else if (newStatus === PP_STATUS.WAITING_BM_REGIONAL_APPROVAL) {
+            sendPpNotificationEmail("ACTION_REQUIRED", pInfo, "BUILDING & MAINTENANCE REGIONAL MANAGER", "RAB dan Gambar Kerja Final telah diupload (Bypass B&M Manager), menunggu persetujuan B&M Regional Manager.");
+        }
 
         return {
             id,
@@ -1007,6 +1170,13 @@ export const projekPlanningService = {
             }
         );
 
+        const pInfo = { id, cabang: projek.cabang, nomor_ulok: projek.nomor_ulok, nama_toko: projek.nama_toko || projek.nama_lokasi || "", email_pembuat: projek.email_pembuat };
+        if (isApprove) {
+            sendPpNotificationEmail("ACTION_REQUIRED", pInfo, "PROJECT PLANNING & DEVELOPMENT MANAGER", "FPD telah disetujui PP Specialist tahap 2, menunggu approval final.");
+        } else {
+            sendPpNotificationEmail("REJECTED", pInfo, "COORDINATOR", rejectReason, "PP Specialist");
+        }
+
         return {
             id,
             old_status: projek.status,
@@ -1071,6 +1241,11 @@ export const projekPlanningService = {
                 return updated;
             }
         );
+
+        const pInfo = { id, cabang: projek.cabang, nomor_ulok: projek.nomor_ulok, nama_toko: projek.nama_toko || projek.nama_lokasi || "", email_pembuat: projek.email_pembuat };
+        if (!isApprove) {
+            sendPpNotificationEmail("REJECTED", pInfo, "COORDINATOR", rejectReason, "PP Manager");
+        }
 
         return {
             id,

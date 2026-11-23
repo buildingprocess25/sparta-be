@@ -18,12 +18,13 @@ import {
     getRabPrefill,
     handleProjekPlanningIntervention,
     downloadPdf,
+    downloadPhotosPdf,
     proxyFile,
 } from "./project-planning.controller";
 
 const fpdUpload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+    limits: { fileSize: 150 * 1024 * 1024 }, // 150MB
 });
 
 const projekPlanningRouter = Router();
@@ -36,6 +37,8 @@ projekPlanningRouter.post(
     fpdUpload.fields([
         { name: "file_gambar_kerja_final_sipil", maxCount: 2 },
         { name: "file_gambar_kerja_final_me", maxCount: 2 },
+        { name: "file_rab_sipil", maxCount: 2 },
+        { name: "file_rab_me", maxCount: 2 },
     ]),
     handleUploadRab
 );
@@ -48,6 +51,7 @@ projekPlanningRouter.get("/:id/rab-prefill", getRabPrefill);
 projekPlanningRouter.get("/:id", getProjekPlanningById);
 projekPlanningRouter.get("/:id/logs", getProjekPlanningLogs);
 projekPlanningRouter.get("/:id/pdf", downloadPdf);
+projekPlanningRouter.get("/:id/photos-pdf", downloadPhotosPdf);
 projekPlanningRouter.get("/:id/proxy-file", proxyFile);
 projekPlanningRouter.post("/:id/intervention", handleProjekPlanningIntervention);
 

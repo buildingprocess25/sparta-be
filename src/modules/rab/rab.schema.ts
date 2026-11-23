@@ -1,12 +1,16 @@
 import { z } from "zod";
 
-const nonNegativeNumericText = z.string().trim().regex(/^\d+(\.\d+)?$/, {
-    message: "Nilai harus berupa angka non-negatif"
-});
+const nonNegativeNumericText = z.string().trim().transform(val => val.replace(/,/g, '.')).pipe(
+    z.string().regex(/^\d+(\.\d+)?$/, {
+        message: "Nilai harus berupa angka non-negatif"
+    })
+);
 
-const positiveNumericText = z.string().trim().regex(/^(?=.*[1-9])\d+(\.\d+)?$/, {
-    message: "Nilai harus berupa angka lebih dari 0"
-});
+const positiveNumericText = z.string().trim().transform(val => val.replace(/,/g, '.')).pipe(
+    z.string().regex(/^(?=.*[1-9])\d+(\.\d+)?$/, {
+        message: "Nilai harus berupa angka lebih dari 0"
+    })
+);
 
 const positiveIntegerText = z.string().trim().regex(/^[1-9]\d*$/, {
     message: "Nilai harus berupa bilangan bulat lebih dari 0"
@@ -52,6 +56,13 @@ export const submitRabSchema = z.object({
             z.enum(["true", "false"]).transform((value) => value === "true")
         ])
         .optional(),
+    is_takeover: z
+        .union([
+            z.boolean(),
+            z.enum(["true", "false"]).transform((value) => value === "true")
+        ])
+        .optional()
+        .default(false),
     id_rab_revisi: z.coerce.number().int().positive().optional(),
     kategori_lokasi: z.string().optional(),
     no_polis: z.string().optional(),

@@ -10,6 +10,9 @@ import { ganttRepository } from "./gantt.repository";
 import { dokumentasiBangunanService } from "../dokumentasi/dokumentasi.service";
 import { spkRepository } from "../spk/spk.repository";
 import { SPK_APPROVED_STATUSES } from "../spk/spk.constants";
+import { opnameService, uploadFotoOpnameToDrive } from "../opname/opname.service";
+import { uploadDokumentasiToDrive } from "../pengawasan/pengawasan.service";
+import { pool } from "../../db/pool";
 import type {
     AddDayItemsInput,
     CreateGanttNoteInput,
@@ -20,7 +23,8 @@ import type {
     SubmitGanttInput,
     UpdateGanttInput,
     UpdateKecepatanInput,
-    UpdateKeterlambatanInput
+    UpdateKeterlambatanInput,
+    SubmitTakeoverInspectionInput
 } from "./gantt.schema";
 
 // ---------------------------------------------------------------------------
@@ -342,11 +346,25 @@ async function autoSyncPicPengawasanForGantt(
 }
 
 export const ganttService = {
-    async getSupervisionWorkspace(nomorUlok: string) {
-        const scopes = await ganttRepository.findSupervisionWorkspace(nomorUlok);
+    async getSupervisionWorkspace(nomorUlok: string, takeoverSequence?: number) {
+        const scopes = await ganttRepository.findSupervisionWorkspace(nomorUlok, takeoverSequence);
         if (scopes.length === 0) {
             throw new AppError("ULOK tidak ditemukan", 404);
         }
+        
+        let tanggalTakeover: string | null = null;
+        try {
+            const { rows } = await pool.query(
+                `SELECT tanggal_takeover FROM takeover_inspections WHERE nomor_ulok = $1 ORDER BY id DESC LIMIT 1`,
+                [nomorUlok]
+            );
+            if (rows.length > 0) {
+                tanggalTakeover = rows[0].tanggal_takeover;
+            }
+        } catch (e) {
+            console.error("Error fetching tanggal_takeover:", e);
+        }
+
         const unifiedMetadata = buildUnifiedSupervisionMetadata(scopes);
         const activeScopes = scopes.filter((scope) => scope.gantt_id);
         const allActiveScopesReady = activeScopes.length > 0
@@ -401,6 +419,7 @@ export const ganttService = {
             kode_toko: scopes[0]?.kode_toko ?? null,
             cabang: scopes[0]?.cabang ?? null,
             pic_bersama: scopes.find((scope) => scope.plc_building_support)?.plc_building_support ?? null,
+            tanggal_takeover: tanggalTakeover,
             scopes,
             serah_terima_ready: scopes
                 .filter((scope) => scope.gantt_id)
@@ -424,7 +443,8 @@ export const ganttService = {
 
         const existingToko = await tokoRepository.findByNomorUlokAndLingkup(
             payload.nomor_ulok,
-            payload.lingkup_pekerjaan
+            payload.lingkup_pekerjaan,
+            payload.takeover_sequence
         );
 
         if (existingToko) {
@@ -465,6 +485,7 @@ export const ganttService = {
         const gantt = await ganttRepository.createWithDetails({
             // toko fields
             nomor_ulok: payload.nomor_ulok,
+            takeover_sequence: payload.takeover_sequence,
             lingkup_pekerjaan: payload.lingkup_pekerjaan,
             nama_toko: payload.nama_toko,
             kode_toko: payload.kode_toko,
@@ -759,6 +780,14 @@ export const ganttService = {
 
         const gantt = await ganttRepository.findById(id);
         if (gantt) {
+            const { rows: takeoverRows } = await pool.query(
+                `SELECT 1 FROM takeover_inspections WHERE nomor_ulok = $1 LIMIT 1`,
+                [gantt.toko.nomor_ulok]
+            );
+            if (takeoverRows.length > 0) {
+                throw new AppError("ULOK ini sudah di-takeover. Tidak dapat mengisi pengawasan lagi.", 403);
+            }
+
             const isSpkApproved = await spkRepository.existsApprovedByUlokAndLingkup(
                 gantt.toko.nomor_ulok,
                 gantt.toko.lingkup_pekerjaan ?? ""
@@ -1148,6 +1177,178 @@ export const ganttService = {
             total_groups:   ganttRows.length,
             limit_applied:  limit,
         };
+    },
+
+    submitTakeoverInspection: async (input: SubmitTakeoverInspectionInput, files: Express.Multer.File[] = [], userEmail: string = "system") => {
+        // Cek apakah sudah pernah diinspeksi
+        const check = await pool.query(`SELECT id FROM takeover_inspections WHERE nomor_ulok = $1`, [input.nomor_ulok]);
+        if (check.rowCount && check.rowCount > 0) {
+            throw new AppError("Inspeksi Takeover untuk ULOK ini sudah pernah dilakukan.", 400);
+        }
+
+        // 1. Dapatkan ID Toko untuk setiap Gantt Chart yang terkait
+        const ganttIds = Array.from(new Set(input.items.map(i => i.id_gantt)));
+        const ganttTokoMap: Record<number, number> = {};
+        const ganttPengawasanMap: Record<number, number> = {}; // Mapping id_gantt to id_pengawasan_gantt
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            // Parse tanggal_takeover
+        let dateObj: Date;
+        if (typeof input.tanggal_takeover === 'string') {
+            dateObj = new Date(input.tanggal_takeover);
+        } else {
+            dateObj = new Date(input.tanggal_takeover);
+        }
+
+        // Format untuk kolom date di takeover_inspections (YYYY-MM-DD)
+        const yyyy = dateObj.getFullYear();
+        const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const dd = String(dateObj.getDate()).padStart(2, '0');
+        const takeoverDateStr = `${yyyy}-${mm}-${dd}`;
+        
+        // Format untuk kolom varchar di pengawasan_gantt (DD/MM/YYYY)
+        const takeoverDateStrPengawasan = `${dd}/${mm}/${yyyy}`;
+
+        if (ganttIds.length > 0) {
+                const { rows: ganttRows } = await client.query(
+                    `SELECT g.id, t.id AS id_toko FROM gantt_chart g
+                     JOIN toko t ON t.id = g.id_toko
+                     WHERE g.id = ANY($1::int[])`,
+                    [ganttIds]
+                );
+                for (const row of ganttRows) {
+                    ganttTokoMap[row.id] = row.id_toko;
+                }
+
+                // Temukan atau buat pengawasan_gantt untuk tanggal_takeover
+                
+                for (const idGantt of ganttIds) {
+                    const { rows: pgRows } = await client.query(
+                        `SELECT id AS id_pengawasan_gantt FROM pengawasan_gantt 
+                         WHERE id_gantt = $1 AND (tanggal_pengawasan = $2 OR tanggal_pengawasan = $3)`,
+                        [idGantt, takeoverDateStrPengawasan, takeoverDateStr]
+                    );
+                    
+                    if (pgRows.length > 0) {
+                        ganttPengawasanMap[idGantt] = pgRows[0].id_pengawasan_gantt;
+                    } else {
+                        const { rows: inserted } = await client.query(
+                            `INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan) 
+                             VALUES ($1, $2) RETURNING id as id_pengawasan_gantt`,
+                            [idGantt, takeoverDateStrPengawasan]
+                        );
+                        if (inserted.length > 0) {
+                            ganttPengawasanMap[idGantt] = inserted[0].id_pengawasan_gantt;
+                        }
+                    }
+                }
+            }
+
+            const opnamePayloadsByToko: Record<number, any[]> = {};
+
+            // 2. Insert or update pengawasan items
+            for (let i = 0; i < input.items.length; i++) {
+                const item = input.items[i];
+                const idToko = ganttTokoMap[item.id_gantt];
+                if (!idToko) continue; // Gantt tidak valid
+                
+                // Cek dokumentasi pengawasan (untuk Tidak Dikerjakan, dsb)
+                const fileDokumentasi = files.find(f => f.fieldname === `file_dokumentasi_${i}`);
+                let dokumentasiLink: string | null = null;
+                if (fileDokumentasi) {
+                    dokumentasiLink = await uploadDokumentasiToDrive(item.id_gantt, fileDokumentasi as any);
+                }
+
+                const idPengawasanGantt = ganttPengawasanMap[item.id_gantt] || null;
+
+                const updateArgs: any[] = [item.status, "Sistem: Pre-inspeksi Takeover", item.id_gantt, item.kategori_pekerjaan, item.jenis_pekerjaan || null, idPengawasanGantt];
+                let setDokumentasi = "";
+                if (dokumentasiLink) {
+                    updateArgs.push(dokumentasiLink);
+                    setDokumentasi = `, dokumentasi = $${updateArgs.length}`;
+                }
+
+                const updateRes = await client.query(
+                    `UPDATE pengawasan
+                     SET status = $1, catatan = $2, id_pengawasan_gantt = $6 ${setDokumentasi}
+                     WHERE id_gantt = $3 AND kategori_pekerjaan = $4 AND (jenis_pekerjaan = $5 OR (jenis_pekerjaan IS NULL AND $5 IS NULL))
+                     RETURNING id`,
+                    updateArgs
+                );
+
+                if (updateRes.rowCount === 0) {
+                    const insertArgs: any[] = [
+                        item.id_gantt, 
+                        item.kategori_pekerjaan, 
+                        item.jenis_pekerjaan || null, 
+                        item.status, 
+                        "Sistem: Pre-inspeksi Takeover", 
+                        idPengawasanGantt
+                    ];
+                    if (dokumentasiLink) insertArgs.push(dokumentasiLink);
+
+                    await client.query(
+                        `INSERT INTO pengawasan (id_gantt, kategori_pekerjaan, jenis_pekerjaan, status, catatan, id_pengawasan_gantt${dokumentasiLink ? ', dokumentasi' : ''})
+                         VALUES ($1, $2, $3, $4, $5, $6${dokumentasiLink ? `, $7` : ''})`,
+                        insertArgs
+                    );
+                }
+
+                if (item.status === 'Selesai' && item.opname_data) {
+                    const payload: any = {
+                        ...item.opname_data,
+                        status: "pending",
+                        id_toko: idToko
+                    };
+
+                    const fileField = `file_opname_${i}`;
+                    const uploadedFile = files.find(f => f.fieldname === fileField);
+                    if (uploadedFile) {
+                        payload.foto = await uploadFotoOpnameToDrive(idToko, uploadedFile as any);
+                    }
+
+                    if (!opnamePayloadsByToko[idToko]) opnamePayloadsByToko[idToko] = [];
+                    opnamePayloadsByToko[idToko].push(payload);
+                }
+            }
+
+            // 3. Simpan rekam inspeksi takeover
+            const result = await client.query(
+                `INSERT INTO takeover_inspections (nomor_ulok, tanggal_takeover)
+                 VALUES ($1, $2) RETURNING id`,
+                [input.nomor_ulok, takeoverDateStr]
+            );
+
+            // 4. Proses opname data (bulk insert ke opname_item per toko)
+            for (const [tokoIdStr, payloads] of Object.entries(opnamePayloadsByToko)) {
+                if (payloads.length === 0) continue;
+                const tokoId = parseInt(tokoIdStr, 10);
+                const opnameResult = await opnameService.createBulk({
+                    id_toko: tokoId,
+                    tipe_opname: "OPNAME",
+                    email_pembuat: userEmail,
+                    grand_total_opname: "0",
+                    grand_total_rab: "0",
+                    items: payloads
+                }, [], undefined, client);
+
+                if (opnameResult && (opnameResult as any).statusCode) {
+                    throw new AppError((opnameResult as any).message || "Gagal menyimpan opname dari takeover.", (opnameResult as any).statusCode);
+                }
+            }
+
+            await client.query('COMMIT');
+            return result.rows[0];
+        } catch (error: any) {
+            await client.query('ROLLBACK');
+            require('fs').appendFileSync('error.log', new Date().toISOString() + ' - Takeover Inspection Error: ' + (error.stack || error) + '\n');
+            throw error;
+        } finally {
+            client.release();
+        }
     }
 };
 

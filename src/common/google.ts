@@ -486,10 +486,11 @@ export class GoogleProvider {
                 });
 
                 if (options?.makePublic !== false) {
-                    await this.setPublicPermission(drive, uploaded.data.id ?? undefined);
+                    this.setPublicPermission(drive, uploaded.data.id ?? undefined).catch((err) => {
+                        console.warn(`[Drive] Non-blocking permission warning for ${uploaded.data.id}:`, err?.message || err);
+                    });
                 }
 
-                await sleep(250);
                 return {
                     id: uploaded.data.id ?? undefined,
                     webViewLink: uploaded.data.webViewLink ?? undefined,
@@ -613,6 +614,21 @@ export class GoogleProvider {
             }
         }
         return null;
+    }
+
+    /** Stream file secara langsung untuk menghindari OOM dan Render timeout */
+    async getFileStreamById(drive: drive_v3.Drive, fileId: string): Promise<NodeJS.ReadableStream | null> {
+        try {
+            const resp = await drive.files.get(
+                { fileId, alt: "media", supportsAllDrives: true },
+                { responseType: "stream" },
+            );
+            return resp.data as NodeJS.ReadableStream;
+        } catch (error: any) {
+            const status = error?.code ?? error?.response?.status;
+            console.error("[google] Gagal stream file Drive via API", { fileId, status, message: error?.message });
+            return null;
+        }
     }
 
     /** Sama persis dg Python get_kontraktor_by_cabang(), dengan normalisasi nama wilayah. */

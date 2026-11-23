@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { asyncHandler } from "../../common/async-handler";
 import { AppError } from "../../common/app-error";
 import { injectBranchFilter } from "../../common/branch-filter-helper";
-import { getApprovalBranchesForUser, getEffectiveBranchesForUser, normalizeBranchScopeName } from "../../common/branch-scope";
+import { getApprovalBranchesForUser, getEffectiveBranchesForUser, normalizeBranchScopeName, getUserCoverageBranches } from "../../common/branch-scope";
 import {
     submitProjekPlanningSchema,
     resubmitProjekPlanningSchema,
@@ -18,7 +18,7 @@ import {
 } from "./project-planning.schema";
 import { projekPlanningService } from "./project-planning.service";
 
-async function fetchPublicDriveBuffer(fileId: string): Promise<Buffer | null> {
+async function fetchPublicDriveStream(fileId: string): Promise<{ stream: NodeJS.ReadableStream, contentType: string, contentLength: number | null } | null> {
     const urls = [
         `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}`,
         `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download`,
@@ -27,13 +27,18 @@ async function fetchPublicDriveBuffer(fileId: string): Promise<Buffer | null> {
     for (const url of urls) {
         try {
             const response = await fetch(url);
-            if (!response.ok) continue;
+            if (!response.ok || !response.body) continue;
+            
             const contentType = response.headers.get("content-type") || "";
-            const body = Buffer.from(await response.arrayBuffer());
-            if (!body.length) continue;
-            // Halaman HTML Google Drive "can't access" bukan file valid.
-            if (contentType.includes("text/html") && body.toString("utf8", 0, Math.min(body.length, 300)).includes("<html")) continue;
-            return body;
+            // Jika merespon HTML, berarti Google Drive memblokir (butuh login/akses)
+            if (contentType.includes("text/html")) continue;
+
+            const contentLengthStr = response.headers.get("content-length");
+            const contentLength = contentLengthStr ? parseInt(contentLengthStr, 10) : null;
+
+            const { Readable } = await import("stream");
+            const stream = Readable.fromWeb(response.body as any);
+            return { stream, contentType, contentLength };
         } catch {
             // lanjut ke URL berikutnya
         }
@@ -53,12 +58,13 @@ const isBmRegionalRole = (roles: string[] | undefined) => roleIncludes(roles, "B
 const isPpSpecialistRole = (roles: string[] | undefined) => roleIncludes(roles, "PROJECT PLANNING & DEVELOPMENT SPECIALIST", "PP SPECIALIST") || ((roles ?? []).some((role) => normalizeRole(role).includes("PROJECT PLANNING") && !normalizeRole(role).includes("MANAGER")));
 const isPpManagerRole = (roles: string[] | undefined) => roleIncludes(roles, "PROJECT PLANNING & DEVELOPMENT MANAGER", "PROJECT PLANNING MANAGER", "PP MANAGER");
 const isHeadOfficeRole = (roles: string[] | undefined) => (roles ?? []).map(normalizeRole).includes("HEAD OFFICE");
-const BRANCHES_WITH_COORDINATOR_BM_APPROVAL = ["BATAM"];
+const isStoreBranchControllingRole = (roles: string[] | undefined) => roleIncludes(roles, "STORE & BRANCH CONTROLLING");
+const BRANCHES_WITH_COORDINATOR_BM_APPROVAL: string[] = [];
 const canCoordinatorApproveBmForBranch = (branch?: string | null) =>
     BRANCHES_WITH_COORDINATOR_BM_APPROVAL.includes(normalizeBranchScopeName(branch));
 
 const hasProjectPlanningRole = (roles: string[] | undefined) =>
-    isSuperHuman(roles) || isHeadOfficeRole(roles) || isCoordinatorRole(roles) || isBmRole(roles) || isBmRegionalRole(roles) || isPpSpecialistRole(roles) || isPpManagerRole(roles);
+    isSuperHuman(roles) || isHeadOfficeRole(roles) || isCoordinatorRole(roles) || isBmRole(roles) || isBmRegionalRole(roles) || isPpSpecialistRole(roles) || isPpManagerRole(roles) || isStoreBranchControllingRole(roles);
 
 function requireUser(req: Request) {
     if (!req.user) throw new AppError("Sesi tidak valid. Silakan login kembali.", 401);
@@ -179,6 +185,20 @@ export const listProjekPlanning = asyncHandler(async (req: Request, res: Respons
     const user = assertProjectPlanningRole(req);
     let query = listProjekPlanningQuerySchema.parse(req.query);
     query = await injectBranchFilter(user, query);
+
+    // PP Specialist & PP Manager: global access KHUSUS di Project Planning saja
+    if ((isPpSpecialistRole(user.roles) || isPpManagerRole(user.roles)) && !isSuperHuman(user.roles)) {
+        query.cabang_array = undefined;
+        query._is_global_access = true;
+    }
+
+    // Regional Manager: filter by coverage branches, bukan global
+    if (isBmRegionalRole(user.roles) && !isSuperHuman(user.roles) && !isPpSpecialistRole(user.roles) && !isPpManagerRole(user.roles)) {
+        const coverage = await getUserCoverageBranches(user.email_sat, user.cabang);
+        query.cabang_array = coverage.length > 0 ? coverage : [user.cabang];
+        query._is_global_access = false;
+    }
+
     if (isCoordinatorOnly(user.roles)) {
         query.email_pembuat = user.email_sat;
     }
@@ -369,7 +389,9 @@ export const handleUploadRab = asyncHandler(async (req: Request, res: Response) 
 
     res.json({
         status: "success",
-        message: "Data tahap kedua berhasil dikirim, menunggu approval B&M Manager tahap 2",
+        message: result.new_status === "WAITING_BM_REGIONAL_APPROVAL"
+            ? "Data tahap kedua berhasil dikirim, bypass approval B&M Manager, menunggu approval B&M Regional Manager"
+            : "Data tahap kedua berhasil dikirim, menunggu approval B&M Manager tahap 2",
         data: result,
     });
 });
@@ -455,6 +477,22 @@ export const downloadPdf = asyncHandler(async (req: Request, res: Response) => {
     res.send(buffer);
 });
 
+export const downloadPhotosPdf = asyncHandler(async (req: Request, res: Response) => {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+        res.status(400).json({ status: "error", message: "ID tidak valid" });
+        return;
+    }
+
+    const detail = await projekPlanningService.getById(id);
+    await assertProjectPlanningBranchAccess(req, detail.projek.cabang);
+    const buffer = await projekPlanningService.generatePhotosPdf(id);
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename=Project_Planning_Photos_${id}.pdf`);
+    res.send(buffer);
+});
+
 // ============================================================
 // PROXY FILE — stream GDrive file ke client (agar semua role bisa lihat/unduh)
 // GET /:id/proxy-file?field=fpd|rab_sipil|rab_me|rab|gambar_kerja|desain_3d|fpd_approved|foto_item&item_index=N&mode=view|download
@@ -508,15 +546,17 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
         return;
     }
 
-    fileUrl = String(fileUrl).split(/\r?\n/).map((item) => item.trim()).filter(Boolean)[0];
+    const fileIndex = req.query.file_index ? parseInt(String(req.query.file_index), 10) : 0;
+    const fileLinks = String(fileUrl).split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
+    fileUrl = fileLinks[fileIndex] || fileLinks[0];
 
     // Ekstrak fileId dari URL GDrive
     const { extractGdriveFileId } = await import("./project-planning.pdf");
     const fileId = extractGdriveFileId(fileUrl);
 
     if (!fileId) {
-        // Bukan URL GDrive — redirect langsung
-        res.redirect(fileUrl);
+        // Bukan URL GDrive — kembalikan status redirect agar frontend menangani via window.open
+        res.status(400).json({ status: "redirect", url: fileUrl, message: "Bukan URL GDrive. Redirect manual." });
         return;
     }
 
@@ -531,42 +571,67 @@ export const proxyFile = asyncHandler(async (req: Request, res: Response) => {
     // Ambil metadata file
     let mimeType = "application/octet-stream";
     let fileName = `file_${field}_${id}`;
+    let fileSize = 0;
     try {
         if (!drive) throw new Error("docDrive unavailable");
-        const meta = await drive.files.get({ fileId, fields: "name, mimeType" });
+        const meta = await drive.files.get({ fileId, fields: "name, mimeType, size", supportsAllDrives: true });
         if (meta.data.name) fileName = meta.data.name;
         if (meta.data.mimeType) mimeType = meta.data.mimeType;
+        if (meta.data.size) fileSize = parseInt(meta.data.size, 10);
     } catch {
         try {
             if (!spartaDrive) throw new Error("spartaDrive unavailable");
-            const meta = await spartaDrive.files.get({ fileId, fields: "name, mimeType" });
+            const meta = await spartaDrive.files.get({ fileId, fields: "name, mimeType, size", supportsAllDrives: true });
             if (meta.data.name) fileName = meta.data.name;
             if (meta.data.mimeType) mimeType = meta.data.mimeType;
+            if (meta.data.size) fileSize = parseInt(meta.data.size, 10);
         } catch {
             // ignore, gunakan default
         }
     }
 
-    // Download buffer
-    let buffer = drive ? await GoogleProvider.instance.getFileBufferById(drive, fileId) : null;
-    if (!buffer && spartaDrive) {
-        buffer = await GoogleProvider.instance.getFileBufferById(spartaDrive, fileId);
+    const safeAsciiName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const encodedName = encodeURIComponent(fileName);
+
+    // Stream file untuk menghindari Out Of Memory (OOM) dan render timeout
+    let stream = drive ? await GoogleProvider.instance.getFileStreamById(drive, fileId) : null;
+    if (!stream && spartaDrive) {
+        stream = await GoogleProvider.instance.getFileStreamById(spartaDrive, fileId);
     }
-    if (!buffer) {
-        buffer = await fetchPublicDriveBuffer(fileId);
-    }
-    if (!buffer) {
-        res.status(502).json({ status: "error", message: "Gagal mengambil file dari Drive. Pastikan file RAB dapat diakses oleh token backend atau dibagikan sebagai viewer." });
+
+    if (stream) {
+        res.setHeader("Content-Type", mimeType);
+        res.setHeader(
+            "Content-Disposition",
+            mode === "download"
+                ? `attachment; filename="${safeAsciiName}"; filename*=UTF-8''${encodedName}`
+                : `inline; filename="${safeAsciiName}"; filename*=UTF-8''${encodedName}`
+        );
+        if (fileSize) {
+            res.setHeader("Content-Length", fileSize);
+        }
+        stream.pipe(res);
         return;
     }
 
-    res.setHeader("Content-Type", mimeType);
+    // Jika file gagal di-stream (misal ukuran file terlalu kecil atau restriksi), fallback ke stream public
+    const publicData = await fetchPublicDriveStream(fileId);
+    if (!publicData) {
+        // Fallback: biarkan frontend membuka URL aslinya saja langsung ke GDrive
+        // Jika file terlalu besar (kena virus scan) atau terproteksi, browser user bisa menanganinya
+        res.status(400).json({ status: "redirect", url: fileUrl, message: "Gagal mem-proxy file. Redirect ke link asli Google Drive." });
+        return;
+    }
+
+    res.setHeader("Content-Type", publicData.contentType || mimeType);
     res.setHeader(
         "Content-Disposition",
         mode === "download"
-            ? `attachment; filename="${encodeURIComponent(fileName)}"`
-            : `inline; filename="${encodeURIComponent(fileName)}"`
+            ? `attachment; filename="${safeAsciiName}"; filename*=UTF-8''${encodedName}`
+            : `inline; filename="${safeAsciiName}"; filename*=UTF-8''${encodedName}`
     );
-    res.setHeader("Content-Length", buffer.length);
-    res.send(buffer);
+    if (publicData.contentLength) {
+        res.setHeader("Content-Length", publicData.contentLength);
+    }
+    publicData.stream.pipe(res);
 });

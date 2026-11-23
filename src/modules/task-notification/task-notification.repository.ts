@@ -1,6 +1,6 @@
 import { spkNotificationSql } from './spk-notification.sql';
 import { rabApprovalNotificationSql } from './rab-approval-notification.sql';
-import { getBranchScopeCandidates } from "../../common/branch-scope";
+import { getBranchScopeCandidates, hasGlobalAccess } from "../../common/branch-scope";
 import { pool } from "../../db/pool";
 import type { AuthenticatedUser } from "../auth/auth-session.service";
 
@@ -108,6 +108,7 @@ const normalizeCompanySql = (expression: string) =>
 
 const addBranchScope = (user: AuthenticatedUser, values: SqlValue[], branchExpression: string): string => {
     if (isSuperHuman(user)) return "";
+    if (hasGlobalAccess(user.cabang, user.roles)) return "";
 
     if (isBranchSupportRole(user)) {
         const branches = getBranchScopeCandidates(user.cabang);
@@ -163,6 +164,7 @@ const addBranchScope = (user: AuthenticatedUser, values: SqlValue[], branchExpre
 
 const addApprovalBranchScope = (user: AuthenticatedUser, values: SqlValue[], branchExpression: string): string => {
     if (isSuperHuman(user)) return "";
+    if (hasGlobalAccess(user.cabang, user.roles)) return "";
 
     values.push(user.email_sat);
     const emailIndex = values.length;
@@ -386,7 +388,8 @@ const findInstruksiLapanganApproval = async (user: AuthenticatedUser): Promise<N
     if (!stage || stage === "DIREKTUR" || stage === "DIREKTUR_KONTRAKTOR" || stage === "KONTRAKTOR") return [];
 
     const values: SqlValue[] = [];
-    const statuses = stage === "ALL"
+    const isBatamKoordinator = stage === "KOORDINATOR" && user.cabang?.toUpperCase() === "BATAM";
+    const statuses = stage === "ALL" || isBatamKoordinator
         ? ["Menunggu Persetujuan Koordinator", "Menunggu Persetujuan Manager"]
         : stage === "KOORDINATOR"
             ? ["Menunggu Persetujuan Koordinator"]
@@ -1013,9 +1016,9 @@ const findSpkCreationRequired = async (user: AuthenticatedUser): Promise<Notific
             SELECT
                 r.id AS entity_id,
                 r.id_toko,
-                COALESCE(t.nama_toko, pp.nomor_ulok) AS title,
-                COALESCE(pp.nomor_ulok, t.kode_toko) AS nomor_ulok,
-                UPPER(TRIM(pp.lingkup_pekerjaan)) AS lingkup_pekerjaan,
+                COALESCE(t.nama_toko, t.nomor_ulok, pp.nomor_ulok) AS title,
+                COALESCE(t.nomor_ulok, pp.nomor_ulok, t.kode_toko) AS nomor_ulok,
+                UPPER(TRIM(COALESCE(t.lingkup_pekerjaan, pp.lingkup_pekerjaan))) AS lingkup_pekerjaan,
                 t.cabang,
                 r.status,
                 r.created_at
@@ -1029,10 +1032,10 @@ const findSpkCreationRequired = async (user: AuthenticatedUser): Promise<Notific
                   FROM pengajuan_spk spk
                   WHERE spk.id_toko = r.id_toko
                     AND (
-                        (spk.nomor_ulok IS NOT NULL AND spk.nomor_ulok = pp.nomor_ulok) 
+                        (spk.nomor_ulok IS NOT NULL AND spk.nomor_ulok = COALESCE(t.nomor_ulok, pp.nomor_ulok)) 
                         OR spk.nomor_ulok IS NULL
                     )
-                    AND UPPER(TRIM(spk.lingkup_pekerjaan)) = UPPER(TRIM(pp.lingkup_pekerjaan))
+                    AND UPPER(TRIM(spk.lingkup_pekerjaan)) = UPPER(TRIM(COALESCE(t.lingkup_pekerjaan, pp.lingkup_pekerjaan)))
               )
         )
         SELECT
