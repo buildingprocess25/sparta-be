@@ -4,11 +4,15 @@ import multer from "multer";
 import {
     bulkApproveOpname,
     createBulkOpname,
+    createCheckpointOpname,
     createOpname,
     downloadOpnameFoto,
     deleteOpname,
     getOpnameById,
+    listContractorFirstOpname,
     listOpname,
+    reviewContractorFirstOpname,
+    reviseContractorFirstOpname,
     updateOpname
 } from "./opname.controller";
 
@@ -70,6 +74,10 @@ opnameRouter.post(
     ]),
     createBulkOpname
 );
+opnameRouter.post("/checkpoint-submit", opnameUpload.any(), createCheckpointOpname);
+opnameRouter.get("/contractor-first/list", listContractorFirstOpname);
+opnameRouter.patch("/:id/revision", opnameUpload.any(), reviseContractorFirstOpname);
+opnameRouter.patch("/:id/support-review", reviewContractorFirstOpname);
 opnameRouter.post("/bulk-approve", bulkApproveOpname);
 opnameRouter.get("/", listOpname);
 opnameRouter.get("/:id", getOpnameById);
@@ -84,3 +92,4 @@ opnameRouter.put(
 opnameRouter.delete("/:id", deleteOpname);
 
 export { opnameRouter };
+

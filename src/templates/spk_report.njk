@@ -92,6 +92,11 @@
             margin: 20px 0;
         }
 
+        .combined-costs { width: 100%; border-collapse: collapse; }
+        .combined-costs td { padding: 2px 0; }
+        .combined-costs td:last-child { text-align: right; white-space: nowrap; font-weight: bold; }
+        .combined-costs .total td { border-top: 1px solid #aaa; padding-top: 4px; font-weight: bold; }
+
         .signatures {
             margin-top: 45px;
             width: 100%;
@@ -235,8 +240,17 @@
             <div class="cost-section">
                 <ul>
                     <li><strong>Perincian Biaya :</strong><br>
+                        {% if combined_spk %}
+                        <table class="combined-costs">
+                            {% for row in cost_rows %}
+                            <tr><td>Pekerjaan {{ row.scope }}</td><td>Rp. {{ row.cost_formatted }},-</td></tr>
+                            {% endfor %}
+                            <tr class="total"><td>Total SIPIL + ME</td><td>Rp. {{ total_cost_formatted }},-</td></tr>
+                        </table>
+                        {% else %}
                         Pekerjaan {{ lingkup_pekerjaan }}
                         <strong style="float: right;">Rp. {{ total_cost_formatted }},-</strong>
+                        {% endif %}
                     </li>
                 </ul>
                 <p><strong>Terbilang : ( {{ terbilang }} Rupiah )</strong></p>

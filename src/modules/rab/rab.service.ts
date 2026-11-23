@@ -1,3 +1,5 @@
+import { sortRabDocumentScopes } from './rab-document';
+import { buildRabDocumentExcel } from './rab-document.excel';
 import { AppError } from "../../common/app-error";
 import { emailNotificationService } from "../email-notification/email-notification.service";
 import { PDFParse } from "pdf-parse";
@@ -1394,18 +1396,33 @@ export async function regenerateRabPdfs(
     const proyek = filenameParts.proyek ?? fullData.toko.proyek ?? "N/A";
     const nomorUlok = filenameParts.nomorUlok ?? fullData.toko.nomor_ulok ?? "UNKNOWN";
 
+    const siblingId = await rabRepository.findActiveSiblingRabId(rabId);
+    let siblingToko = null;
+    let siblingRab = null;
+    let siblingItems = null;
+    if (siblingId) {
+        const siblingData = await rabRepository.findById(String(siblingId));
+        if (siblingData) {
+            siblingToko = siblingData.toko;
+            siblingRab = siblingData.rab;
+            siblingItems = siblingData.items;
+        }
+    }
+
     const pdfNonSbo = await buildRabPdfBuffer({
         rab: rabForPdf,
         items: fullData.items,
         toko: fullData.toko,
-        hideCoordinatorInfo
+        hideCoordinatorInfo,
+        siblingRab,
+        siblingItems, siblingToko
     });
     logRab("PDF", "PDF non SBO selesai dibuat", { rabId });
 
     const pdfRecap = await buildRecapPdfBuffer({
         rab: rabForPdf,
         items: fullData.items,
-        toko: fullData.toko
+        toko: fullData.toko, siblingRab, siblingItems, siblingToko
     });
     logRab("PDF", "PDF rekap selesai dibuat", { rabId });
 
@@ -1419,14 +1436,13 @@ export async function regenerateRabPdfs(
         currentLingkup: fullData.toko.lingkup_pekerjaan,
         currentMateraiLink: fullData.rab.link_pdf_materai
     });
-    if (materaiPage) {
-        pdfBuffersToMerge.push(materaiPage);
-    }
+
 
     const pdfSph = await generateSphPdf({
         rab: rabForPdf,
         items: fullData.items,
         toko: fullData.toko,
+        siblingRab, siblingItems, siblingToko,
         logoOverride: logoDataUri,
         alamat_cabang: alamatCabang
     });
@@ -1441,9 +1457,10 @@ export async function regenerateRabPdfs(
     logRab("PDF", "PDF SPH diupload", { rabId, linkSph });
 
     pdfBuffersToMerge.push(pdfRecap, pdfNonSbo);
+    if (materaiPage) pdfBuffersToMerge.push(materaiPage);
 
-    const insuranceLink = fullData.rab.file_asuransi?.trim();
-    if (insuranceLink) {
+    const insuranceLinks = [...new Set([fullData.rab.file_asuransi?.trim(), siblingRab?.file_asuransi?.trim()].filter((link): link is string => Boolean(link)))];
+    for (const insuranceLink of insuranceLinks) {
         try {
             const insuranceFile = await fetchFileBufferByLink(insuranceLink);
             if (insuranceFile?.buffer?.length) {
@@ -1967,8 +1984,12 @@ export const rabService = {
             ? await projekPlanningRepository.findById(data.rab.projek_planning_id)
             : null;
 
+        const siblingId = await rabRepository.findActiveSiblingRabId(id);
+        const sibling = siblingId ? await rabRepository.findById(String(siblingId)) : null;
+        const documentScopes = sortRabDocumentScopes(sibling ? [data, sibling] : [data]);
         return {
             ...data,
+            document_scopes: documentScopes,
             rab: {
                 ...normalizeRabFileLinks(data.rab),
                 coordinator_info_prefill: buildRabCoordinatorInfoPrefill(data.rab, planningData?.projek ?? null),
@@ -2077,6 +2098,11 @@ export const rabService = {
 
         await validateInternalApprovalBranchAccess(data, action);
         const newStatus = resolveStatusTransition(data.rab.status, action, data.toko.cabang);
+
+        // Cari sibling RAB (Sipil/ME) yang memiliki status yang sama SEBELUM status RAB utama ini diubah.
+        // Dengan ini, aksi approval/penolakan akan otomatis ikut mempengaruhi sibling-nya.
+        const siblingId = await rabRepository.findSiblingRabId(id);
+
         if (action.tindakan === "REJECT") {
             const revisionItemIds = action.revisi_item_ids ?? [];
             const uniqueRevisionItemIds = new Set(revisionItemIds);
@@ -2087,7 +2113,7 @@ export const rabService = {
             // Validasi: hanya item yang benar-benar ada di RAB ini yang boleh masuk revisi.
             // Item yang tidak valid (stale frontend cache / FK mismatch) di-skip agar
             // tidak menyebabkan FK violation yang memblokir seluruh transaksi penolakan.
-            const validRabItemIds = new Set(data.items.map((item: RabItemRow) => item.id));
+            const validRabItemIds = new Set(data.items.map((item: RabItemRow) => Number(item.id)));
             const validRevisionItemIds = revisionItemIds.filter(itemId => validRabItemIds.has(itemId));
 
             if (revisionItemIds.length > 0 && validRevisionItemIds.length !== revisionItemIds.length) {
@@ -2114,6 +2140,27 @@ export const rabService = {
             );
             logRab("APPROVAL", "RAB ditolak", { rabId: id, newStatus });
 
+            if (siblingId) {
+                const siblingData = await rabRepository.findById(String(siblingId));
+                if (siblingData) {
+                    const validSiblingRabItemIds = new Set(siblingData.items.map((item: RabItemRow) => Number(item.id)));
+                    const validSiblingRevisionItemIds = revisionItemIds.filter(itemId => validSiblingRabItemIds.has(itemId));
+                    const siblingRevisionItems = validSiblingRevisionItemIds.map((itemId) => ({
+                        id_rab_item: itemId,
+                        catatan_item: revisionItemNotes[String(itemId)] ?? null
+                    }));
+                    await rabRepository.rejectRabAndActivateLatestGanttGuarded(
+                        String(siblingId),
+                        newStatus,
+                        action.alasan_penolakan ?? "",
+                        action.approver_email,
+                        action.catatan_approval ?? null,
+                        siblingRevisionItems
+                    );
+                    logRab("APPROVAL", "Sibling RAB ditolak otomatis", { rabId: id, siblingId, newStatus });
+                }
+            }
+
             // Safety net: restore toko fields AFTER the transaction commits,
             // in case a deferred trigger or other side-effect corrupted them.
             await rabRepository.restoreTokoStableFieldsByRabId(id, tokoStableFields);
@@ -2122,6 +2169,11 @@ export const rabService = {
             validateRabCoordinatorAdditionalInfo(action);
             await rabRepository.updateApproval(id, newStatus, action);
             logRab("APPROVAL", "RAB diapprove", { rabId: id, newStatus });
+
+            if (siblingId) {
+                await rabRepository.updateApproval(String(siblingId), newStatus, action);
+                logRab("APPROVAL", "Sibling RAB diapprove otomatis", { rabId: id, siblingId, newStatus });
+            }
         }
 
         if (action.tindakan === "APPROVE") {
@@ -2232,6 +2284,7 @@ export const rabService = {
                 logRab("DOWNLOAD", `PDF gabungan diregenerate sebelum download${hideCoordinatorInfo ? ' (tanpa info koordinator)' : ''}`, { rabId: id });
             }
         } catch (err) {
+            if (await rabRepository.findActiveSiblingRabId(id)) throw err;
             console.error("Warning: Gagal regenerate PDF RAB sebelum download, memakai link lama:", err);
         }
 
@@ -2748,7 +2801,7 @@ export const rabService = {
         const excelBuffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
 
         const filename = generateStandardFilename("RAB", rabData.toko.nomor_ulok, rabData.toko.nama_toko, rabData.toko.lingkup_pekerjaan, ".xlsx");
-
+        return { filename, excelBuffer };
         return { filename, excelBuffer };
     }
 };
