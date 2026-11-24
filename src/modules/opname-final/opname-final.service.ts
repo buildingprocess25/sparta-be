@@ -664,13 +664,6 @@ export const opnameFinalService = {
                 }
             }
 
-            if (payload.workflow_version === "contractor_first") {
-                const hasUnapprovedItem = payload.opname_item.some((item) => String(item.status ?? "").trim().toLowerCase() !== "disetujui");
-                if (hasUnapprovedItem) {
-                    throw new AppError("Finalisasi KTK contractor-first hanya dapat dilakukan setelah semua item disetujui support.", 409);
-                }
-            }
-
             const result = await opnameFinalRepository.lockById(id, payload);
             if (result.item_count === 0) {
                 throw new AppError("Data opname_final tidak ditemukan", 404);
@@ -678,8 +671,8 @@ export const opnameFinalService = {
 
             await refreshDendaAllocation(id, payload.id_toko);
             await opnameFinalRepository.updateTotals(id);
-            
-            regeneratePdfInBackground(id);
+            const linkPdf = await regeneratePdfAndUpload(id);
+            await opnameFinalRepository.updatePdfLink(id, linkPdf);
 
             return {
                 id: Number(id),
@@ -687,7 +680,7 @@ export const opnameFinalService = {
                 aksi: payload.aksi ?? "terkunci",
                 status_opname_final: OPNAME_FINAL_STATUS.WAITING_FOR_COORDINATOR,
                 item_count: result.item_count,
-                link_pdf_opname: "Generate ulang PDF KTK sedang diproses di background"
+                link_pdf_opname: linkPdf
             };
         } catch (error) {
             if (error instanceof AppError) {

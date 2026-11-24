@@ -9,7 +9,6 @@ import type {
 
 export type DokumentasiBangunanRow = {
     id: number;
-    jenis_dokumentasi: "BANGUNAN_TOKO_BARU" | "GRAND_OPENING" | null;
     jenis_toko: "REGULAR" | "FRANCHISE";
     nomor_ulok: string | null;
     nama_toko: string | null;
@@ -62,28 +61,11 @@ export type DokumentasiBangunanPrefillSourceRow = {
     tanggal_serah_terima_denda: string | null;
 };
 
-
-let dokumentasiSchemaReady: Promise<void> | null = null;
-
-const ensureDokumentasiKindSchema = async (): Promise<void> => {
-    if (!dokumentasiSchemaReady) {
-        dokumentasiSchemaReady = pool.query(`
-            ALTER TABLE dokumentasi_bangunan
-            ADD COLUMN IF NOT EXISTS jenis_dokumentasi VARCHAR(50) NOT NULL DEFAULT 'BANGUNAN_TOKO_BARU';
-
-            CREATE INDEX IF NOT EXISTS idx_dokumentasi_bangunan_jenis_dokumentasi
-            ON dokumentasi_bangunan(jenis_dokumentasi);
-        `).then(() => undefined);
-    }
-    await dokumentasiSchemaReady;
-};
 export const dokumentasiBangunanRepository = {
     async create(input: DokumentasiBangunanCreateInput): Promise<DokumentasiBangunanRow> {
-        await ensureDokumentasiKindSchema();
         const result = await pool.query<DokumentasiBangunanRow>(
             `
             INSERT INTO dokumentasi_bangunan (
-                jenis_dokumentasi,
                 jenis_toko,
                 nomor_ulok,
                 nama_toko,
@@ -101,10 +83,9 @@ export const dokumentasiBangunanRepository = {
                 alasan_revisi,
                 pic_dokumentasi
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
             RETURNING
                 id,
-                jenis_dokumentasi,
                 jenis_toko,
                 nomor_ulok,
                 nama_toko,
@@ -125,7 +106,6 @@ export const dokumentasiBangunanRepository = {
                 created_at
             `,
             [
-                input.jenis_dokumentasi ?? "BANGUNAN_TOKO_BARU",
                 input.jenis_toko ?? "REGULAR",
                 input.nomor_ulok,
                 input.nama_toko,
@@ -149,7 +129,6 @@ export const dokumentasiBangunanRepository = {
     },
 
     async update(id: number, input: DokumentasiBangunanUpdateInput): Promise<DokumentasiBangunanRow | null> {
-        await ensureDokumentasiKindSchema();
         const fields: string[] = [];
         const values: Array<string | null> = [];
 
@@ -159,7 +138,6 @@ export const dokumentasiBangunanRepository = {
             fields.push(`${column} = $${values.length}`);
         };
 
-        pushField("jenis_dokumentasi", input.jenis_dokumentasi);
         pushField("jenis_toko", input.jenis_toko);
         pushField("nomor_ulok", input.nomor_ulok);
         pushField("nama_toko", input.nama_toko);
@@ -188,7 +166,6 @@ export const dokumentasiBangunanRepository = {
             WHERE id = $${values.length + 1}
             RETURNING
                 id,
-                jenis_dokumentasi,
                 jenis_toko,
                 nomor_ulok,
                 nama_toko,
@@ -215,7 +192,6 @@ export const dokumentasiBangunanRepository = {
     },
 
     async updatePdfLink(id: number, linkPdf: string): Promise<void> {
-        await ensureDokumentasiKindSchema();
         await pool.query(
             `UPDATE dokumentasi_bangunan SET link_pdf = $1 WHERE id = $2`,
             [linkPdf, id]
@@ -223,12 +199,10 @@ export const dokumentasiBangunanRepository = {
     },
 
     async findById(id: number): Promise<DokumentasiBangunanRow | null> {
-        await ensureDokumentasiKindSchema();
         const result = await pool.query<DokumentasiBangunanRow>(
             `
             SELECT
                 id,
-                jenis_dokumentasi,
                 jenis_toko,
                 nomor_ulok,
                 nama_toko,
@@ -290,8 +264,7 @@ export const dokumentasiBangunanRepository = {
     },
 
     async list(query: DokumentasiBangunanListQueryInput): Promise<DokumentasiBangunanRow[]> {
-        await ensureDokumentasiKindSchema();
-        const conditions: string[] = [`COALESCE(jenis_dokumentasi, 'BANGUNAN_TOKO_BARU') = 'BANGUNAN_TOKO_BARU'`];
+        const conditions: string[] = [];
         const values: Array<string | string[]> = [];
 
         // SECURITY: Branch filtering - wajib ada untuk user non-global
@@ -321,7 +294,6 @@ export const dokumentasiBangunanRepository = {
             `
             SELECT
                 id,
-                jenis_dokumentasi,
                 jenis_toko,
                 nomor_ulok,
                 nama_toko,
@@ -351,7 +323,6 @@ export const dokumentasiBangunanRepository = {
     },
 
     async listPrefillSources(query: DokumentasiBangunanPrefillQueryInput): Promise<DokumentasiBangunanPrefillSourceRow[]> {
-        await ensureDokumentasiKindSchema();
         const conditions: string[] = [
             `NULLIF(TRIM(COALESCE(t.nomor_ulok, '')), '') IS NOT NULL`
         ];
@@ -368,7 +339,6 @@ export const dokumentasiBangunanRepository = {
                     SELECT 1
                     FROM dokumentasi_bangunan db
                     WHERE UPPER(TRIM(COALESCE(db.nomor_ulok, ''))) = UPPER(TRIM(COALESCE(t.nomor_ulok, '')))
-                      AND COALESCE(db.jenis_dokumentasi, 'BANGUNAN_TOKO_BARU') = 'BANGUNAN_TOKO_BARU'
                 )
             `);
         }
@@ -473,47 +443,7 @@ export const dokumentasiBangunanRepository = {
         return result.rows;
     },
 
-
-    async findLatestGrandOpeningByNomorUlok(nomorUlok: string): Promise<DokumentasiBangunanDetail | null> {
-        await ensureDokumentasiKindSchema();
-        const result = await pool.query<DokumentasiBangunanRow>(
-            `
-            SELECT
-                id,
-                jenis_dokumentasi,
-                jenis_toko,
-                nomor_ulok,
-                nama_toko,
-                kode_toko,
-                cabang,
-                tanggal_go,
-                tanggal_serah_terima,
-                tanggal_ambil_foto,
-                spk_awal,
-                spk_akhir,
-                kontraktor_sipil,
-                kontraktor_me,
-                link_pdf,
-                email_pengirim,
-                status_validasi,
-                alasan_revisi,
-                pic_dokumentasi,
-                created_at
-            FROM dokumentasi_bangunan
-            WHERE UPPER(TRIM(COALESCE(nomor_ulok, ''))) = UPPER(TRIM($1))
-              AND COALESCE(jenis_dokumentasi, 'BANGUNAN_TOKO_BARU') = 'GRAND_OPENING'
-            ORDER BY created_at DESC, id DESC
-            LIMIT 1
-            `,
-            [nomorUlok]
-        );
-        const dokumentasi = result.rows[0] ?? null;
-        if (!dokumentasi) return null;
-        const items = await this.getItems(dokumentasi.id);
-        return { dokumentasi, items };
-    },
     async delete(id: number): Promise<boolean> {
-        await ensureDokumentasiKindSchema();
         const result = await pool.query(
             `DELETE FROM dokumentasi_bangunan WHERE id = $1`,
             [id]
@@ -523,7 +453,6 @@ export const dokumentasiBangunanRepository = {
     },
 
     async getItems(idDokumentasi: number): Promise<DokumentasiBangunanItemRow[]> {
-        await ensureDokumentasiKindSchema();
         const result = await pool.query<DokumentasiBangunanItemRow>(
             `
             SELECT id, id_dokumentasi_bangunan, item_index, link_foto, sudut_foto, created_at
@@ -541,7 +470,6 @@ export const dokumentasiBangunanRepository = {
         idDokumentasi: number,
         items: { link_foto: string; sudut_foto?: string | null; item_index?: number | null }[]
     ): Promise<DokumentasiBangunanItemRow[]> {
-        await ensureDokumentasiKindSchema();
         if (items.length === 0) return [];
 
         return withTransaction(async (client) => {
@@ -566,7 +494,6 @@ export const dokumentasiBangunanRepository = {
     },
 
     async deleteItem(itemId: number): Promise<DokumentasiBangunanItemRow | null> {
-        await ensureDokumentasiKindSchema();
         const result = await pool.query<DokumentasiBangunanItemRow>(
             `
             DELETE FROM dokumentasi_bangunan_item

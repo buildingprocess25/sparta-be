@@ -249,45 +249,6 @@ export const rabRepository = {
         return result.rows[0] ?? null;
     },
 
-    async findSiblingRabId(rabId: string | number): Promise<number | null> {
-        const result = await pool.query<{id: number}>(
-            `SELECT sibling.id
-             FROM rab r
-             JOIN toko t1 ON r.id_toko = t1.id
-             JOIN toko t2 ON t1.nomor_ulok = t2.nomor_ulok
-             JOIN rab sibling ON sibling.id_toko = t2.id AND r.id != sibling.id
-             WHERE r.id = $1
-               AND sibling.status = r.status
-             ORDER BY sibling.id DESC
-             LIMIT 1`,
-            [rabId]
-        );
-        return result.rows[0]?.id ?? null;
-    },
-
-    async findActiveSiblingRabId(rabId: string | number): Promise<number | null> {
-        const result = await pool.query<{id: number}>(
-            `SELECT sibling.id
-             FROM rab r
-             JOIN toko t1 ON r.id_toko = t1.id
-             JOIN toko t2 ON t1.nomor_ulok = t2.nomor_ulok
-             JOIN rab sibling ON sibling.id_toko = t2.id AND r.id != sibling.id
-             WHERE r.id = $1
-               AND sibling.status = ANY($2::text[])
-               AND sibling.status = r.status
-               AND upper(trim(t1.cabang)) = upper(trim(t2.cabang))
-               AND upper(trim(coalesce(t1.proyek,''))) = upper(trim(coalesce(t2.proyek,'')))
-               AND upper(trim(coalesce(r.nama_pt,''))) = upper(trim(coalesce(sibling.nama_pt,'')))
-               AND upper(trim(t1.lingkup_pekerjaan)) IN ('SIPIL','ME')
-               AND upper(trim(t2.lingkup_pekerjaan)) IN ('SIPIL','ME')
-               AND upper(trim(t1.lingkup_pekerjaan)) <> upper(trim(t2.lingkup_pekerjaan))
-             ORDER BY sibling.id DESC
-             LIMIT 1`,
-            [rabId, ACTIVE_RAB_STATUSES]
-        );
-        return result.rows[0]?.id ?? null;
-    },
-
     /** Cek RAB aktif berdasarkan nomor_ulok (lewat tabel toko) + lingkup */
     async existsActiveByTokoId(tokoId: number): Promise<boolean> {
         const result = await pool.query<{ exists: boolean }>(

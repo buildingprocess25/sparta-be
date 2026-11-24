@@ -26,18 +26,8 @@ export const createPengawasanSchema = z.object({
     }).optional()
 });
 
-const opnameReviewInPengawasanSchema = z.object({
-    id_opname_item: z.coerce.number().int().positive(),
-    decision: z.enum(["disetujui", "ditolak"]),
-    alasan_penolakan_support: z.string().trim().optional()
-}).superRefine((data, ctx) => {
-    if (data.decision === "ditolak" && !data.alasan_penolakan_support) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Alasan penolakan opname wajib diisi" });
-    }
-});
 export const bulkCreatePengawasanSchema = z.object({
-    items: z.array(createPengawasanSchema).min(1),
-    opname_reviews: z.array(opnameReviewInPengawasanSchema).optional().default([])
+    items: z.array(createPengawasanSchema).min(1)
 });
 
 const updatePengawasanFieldsSchema = z.object({
@@ -68,8 +58,7 @@ export const bulkUpdatePengawasanSchema = z.object({
         updatePengawasanFieldsSchema.extend({
             id: z.coerce.number().int().positive()
         })
-    ).min(1),
-    opname_reviews: z.array(opnameReviewInPengawasanSchema).optional().default([])
+    ).min(1)
 });
 
 export const listPengawasanQuerySchema = z.object({
@@ -92,5 +81,4 @@ export type BulkCreatePengawasanInput = z.infer<typeof bulkCreatePengawasanSchem
 export type UpdatePengawasanInput = z.infer<typeof updatePengawasanSchema>;
 export type BulkUpdatePengawasanInput = z.infer<typeof bulkUpdatePengawasanSchema>;
 export type BulkUpdatePengawasanItemInput = BulkUpdatePengawasanInput["items"][number];
-export type PengawasanOpnameReviewInput = BulkCreatePengawasanInput["opname_reviews"][number];
 export type ListPengawasanQueryInput = z.infer<typeof listPengawasanQuerySchema>;

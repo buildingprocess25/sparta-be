@@ -284,10 +284,12 @@ export const serahTerimaRepository = {
                     p.dokumentasi
                 FROM pengawasan p
                 LEFT JOIN pengawasan_gantt pg ON pg.id = p.id_pengawasan_gantt
-                WHERE p.id_gantt IN (
+                WHERE p.id_gantt = (
                     SELECT g.id
                     FROM gantt_chart g
                     WHERE g.id_toko = oi.id_toko
+                    ORDER BY g.id DESC
+                    LIMIT 1
                 )
                   AND UPPER(TRIM(COALESCE(p.kategori_pekerjaan, ''))) = UPPER(TRIM(COALESCE(
                         ri.kategori_pekerjaan,

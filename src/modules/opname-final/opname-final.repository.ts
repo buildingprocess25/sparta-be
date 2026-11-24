@@ -12,7 +12,6 @@ export type OpnameFinalRow = {
     tipe_opname: string;
     aksi: "active" | "terkunci" | string;
     status_opname_final: OpnameFinalStatus;
-    workflow_version: "legacy" | "contractor_first" | string | null;
     link_pdf_opname: string | null;
     email_pembuat: string | null;
     nama_pembuat: string | null;
@@ -161,7 +160,6 @@ const OPNAME_FINAL_COLUMNS = `
     ofn.tipe_opname,
     ofn.aksi,
     ofn.status_opname_final,
-    ofn.workflow_version,
     ofn.link_pdf_opname,
     ofn.email_pembuat,
     creator_user.nama_lengkap AS nama_pembuat,
@@ -291,15 +289,6 @@ export const opnameFinalRepository = {
         if (filter.tipe_opname) {
             values.push(filter.tipe_opname);
             conditions.push(`ofn.tipe_opname = $${values.length}`);
-        }
-
-        if (filter.workflow_version) {
-            values.push(filter.workflow_version);
-            if (filter.workflow_version === "legacy") {
-                conditions.push(`(ofn.workflow_version = $${values.length} OR ofn.workflow_version IS NULL)`);
-            } else {
-                conditions.push(`ofn.workflow_version = $${values.length}`);
-            }
         }
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
@@ -542,7 +531,6 @@ export const opnameFinalRepository = {
                 id: header.id,
                 id_toko: header.id_toko,
                 tipe_opname: header.tipe_opname,
-                workflow_version: header.workflow_version,
                 aksi: header.aksi,
                 status_opname_final: header.status_opname_final,
                 link_pdf_opname: header.link_pdf_opname,
@@ -911,8 +899,8 @@ export const opnameFinalRepository = {
     },
     async lockById(opnameFinalId: string, payload: LockOpnameFinalInput): Promise<{ item_count: number }> {
         return withTransaction(async (client) => {
-            const existing = await client.query<{ id: number; workflow_version: string | null }>(
-                `SELECT id, workflow_version FROM opname_final WHERE id = $1 FOR UPDATE`,
+            const existing = await client.query<{ id: number }>(
+                `SELECT id FROM opname_final WHERE id = $1 FOR UPDATE`,
                 [opnameFinalId]
             );
 
@@ -920,33 +908,22 @@ export const opnameFinalRepository = {
                 return { item_count: 0 };
             }
 
-            const requestedWorkflow = payload.workflow_version ?? "legacy";
-            const existingWorkflow = existing.rows[0].workflow_version ?? "legacy";
-            if (existingWorkflow !== requestedWorkflow) {
-                throw new Error(`Workflow opname_final tidak sesuai. Data ${existingWorkflow} tidak dapat dikunci sebagai ${requestedWorkflow}.`);
-            }
-
-            const rabItemIds = payload.opname_item.map(i => i.id_rab_item).filter(id => id != null);
-            const ilItemIds = payload.opname_item.map(i => i.id_instruksi_lapangan_item).filter(id => id != null);
-
-            const existingData = await client.query<{ source_key: string; foto: string | null; id_pengawasan_gantt_target: number | null; tanggal_slot_opname: string | null }>(
+            const existingPhotos = await client.query<{ source_key: string; foto: string | null }>(
                 `
                 SELECT
                     CASE
                         WHEN id_rab_item IS NOT NULL THEN 'rab:' || id_rab_item::text
                         ELSE 'il:' || id_instruksi_lapangan_item::text
                     END AS source_key,
-                    foto,
-                    id_pengawasan_gantt_target,
-                    tanggal_slot_opname
+                    foto
                 FROM opname_item
-                WHERE id_rab_item = ANY($1::int[]) OR id_instruksi_lapangan_item = ANY($2::int[])
+                WHERE id_opname_final = $1
                 `,
-                [rabItemIds, ilItemIds]
+                [opnameFinalId]
             );
-            const dataBySource = new Map<string, { foto: string | null; target: number | null; tanggal: string | null }>();
-            for (const row of existingData.rows) {
-                dataBySource.set(row.source_key, { foto: row.foto, target: row.id_pengawasan_gantt_target, tanggal: row.tanggal_slot_opname });
+            const photoBySource = new Map<string, string | null>();
+            for (const row of existingPhotos.rows) {
+                photoBySource.set(row.source_key, row.foto);
             }
 
             await client.query(
@@ -956,19 +933,10 @@ export const opnameFinalRepository = {
 
             const values: Array<number | string | null> = [];
             const placeholders = payload.opname_item.map((item, index) => {
-                const base = index * 17;
+                const base = index * 14;
                 const sourceKey = item.id_rab_item
                     ? `rab:${item.id_rab_item}`
                     : `il:${item.id_instruksi_lapangan_item}`;
-                const existing = dataBySource.get(sourceKey) || { foto: null, target: null, tanggal: null };
-                if (requestedWorkflow === 'contractor_first' && (existing.target == null || existing.tanggal == null)) {
-                    require('fs').appendFileSync('lock_error.log', JSON.stringify({
-                        sourceKey,
-                        item,
-                        existing,
-                        dataBySourceKeys: Array.from(dataBySource.keys())
-                    }, null, 2) + '\\n');
-                }
                 values.push(
                     payload.id_toko,
                     Number(opnameFinalId),
@@ -982,14 +950,11 @@ export const opnameFinalRepository = {
                     item.desain ?? null,
                     item.kualitas ?? null,
                     item.spesifikasi ?? null,
-                    item.foto ?? existing.foto ?? null,
-                    item.catatan ?? null,
-                    requestedWorkflow,
-                    existing.target ?? null,
-                    existing.tanggal ?? null
+                    item.foto ?? photoBySource.get(sourceKey) ?? null,
+                    item.catatan ?? null
                 );
 
-                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14}, $${base + 15}, $${base + 16}, $${base + 17})`;
+                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14})`;
             });
 
             await client.query(
@@ -1008,10 +973,7 @@ export const opnameFinalRepository = {
                     kualitas,
                     spesifikasi,
                     foto,
-                    catatan,
-                    workflow_version,
-                    id_pengawasan_gantt_target,
-                    tanggal_slot_opname
+                    catatan
                 )
                 VALUES ${placeholders.join(", ")}
                 `,
@@ -1027,7 +989,6 @@ export const opnameFinalRepository = {
                     grand_total_opname = $4,
                     grand_total_rab = $5,
                     status_opname_final = $6,
-                    workflow_version = $7,
                     tipe_opname = 'OPNAME_FINAL',
                     alasan_penolakan = NULL,
                     pemberi_persetujuan_direktur = NULL,
@@ -1036,7 +997,7 @@ export const opnameFinalRepository = {
                     waktu_persetujuan_koordinator = NULL,
                     pemberi_persetujuan_manager = NULL,
                     waktu_persetujuan_manager = NULL
-                WHERE id = $8
+                WHERE id = $7
                 `,
                 [
                     payload.id_toko,
@@ -1045,7 +1006,6 @@ export const opnameFinalRepository = {
                     payload.grand_total_opname,
                     payload.grand_total_rab,
                     "Menunggu Persetujuan Koordinator",
-                    requestedWorkflow,
                     opnameFinalId
                 ]
             );
