@@ -13,7 +13,6 @@ type PriceItem = {
     "Harga Upah": PriceValue;
     "Input Material Manual"?: boolean;
     "Input Upah Manual"?: boolean;
-    lingkup_asal?: "SIPIL" | "ME";
 };
 
 export type PriceResult = Record<string, PriceItem[]>;
@@ -174,12 +173,11 @@ function normalizeCabangInput(value: string): string {
         .trim();
 }
 
-function normalizeLingkupInput(value: string): "ME" | "SIPIL" | "GABUNGAN" {
+function normalizeLingkupInput(value: string): "ME" | "SIPIL" {
     const normalized = value.trim().toUpperCase();
     if (normalized.includes("SIPIL")) return "SIPIL";
     if (normalized.includes("ME")) return "ME";
-    if (normalized.includes("GABUNGAN")) return "GABUNGAN";
-    return normalized as "ME" | "SIPIL" | "GABUNGAN";
+    return normalized as "ME" | "SIPIL";
 }
 
 async function getFirstSheetName(sheets: sheets_v4.Sheets, spreadsheetId: string): Promise<string> {
@@ -281,8 +279,7 @@ function processSheet(allValues: string[][], lingkup: "ME" | "SIPIL"): PriceResu
         const itemData: PriceItem = {
             "Jenis Pekerjaan": jenisPekerjaan,
             "Satuan": satuanVal,
-            ...priceValues,
-            lingkup_asal: lingkup
+            ...priceValues
         };
 
         if (!categorizedPrices[currentCategory]) categorizedPrices[currentCategory] = [];
@@ -309,8 +306,7 @@ function processSboSheet(records: Record<string, string>[], cabangKode: string, 
             "Jenis Pekerjaan": String(record["Item Pekerjaan"] ?? ""),
             "Satuan": String(record["Satuan"] ?? ""),
             "Harga Material": processPriceValue(record["Harga Material"]),
-            "Harga Upah": 0,
-            lingkup_asal: lingkup
+            "Harga Upah": 0
         });
     }
 
@@ -322,12 +318,6 @@ export const priceRabService = {
         const requestedCabang = normalizeCabangInput(cabangRaw);
         const cabang = getRabPriceBranch(requestedCabang);
         const lingkup = normalizeLingkupInput(lingkupRaw);
-
-        if (lingkup === "GABUNGAN") {
-            const sipilData = await this.getData(cabangRaw, "SIPIL");
-            const meData = await this.getData(cabangRaw, "ME");
-            return { ...sipilData, ...meData };
-        }
 
         if (!SPREADSHEET_IDS[cabang] || !SPREADSHEET_IDS[cabang][lingkup]) {
             throw new AppError("Invalid 'cabang' or 'lingkup' parameter", 404);

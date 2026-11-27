@@ -171,8 +171,8 @@ const insertPengawasan = async (
     for (const tanggalPengawasan of uniqueDates) {
         await client.query(
             `
-            INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan, workflow_version)
-            SELECT $1, $2, 'contractor_first'
+            INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan)
+            SELECT $1, $2
             WHERE NOT EXISTS (
                 SELECT 1
                 FROM pengawasan_gantt
@@ -365,8 +365,7 @@ export const ganttRepository = {
                 SELECT
                     s.id_toko,
                     pg.id AS id_pengawasan_gantt,
-                    pg.tanggal_pengawasan,
-                    pg.workflow_version
+                    pg.tanggal_pengawasan
                 FROM scope s
                 JOIN pengawasan_gantt pg ON pg.id_gantt = s.gantt_id
             ),
@@ -409,7 +408,6 @@ export const ganttRepository = {
                     tpg.id_toko,
                     tpg.id_pengawasan_gantt,
                     tpg.tanggal_pengawasan,
-                    tpg.workflow_version,
                     COUNT(p.id)::int AS total_items,
                     COUNT(p.id) FILTER (WHERE LOWER(TRIM(p.status)) IN ('selesai', 'tidak_dikerjakan'))::int AS selesai_items,
                     COUNT(p.id) FILTER (
@@ -461,7 +459,6 @@ export const ganttRepository = {
                             LEFT JOIN rab_item ri ON ri.id = oi.id_rab_item
                             LEFT JOIN instruksi_lapangan_item ili ON ili.id = oi.id_instruksi_lapangan_item
                             WHERE oi.id_toko = tpg.id_toko
-                              AND (tpg.workflow_version <> 'contractor_first' OR oi.status = 'disetujui')
                               AND UPPER(TRIM(COALESCE(
                                     ri.kategori_pekerjaan,
                                     ili.kategori_pekerjaan,
@@ -473,19 +470,11 @@ export const ganttRepository = {
                                     ''
                               ))) = UPPER(TRIM(COALESCE(p.jenis_pekerjaan, '')))
                           )
-                     )::int AS opname_items,
-                    (
-                        SELECT COUNT(*)::int
-                        FROM opname_item oi_submitted
-                        WHERE oi_submitted.id_toko = tpg.id_toko
-                          AND oi_submitted.workflow_version = 'contractor_first'
-                          AND oi_submitted.id_pengawasan_gantt_target = tpg.id_pengawasan_gantt
-                          AND oi_submitted.status IN ('pending', 'disetujui', 'ditolak')
-                    ) AS contractor_submitted_opname_items
+                    )::int AS opname_items
                 FROM target_pengawasan_gantt tpg
                 LEFT JOIN pengawasan_per_date p
                     ON p.id_pengawasan_gantt = tpg.id_pengawasan_gantt
-                GROUP BY tpg.id_toko, tpg.id_pengawasan_gantt, tpg.tanggal_pengawasan, tpg.workflow_version
+                GROUP BY tpg.id_toko, tpg.id_pengawasan_gantt, tpg.tanggal_pengawasan
             )
             SELECT
                 s.*,
@@ -536,15 +525,13 @@ export const ganttRepository = {
                         json_build_object(
                             'id_pengawasan_gantt', c.id_pengawasan_gantt,
                             'tanggal_pengawasan', c.tanggal_pengawasan,
-                            'workflow_version', c.workflow_version,
                             'total_items', c.total_items,
                             'selesai_items', c.selesai_items,
                             'filled_items', c.filled_items,
                             'documented_items', c.documented_items,
                             'missing_documentation_items', GREATEST(c.total_items - c.documented_items, 0),
                             'ready_opname_items', c.ready_opname_items,
-                            'opname_items', c.opname_items,
-                            'contractor_submitted_opname_items', c.contractor_submitted_opname_items
+                            'opname_items', c.opname_items
                         )
                         ORDER BY to_date(c.tanggal_pengawasan, 'DD/MM/YYYY')
                     ) FILTER (WHERE c.id_pengawasan_gantt IS NOT NULL),
@@ -890,7 +877,7 @@ export const ganttRepository = {
 
         // Pengawasan
         const pengawasanRes = await pool.query<PengawasanGanttRow>(
-            `SELECT id, id_gantt, id_pic_pengawasan, tanggal_pengawasan, workflow_version
+            `SELECT id, id_gantt, id_pic_pengawasan, tanggal_pengawasan
              FROM pengawasan_gantt
              WHERE id_gantt = $1
              ORDER BY id ASC`,
@@ -1299,8 +1286,8 @@ export const ganttRepository = {
             }
 
             const result = await pool.query<{ id: number }>(
-                `INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan, id_pic_pengawasan, workflow_version)
-                 VALUES ($1, $2, $3, 'contractor_first') RETURNING id`,
+                `INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan, id_pic_pengawasan)
+                 VALUES ($1, $2, $3) RETURNING id`,
                 [ganttId, tanggalPengawasan, idPicPengawasan ?? null]
             );
             ids.push(result.rows[0].id);
@@ -1425,8 +1412,8 @@ export const ganttRepository = {
 
         const insertResult = await pool.query(
             `
-            INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan, workflow_version)
-            SELECT latest_gantt.id, $2::text, 'contractor_first'
+            INSERT INTO pengawasan_gantt (id_gantt, tanggal_pengawasan)
+            SELECT latest_gantt.id, $2::text
             FROM toko t
             JOIN LATERAL (
                 SELECT g.id
@@ -1469,7 +1456,7 @@ export const ganttRepository = {
 
     async getPengawasanGanttByIdGantt(ganttId: string | number): Promise<{ id_pic_pengawasan: number | null, tanggal_pengawasan: string }[]> {
         const result = await pool.query<{ id_pic_pengawasan: number | null, tanggal_pengawasan: string }>(
-            `SELECT id_pic_pengawasan, tanggal_pengawasan, workflow_version
+            `SELECT id_pic_pengawasan, tanggal_pengawasan
              FROM pengawasan_gantt
              WHERE id_gantt = $1`,
             [ganttId]
@@ -1629,7 +1616,7 @@ export const ganttRepository = {
 
         // 7. Pengawasan
         const pengawasanRes = await pool.query<PengawasanGanttRow>(
-            `SELECT id, id_gantt, id_pic_pengawasan, tanggal_pengawasan, workflow_version
+            `SELECT id, id_gantt, id_pic_pengawasan, tanggal_pengawasan
              FROM pengawasan_gantt
              WHERE id_gantt = $1
              ORDER BY id ASC`,
@@ -1685,38 +1672,27 @@ export const ganttRepository = {
 
         // Get valid RAB categories
         const rabItems = await pool.query(`SELECT DISTINCT kategori_pekerjaan FROM rab_item WHERE id_rab = $1`, [rabId]);
-        const validCategories = rabItems.rows.map(r => r.kategori_pekerjaan.trim());
-        const validCategoriesUpper = validCategories.map(c => c.toUpperCase());
+        const validCategories = rabItems.rows.map(r => r.kategori_pekerjaan.trim().toUpperCase());
         if (validCategories.length === 0) return; // avoid deleting everything if RAB is fully empty somehow
 
         // Get Gantt categories
         const ganttCategories = await pool.query(`SELECT id, kategori_pekerjaan FROM kategori_pekerjaan_gantt WHERE id_gantt = $1`, [ganttId]);
         
-        const existingCategoryNamesUpper = ganttCategories.rows.map(gc => gc.kategori_pekerjaan.trim().toUpperCase());
         const invalidCategoryIds: number[] = [];
         for (const gc of ganttCategories.rows) {
-            if (!validCategoriesUpper.includes(gc.kategori_pekerjaan.trim().toUpperCase())) {
+            if (!validCategories.includes(gc.kategori_pekerjaan.trim().toUpperCase())) {
                 invalidCategoryIds.push(gc.id);
             }
         }
 
-        const missingCategories = validCategories.filter(vc => !existingCategoryNamesUpper.includes(vc.toUpperCase()));
+        if (invalidCategoryIds.length === 0) return;
 
-        if (invalidCategoryIds.length === 0 && missingCategories.length === 0) return;
-
-        // Clean up orphaned categories safely and insert new ones
+        // Clean up orphaned categories safely (no FK constraints to pengawasan since they link by id_gantt)
         await pool.query('BEGIN');
         try {
-            if (invalidCategoryIds.length > 0) {
-                await pool.query(`DELETE FROM day_gantt_chart WHERE id_kategori_pekerjaan_gantt = ANY($1::int[])`, [invalidCategoryIds]);
-                await pool.query(`DELETE FROM dependency_gantt WHERE id_kategori = ANY($1::int[]) OR id_kategori_terikat = ANY($1::int[])`, [invalidCategoryIds]);
-                await pool.query(`DELETE FROM kategori_pekerjaan_gantt WHERE id = ANY($1::int[])`, [invalidCategoryIds]);
-            }
-            
-            for (const mc of missingCategories) {
-                await pool.query(`INSERT INTO kategori_pekerjaan_gantt (id_gantt, kategori_pekerjaan) VALUES ($1, $2)`, [ganttId, mc]);
-            }
-
+            await pool.query(`DELETE FROM day_gantt_chart WHERE id_kategori_pekerjaan_gantt = ANY($1::int[])`, [invalidCategoryIds]);
+            await pool.query(`DELETE FROM dependency_gantt WHERE id_kategori = ANY($1::int[]) OR id_kategori_terikat = ANY($1::int[])`, [invalidCategoryIds]);
+            await pool.query(`DELETE FROM kategori_pekerjaan_gantt WHERE id = ANY($1::int[])`, [invalidCategoryIds]);
             await pool.query('COMMIT');
         } catch (e) {
             await pool.query('ROLLBACK');

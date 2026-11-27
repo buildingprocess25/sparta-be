@@ -46,28 +46,6 @@ const assertCurrentUserCanAccessRab = async (user: AuthenticatedUser, data: Awai
         throw new AppError("Anda tidak memiliki akses ke cabang dokumen ini.", 403);
     }
 };
-const normalizeRabItemScope = (item: {
-    lingkup_pekerjaan?: unknown;
-    lingkup_pekerjaan_item?: unknown;
-    lingkup_asal?: unknown;
-    kategori_pekerjaan?: unknown;
-}): "SIPIL" | "ME" | null => {
-    const rawScope = String(
-        item.lingkup_pekerjaan
-        ?? item.lingkup_pekerjaan_item
-        ?? item.lingkup_asal
-        ?? ""
-    ).trim().toUpperCase();
-
-    if (rawScope.includes("SIPIL")) return "SIPIL";
-    if (rawScope === "ME" || rawScope.includes("MEKANIKAL") || rawScope.includes("ELEKTRIKAL")) return "ME";
-
-    const category = String(item.kategori_pekerjaan ?? "").trim().toUpperCase();
-    if (["INSTALASI", "FIXTURE"].includes(category)) return "ME";
-    if (category) return "SIPIL";
-
-    return null;
-};
 
 export const submitRab = asyncHandler(async (req: Request, res: Response) => {
     let detailItems = req.body.detail_items;
@@ -137,50 +115,6 @@ export const submitRab = asyncHandler(async (req: Request, res: Response) => {
         nama_kontraktor: payload.nama_kontraktor,
         lingkup_pekerjaan: payload.lingkup_pekerjaan,
     }));
-    if (payload.lingkup_pekerjaan === "GABUNGAN") {
-        const sipilItems = payload.detail_items.filter((item) => normalizeRabItemScope(item) === "SIPIL");
-        const meItems = payload.detail_items.filter((item) => normalizeRabItemScope(item) === "ME");
-
-        if (sipilItems.length === 0) {
-            throw new AppError("RAB Gabungan harus memiliki setidaknya 1 item Sipil.", 422);
-        }
-        if (meItems.length === 0) {
-            throw new AppError("RAB Gabungan harus memiliki setidaknya 1 item ME.", 422);
-        }
-
-        const sipilPayload = { ...payload, lingkup_pekerjaan: "Sipil", detail_items: sipilItems };
-        const mePayload = { ...payload, lingkup_pekerjaan: "ME", detail_items: meItems };
-
-        if (payload.is_revisi && payload.id_rab_revisi) {
-            delete sipilPayload.id_rab_revisi;
-            delete mePayload.id_rab_revisi;
-            sipilPayload.is_revisi = false;
-            mePayload.is_revisi = false;
-        }
-
-        const sipilData = await rabService.submit(sipilPayload, {
-            insuranceFile: uploadedInsuranceFile,
-            revInsuranceFile: uploadedRevInsuranceFile,
-            revLogoFile: uploadedRevLogoFile,
-        });
-
-        const meData = await rabService.submit(mePayload, {
-            insuranceFile: uploadedInsuranceFile,
-            revInsuranceFile: uploadedRevInsuranceFile,
-            revLogoFile: uploadedRevLogoFile,
-        });
-
-        res.status(201).json({
-            status: "success",
-            message: "Pengajuan RAB Gabungan berhasil disimpan",
-            data: {
-                sipil: sipilData,
-                me: meData
-            }
-        });
-        return;
-    }
-
     const data = await rabService.submit(payload, {
         insuranceFile: uploadedInsuranceFile,
         revInsuranceFile: uploadedRevInsuranceFile,

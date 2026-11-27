@@ -4,8 +4,6 @@ import { env } from "../../config/env";
 import type { AuthenticatedUser } from "../auth/auth-session.service";
 import { calculateDendaByTokoId } from "../denda/denda-keterlambatan";
 import { opnameFinalService } from "../opname-final/opname-final.service";
-import { opnameRepository } from "../opname/opname.repository";
-import { dokumentasiBangunanService } from "../dokumentasi/dokumentasi.service";
 import { canManageSystemMaintenance } from "../system-maintenance/system-maintenance.service";
 import {
     buildSerahTerimaPdfBuffer,
@@ -16,10 +14,6 @@ import {
 import { serahTerimaRepository } from "./serah-terima.repository";
 import { ganttRepository } from "../gantt/gantt.repository";
 import { tokoRepository } from "../toko/toko.repository";
-import { dokumentasiBangunanRepository } from "../dokumentasi/dokumentasi.repository";
-import { buildDokumentasiBangunanPdfBuffer } from "../dokumentasi/dokumentasi.pdf";
-import { SerahTerimaGabunganRepository } from "../serah-terima-gabungan/serah-terima-gabungan.repository";
-import { buildSerahTerimaGabunganPdfBuffer } from "../serah-terima-gabungan/serah-terima-gabungan.pdf";
 import { PDFDocument } from "pdf-lib";
 
 const sanitizeFilenamePart = (value: string | undefined, fallback: string): string => {
@@ -175,15 +169,6 @@ const getSerahTerimaReadiness = async (idToko: number) => {
             };
         }
 
-        const totalExpected = Number(scope.total_expected_items || 0);
-        const totalSelesai = Number(scope.total_selesai_items || 0);
-        if (totalExpected === 0 || totalSelesai < totalExpected) {
-            return {
-                ready: false,
-                reason: `Masih ada ${Math.max(0, totalExpected - totalSelesai)} item pekerjaan yang belum selesai pengawasan pada lingkup ${scope.lingkup_pekerjaan}`,
-            };
-        }
-
         const opnameItems = (scope.checkpoints || []).reduce((sum: number, cp: any) => sum + Number(cp.opname_items || 0), 0);
         if (opnameItems === 0) {
             return {
@@ -210,16 +195,6 @@ const assertSerahTerimaReadyForUnified = async (idToko: number) => {
     const readiness = await getSerahTerimaReadiness(idToko);
     if (readiness.ready) return;
 
-    const toko = await tokoRepository.findById(idToko);
-    const workspaceScopes = toko?.nomor_ulok ? await ganttRepository.findSupervisionWorkspace(toko.nomor_ulok) : [];
-    const currentScope = workspaceScopes.find((scope: any) => Number(scope.id_toko) === Number(idToko));
-    const hasContractorFirstCheckpoint = (currentScope?.checkpoints || []).some((checkpoint: any) =>
-        String(checkpoint?.workflow_version || "").trim() === "contractor_first"
-    );
-    if (hasContractorFirstCheckpoint) {
-        throw new AppError(readiness.reason ?? "Serah Terima belum siap dibuat", 409);
-    }
-
     const existingBerkas = await serahTerimaRepository.findBerkasSerahTerimaByIdToko(idToko);
     if (existingBerkas?.link_pdf) {
         return;
@@ -228,24 +203,6 @@ const assertSerahTerimaReadyForUnified = async (idToko: number) => {
     throw new AppError(readiness.reason ?? "Serah Terima belum siap dibuat", 409);
 };
 
-
-const assertGrandOpeningReadyUnlessGenerated = async (idToko: number) => {
-    const existingBerkas = await serahTerimaRepository.findBerkasSerahTerimaByIdToko(idToko);
-    if (existingBerkas?.link_pdf) return;
-
-    const toko = await tokoRepository.findById(idToko);
-    if (!toko?.nomor_ulok) {
-        throw new AppError("Nomor ULOK tidak ditemukan untuk validasi Dokumentasi Bangunan", 409);
-    }
-
-    await SerahTerimaGabunganRepository.assertSubmitted(toko.nomor_ulok);
-};
-
-const assertGrandOpeningReadyForUnifiedUnlessGenerated = async (nomorUlok: string, scopes: Array<{ id: number }>) => {
-    const existingRows = await Promise.all(scopes.map((scope) => serahTerimaRepository.findBerkasSerahTerimaByIdToko(scope.id)));
-    if (existingRows.length > 0 && existingRows.every((row) => Boolean(row?.link_pdf))) return;
-    await SerahTerimaGabunganRepository.assertSubmitted(nomorUlok);
-};
 const automaticSerahTerimaInProgress = new Set<number>();
 const automaticUnifiedSerahTerimaInProgress = new Set<string>();
 const runningBerkasRegenerateJobs = new Set<number>();
@@ -518,7 +475,6 @@ export const serahTerimaService = {
         // Validate the required opname data before writing a serah-terima placeholder.
         // Previously, a failed generation could leave a row with link_pdf = NULL.
         await assertSerahTerimaReady(idToko);
-        await assertGrandOpeningReadyUnlessGenerated(idToko);
         await buildDetailByTokoId(idToko);
 
         const placeholder = referenceTimestamp
@@ -622,7 +578,6 @@ export const serahTerimaService = {
         for (const scope of targetScopes) {
             await assertSerahTerimaReadyForUnified(scope.id);
         }
-        await assertGrandOpeningReadyForUnifiedUnlessGenerated(nomorUlok, targetScopes);
 
         const placeholder = await serahTerimaRepository.ensureBerkasSerahTerima(masterScope.id);
         const existingScopeBerkas = await Promise.all(
@@ -716,15 +671,7 @@ export const serahTerimaService = {
             })),
         });
 
-        const buffersToMerge = [coverBuffer, ...pdfBuffers, assessmentBuffer];
-
-        const stGabungan = await SerahTerimaGabunganRepository.getFullDataForPdf(nomorUlok);
-        if (stGabungan && stGabungan.items.length > 0) {
-            const stgBuffer = await buildSerahTerimaGabunganPdfBuffer(stGabungan);
-            buffersToMerge.push(stgBuffer);
-        }
-
-        const mergedBuffer = await mergePdfBuffers(buffersToMerge);
+        const mergedBuffer = await mergePdfBuffers([coverBuffer, ...pdfBuffers, assessmentBuffer]);
 
         const proyek = sanitizeFilenamePart(masterScope.proyek ?? undefined, "PROYEK");
         const safeNomorUlok = sanitizeFilenamePart(nomorUlok, "ULOK");

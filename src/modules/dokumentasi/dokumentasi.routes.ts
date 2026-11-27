@@ -4,12 +4,10 @@ import {
     addDokumentasiBangunanItems,
     createDokumentasiBangunan,
     createDokumentasiBangunanPdf,
-    createDokumentasiGrandOpening,
     deleteDokumentasiBangunan,
     deleteDokumentasiBangunanItem,
     downloadDokumentasiBangunanPdf,
     getDokumentasiBangunanDetail,
-    getDokumentasiGrandOpeningStatus,
     listDokumentasiBangunan,
     listDokumentasiBangunanPrefillOptions,
     updateDokumentasiBangunan
@@ -33,14 +31,6 @@ dokumentasiRouter.post(
 dokumentasiRouter.get("/bangunan", listDokumentasiBangunan);
 
 dokumentasiRouter.get("/bangunan/prefill-options", listDokumentasiBangunanPrefillOptions);
-
-dokumentasiRouter.get("/grand-opening/:nomor_ulok/status", getDokumentasiGrandOpeningStatus);
-
-dokumentasiRouter.post(
-    "/grand-opening",
-    dokumentasiUpload.any(),
-    createDokumentasiGrandOpening
-);
 
 dokumentasiRouter.get("/bangunan/:id", getDokumentasiBangunanDetail);
 

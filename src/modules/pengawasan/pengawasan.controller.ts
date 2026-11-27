@@ -20,24 +20,6 @@ type UploadedDokumentasiFile = {
 
 type UploadedFilesMap = Record<string, UploadedDokumentasiFile[]>;
 
-const parseOptionalJsonArray = (value: unknown, fieldName: string): unknown[] | undefined => {
-    if (typeof value === "undefined" || value === null || value === "") return undefined;
-    if (Array.isArray(value)) return value;
-    if (typeof value !== "string") {
-        throw new AppError(`${fieldName} harus berupa array atau JSON string array`, 400);
-    }
-
-    try {
-        const parsed = JSON.parse(value);
-        if (!Array.isArray(parsed)) {
-            throw new AppError(`${fieldName} harus berupa JSON string array`, 400);
-        }
-        return parsed;
-    } catch (error) {
-        if (error instanceof AppError) throw error;
-        throw new AppError(`Format ${fieldName} tidak valid. Kirim sebagai JSON string array.`, 400);
-    }
-};
 const getUploadedFile = (
     files: UploadedFilesMap | undefined,
     fieldName: "file_dokumentasi" | "rev_file_dokumentasi" | "file_foto_opname" | "rev_file_foto_opname"
@@ -87,13 +69,11 @@ export const createBulkPengawasan = asyncHandler(async (req: Request, res: Respo
         }
     }
 
-    const parsedOpnameReviews = parseOptionalJsonArray(req.body.opname_reviews, "opname_reviews");
     const payloadCandidate = {
         ...req.body,
-        items: parsedItems,
-        opname_reviews: parsedOpnameReviews
+        items: parsedItems
     };
-    const { items, opname_reviews } = bulkCreatePengawasanSchema.parse(payloadCandidate);
+    const { items } = bulkCreatePengawasanSchema.parse(payloadCandidate);
 
     let parsedDokumentasiIndexes = req.body.file_dokumentasi_indexes;
     if (typeof req.body.file_dokumentasi_indexes === "string") {
@@ -162,9 +142,7 @@ export const createBulkPengawasan = asyncHandler(async (req: Request, res: Respo
         dokumentasiIndexes,
         uploadedFotoOpnameFiles,
         fotoOpnameIndexes,
-        req.user.email_sat,
-        req.user,
-        opname_reviews
+        req.user.email_sat
     );
 
     res.status(201).json({
@@ -276,13 +254,11 @@ export const updateBulkPengawasan = asyncHandler(async (req: Request, res: Respo
         }
     }
 
-    const parsedOpnameReviews = parseOptionalJsonArray(req.body.opname_reviews, "opname_reviews");
     const payloadCandidate = {
         ...req.body,
-        items: parsedItems,
-        opname_reviews: parsedOpnameReviews
+        items: parsedItems
     };
-    const { items, opname_reviews } = bulkUpdatePengawasanSchema.parse(payloadCandidate);
+    const { items } = bulkUpdatePengawasanSchema.parse(payloadCandidate);
 
     let parsedDokumentasiIndexes = req.body.rev_file_dokumentasi_indexes;
     if (typeof req.body.rev_file_dokumentasi_indexes === "string") {
@@ -354,9 +330,7 @@ export const updateBulkPengawasan = asyncHandler(async (req: Request, res: Respo
         dokumentasiIndexes,
         uploadedFotoOpnameFiles,
         fotoOpnameIndexes,
-        req.user.email_sat,
-        req.user,
-        opname_reviews
+        req.user.email_sat
     );
 
     res.json({

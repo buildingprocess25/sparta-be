@@ -166,22 +166,8 @@ export const pengawasanRepository = {
     async createBulk(items: CreatePengawasanData[], existingClient?: PoolClient): Promise<PengawasanRow[]> {
         return withTransaction(async (client) => {
             const rows: PengawasanRow[] = [];
-            const processedKeys = new Set<string>();
 
             for (const item of items) {
-                const kategoriPekerjaan = item.kategori_pekerjaan.trim();
-                const jenisPekerjaan = item.jenis_pekerjaan.trim();
-                const itemKey = [
-                    item.id_gantt,
-                    item.id_pengawasan_gantt,
-                    kategoriPekerjaan.toUpperCase(),
-                    jenisPekerjaan.toUpperCase()
-                ].join("|");
-
-                if (processedKeys.has(itemKey)) {
-                    continue;
-                }
-
                 const isAppendResolution = Boolean(item.append_resolution);
                 const existingResult = isAppendResolution
                     ? { rows: [] }
@@ -203,8 +189,8 @@ export const pengawasanRepository = {
                     [
                         item.id_gantt,
                         item.id_pengawasan_gantt,
-                        kategoriPekerjaan,
-                        jenisPekerjaan
+                        item.kategori_pekerjaan,
+                        item.jenis_pekerjaan
                     ]
                 );
 
@@ -238,7 +224,6 @@ export const pengawasanRepository = {
                             [existingId]
                         );
                         rows.push(unchanged.rows[0]);
-                        processedKeys.add(itemKey);
                         continue;
                     }
 
@@ -253,7 +238,6 @@ export const pengawasanRepository = {
                         values
                     );
                     rows.push(updated.rows[0]);
-                    processedKeys.add(itemKey);
                     continue;
                 }
 
@@ -274,12 +258,12 @@ export const pengawasanRepository = {
                     ]
                 );
                 rows.push(inserted.rows[0]);
-                processedKeys.add(itemKey);
             }
 
             return rows;
         }, existingClient);
     },
+
     async createNextTerlambatCarryForwardIfMissing(
         input: PengawasanCarryForwardInput,
         existingClient?: PoolClient
