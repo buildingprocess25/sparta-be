@@ -1,7 +1,9 @@
 import fs from "fs";
 import path from "path";
+import sharp from "sharp";
 import { renderHtmlTemplate, renderPdfFromHtml, resolveTemplatePath } from "../../common/html-pdf";
 import { GoogleProvider } from "../../common/google";
+import { convertHeicToJpegBuffer, isHeicBuffer } from "../../common/image-compressor";
 import { env } from "../../config/env";
 import type { ProjekPlanningRow } from "./project-planning.repository";
 
@@ -116,7 +118,7 @@ export function extractGdriveFileId(url: string): string | null {
  * Download file dari GDrive menggunakan docDrive OAuth dan konversi ke base64 data URL.
  * Return null jika gagal atau bukan URL GDrive.
  */
-async function gdriveUrlToBase64(url: string | null | undefined): Promise<string | null> {
+async function gdriveUrlToBase64(url: string | null | undefined, timeoutMs?: number): Promise<string | null> {
     if (!url) return null;
     const fileId = extractGdriveFileId(url);
     if (!fileId) return null;
@@ -124,8 +126,19 @@ async function gdriveUrlToBase64(url: string | null | undefined): Promise<string
     try {
         const drive = GoogleProvider.instance.docDrive;
         if (!drive) return null;
-        const buffer = await GoogleProvider.instance.getFileBufferById(drive, fileId);
+        const buffer = await GoogleProvider.instance.getFileBufferById(drive, fileId, timeoutMs);
         if (!buffer) return null;
+
+        // Tambahan: konversi HEIC/HEIF ke JPEG karena Chromium PDF tidak bisa merender HEIC
+        if (isHeicBuffer(buffer)) {
+            const jpegBuffer = await convertHeicToJpegBuffer(buffer, 0.5);
+            const resized = await sharp(jpegBuffer)
+                .resize({ width: 800, height: 800, fit: "inside", withoutEnlargement: true })
+                .jpeg({ quality: 80 })
+                .toBuffer();
+            return `data:image/jpeg;base64,${resized.toString("base64")}`;
+        }
+
         // Detect mime type dari magic bytes
         const head = buffer.slice(0, 4);
         let mime = "image/jpeg";
@@ -136,6 +149,77 @@ async function gdriveUrlToBase64(url: string | null | undefined): Promise<string
     } catch {
         return null;
     }
+}
+
+const FALLBACK_RETRY_CONCURRENCY = 5;
+const FALLBACK_RETRY_TIMEOUT_MS = 45000;
+
+/**
+ * Fallback cepat lewat thumbnailLink Drive (=s1200, sudah JPEG dari Google)
+ * bila unduhan penuh terkena timeout/abort (mis. foto HEIC >2 MB).
+ */
+async function fetchDriveThumbnailDataUrl(url: string | null | undefined): Promise<string | null> {
+    if (!url) return null;
+    const fileId = extractGdriveFileId(url);
+    const drive = GoogleProvider.instance.docDrive;
+    if (!fileId || !drive) return null;
+
+    try {
+        const meta = await drive.files.get(
+            { fileId, fields: "thumbnailLink", supportsAllDrives: true },
+            { timeout: 10000 }
+        );
+        const rawThumb = meta.data.thumbnailLink;
+        if (!rawThumb) return null;
+
+        const thumbUrl = rawThumb.replace(/=s\d+$/, "=s1200");
+        const response = await fetch(thumbUrl, { signal: AbortSignal.timeout(15000) });
+        if (!response.ok) return null;
+
+        const contentType = response.headers.get("content-type") || "";
+        if (!contentType.startsWith("image/")) return null;
+
+        const buf = Buffer.from(await response.arrayBuffer());
+        if (!buf.length) return null;
+        return `data:${contentType.split(";")[0]};base64,${buf.toString("base64")}`;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Enrich foto_items: pass 1 pakai Promise.all seperti perilaku awal;
+ * pass 2 hanya mencoba ulang item yang gagal/timeout (prioritas thumbnailLink JPEG, lalu full download).
+ */
+async function enrichProjekFotoItems(fotoItems: ProjekPlanningRow["foto_items"]) {
+    const items = fotoItems || [];
+    const enriched = await Promise.all(
+        items.map(async (foto) => {
+            const base64 = await gdriveUrlToBase64(foto.link_foto);
+            const label = PHOTO_POINT_LABELS[foto.item_index] ?? `Titik ${foto.item_index}`;
+            return { ...foto, base64, label };
+        })
+    );
+
+    const failedIndices = enriched
+        .map((item, idx) => (item.base64 === null ? idx : -1))
+        .filter((idx) => idx >= 0);
+
+    for (let i = 0; i < failedIndices.length; i += FALLBACK_RETRY_CONCURRENCY) {
+        const batch = failedIndices.slice(i, i + FALLBACK_RETRY_CONCURRENCY);
+        await Promise.all(
+            batch.map(async (idx) => {
+                const retryBase64 =
+                    (await fetchDriveThumbnailDataUrl(items[idx].link_foto)) ??
+                    (await gdriveUrlToBase64(items[idx].link_foto, FALLBACK_RETRY_TIMEOUT_MS));
+                if (retryBase64) {
+                    enriched[idx] = { ...enriched[idx], base64: retryBase64 };
+                }
+            })
+        );
+    }
+
+    return enriched;
 }
 
 // ── Main export ──────────────────────────────────────────────────────────────
@@ -167,13 +251,7 @@ export const buildProjekPlanningPdfBuffer = async (
     const hasPpManagerSignature = status === "COMPLETED" && !!projek.pp_manager_approver_email;
 
     // Enrich foto_items: download dari GDrive sebagai base64 dan tambahkan label
-    const enrichedFotoItems = await Promise.all(
-        (projek.foto_items || []).map(async (foto) => {
-            const base64 = await gdriveUrlToBase64(foto.link_foto);
-            const label = PHOTO_POINT_LABELS[foto.item_index] ?? `Titik ${foto.item_index}`;
-            return { ...foto, base64, label };
-        })
-    );
+    const enrichedFotoItems = await enrichProjekFotoItems(projek.foto_items);
 
     const skip_bm_approval = ["BATAM"].includes(String(projek.cabang ?? "").trim().toUpperCase());
 
@@ -207,13 +285,7 @@ export const buildProjekPlanningPhotosPdfBuffer = async (
     const templatePath = await resolveTemplatePath("projek_planning_photos_report.njk");
 
     // Enrich foto_items: download dari GDrive sebagai base64 dan tambahkan label
-    const enrichedFotoItems = await Promise.all(
-        (projek.foto_items || []).map(async (foto) => {
-            const base64 = await gdriveUrlToBase64(foto.link_foto);
-            const label = PHOTO_POINT_LABELS[foto.item_index] ?? `Titik ${foto.item_index}`;
-            return { ...foto, base64, label };
-        })
-    );
+    const enrichedFotoItems = await enrichProjekFotoItems(projek.foto_items);
 
     const skip_bm_approval = ["BATAM"].includes(String(projek.cabang ?? "").trim().toUpperCase());
 
